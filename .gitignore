@@ -1,0 +1,16 @@
+node_modules/ 
+.env 
+uploads/ 
+logs/ 
+backend/uploads/ 
+backend/logs/ 
+ 
+# Screenshots 
+backend/uploads/screenshots/ 
+# Env files 
+backend/src/.env 
+# OS files 
+.DS_Store 
+Thumbs.db 
+# Temp 
+*.bat.bak 

@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO. CMS — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    :root {
+      --magenta: #00f5d4;
+      --orange:  #7b61ff;
+      --yellow:  #a78bfa;
+      --black:   #0a0a0f;
+      --surface: #111118;
+      --surface2:#18181f;
+      --surface3:#1e1e28;
+      --border:  #1e1e2e;
+      --text:    #e8e8f0;
+      --muted:   #888;
+      --online:  #00e676;
+      --offline: #ff1744;
+      --warning: #FF8C00;
+      --grad: linear-gradient(135deg, var(--orange) 0%, var(--magenta) 100%);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--black);
+      color: var(--text);
+      min-height: 100vh;
+      font-weight: 400;
+    }
+
+    /* ── GRAD BAR ── */
+    .grad-bar { height:3px; background:var(--grad); width:100%; }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar-logo {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .topbar-divider { width:1px; height:20px; background:var(--border); }
+    .topbar-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .topbar-badge {
+      margin-left: 4px;
+      padding: 3px 10px;
+      background: rgba(255,27,141,0.12);
+      border: 1px solid rgba(255,27,141,0.3);
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--magenta);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-user {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .logout-btn {
+      padding: 7px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--magenta); color: var(--magenta); }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; height: calc(100vh - 59px); }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 210px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0 0;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .sidebar-group { margin-bottom: 4px; }
+    .sidebar-group-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px;
+      cursor: pointer; user-select: none;
+      transition: background 0.15s;
+    }
+    .sidebar-group-label {
+      font-size: 10px; font-weight: 800;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      flex: 1; line-height: 1.2;
+    }
+    .sidebar-group-arrow {
+      font-size: 9px; color: var(--muted);
+      transition: transform 0.2s; flex-shrink: 0;
+    }
+    .sidebar-group.open .sidebar-group-arrow { transform: rotate(90deg); }
+    .sidebar-children {
+      overflow: hidden; max-height: 0;
+      transition: max-height 0.25s ease;
+      padding: 0 8px;
+    }
+    .sidebar-group.open .sidebar-children { max-height: 300px; }
+    .sidebar-children-inner {
+      border-left: 2px solid var(--border);
+      margin-left: 12px; padding-left: 6px;
+      padding-bottom: 6px; padding-top: 2px;
+    }
+
+    .sidebar-group.monitor .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.monitor .sidebar-group-header:hover { background: rgba(255,27,141,0.06); }
+    .sidebar-group.monitor .sidebar-children-inner { border-color: rgba(255,27,141,0.25); }
+    .sidebar-group.monitor .sidebar-btn.active { background: rgba(255,27,141,0.1); color: var(--magenta); border-left-color: var(--magenta); }
+    .sidebar-group.monitor .sidebar-btn:hover { color: var(--magenta); }
+
+    .sidebar-group.clientes .sidebar-group-label { color: #ff8c00; }
+    .sidebar-group.clientes .sidebar-group-header:hover { background: rgba(255,140,0,0.06); }
+    .sidebar-group.clientes .sidebar-children-inner { border-color: rgba(255,140,0,0.25); }
+    .sidebar-group.clientes .sidebar-btn.active { background: rgba(255,140,0,0.1); color: #ff8c00; border-left-color: #ff8c00; }
+    .sidebar-group.clientes .sidebar-btn:hover { color: #ff8c00; }
+
+    .sidebar-group.servidor .sidebar-group-label { color: #00c8ff; }
+    .sidebar-group.servidor .sidebar-group-header:hover { background: rgba(0,200,255,0.06); }
+    .sidebar-group.servidor .sidebar-children-inner { border-color: rgba(0,200,255,0.2); }
+    .sidebar-group.servidor .sidebar-btn.active { background: rgba(0,200,255,0.1); color: #00c8ff; border-left-color: #00c8ff; }
+    .sidebar-group.servidor .sidebar-btn:hover { color: #00c8ff; }
+
+    .sidebar-btn {
+      display: block; width: 100%;
+      padding: 8px 10px;
+      background: transparent; border: none;
+      color: var(--muted); font-size: 12px; font-weight: 600;
+      text-align: left; cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      border-radius: 6px; transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar-btn:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-btn.active { background: var(--surface2); }
+
+    .sidebar-divider { height: 1px; background: var(--border); margin: 6px 14px; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .sidebar-back {
+      font-size: 11px; color: var(--muted);
+      text-decoration: none; display: flex;
+      align-items: center; gap: 6px;
+      transition: color 0.2s; background: none;
+      border: none; cursor: pointer;
+      font-family: 'Montserrat', sans-serif; font-weight: 600;
+    }
+    .sidebar-back:hover { color: var(--magenta); }
+
+    .user-filter-wrap {
+      display: flex; gap: 8px; align-items: center;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .user-filter-wrap select,
+    .user-filter-wrap input[type=text] {
+      flex: 1; min-width: 180px;
+      padding: 9px 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-family: 'Montserrat', sans-serif; font-size: 12px;
+    }
+    .user-filter-wrap select:focus,
+    .user-filter-wrap input[type=text]:focus { outline: none; border-color: var(--magenta); }
+
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .section-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── STAT CARDS ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .stat-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1;
+    }
+    .stat-value.grad {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-value.ok { color: var(--online); }
+    .stat-value.warn { color: var(--warning); }
+    .stat-value.err { color: var(--offline); }
+    .stat-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* ── STAT ROWS ── */
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row-label { color: var(--muted); }
+    .stat-row-val { color: var(--text); font-weight: 600; }
+    .stat-row-val.ok { color: var(--online); }
+    .stat-row-val.err { color: var(--offline); }
+    .stat-row-val.warn { color: var(--warning); }
+
+    /* ── PROGRESS ── */
+    .progress-wrap { margin-top: 8px; }
+    .progress-bar-bg {
+      background: var(--surface3);
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--grad);
+      transition: width 0.4s;
+    }
+    .progress-bar-fill.warn { background: var(--warning); }
+    .progress-bar-fill.err { background: var(--offline); }
+
+    /* ── GRID 2 COL ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    /* ── PROCESS ITEM ── */
+    .process-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .process-item.stopped { border-left: 3px solid var(--offline); }
+    .process-item.running { border-left: 3px solid var(--online); }
+    .process-name {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.online { background: var(--online); box-shadow: 0 0 6px var(--online); }
+    .status-dot.offline { background: var(--offline); }
+    .status-dot.warn { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+    .process-meta {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 16px;
+    }
+    .process-meta span { display: flex; flex-direction: column; }
+    .process-meta small {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #555;
+      margin-bottom: 2px;
+    }
+    .process-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--grad);
+      color: white;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-outline:hover { border-color: var(--magenta); color: var(--magenta); }
+    .btn-danger {
+      background: transparent;
+      border: 1px solid rgba(255,23,68,0.3);
+      color: var(--offline);
+    }
+    .btn-danger:hover { background: rgba(255,23,68,0.1); }
+    .btn-warn {
+      background: transparent;
+      border: 1px solid rgba(255,140,0,0.3);
+      color: var(--warning);
+    }
+    .btn-warn:hover { background: rgba(255,140,0,0.1); }
+    .btn-sm { padding: 6px 12px; font-size: 11px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── LOGS ── */
+    .logs-box {
+      background: #0a0a0a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #00e676;
+      max-height: 280px;
+      overflow-y: auto;
+      line-height: 1.6;
+      margin-top: 12px;
+    }
+    .logs-box .log-err { color: var(--offline); }
+    .logs-box .log-warn { color: var(--warning); }
+    .logs-box .log-info { color: #60a5fa; }
+    .logs-box:empty::before { content: 'Sin logs disponibles.'; color: var(--muted); }
+
+    /* ── RPi CARDS ── */
+    .rpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .rpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .rpi-card-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .rpi-name {
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rpi-ip {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .rpi-status-badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .rpi-status-badge.online {
+      background: rgba(0,230,118,0.1);
+      color: var(--online);
+      border: 1px solid rgba(0,230,118,0.25);
+    }
+    .rpi-status-badge.offline {
+      background: rgba(255,23,68,0.1);
+      color: var(--offline);
+      border: 1px solid rgba(255,23,68,0.25);
+    }
+    .rpi-body { padding: 14px 18px; }
+    .rpi-info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .rpi-info-row:last-child { border-bottom: none; }
+    .rpi-info-label { color: var(--muted); }
+    .rpi-info-val { font-weight: 600; color: var(--text); }
+    .rpi-actions {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .rpi-screenshot {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #0a0a0a;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 10px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .rpi-screenshot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .rpi-screenshot .no-screenshot {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .rpi-logs-area {
+      display: none;
+      padding: 0 18px 14px;
+    }
+    .rpi-logs-area.open { display: block; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.25s;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { background: rgba(0,200,100,0.12); border-color: var(--online); color: var(--online); }
+    #toast.error   { background: rgba(255,23,68,0.12); border-color: var(--offline); color: var(--offline); }
+    #toast.warn    { background: rgba(255,140,0,0.12); border-color: var(--warning); color: var(--warning); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 680px;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title { font-size: 14px; font-weight: 800; }
+    .modal-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 18px; line-height: 1;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text); }
+    .modal-body {
+      padding: 18px 22px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* ── INLINE LOADING ── */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .loading { animation: pulse 1.2s infinite; color: var(--muted); font-size: 12px; }
+
+    /* ── TABS ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── SELECT ── */
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: 'Montserrat', sans-serif;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    select:focus { outline: none; border-color: var(--magenta); }
+
+    /* ── LICENCIAS ── */
+    .license-badge {
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .license-badge.active   { background: rgba(0,230,118,0.1); color: var(--online); border: 1px solid rgba(0,230,118,0.25); }
+    .license-badge.expired  { background: rgba(255,23,68,0.1);  color: var(--offline); border: 1px solid rgba(255,23,68,0.25); }
+    .license-badge.suspended{ background: rgba(255,140,0,0.1);  color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    .user-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 12px; overflow: hidden;
+    }
+    .user-card-header {
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .user-name { font-size: 14px; font-weight: 800; }
+    .user-email { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .user-body { padding: 12px 18px; }
+    .user-actions {
+      padding: 10px 18px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    }
+    .renew-select {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 12px;
+      font-family: 'Montserrat', sans-serif; padding: 6px 10px; cursor: pointer;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="grad-bar"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">SONORO.</div>
+  <div class="topbar-divider"></div>
+  <div class="topbar-subtitle">Admin</div>
+  <span class="topbar-badge">Sistema</span>
+  <div class="topbar-right">
+    <span class="topbar-user" id="topbar-user"></span>
+    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+
+    <div class="sidebar-group monitor open" id="sg-monitor">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-monitor')">
+        <div class="sidebar-group-label">Monitor</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn active" onclick="showTab('overview', this)">Resumen</button>
+          <button class="sidebar-btn" onclick="showTab('processes', this)">Procesos PM2</button>
+          <button class="sidebar-btn" onclick="showTab('system', this)">Sistema</button>
+          <button class="sidebar-btn" onclick="showTab('database', this)">Base de Datos</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-group clientes open" id="sg-clientes">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-clientes')">
+        <div class="sidebar-group-label">Clientes</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('users', this)">Usuarios y Licencias</button>
+          <button class="sidebar-btn" onclick="showTab('alldevices', this)">Todos los Dispositivos</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-group servidor open" id="sg-servidor">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-servidor')">
+        <div class="sidebar-group-label">Servidor</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-back" onclick="window.location.href='/dashboard.html'">← Volver al CMS</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ═══════════════ OVERVIEW ═══════════════ -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Resumen del sistema</div>
+          <div class="section-sub" id="last-refresh">Actualizando...</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadOverview()">↻ Actualizar</button>
+      </div>
+
+      <div class="stats-grid" id="overview-stats">
+        <div class="stat-card">
+          <div class="stat-label">CPU</div>
+          <div class="stat-value grad" id="stat-cpu">—</div>
+          <div class="stat-sub" id="stat-cores"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">RAM usada</div>
+          <div class="stat-value" id="stat-ram">—</div>
+          <div class="stat-sub" id="stat-ram-total"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Procesos activos</div>
+          <div class="stat-value ok" id="stat-procs">—</div>
+          <div class="stat-sub" id="stat-procs-total"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Uptime sistema</div>
+          <div class="stat-value grad" id="stat-uptime">—</div>
+          <div class="stat-sub">servidor</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Contenido</div>
+          <div class="stat-value" id="stat-content">—</div>
+          <div class="stat-sub">archivos en BD</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Playlists</div>
+          <div class="stat-value" id="stat-playlists">—</div>
+          <div class="stat-sub">listas creadas</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Uso de memoria</div>
+          <div class="stat-row">
+            <span class="stat-row-label">Utilización</span>
+            <span class="stat-row-val" id="ov-mem-pct">—</span>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="ov-mem-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Base de datos</div>
+          <div class="stat-row">
+            <span class="stat-row-label">Tamaño BD</span>
+            <span class="stat-row-val" id="ov-db-size">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">Usuarios</span>
+            <span class="stat-row-val" id="ov-db-users">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-row-label">Conexiones activas</span>
+            <span class="stat-row-val" id="ov-db-conn">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertas -->
+      <div id="alerts-container"></div>
+    </div>
+
+    <!-- ═══════════════ PROCESSES ═══════════════ -->
+    <div id="tab-processes" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Procesos PM2</div>
+          <div class="section-sub">Gestión de servicios del backend</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadProcesses()">↻ Actualizar</button>
+      </div>
+      <div id="processes-list"><div class="loading">Cargando procesos...</div></div>
+    </div>
+
+    <!-- ═══════════════ SYSTEM ═══════════════ -->
+    <div id="tab-system" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Información del sistema</div>
+          <div class="section-sub">Hardware y plataforma del servidor</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadSystem()">↻ Actualizar</button>
+      </div>
+      <div class="grid-2">
+        <div class="card" id="system-info-card">
+          <div class="card-title">Sistema operativo</div>
+          <div class="loading">Cargando...</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Puertos activos</div>
+          <div id="ports-info"><div class="loading">Cargando...</div></div>
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="checkPort(5000)">Puerto 5000</button>
+            <button class="btn btn-outline btn-sm" onclick="checkPort(5432)">Puerto 5432</button>
+            <button class="btn btn-outline btn-sm" onclick="checkPort(6379)">Puerto 6379</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ DATABASE ═══════════════ -->
+    <div id="tab-database" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Base de datos</div>
+          <div class="section-sub">PostgreSQL — cms_signage</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadDatabase()">↻ Actualizar</button>
+      </div>
+      <div class="grid-2">
+        <div class="card" id="db-stats-card">
+          <div class="card-title">Estadísticas</div>
+          <div class="loading">Cargando...</div>
+        </div>
+        <div class="card" id="db-tables-card">
+          <div class="card-title">Tablas</div>
+          <div class="loading">Cargando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ USUARIOS Y LICENCIAS ═══════════════ -->
+    <div id="tab-users" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Usuarios y Licencias</div>
+          <div class="section-sub">Gestión de clientes y estado de licencias</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Actualizar</button>
+      </div>
+      <div id="users-list"><div class="loading">Cargando usuarios...</div></div>
+    </div>
+
+    <!-- ═══════════════ TODOS LOS DISPOSITIVOS ═══════════════ -->
+    <div id="tab-alldevices" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Todos los Dispositivos</div>
+          <div class="section-sub">Vista global de reproductores por cliente</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadAllDevices()">↻ Actualizar</button>
+      </div>
+      <div class="user-filter-wrap">
+        <select id="alldevices-user-filter" onchange="filterAllDevices()">
+          <option value="">Todos los usuarios</option>
+        </select>
+        <input type="text" id="alldevices-text-filter" placeholder="Buscar dispositivo..." oninput="filterAllDevices()">
+      </div>
+      <div id="all-devices-list"><div class="loading">Cargando dispositivos...</div></div>
+    </div>
+
+    <!-- ═══════════════ RPIs ═══════════════ -->
+    <div id="tab-rpis" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Gestión de dispositivos</div>
+          <div class="section-sub">Control de Raspberry Pi conectadas</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadRPis()">↻ Actualizar</button>
+      </div>
+      <div class="user-filter-wrap">
+        <select id="rpis-user-filter" onchange="filterRpis()">
+          <option value="">Todos los usuarios</option>
+        </select>
+        <input type="text" id="rpis-text-filter" placeholder="Buscar dispositivo o IP..." oninput="filterRpis()">
+      </div>
+      <div id="rpi-grid" class="rpi-grid">
+        <div class="loading">Cargando dispositivos...</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL LOGS -->
+<div class="modal-overlay" id="modal-logs">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-logs-title">Logs</div>
+      <button class="modal-close" onclick="closeModal('modal-logs')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+        <select id="log-lines-select" onchange="refreshModalLogs()">
+          <option value="50">50 líneas</option>
+          <option value="100" selected>100 líneas</option>
+          <option value="200">200 líneas</option>
+          <option value="500">500 líneas</option>
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="refreshModalLogs()">↻ Refrescar</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto;">
+          <input type="checkbox" id="log-live" onchange="toggleLiveLogs(this.checked)">
+          Live
+        </label>
+      </div>
+      <div class="logs-box" id="modal-logs-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SCREENSHOT -->
+<div class="modal-overlay" id="modal-screenshot">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-screenshot-title">Pantalla actual</div>
+      <button class="modal-close" onclick="closeModal('modal-screenshot')">✕</button>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;" id="screenshot-ts"></div>
+      <img id="modal-screenshot-img" src="" style="max-width:100%;border-radius:8px;display:none;" alt="Screenshot">
+      <div id="screenshot-error" style="color:var(--offline);font-size:12px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const API_URL = 'http://' + window.location.host;
+let authToken = localStorage.getItem('authToken');
+const socket = io();
+
+let liveLogsInterval = null;
+let currentLogProcess = null;
+let autoRefreshInterval = null;
+
+// ── INIT ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!authToken) { window.location.href = '/admin-login.html'; return; }
+  // Verificar que sea admin
+  fetch(`${API_URL}/api/license/status`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+    .then(r => r.json()).then(data => {
+      if (data.role !== 'admin') { localStorage.removeItem('authToken'); window.location.href = '/admin-login.html'; }
+      document.getElementById('topbar-user').textContent = data.email || '';
+    }).catch(() => { window.location.href = '/admin-login.html'; });
+  loadOverview();
+  autoRefreshInterval = setInterval(loadOverview, 15000);
+});
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('user');
+  window.location.href = '/admin-login.html';
+}
+
+// ── TABS ────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  clearInterval(autoRefreshInterval);
+  switch(name) {
+    case 'overview':  loadOverview(); autoRefreshInterval = setInterval(loadOverview, 15000); break;
+    case 'processes': loadProcesses(); break;
+    case 'system':    loadSystem(); break;
+    case 'database':  loadDatabase(); break;
+    case 'users':      loadUsers(); break;
+    case 'alldevices': loadAllDevices(); autoRefreshInterval = setInterval(loadAllDevices, 30000); break;
+    case 'rpis':      loadRPis(); autoRefreshInterval = setInterval(refreshRpiStatuses, 30000); break;
+  }
+}
+
+// ── API HELPER ───────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(API_URL + path, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  });
+  if (res.status === 401 || res.status === 403) { logout(); return null; }
+  return res.json();
+}
+
+// ── TOAST ─────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ── MODAL ────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (id === 'modal-logs') { stopLiveLogs(); }
+}
+
+// ── OVERVIEW ─────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const data = await api('/api/admin/overview');
+    if (!data) return;
+    const { overview } = data;
+
+    document.getElementById('stat-cpu').textContent    = overview.system.cpu_usage || '—';
+    document.getElementById('stat-cores').textContent  = overview.system.cpu_cores ? overview.system.cpu_cores + ' núcleos' : '';
+    document.getElementById('stat-ram').textContent    = overview.system.memory_used || '—';
+    document.getElementById('stat-ram-total').textContent = overview.system.memory_total ? 'de ' + overview.system.memory_total : '';
+    document.getElementById('stat-procs').textContent  = overview.processes.running ?? '—';
+    document.getElementById('stat-procs-total').textContent = `de ${overview.processes.total ?? '—'} totales`;
+    document.getElementById('stat-uptime').textContent = overview.system.uptime || '—';
+    document.getElementById('stat-content').textContent   = overview.database.content_count ?? '—';
+    document.getElementById('stat-playlists').textContent = overview.database.playlists_count ?? '—';
+
+    const memPct = parseFloat(overview.system.memory_usage) || 0;
+    document.getElementById('ov-mem-pct').textContent = overview.system.memory_usage || '—';
+    const bar = document.getElementById('ov-mem-bar');
+    bar.style.width = memPct + '%';
+    bar.className = 'progress-bar-fill' + (memPct > 85 ? ' err' : memPct > 65 ? ' warn' : '');
+
+    document.getElementById('ov-db-size').textContent  = overview.database.size_mb ? overview.database.size_mb + ' MB' : '—';
+    document.getElementById('ov-db-users').textContent = overview.database.users_count ?? '—';
+    document.getElementById('ov-db-conn').textContent  = overview.connections ? `${overview.connections.active}/${overview.connections.max}` : '—';
+
+    const now = new Date();
+    document.getElementById('last-refresh').textContent = `Última actualización: ${now.toLocaleTimeString()}`;
+
+    renderAlerts(overview.alerts || []);
+  } catch(e) { toast('Error cargando resumen', 'error'); }
+}
+
+function renderAlerts(alerts) {
+  const c = document.getElementById('alerts-container');
+  if (!alerts.length) { c.innerHTML = ''; return; }
+  c.innerHTML = alerts.map(a => `
+    <div style="padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:12px;font-weight:600;
+      background:rgba(${a.level==='error'?'255,23,68':'255,140,0'},0.1);
+      border:1px solid rgba(${a.level==='error'?'255,23,68':'255,140,0'},0.3);
+      color:var(--${a.level==='error'?'offline':'warning'});">
+      ${a.message}
+    </div>`).join('');
+}
+
+// ── PROCESSES ────────────────────────────────────────
+async function loadProcesses() {
+  const el = document.getElementById('processes-list');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const data = await api('/api/admin/processes');
+    if (!data || !data.processes) { el.innerHTML = '<div class="empty">Sin datos de procesos</div>'; return; }
+    el.innerHTML = data.processes.map(p => `
+      <div class="process-item ${p.isRunning ? 'running' : 'stopped'}">
+        <div style="flex:1">
+          <div class="process-name">
+            <span class="status-dot ${p.isRunning ? 'online' : 'offline'}"></span>
+            ${p.name}
+          </div>
+          <div class="process-meta">
+            <span><small>PID</small>${p.pid || '—'}</span>
+            <span><small>CPU</small>${p.cpu ?? '—'}%</span>
+            <span><small>RAM</small>${p.memoryMB ?? '—'} MB</span>
+            <span><small>Uptime</small>${p.uptime || '—'}</span>
+            <span><small>Reinicios</small>${p.restarts ?? '—'}</span>
+          </div>
+        </div>
+        <div class="process-actions">
+          <button class="btn btn-outline btn-sm" onclick="pmAction('${p.name}','restart')">Reiniciar</button>
+          <button class="btn btn-${p.isRunning?'warn':'outline'} btn-sm" onclick="pmAction('${p.name}','${p.isRunning?'stop':'start'}')">
+            ${p.isRunning ? 'Parar' : 'Iniciar'}
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${p.name}')">Logs</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = '<div class="empty">Error cargando procesos</div>'; }
+}
+
+async function pmAction(name, action) {
+  try {
+    const data = await api(`/api/admin/process/${name}/${action}`, { method: 'POST' });
+    toast(data?.message || `${action} enviado`, data?.error ? 'error' : 'success');
+    setTimeout(loadProcesses, 1500);
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function openProcessLogs(name) {
+  currentLogProcess = name;
+  document.getElementById('modal-logs-title').textContent = `Logs — ${name}`;
+  openModal('modal-logs');
+  fetchLogs(name);
+}
+
+async function fetchLogs(name) {
+  const lines = document.getElementById('log-lines-select').value;
+  const el = document.getElementById('modal-logs-content');
+  el.innerHTML = '<span class="loading">Cargando logs...</span>';
+  try {
+    const data = await api(`/api/admin/process/${name}/logs?lines=${lines}`);
+    if (!data || !data.logs) { el.innerHTML = 'Sin logs disponibles'; return; }
+    el.innerHTML = data.logs.map(line => {
+      const cls = line.includes('❌')||line.includes('error')||line.includes('Error') ? 'log-err'
+                : line.includes('⚠️')||line.includes('warn') ? 'log-warn'
+                : line.includes('✅')||line.includes('info') ? 'log-info' : '';
+      return `<div class="${cls}">${escHtml(line)}</div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { el.innerHTML = 'Error cargando logs'; }
+}
+
+function refreshModalLogs() { if (currentLogProcess) fetchLogs(currentLogProcess); }
+
+function toggleLiveLogs(on) {
+  if (on) { liveLogsInterval = setInterval(refreshModalLogs, 3000); }
+  else stopLiveLogs();
+}
+function stopLiveLogs() { clearInterval(liveLogsInterval); liveLogsInterval = null; }
+
+// ── SYSTEM ───────────────────────────────────────────
+async function loadSystem() {
+  const card = document.getElementById('system-info-card');
+  card.innerHTML = '<div class="card-title">Sistema operativo</div><div class="loading">Cargando...</div>';
+  try {
+    const data = await api('/api/admin/system');
+    if (!data) return;
+    card.innerHTML = `
+      <div class="card-title">Sistema operativo</div>
+      ${row('Plataforma', data.platform)}
+      ${row('Arquitectura', data.arch)}
+      ${row('OS', data.system?.platform || '—')}
+      ${row('Uptime', data.system?.uptime || '—')}
+      ${row('CPU', data.cpu?.cores + ' núcleos @ ' + data.cpu?.speed + ' MHz')}
+      ${row('Node.js', data.node_version || '—')}
+    `;
+    document.getElementById('ports-info').innerHTML = `
+      ${row('Backend CMS', '5000')}
+      ${row('PostgreSQL', '5432')}
+      ${row('Redis', '6379')}
+    `;
+  } catch(e) { card.innerHTML = '<div class="card-title">Sistema</div><div class="empty">Error</div>'; }
+}
+
+async function checkPort(port) {
+  try {
+    const data = await api(`/api/admin/system/port/${port}`);
+    toast(`Puerto ${port}: ${data?.status?.toUpperCase() || 'desconocido'}`, data?.status === 'open' ? 'success' : 'error');
+  } catch(e) { toast('Error verificando puerto', 'error'); }
+}
+
+// ── DATABASE ─────────────────────────────────────────
+async function loadDatabase() {
+  document.getElementById('db-stats-card').innerHTML = '<div class="card-title">Estadísticas</div><div class="loading">Cargando...</div>';
+  document.getElementById('db-tables-card').innerHTML = '<div class="card-title">Tablas</div><div class="loading">Cargando...</div>';
+  try {
+    const [stats, tables] = await Promise.all([
+      api('/api/admin/database/stats'),
+      api('/api/admin/database/tables')
+    ]);
+    if (stats) {
+      document.getElementById('db-stats-card').innerHTML = `
+        <div class="card-title">Estadísticas</div>
+        ${row('Host', stats.database?.host + ':' + stats.database?.port)}
+        ${row('Tamaño', stats.database?.size_mb + ' MB')}
+        ${row('Contenido', stats.tables?.content + ' archivos')}
+        ${row('Playlists', stats.tables?.playlists)}
+        ${row('Usuarios', stats.tables?.users)}
+        ${row('Dispositivos', stats.tables?.devices || '—')}
+        ${row('Conexiones', `${stats.connections?.active}/${stats.connections?.max}`)}
+      `;
+    }
+    if (tables) {
+      document.getElementById('db-tables-card').innerHTML = `
+        <div class="card-title">Tablas</div>
+        ${(tables.tables || []).map(t => row(t.tablename, `${t.size} · ${t.row_count} filas`)).join('')}
+      `;
+    }
+  } catch(e) {
+    document.getElementById('db-stats-card').innerHTML = '<div class="card-title">Estadísticas</div><div class="empty">Error</div>';
+  }
+}
+
+// ── RPIs ─────────────────────────────────────────────
+
+
+async function openRpiLogs(deviceId, ip) {
+  currentLogProcess = '__rpi__' + deviceId;
+  document.getElementById('modal-logs-title').textContent = `Logs RPi — ${deviceId}`;
+  openModal('modal-logs');
+  fetchRpiLogs(deviceId, ip);
+}
+
+async function fetchRpiLogs(deviceId, ip) {
+  const lines = document.getElementById('log-lines-select').value;
+  const el = document.getElementById('modal-logs-content');
+  el.innerHTML = '<span class="loading">Obteniendo logs via SSH...</span>';
+  try {
+    const data = await api('/api/admin/rpi/logs', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId, ip, lines: parseInt(lines) })
+    });
+    if (!data || !data.success) {
+      el.innerHTML = `<span class="log-err">${data?.error || 'Error obteniendo logs'}</span>`;
+      return;
+    }
+    const lines_arr = (data.logs || '').split('\n');
+    el.innerHTML = lines_arr.map(line => {
+      const cls = line.includes('ERROR')||line.includes('❌') ? 'log-err'
+                : line.includes('WARN')||line.includes('⚠️') ? 'log-warn'
+                : line.includes('✅')||line.includes('INFO') ? 'log-info' : '';
+      return `<div class="${cls}">${escHtml(line)}</div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { el.innerHTML = `<span class="log-err">Error: ${e.message}</span>`; }
+}
+
+async function takeScreenshot(deviceId, ip, name) {
+  document.getElementById('modal-screenshot-title').textContent = `Pantalla — ${name}`;
+  document.getElementById('screenshot-ts').textContent = 'Capturando...';
+  document.getElementById('modal-screenshot-img').style.display = 'none';
+  document.getElementById('screenshot-error').style.display = 'none';
+  openModal('modal-screenshot');
+  try {
+    const data = await api('/api/admin/rpi/screenshot', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId, ip })
+    });
+    if (data?.success && data.screenshot_url) {
+      const img = document.getElementById('modal-screenshot-img');
+      img.src = data.screenshot_url + '?t=' + Date.now();
+      img.style.display = 'block';
+      document.getElementById('screenshot-ts').textContent = 'Capturado: ' + new Date().toLocaleTimeString();
+    } else {
+      document.getElementById('screenshot-error').textContent = data?.error || 'No se pudo capturar la pantalla';
+      document.getElementById('screenshot-error').style.display = 'block';
+      document.getElementById('screenshot-ts').textContent = '';
+    }
+  } catch(e) {
+    document.getElementById('screenshot-error').textContent = 'Error: ' + e.message;
+    document.getElementById('screenshot-error').style.display = 'block';
+    document.getElementById('screenshot-ts').textContent = '';
+  }
+}
+
+async function updatePlayer(deviceId, ip) {
+  if (!confirm(`¿Actualizar sync-app.js en ${deviceId}?\nEl player se reiniciará automáticamente.`)) return;
+  toast('Enviando actualización...', 'warn');
+  try {
+    const data = await api('/api/admin/rpi/update', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId, ip })
+    });
+    toast(data?.success ? '✓ Actualización enviada. Player reiniciando...' : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function refreshRpiStatuses() {
+  try {
+    const data = await api('/api/devices');
+    if (!data) return;
+    data.forEach(d => {
+      const statusEl   = document.getElementById(`rpistatus_${d.device_id}`);
+      const lastSeenEl = document.getElementById(`lastseen_${d.device_id}`);
+      if (!statusEl) return;
+      const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+      const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+      statusEl.className = `rpi-status-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.textContent = isOnline ? 'Online' : 'Offline';
+      if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
+    });
+  } catch(e) {}
+}
+
+function timeAgo(date) {
+  const diffMs = Date.now() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `hace ${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `hace ${diffMin}m`;
+  return `hace ${Math.floor(diffMin/60)}h`;
+}
+
+async function verifyRpi(deviceId) {
+  const lastSeenEl = document.getElementById(`lastseen_${deviceId}`);
+  const statusEl   = document.getElementById(`rpistatus_${deviceId}`);
+  if (lastSeenEl) lastSeenEl.textContent = 'Verificando...';
+  try {
+    const data = await api('/api/devices');
+    if (!data) return;
+    const d = data.find(x => x.device_id === deviceId);
+    if (!d) return;
+    const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+    const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
+    if (statusEl) {
+      statusEl.className = `rpi-status-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.textContent = isOnline ? 'Online' : 'Offline';
+    }
+    if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
+  } catch(e) {
+    if (lastSeenEl) lastSeenEl.textContent = 'Error al verificar';
+  }
+}
+
+async function loadRpiStats(devices) {
+  for (const d of devices) {
+    if (d.status !== 'online' || !d.ip_address) continue;
+    try {
+      const data = await api('/api/admin/rpi/stats', {
+        method: 'POST',
+        body: JSON.stringify({ ip: d.ip_address })
+      });
+      if (!data || !data.success) continue;
+
+      // Temperatura
+      const tempEl = document.querySelector(`#stat-temp-${d.device_id} .rpi-info-val`);
+      if (tempEl && data.temp !== null) {
+        const color = data.temp_status === 'critical' ? 'var(--offline)'
+                    : data.temp_status === 'warn'     ? 'var(--warning)'
+                    : 'var(--online)';
+        tempEl.textContent = `${data.temp} °C`;
+        tempEl.style.color = color;
+      }
+
+      // Ventilador
+      const fanEl = document.querySelector(`#stat-fan-${d.device_id} .rpi-info-val`);
+      if (fanEl && data.fan_state !== null) {
+        const color = data.fan_state === 3 ? 'var(--offline)'
+                    : data.fan_state === 2 ? 'var(--warning)'
+                    : data.fan_state === 1 ? 'var(--online)'
+                    : 'var(--muted)';
+        fanEl.textContent = data.fan_label;
+        fanEl.style.color = color;
+      }
+    } catch(e) {}
+  }
+}
+
+
+
+// ── CRONOGRAMA TV (admin — solo lectura) ──────────────────────
+const ADMIN_DAYS_LABELS = ['L','M','X','J','V','S','D'];
+const ADMIN_DAYS_KEYS   = ['mon','tue','wed','thu','fri','sat','sun'];
+
+async function loadSchedulesAdmin(deviceId) {
+  const container = document.getElementById(`schedules_admin_${deviceId}`);
+  if (!container) return;
+  try {
+    const data = await api(`/api/devices/${deviceId}/tv-schedule`);
+    if (!data.schedules || !data.schedules.length) return;
+    container.innerHTML = data.schedules.map(s => {
+      const daysHtml = ADMIN_DAYS_KEYS.map((k, i) => {
+        const active = s.days.includes(k);
+        return `<div style="width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;border:0.5px solid ${active ? '#185FA5' : 'rgba(255,255,255,0.1)'};background:${active ? '#0C447C' : 'transparent'};color:${active ? '#B5D4F4' : 'rgba(255,255,255,0.3)'};">${ADMIN_DAYS_LABELS[i]}</div>`;
+      }).join('');
+      const dotBg  = s.active ? '#C0DD97' : 'rgba(255,255,255,0.3)';
+      const trkBg  = s.active ? '#27500A' : 'rgba(255,255,255,0.08)';
+      const dotPos = s.active ? 'right:2px' : 'left:2px';
+      return `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid rgba(255,255,255,0.06);">
+        <div style="width:28px;height:16px;background:${trkBg};border-radius:8px;position:relative;flex-shrink:0;">
+          <div style="width:12px;height:12px;background:${dotBg};border-radius:50%;position:absolute;top:2px;${dotPos};"></div>
+        </div>
+        <div style="display:flex;gap:3px;">${daysHtml}</div>
+        <div style="display:flex;gap:4px;align-items:center;margin-left:auto;font-size:11px;">
+          <span style="color:#00e676;">ON</span>
+          <span style="color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">${s.time_on}</span>
+          <span style="color:#FF1B8D;">OFF</span>
+          <span style="color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">${s.time_off}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { console.warn('schedules admin:', e.message); }
+}
+
+async function tvControlAdmin(deviceId, ip, action) {
+  if (!ip) { toast("Dispositivo sin IP registrada", "error"); return; }
+  const btn = event.currentTarget;
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "...";
+  try {
+    const data = await api("/api/admin/rpi/tv", {
+      method: "POST",
+      body: JSON.stringify({ device_id: deviceId, ip, action })
+    });
+    if (data.success) {
+      if (action === "status") {
+        const pwr = (data.output || "").includes("on") ? "ON" : (data.output || "").includes("standby") ? "STANDBY" : data.output || "OK";
+        toast("TV " + deviceId + ": " + pwr, "success");
+      } else {
+        toast("TV " + (action === "on" ? "encendido" : "apagado") + " — " + deviceId, "success");
+      }
+    } else {
+      toast("Error TV: " + (data.error || "Sin respuesta"), "error");
+    }
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+async function rebootRpi(deviceId) {
+  if (!confirm(`¿Reiniciar ${deviceId}?\nTardará ~40 segundos en volver.`)) return;
+  toast('Enviando reboot...', 'warn');
+  try {
+    socket.emit('reboot_device', { device_id: deviceId });
+    toast('Reboot enviado. Vuelve en ~40s', 'success');
+    setTimeout(loadRPis, 45000);
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── SOCKET ───────────────────────────────────────────
+socket.on('reboot_result', (data) => {
+  toast(data.success ? 'Reboot exitoso' : 'Error en reboot: ' + data.error, data.success ? 'success' : 'error');
+});
+
+// ── USUARIOS Y LICENCIAS ─────────────────────────────────────
+
+const USER_COLORS = [
+  { border: '#00f5d4', bg: 'rgba(0,245,212,0.06)' },
+  { border: '#7b61ff', bg: 'rgba(123,97,255,0.06)' },
+  { border: '#f59e0b', bg: 'rgba(245,158,11,0.06)' },
+  { border: '#10b981', bg: 'rgba(16,185,129,0.06)' },
+  { border: '#f43f5e', bg: 'rgba(244,63,94,0.06)' },
+  { border: '#06b6d4', bg: 'rgba(6,182,212,0.06)' },
+  { border: '#8b5cf6', bg: 'rgba(139,92,246,0.06)' },
+  { border: '#ec4899', bg: 'rgba(236,72,153,0.06)' },
+];
+
+async function loadUsers() {
+  const el = document.getElementById('users-list');
+  el.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const users = await api('/api/admin/users');
+    if (!users || !users.length) { el.innerHTML = '<div class="empty">No hay usuarios registrados</div>'; return; }
+    el.innerHTML = users.map((u, idx) => {
+      const uc = USER_COLORS[idx % USER_COLORS.length];
+      const isExpired = u.is_expired;
+      const daysLeft  = u.days_left;
+      const licStatus = isExpired ? 'expired' : (u.license_status || 'active');
+      const licLabel  = licStatus === 'expired' ? 'Vencida' : licStatus === 'suspended' ? 'Suspendida' : 'Activa';
+      const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
+      const typeLabels = { cms:'CMS', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
+      const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS';
+      const isAdmin   = u.role === 'admin';
+      return `
+      <div class="user-card" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
+        <div class="user-card-header">
+          <div>
+            <div class="user-name">${u.name || u.email}${isAdmin ? ' <span style="font-size:10px;color:var(--magenta);font-weight:700;margin-left:6px;">ADMIN</span>' : ''}</div>
+            <div class="user-email">${u.email}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:11px;color:var(--muted);">${typeLabel}</span>
+            <span class="license-badge ${licStatus}">${licLabel}</span>
+          </div>
+        </div>
+        <div class="user-body">
+          <div class="stat-row"><span class="stat-row-label">Vencimiento</span><span class="stat-row-val ${isExpired ? 'err' : daysLeft <= 7 ? 'warn' : 'ok'}">${licEnd}${daysLeft !== null ? ` (${daysLeft > 0 ? daysLeft + ' días' : 'Vencida'})` : ''}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Reproductores</span><span class="stat-row-val">${u.device_count}</span></div>
+          <div class="stat-row"><span class="stat-row-label">Contenido / Playlists</span><span class="stat-row-val">${u.content_count} archivos · ${u.playlist_count} listas</span></div>
+          <div class="stat-row"><span class="stat-row-label">Registrado</span><span class="stat-row-val">${new Date(u.created_at).toLocaleDateString('es-CO')}</span></div>
+        </div>
+        ${!isAdmin ? `
+        <div class="user-actions">
+          <select class="renew-select" id="renew-months-${u.id}">
+            <option value="3">3 meses</option>
+            <option value="6">6 meses</option>
+            <option value="12" selected>12 meses</option>
+          </select>
+          <select class="renew-select" id="renew-type-${u.id}">
+            <option value="cms"       ${u.license_type === 'cms'       ? 'selected' : ''}>CMS</option>
+            <option value="cms_queue" ${u.license_type === 'cms_queue' ? 'selected' : ''}>CMS + Atención</option>
+            <option value="queue"     ${u.license_type === 'queue'     ? 'selected' : ''}>Solo Atención</option>
+            <option value="rpi"       ${u.license_type === 'rpi'       ? 'selected' : ''}>RPi</option>
+            <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
+          </select>
+          <button class="btn btn-primary" onclick="renewLicense(${u.id})">Renovar</button>
+          <button class="btn btn-outline btn-sm" onclick="viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
+          ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="renewLicense(${u.id})">Reactivar</button>`}
+          <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
+}
+
+async function renewLicense(userId) {
+  const months  = document.getElementById(`renew-months-${userId}`)?.value || 12;
+  const licType = document.getElementById(`renew-type-${userId}`)?.value || 'rpi';
+  if (!confirm(`¿Renovar licencia por ${months} meses?`)) return;
+  try {
+    const data = await api(`/api/admin/users/${userId}/license/renew`, {
+      method: 'POST',
+      body: JSON.stringify({ months: parseInt(months), license_type: licType })
+    });
+    toast(data?.success ? `✓ Licencia renovada por ${months} meses` : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+    loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function suspendLicense(userId) {
+  if (!confirm('¿Suspender la licencia de este usuario?')) return;
+  try {
+    const data = await api(`/api/admin/users/${userId}/license/suspend`, { method: 'POST', body: JSON.stringify({}) });
+    toast(data?.success ? 'Licencia suspendida' : (data?.error || 'Error'), data?.success ? 'warn' : 'error');
+    loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function deleteUser(userId, userName) {
+  if (!confirm(`¿Eliminar permanentemente al usuario "${userName}"?\nEsto eliminará también sus dispositivos, contenido y playlists. Esta acción NO se puede deshacer.`)) return;
+  if (!confirm(`Segunda confirmación: ¿estás seguro de eliminar a "${userName}"?`)) return;
+  try {
+    const data = await api(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    toast(data?.success ? `Usuario ${userName} eliminado` : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+    loadUsers();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function viewUserDevices(userId, userName) {
+  try {
+    const devices = await api(`/api/admin/users/${userId}/devices`);
+    if (!devices || !devices.length) { toast(`${userName} no tiene dispositivos`, 'warn'); return; }
+    const list = devices.map(d => `• ${d.name || d.device_id} — ${d.status === 'online' ? 'Online' : 'Offline'} — ${d.ip_address || 'Sin IP'}`).join('\n');
+    alert(`Dispositivos de ${userName}:\n\n${list}`);
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── TODOS LOS DISPOSITIVOS ────────────────────────────────────
+// ── SIDEBAR GROUPS ────────────────────────────────────────────
+function toggleAdminGroup(id) {
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+// ── FILTROS ALLDEVICES ─────────────────────────────────────────
+let allDevicesData = []; // cache global
+
+
+
+function filterAllDevices() {
+  const userVal = document.getElementById('alldevices-user-filter')?.value || '';
+  const textVal = (document.getElementById('alldevices-text-filter')?.value || '').toLowerCase();
+  let filtered = allDevicesData;
+  if (userVal) filtered = filtered.filter(d => (d.user_email || '') === userVal);
+  if (textVal) filtered = filtered.filter(d =>
+    (d.name || '').toLowerCase().includes(textVal) ||
+    (d.device_id || '').toLowerCase().includes(textVal) ||
+    (d.ip_address || '').toLowerCase().includes(textVal)
+  );
+  renderAllDevices(filtered);
+}
+
+function renderAllDevices(devices) {
+  const el = document.getElementById('all-devices-list');
+  if (!devices.length) { el.innerHTML = '<div class="empty">Sin resultados</div>'; return; }
+  const byUser = {};
+  devices.forEach(d => {
+    const key = d.user_email || 'Sin usuario';
+    if (!byUser[key]) byUser[key] = { name: d.user_name, email: d.user_email, license_status: d.license_status, license_end: d.license_end, devices: [] };
+    byUser[key].devices.push(d);
+  });
+  el.innerHTML = Object.entries(byUser).map(([email, u]) => {
+    const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
+    const licStatus = u.license_status || 'active';
+    return `
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <div style="font-size:14px;font-weight:800;">${u.name || email}</div>
+          <div style="font-size:11px;color:var(--muted);">${email} · Licencia vence: ${licEnd}</div>
+        </div>
+        <span class="license-badge ${licStatus === 'expired' ? 'expired' : licStatus === 'suspended' ? 'suspended' : 'active'}">
+          ${licStatus === 'expired' ? 'Vencida' : licStatus === 'suspended' ? 'Suspendida' : 'Activa'}
+        </span>
+      </div>
+      ${u.devices.map(d => {
+        const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+        const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+        return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;">
+              <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+              ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${d.display_mode || 'mirror'} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
+            <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ── FILTROS RPIs ───────────────────────────────────────────────
+let allRpisData = []; // cache global
+
+async function loadRPis() {
+  const grid = document.getElementById('rpi-grid');
+  try {
+    const devices = await api('/api/devices');
+    if (!devices || !devices.length) {
+      grid.innerHTML = '<div class="empty">No hay dispositivos registrados aún.<br>Las RPi se registran automáticamente al arrancar sync-app.js.</div>';
+      return;
+    }
+    allRpisData = devices;
+    // Intentar enriquecer con info de usuario desde all-devices
+    try {
+      const allDev = await api('/api/admin/all-devices');
+      allRpisData = devices.map(d => {
+        const match = allDev.find(x => x.device_id === d.device_id);
+        return match ? { ...d, user_email: match.user_email, user_name: match.user_name } : d;
+      });
+    } catch(e) {}
+    populateUserFilter('rpis-user-filter', allRpisData, 'user_email', 'user_name');
+    renderRpis(allRpisData);
+    loadRpiStats(allRpisData);
+  } catch(e) { grid.innerHTML = '<div class="empty">Error cargando dispositivos</div>'; }
+}
+
+function filterRpis() {
+  const userVal = document.getElementById('rpis-user-filter')?.value || '';
+  const textVal = (document.getElementById('rpis-text-filter')?.value || '').toLowerCase();
+  let filtered = allRpisData;
+  if (userVal) filtered = filtered.filter(d => (d.user_email || '') === userVal);
+  if (textVal) filtered = filtered.filter(d =>
+    (d.name || '').toLowerCase().includes(textVal) ||
+    (d.device_id || '').toLowerCase().includes(textVal) ||
+    (d.ip_address || '').toLowerCase().includes(textVal)
+  );
+  renderRpis(filtered);
+}
+
+function renderRpis(devices) {
+  const grid = document.getElementById('rpi-grid');
+  if (!devices.length) { grid.innerHTML = '<div class="empty">Sin resultados</div>'; return; }
+  grid.innerHTML = devices.map(d => {
+    const isOnline = d.status === 'online';
+    const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+    return `
+    <div class="rpi-card" id="rpi-${d.device_id}">
+      <div class="rpi-card-header">
+        <div>
+          <div class="rpi-name">
+            <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+            ${d.name || d.device_id}
+          </div>
+          <div class="rpi-ip">${d.device_id} · ${d.ip_address || '—'}${d.user_name ? ' · ' + d.user_name : ''}</div>
+        </div>
+        <span id="rpistatus_${d.device_id}" class="rpi-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+      </div>
+      <div class="rpi-body">
+        <div class="rpi-info-row">
+          <span class="rpi-info-label">Modo</span>
+          <span class="rpi-info-val">${d.display_mode || 'mirror'}</span>
+        </div>
+        <div class="rpi-info-row">
+          <span class="rpi-info-label">Playlist activa</span>
+          <span class="rpi-info-val">${d.hdmi0_playlist_name || '—'}</span>
+        </div>
+        <div class="rpi-info-row">
+          <span class="rpi-info-label">Último contacto</span>
+          <span id="lastseen_${d.device_id}" class="rpi-info-val ${isOnline ? 'ok' : 'err'}">${lastSeen}</span>
+        </div>
+        <div class="rpi-info-row" id="stat-temp-${d.device_id}">
+          <span class="rpi-info-label">Temperatura CPU</span>
+          <span class="rpi-info-val" style="color:var(--muted)">—</span>
+        </div>
+        <div class="rpi-info-row" id="stat-fan-${d.device_id}">
+          <span class="rpi-info-label">Ventilador</span>
+          <span class="rpi-info-val" style="color:var(--muted)">—</span>
+        </div>
+      </div>
+      <div class="rpi-actions">
+        <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar estado</button>
+        <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
+        <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${d.name||d.device_id}')">Screenshot</button>
+        <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
+        <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+      </div>
+      <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Control TV</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','status')">Estado TV</button>
+          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','on')">Encender TV</button>
+          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','off')">Apagar TV</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Cronograma TV</div>
+        <div id="schedules_admin_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
+          <div style="font-size:12px;color:var(--muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  devices.forEach(d => loadSchedulesAdmin(d.device_id));
+}
+
+// ── HELPER: poblar select de usuarios ─────────────────────────
+function populateUserFilter(selectId, devices, emailKey, nameKey) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const current = sel.value;
+  const users = {};
+  devices.forEach(d => {
+    if (d[emailKey]) users[d[emailKey]] = d[nameKey] || d[emailKey];
+  });
+  sel.innerHTML = '<option value="">Todos los usuarios</option>' +
+    Object.entries(users).map(([email, name]) =>
+      `<option value="${email}" ${email === current ? 'selected' : ''}>${name} (${email})</option>`
+    ).join('');
+}
+
+async function loadAllDevices() {
+  const el = document.getElementById('all-devices-list');
+  try {
+    const devices = await api('/api/admin/all-devices');
+    if (!devices || !devices.length) { el.innerHTML = '<div class="empty">No hay dispositivos registrados</div>'; return; }
+    const byUser = {};
+    devices.forEach(d => {
+      const key = d.user_email || 'Sin usuario';
+      if (!byUser[key]) byUser[key] = { name: d.user_name, email: d.user_email, license_status: d.license_status, license_end: d.license_end, devices: [] };
+      byUser[key].devices.push(d);
+    });
+    el.innerHTML = Object.entries(byUser).map(([email, u]) => {
+      const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
+      const licStatus = u.license_status || 'active';
+      return `
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <div style="font-size:14px;font-weight:800;">${u.name || email}</div>
+            <div style="font-size:11px;color:var(--muted);">${email} · Licencia vence: ${licEnd}</div>
+          </div>
+          <span class="license-badge ${licStatus === 'expired' ? 'expired' : licStatus === 'suspended' ? 'suspended' : 'active'}">
+            ${licStatus === 'expired' ? 'Vencida' : licStatus === 'suspended' ? 'Suspendida' : 'Activa'}
+          </span>
+        </div>
+        ${u.devices.map(d => {
+          const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+          const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;">
+                <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+                ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${d.display_mode || 'mirror'} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
+              <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div class="empty">Error cargando dispositivos</div>'; }
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function row(label, val, cls = '') {
+  return `<div class="stat-row">
+    <span class="stat-row-label">${label}</span>
+    <span class="stat-row-val ${cls}">${val ?? '—'}</span>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

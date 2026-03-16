@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO. CMS — Cartelería Digital</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800;900&family=Barlow:wght@900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --magenta: #FF1B8D;
+      --orange: #FF8C00;
+      --yellow: #FFE566;
+      --black: #0f0f0f;
+      --surface: #161616;
+      --surface2: #1e1e1e;
+      --surface3: #272727;
+      --border: #2e2e2e;
+      --text: #f0f0f0;
+      --text-muted: #888;
+      --online: #00e676;
+      --offline: #ff1744;
+      --grad: linear-gradient(135deg, var(--magenta) 0%, var(--orange) 55%, var(--yellow) 100%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--black);
+      color: var(--text);
+      min-height: 100vh;
+      font-weight: 400;
+    }
+
+    /* ── FULLSCREEN PLAYER ── */
+    .fullscreen-player {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #000; z-index: 9999; display: none;
+    }
+    .fullscreen-player.active { display: flex; }
+    .fullscreen-display {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .fullscreen-display video,
+    .fullscreen-display img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .fullscreen-exit-hint {
+      position: absolute; bottom: 20px; right: 20px;
+      color: rgba(255,255,255,0.4); font-size: 11px;
+      background: rgba(0,0,0,0.6); padding: 8px 14px;
+      border-radius: 4px; opacity: 0; transition: opacity 0.3s;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .fullscreen-player:hover .fullscreen-exit-hint { opacity: 1; }
+
+    /* ── GRADIENT BAR ── */
+    .grad-bar {
+      height: 3px;
+      background: var(--grad);
+      width: 100%;
+    }
+
+    /* ══ LOGIN ══ */
+    .login-screen {
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh;
+      background: var(--black);
+    }
+
+    .login-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+    }
+
+    .login-logo {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      margin-bottom: 4px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-sub {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+
+    .login-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .login-card-top {
+      height: 3px;
+      background: var(--grad);
+    }
+
+    .login-card-body { padding: 32px; }
+
+    .form-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 28px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .form-tab {
+      flex: 1; padding: 10px;
+      border: none; background: transparent;
+      color: var(--text-muted);
+      border-radius: 6px; cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600; font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .form-tab.active {
+      background: var(--surface3);
+      color: var(--text);
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    .form-group label {
+      display: block; margin-bottom: 7px;
+      color: var(--text-muted);
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+
+    .form-group input {
+      width: 100%; padding: 12px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px; transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--magenta);
+    }
+
+    .submit-btn {
+      width: 100%; padding: 13px;
+      background: var(--grad);
+      color: white; border: none;
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px; font-weight: 800;
+      letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .submit-btn:hover { opacity: 0.9; }
+
+    #authStatus { margin-bottom: 16px; }
+
+    /* ══ DASHBOARD LAYOUT ══ */
+    .dashboard-screen { display: none; min-height: 100vh; }
+
+    /* Sidebar */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 24px;
+      height: 58px;
+      gap: 16px;
+    }
+
+    .topbar-logo {
+      font-size: 22px; font-weight: 900;
+      letter-spacing: -1px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .topbar-divider {
+      width: 1px; height: 24px;
+      background: var(--border);
+    }
+
+    .topbar-version {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 16px;
+    }
+
+    .topbar-user {
+      font-size: 12px; color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .topbar-user span {
+      color: var(--text);
+    }
+
+    .logout-btn {
+      padding: 7px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px; cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--magenta); color: var(--magenta); }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0 24px;
+      display: flex; flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Grupo principal del sidebar ── */
+    .sidebar-group {
+      margin-bottom: 4px;
+    }
+
+    .sidebar-group-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+      border-radius: 0;
+      position: relative;
+    }
+    .sidebar-group-header:hover { background: var(--surface2); }
+
+    .sidebar-group-label {
+      font-size: 11px; font-weight: 800;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      flex: 1;
+      line-height: 1.2;
+    }
+
+    .sidebar-group-arrow {
+      font-size: 10px; color: var(--text-muted);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .sidebar-group.open .sidebar-group-arrow { transform: rotate(90deg); }
+
+    /* Color: Gestión de Contenido — magenta/naranja */
+    .sidebar-group.contenido .sidebar-group-icon {
+      background: rgba(255,27,141,0.15);
+      color: var(--magenta);
+    }
+    .sidebar-group.contenido .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.contenido .sidebar-group-header:hover { background: rgba(255,27,141,0.06); }
+    .sidebar-group.contenido .tab-btn.active {
+      background: rgba(255,27,141,0.1);
+      color: var(--magenta);
+    }
+    .sidebar-group.contenido .tab-btn:hover { color: var(--magenta); }
+    .sidebar-group.contenido .sidebar-indicator { background: var(--magenta); }
+
+    /* Color: Gestión de la Atención — azul/cian */
+    .sidebar-group.atencion .sidebar-group-icon {
+      background: rgba(0,200,255,0.12);
+      color: #00c8ff;
+    }
+    .sidebar-group.atencion .sidebar-group-label { color: #00c8ff; }
+    .sidebar-group.atencion .sidebar-group-header:hover { background: rgba(0,200,255,0.06); }
+    .sidebar-group.atencion .tab-btn.active {
+      background: rgba(0,200,255,0.1);
+      color: #00c8ff;
+    }
+    .sidebar-group.atencion .tab-btn:hover { color: #00c8ff; }
+    .sidebar-group.atencion .sidebar-indicator { background: #00c8ff; }
+
+    /* Submenú colapsable */
+    .sidebar-children {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.25s ease;
+      padding: 0 10px;
+    }
+    .sidebar-group.open .sidebar-children { max-height: 300px; }
+
+    /* Línea indicadora lateral */
+    .sidebar-children-inner {
+      border-left: 2px solid var(--border);
+      margin-left: 14px;
+      padding-left: 8px;
+      padding-bottom: 6px;
+      padding-top: 4px;
+    }
+    .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(255,27,141,0.25); }
+    .sidebar-group.atencion .sidebar-children-inner { border-color: rgba(0,200,255,0.2); }
+
+    .tab-btn {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 9px 12px;
+      background: transparent; border: none;
+      color: var(--text-muted);
+      border-radius: 8px; cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600;
+      text-align: left; transition: all 0.15s;
+    }
+
+    .tab-btn:hover { background: var(--surface2); color: var(--text); }
+
+    .tab-btn.active { background: var(--surface2); }
+
+    .tab-btn .tab-icon {
+      width: 18px; text-align: center; font-size: 14px;
+    }
+
+    /* Main content */
+    .main {
+      background: var(--black);
+      padding: 28px 32px;
+      overflow-y: auto;
+    }
+
+    /* Status toast */
+    #statusMessage {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 14px; font-weight: 700;
+      display: none;
+      z-index: 9999;
+      border-left: 4px solid;
+      backdrop-filter: blur(10px);
+      animation: slideIn 0.3s ease;
+      min-width: 220px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    #statusMessage.success { background: rgba(0,200,100,0.18); border-color: var(--online); color: #00e676; }
+    #statusMessage.error { background: rgba(255,23,68,0.18); border-color: var(--offline); color: #ff5252; }
+    #statusMessage.info { background: rgba(255,27,141,0.18); border-color: var(--magenta); color: var(--magenta); }
+
+    /* Section title */
+    .section-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .section-title {
+      font-size: 18px; font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    /* Containers */
+    .container { display: block; }
+    .container.hidden { display: none; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 16px;
+    }
+
+    /* Buttons */
+    button {
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer; transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--magenta);
+      color: white;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    .btn-grad {
+      background: var(--grad);
+      color: white;
+    }
+    .btn-grad:hover { opacity: 0.9; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .btn-outline:hover { border-color: var(--magenta); color: var(--magenta); }
+
+    .btn-danger {
+      background: rgba(255,23,68,0.12);
+      border: 1px solid rgba(255,23,68,0.3);
+      color: var(--offline);
+    }
+    .btn-danger:hover { background: rgba(255,23,68,0.2); }
+
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+    /* Inputs */
+    input[type=text], input[type=email], input[type=password],
+    textarea, select {
+      width: 100%; padding: 11px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; margin: 6px 0;
+      transition: border-color 0.2s;
+    }
+    input[type=text]:focus, input[type=email]:focus,
+    input[type=password]:focus, textarea:focus, select:focus {
+      outline: none; border-color: var(--magenta);
+    }
+    select option { background: var(--surface2); }
+
+    input[type=file] {
+      width: 100%; padding: 14px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 8px; color: var(--text-muted);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; margin: 6px 0; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    input[type=file]:hover { border-color: var(--magenta); }
+
+    /* Upload progress */
+    .progress-wrap {
+      margin: 12px 0;
+      display: none;
+    }
+    .progress-label {
+      font-size: 12px; color: var(--text-muted); margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .progress-bar-container {
+      width: 100%; height: 6px;
+      background: var(--surface3);
+      border-radius: 6px; overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--grad);
+      border-radius: 6px;
+      transition: width 0.3s;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Video player */
+    #player {
+      width: 100%; height: 380px;
+      background: #000; border-radius: 10px;
+      margin: 12px 0; border: 1px solid var(--border);
+    }
+    #imageDisplay {
+      display: none; width: 100%;
+      max-height: 380px; object-fit: contain;
+      border-radius: 10px; margin: 12px 0;
+      border: 1px solid var(--border);
+    }
+
+    /* File & playlist items */
+    .file-item, .playlist-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .file-item:hover, .playlist-item:hover { border-color: var(--surface3); }
+
+    .file-info { flex: 1; min-width: 0; }
+    .file-info strong {
+      display: block; font-size: 14px; font-weight: 600;
+      color: var(--text); margin-bottom: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-info small {
+      font-size: 11px; color: var(--text-muted);
+      display: inline-block; margin-right: 10px;
+    }
+
+    .file-type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-right: 8px;
+    }
+    .badge-video { background: rgba(255,140,0,0.15); color: var(--orange); }
+    .badge-image { background: rgba(255,27,141,0.15); color: var(--magenta); }
+
+    /* Sub-headings inside cards */
+    h3.sub {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 20px 0 12px;
+    }
+
+    h2 {
+      font-size: 15px; font-weight: 800;
+      color: var(--text);
+      margin: 0 0 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Modal */
+    .modal {
+      display: none; position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.75);
+      z-index: 1000;
+      justify-content: center; align-items: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 90%; max-width: 560px;
+      max-height: 85vh; overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .modal-header {
+      padding: 20px 24px 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h2 {
+      border: none; margin: 0; padding: 0;
+      font-size: 16px;
+    }
+    .modal-close {
+      font-size: 22px; color: var(--text-muted);
+      cursor: pointer; background: none; border: none;
+      padding: 0; line-height: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--magenta); }
+    .modal-body { padding: 20px 24px 24px; }
+
+    /* Playlist content list in modal */
+    .playlist-content-list {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px;
+      margin-top: 8px; min-height: 60px;
+    }
+    .playlist-content-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px;
+      background: var(--surface3);
+      border-radius: 6px; margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    /* Player tab */
+    .player-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+      margin-bottom: 16px;
+    }
+    .playlist-selector label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); display: block; margin-bottom: 8px;
+    }
+    .playlist-info {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      margin: 16px 0;
+    }
+    .playlist-info h3 {
+      font-size: 16px; font-weight: 800; margin-bottom: 6px;
+    }
+    .playlist-info p { font-size: 13px; color: var(--text-muted); margin: 4px 0; }
+
+    .player-options {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      margin-bottom: 16px;
+    }
+    .option-group {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+    }
+    .option-group:last-child { margin-bottom: 0; }
+    .option-group input[type="checkbox"] {
+      width: 18px; height: 18px; cursor: pointer;
+      accent-color: var(--magenta);
+      margin: 0;
+    }
+    .option-group label {
+      font-size: 13px; color: var(--text); cursor: pointer;
+      font-weight: 600; margin: 0;
+    }
+
+    .play-controls {
+      display: flex; gap: 12px; justify-content: center; margin-top: 16px;
+    }
+    .play-controls .btn { flex: 1; max-width: 260px; padding: 14px; font-size: 14px; }
+
+    .playlist-items-list {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px;
+      margin-top: 16px;
+    }
+    .playlist-items-list h4 {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 12px;
+    }
+    .item-row {
+      padding: 10px 12px;
+      background: var(--surface3);
+      border-radius: 6px; margin-bottom: 6px;
+      font-size: 13px; color: var(--text);
+      border-left: 3px solid var(--magenta);
+    }
+    .item-row strong { display: block; margin-bottom: 2px; }
+    .item-row small { color: var(--text-muted); font-size: 11px; }
+    .item-row.empty { border-left-color: var(--border); color: var(--text-muted); text-align: center; }
+
+    /* Devices */
+    .device-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+    .device-card:hover { border-color: var(--surface3); }
+    .device-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .device-name {
+      font-size: 15px; font-weight: 800; color: var(--text);
+    }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px; font-size: 11px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .status-badge.online { background: rgba(0,230,118,0.1); color: var(--online); }
+    .status-badge.offline { background: rgba(255,23,68,0.1); color: var(--offline); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status-dot.online { background: var(--online); box-shadow: 0 0 6px var(--online); }
+    .status-dot.offline { background: var(--offline); }
+
+    .device-meta {
+      font-size: 11px; color: var(--text-muted);
+      margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap;
+    }
+    .device-meta span { font-weight: 600; }
+    .device-meta .highlight { color: var(--orange); }
+
+    .device-controls {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+      align-items: end; margin-bottom: 14px;
+    }
+    .device-controls label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-muted); display: block; margin-bottom: 6px;
+    }
+    .device-controls select {
+      margin: 0; font-size: 12px; padding: 9px 10px;
+    }
+    .device-footer { text-align: right; }
+
+    .save-btn {
+      padding: 9px 20px;
+      background: var(--magenta);
+      color: white; border: none; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .save-btn:hover { opacity: 0.85; }
+
+    /* Auth status */
+    .auth-status {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px; font-weight: 600;
+      margin-bottom: 14px;
+    }
+    .auth-status.success { background: rgba(0,230,118,0.1); color: var(--online); }
+    .auth-status.error { background: rgba(255,23,68,0.1); color: var(--offline); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--magenta); }
+
+    /* ── ATENCIÓN AL USUARIO ── */
+    .queue-section { margin-bottom: 32px; }
+    .queue-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .queue-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .queue-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      border-left: 3px solid var(--magenta);
+    }
+    .queue-card-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .queue-card-title { font-size: 15px; font-weight: 700; }
+    .queue-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .queue-stat-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      font-size: 12px; padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .queue-stat-row:last-child { border-bottom: none; }
+    .queue-stat-val {
+      font-weight: 700; font-size: 13px;
+      color: var(--text);
+    }
+    .queue-urls {
+      background: var(--surface3, #272727);
+      border-radius: 8px; padding: 12px 14px;
+      margin-top: 14px;
+    }
+    .queue-url-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; margin-bottom: 7px;
+    }
+    .queue-url-item:last-child { margin-bottom: 0; }
+    .queue-url-label {
+      font-weight: 700; min-width: 70px;
+      color: var(--text-muted); font-size: 10px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .queue-url-link {
+      color: var(--magenta); font-family: monospace;
+      font-size: 11px; word-break: break-all;
+      text-decoration: none;
+    }
+    .queue-url-link:hover { text-decoration: underline; }
+    .upload-logo-area {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 20px 24px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s; min-width: 160px;
+    }
+    .upload-logo-area:hover { border-color: var(--magenta); }
+    .service-color-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+  </style>
+  <script src="/auto-token-refresh.js"></script>
+</head>
+<body>
+
+<!-- FULLSCREEN PLAYER -->
+<div id="fullscreenPlayer" class="fullscreen-player">
+  <div class="fullscreen-display" id="fullscreenDisplay"></div>
+  <div class="fullscreen-exit-hint">ESC para salir</div>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-wrap">
+    <div class="login-logo">SONORO.</div>
+    <div class="login-sub">CMS &nbsp;·&nbsp; Pantallas Informativas</div>
+
+    <div class="login-card">
+      <div class="login-card-top"></div>
+      <div class="login-card-body">
+        <div id="authStatus"></div>
+        <div class="form-tabs">
+          <button class="form-tab active" data-tab="login">Ingresar</button>
+          <button class="form-tab" data-tab="register">Registrarse</button>
+        </div>
+
+        <form id="loginForm" style="display: block;">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" placeholder="usuario@sonoro.av" required>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="submit-btn">Ingresar</button>
+        </form>
+
+        <form id="registerForm" style="display: none;">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="registerName" placeholder="Tu nombre" required>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="registerEmail" placeholder="usuario@sonoro.av" required>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="registerPassword" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="submit-btn">Crear Cuenta</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="dashboardScreen" class="dashboard-screen">
+  <div class="layout">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-logo">SONORO.</div>
+      <div class="topbar-divider"></div>
+      <div class="topbar-version">CMS v2.4</div>
+      <div class="topbar-right">
+        <div class="topbar-user">Sesión: <span id="userName"></span></div>
+        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- GRUPO 1: Gestión de Contenido -->
+      <div class="sidebar-group contenido open" id="group-contenido">
+        <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-contenido')">
+          <div class="sidebar-group-label">Gestión de<br>Contenido</div>
+          <div class="sidebar-group-arrow">▶</div>
+        </div>
+        <div class="sidebar-children">
+          <div class="sidebar-children-inner">
+            <button class="tab-btn active" data-tab="content">Contenido</button>
+            <button class="tab-btn" data-tab="playlists">Listas</button>
+            <button class="tab-btn" data-tab="devices">Dispositivos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divisor -->
+      <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
+
+      <!-- GRUPO 2: Gestión de la Atención -->
+      <div class="sidebar-group atencion open" id="group-atencion">
+        <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-atencion')">
+          <div class="sidebar-group-label">Gestión de<br>la Atención</div>
+          <div class="sidebar-group-arrow">▶</div>
+        </div>
+        <div class="sidebar-children">
+          <div class="sidebar-children-inner">
+            <button class="tab-btn" data-tab="queue">Puntos de Atención</button>
+            <button class="tab-btn" onclick="window.open('/atencion/reportes','_blank')">Reportes ↗</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+      <!-- STATUS TOAST -->
+      <div id="statusMessage"></div>
+
+      <!-- ── CONTENIDO ── -->
+      <div id="content-tab" class="container">
+        <div class="section-header">
+          <div class="section-title">Gestor de Contenido</div>
+          <button class="btn btn-primary btn-sm" onclick="loadContent()">↻ Actualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Subir Archivo</div>
+          <input type="file" id="fileInput" accept="video/*,image/*">
+          <div style="margin-top: 10px;">
+            <button class="btn btn-grad" onclick="uploadFile()">↑ Subir</button>
+          </div>
+          <div id="uploadProgress" class="progress-wrap">
+            <div class="progress-label">Subiendo: <strong id="fileName"></strong></div>
+            <div class="progress-bar-container">
+              <div id="progressBar" class="progress-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Vista Previa</div>
+          <video id="player" controls></video>
+          <img id="imageDisplay" style="display:none; width:100%; max-height:380px; border-radius:8px; border:1px solid var(--border);">
+        </div>
+
+        <div class="card">
+          <div class="card-title">Archivos</div>
+          <div id="fileList"></div>
+        </div>
+      </div>
+
+      <!-- ── LISTAS ── -->
+      <div id="playlists-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Listas de Reproducción</div>
+          <button class="btn btn-primary btn-sm" onclick="openCreatePlaylistModal()">+ Nueva Lista</button>
+        </div>
+        <div id="playlistsList"></div>
+      </div>
+
+      <!-- ── DISPOSITIVOS ── -->
+      <div id="devices-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Gestión de Dispositivos</div>
+          <button class="btn btn-grad" onclick="openActivationModal()">+ Generar Código</button>
+        </div>
+        <div id="devices-list"></div>
+      </div>
+
+      <!-- ══ ATENCIÓN AL USUARIO ══ -->
+      <div id="queue-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Atención al Usuario</div>
+          <button class="btn btn-grad" onclick="openNewBranchModal()">+ Nueva sucursal</button>
+        </div>
+
+        <!-- Logo del cliente -->
+        <div class="queue-section">
+          <div class="queue-section-title">Logo de tu empresa</div>
+          <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+            <div class="upload-logo-area" onclick="document.getElementById('logoFileInput').click()" id="logoDropArea">
+              <img id="logoPreview" src="" alt="" style="display:none;max-height:48px;max-width:160px;object-fit:contain;">
+              <div id="logoPlaceholder">
+                <div style="font-size:24px;margin-bottom:8px;opacity:0.4;">🖼</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);">Subir logo</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">PNG, JPG, SVG · Máx. 2MB</div>
+              </div>
+            </div>
+            <input type="file" id="logoFileInput" accept="image/*" style="display:none;" onchange="uploadLogo(this)">
+            <div style="font-size:12px;color:var(--text-muted);max-width:280px;">
+              Tu logo aparece en el kiosco, la pantalla de calificación y las interfaces de atención al usuario.<br><br>
+              <strong style="color:var(--text);">Recomendado:</strong> fondo transparente, mínimo 200px de ancho.
+            </div>
+          </div>
+        </div>
+
+        <!-- Sucursales -->
+        <div class="queue-section">
+          <div class="queue-section-title">Sucursales</div>
+          <div class="queue-grid" id="branchesGrid">
+            <div style="color:var(--text-muted);font-size:13px;">Cargando...</div>
+          </div>
+        </div>
+
+        <!-- Modal nueva sucursal -->
+        <div id="branchModal" class="modal">
+          <div class="modal-content" style="max-width:520px;">
+            <div class="modal-header">
+              <h3 id="branchModalTitle">Nueva Sucursal</h3>
+              <button class="modal-close" onclick="closeBranchModal()">✕</button>
+            </div>
+            <div style="padding:24px;display:flex;flex-direction:column;gap:14px;">
+              <div class="form-group"><label>Nombre</label><input type="text" id="bName" placeholder="Ej: Sede Principal"></div>
+              <div class="form-group"><label>Dirección</label><input type="text" id="bAddress" placeholder="Ej: Calle 50 #10-20"></div>
+              <div class="form-group"><label>Ciudad</label><input type="text" id="bCity" placeholder="Ej: Medellín"></div>
+              <div class="form-group"><label>Mensaje de bienvenida</label><input type="text" id="bWelcome" placeholder="Bienvenido, por favor tome un turno"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group"><label>Apertura</label><input type="time" id="bOpenTime" value="08:00"></div>
+                <div class="form-group"><label>Cierre</label><input type="time" id="bCloseTime" value="18:00"></div>
+              </div>
+              <div class="form-group"><label>Playlist publicitaria</label><select id="bPlaylist"><option value="">Sin playlist</option></select></div>
+              <button class="btn btn-grad" onclick="saveBranch()" style="margin-top:8px;">Guardar sucursal</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal ventanillas -->
+        <div id="countersModal" class="modal">
+          <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+              <h3 id="countersModalTitle">Ventanillas</h3>
+              <button class="modal-close" onclick="document.getElementById('countersModal').classList.remove('active')">✕</button>
+            </div>
+            <div style="padding:24px;">
+              <div id="countersList" style="margin-bottom:20px;"></div>
+
+              <!-- Panel de edición de servicios de ventanilla existente -->
+              <div id="editServicesPanel" style="display:none;margin-bottom:20px;padding:16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">Editar servicios de ventanilla</div>
+                <div id="ctrServicesCheck" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-primary btn-sm" onclick="saveCounterServices()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('editServicesPanel').style.display='none'">Cancelar</button>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border);padding-top:20px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;">Agregar ventanilla</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div class="form-group" style="margin:0;"><label>Nombre interno</label><input type="text" id="ctrName" placeholder="Ej: ventanilla_1"></div>
+                  <div class="form-group" style="margin:0;"><label>Nombre visible</label><input type="text" id="ctrDisplayName" placeholder="Ej: Ventanilla 1"></div>
+                </div>
+                <div style="margin-bottom:14px;">
+                  <label style="display:block;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Servicios que atiende</label>
+                  <div id="newCtrServicesCheck" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:var(--surface2);border-radius:8px;min-height:42px;">
+                    <span style="font-size:12px;color:var(--text-muted);">Cargando servicios...</span>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:8px;">
+                  <input type="checkbox" id="ctrRating" checked style="width:16px;height:16px;accent-color:var(--magenta);cursor:pointer;">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;">Pantalla de calificación</div>
+                    <div style="font-size:11px;color:var(--text-muted);">Mostrar encuesta de satisfacción al finalizar cada turno</div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" onclick="addCounter()" style="width:100%;">+ Agregar ventanilla</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal agentes -->
+        <div id="agentsModal" class="modal">
+          <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+              <h3 id="agentsModalTitle">Agentes</h3>
+              <button class="modal-close" onclick="document.getElementById('agentsModal').classList.remove('active')">✕</button>
+            </div>
+            <div style="padding:24px;">
+              <div id="agentsList" style="margin-bottom:20px;"></div>
+              <div style="border-top:1px solid var(--border);padding-top:20px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;">Agregar agente</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div class="form-group" style="margin:0;"><label>Nombre completo</label><input type="text" id="agentName" placeholder="Ej: Carlos Pérez"></div>
+                  <div class="form-group" style="margin:0;"><label>Email del agente</label><input type="email" id="agentEmail" placeholder="agente@empresa.com"></div>
+                  <div class="form-group" style="margin:0;"><label>PIN (4-6 dígitos)</label><input type="number" id="agentPin" placeholder="1234" maxlength="6"></div>
+                  <div class="form-group" style="margin:0;"><label>Color de avatar</label><input type="color" id="agentColor" value="#FF1B8D" style="height:42px;cursor:pointer;"></div>
+                </div>
+                <button class="btn btn-primary" onclick="addAgent()" style="width:100%;">+ Agregar agente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal servicios -->
+        <div id="servicesModal" class="modal">
+          <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+              <h3 id="servicesModalTitle">Servicios</h3>
+              <button class="modal-close" onclick="document.getElementById('servicesModal').classList.remove('active')">✕</button>
+            </div>
+            <div style="padding:24px;">
+              <div id="servicesList" style="margin-bottom:20px;"></div>
+              <div style="border-top:1px solid var(--border);padding-top:20px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;">Agregar servicio</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div class="form-group" style="margin:0;"><label>Nombre</label><input type="text" id="svcName" placeholder="Ej: Caja"></div>
+                  <div class="form-group" style="margin:0;"><label>Prefijo</label><input type="text" id="svcPrefix" placeholder="A" maxlength="2" style="text-transform:uppercase;"></div>
+                  <div class="form-group" style="margin:0;"><label>Color</label><input type="color" id="svcColor" value="#FF1B8D" style="height:42px;cursor:pointer;"></div>
+                  <div class="form-group" style="margin:0;"><label>Tiempo prom. (min)</label><input type="number" id="svcAvgTime" value="10" min="1"></div>
+                </div>
+                <button class="btn btn-primary" onclick="addService()" style="width:100%;">+ Agregar servicio</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /layout -->
+</div>
+
+<!-- ══ MODAL PLAYLIST ══ -->
+<div id="playlistModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="playlistModalTitle">Nueva Lista</h2>
+      <button class="modal-close" onclick="closePlaylistModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="playlistForm">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="playlistName" placeholder="Nombre de la lista" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea id="playlistDescription" rows="2" placeholder="Descripción opcional"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Orientación de Pantalla</label>
+          <select id="playlistOrientation" style="margin: 6px 0;">
+            <option value="horizontal">Horizontal (16:9)</option>
+            <option value="vertical">Vertical (9:16)</option>
+          </select>
+        </div>
+
+        <div style="display:flex; gap:24px; margin-bottom:16px;">
+          <div class="option-group">
+            <input type="checkbox" id="playlistShuffle" style="width:18px;height:18px;accent-color:var(--magenta);margin:0;">
+            <label for="playlistShuffle" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;">Orden Aleatorio</label>
+          </div>
+          <div class="option-group">
+            <input type="checkbox" id="playlistRepeat" style="width:18px;height:18px;accent-color:var(--magenta);margin:0;">
+            <label for="playlistRepeat" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;">Repetir Infinitamente</label>
+          </div>
+        </div>
+
+        <h3 class="sub">Agregar Contenido</h3>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="contentSelector" style="margin:0; flex:1;">
+            <option value="">-- Seleccionar archivo --</option>
+          </select>
+          <button type="button" class="btn btn-primary btn-sm" onclick="addContent()">+ Agregar</button>
+        </div>
+
+        <h3 class="sub" style="margin-top:18px;">Contenido</h3>
+        <div id="playlistContentList" class="playlist-content-list">
+          <p style="color:var(--text-muted); font-size:13px; text-align:center; padding:12px 0;">Vacío</p>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="submit" class="btn btn-grad" style="flex:1;">Guardar</button>
+          <button type="button" class="btn btn-outline" onclick="closePlaylistModal()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+const API_URL = 'http://localhost:5000';
+let authToken = localStorage.getItem('authToken');
+let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+let socket = null;
+let currentPlaylistId = null;
+let playlistItems = [];
+let currentPlaylist = null;
+let currentTrackIndex = 0;
+let isPlaying = false;
+let shuffleMode = false;
+let repeatMode = false;
+let shuffledOrder = [];
+let playbackTimer = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  setupTabs();
+  setupEvents();
+  setupKeyboard();
+  if (authToken && currentUser) {
+    showDashboard();
+    connectWebSocket();
+    loadContent();
+  } else {
+    showLogin();
+  }
+});
+
+function setupKeyboard() {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isPlaying) stopPlayback();
+  });
+}
+
+function setupTabs() {
+  document.querySelectorAll('.form-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabName = tab.dataset.tab;
+      document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('loginForm').style.display = tabName === 'login' ? 'block' : 'none';
+      document.getElementById('registerForm').style.display = tabName === 'register' ? 'block' : 'none';
+    });
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+      const tabEl = document.getElementById(`${tabName}-tab`);
+      if (tabEl) tabEl.classList.remove('hidden');
+      if (tabName === 'playlists') loadPlaylists();
+      if (tabName === 'player') loadPlaylistsForPlayer();
+      if (tabName === 'devices') {
+        loadDevices();
+        startDevicesAutoRefresh();
+      } else {
+        stopDevicesAutoRefresh();
+      }
+      if (tabName === 'queue') loadQueueTab();
+    });
+  });
+}
+
+function setupEvents() {
+  document.getElementById('loginForm').addEventListener('submit', (e) => { e.preventDefault(); login(); });
+  document.getElementById('registerForm').addEventListener('submit', (e) => { e.preventDefault(); register(); });
+  document.getElementById('playlistForm').addEventListener('submit', (e) => { e.preventDefault(); savePlaylist(); });
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await response.json();
+    if (!response.ok) { showAuthStatus(`${data.error}`, 'error'); return; }
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    showAuthStatus('Acceso correcto', 'success');
+    setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
+  } catch (err) {
+    showAuthStatus(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function register() {
+  const name = document.getElementById('registerName').value;
+  const email = document.getElementById('registerEmail').value;
+  const password = document.getElementById('registerPassword').value;
+  try {
+    const response = await fetch(`${API_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await response.json();
+    if (!response.ok) { showAuthStatus(`${data.error}`, 'error'); return; }
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    showAuthStatus('Cuenta creada', 'success');
+    setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
+  } catch (err) {
+    showAuthStatus(`Error: ${err.message}`, 'error');
+  }
+}
+
+function toggleSidebarGroup(id) {
+  const group = document.getElementById(id);
+  if (group) group.classList.toggle('open');
+}
+
+function logout() {
+  authToken = null; currentUser = null;
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
+  if (socket) socket.disconnect();
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('dashboardScreen').style.display = 'none';
+}
+
+function checkQueueLicense() {
+  try {
+    const res = fetch(`${API_URL}/api/license/status`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    }).then(r => r.json()).then(data => {
+      const hasQueue = ['cms_queue','queue'].includes(data.license_type);
+      const queueBtn = document.querySelector('[data-tab="queue"]');
+      if (queueBtn) queueBtn.style.display = hasQueue ? 'flex' : 'none';
+    });
+  } catch(e) {}
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboardScreen').style.display = 'block';
+  checkQueueLicense();
+  document.getElementById('userName').textContent = currentUser.email;
+}
+
+function showAuthStatus(message, type) {
+  const el = document.getElementById('authStatus');
+  el.className = `auth-status ${type}`;
+  el.textContent = message;
+}
+
+function updateStatus(message, type = 'info') {
+  const el = document.getElementById('statusMessage');
+  el.className = `${type}`;
+  el.textContent = message;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+// alias usado en loadDevices
+function showStatus(msg, type) { updateStatus(msg, type); }
+
+function connectWebSocket() {
+  socket = io(API_URL, { extraHeaders: { 'Authorization': `Bearer ${authToken}` } });
+  socket.on('connect', () => updateStatus('Conectado al servidor', 'success'));
+  socket.on('upload_complete', () => { updateStatus('Archivo procesado', 'success'); setTimeout(loadContent, 1000); });
+  socket.on('upload_error', (data) => updateStatus(`Error: ${data.error}`, 'error'));
+  socket.on('reboot_result', (data) => {
+    if (data.success) showStatus('Dispositivo reiniciando...', 'success');
+    else showStatus('Error al reiniciar: ' + data.error, 'error');
+  });
+}
+
+async function uploadFile() {
+  const fileInput = document.getElementById('fileInput');
+  const file = fileInput.files[0];
+  if (!file) { updateStatus('Selecciona un archivo', 'error'); return; }
+  const formData = new FormData();
+  formData.append('file', file);
+  const xhr = new XMLHttpRequest();
+  const progressDiv = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('progressBar');
+  progressDiv.style.display = 'block';
+  document.getElementById('fileName').textContent = file.name;
+  xhr.upload.addEventListener('progress', (e) => {
+    if (e.lengthComputable) {
+      const percent = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = percent + '%';
+    }
+  });
+  xhr.addEventListener('load', () => {
+    if (xhr.status === 200) {
+      updateStatus('Archivo subido', 'success');
+      fileInput.value = '';
+      progressDiv.style.display = 'none';
+    } else {
+      updateStatus('Error al subir', 'error');
+    }
+  });
+  xhr.addEventListener('error', () => { updateStatus('Error de conexión', 'error'); progressDiv.style.display = 'none'; });
+  xhr.open('POST', `${API_URL}/api/content/upload`);
+  xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+  xhr.send(formData);
+  updateStatus('Subiendo...', 'info');
+}
+
+async function loadContent() {
+  try {
+    const response = await fetch(`${API_URL}/api/content`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!response.ok) { if (response.status === 401) logout(); return; }
+    const files = await response.json();
+    displayFiles(files);
+    updateContentSelector(files);
+  } catch (err) { console.error('Error:', err); }
+}
+
+function displayFiles(files) {
+  const fileList = document.getElementById('fileList');
+  if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
+  fileList.innerHTML = files.map(file => `
+    <div class="file-item">
+      <div class="file-info">
+        <strong>${file.title}</strong>
+        <span class="file-type-badge ${file.type === 'image' ? 'badge-image' : 'badge-video'}">${file.type}</span>
+        <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
+        ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${file.title}','${file.type}')">▶</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFile(${file.id})">✕</button>
+    </div>
+  `).join('');
+}
+
+function updateContentSelector(files) {
+  const selector = document.getElementById('contentSelector');
+  selector.innerHTML = '<option value="">-- Seleccionar archivo --</option>';
+  files.forEach(file => {
+    const opt = document.createElement('option');
+    opt.value = file.id;
+    opt.textContent = `${file.type === 'image' ? '🖼' : '▶'} ${file.title}`;
+    opt.dataset.type = file.type;
+    selector.appendChild(opt);
+  });
+}
+
+function playFile(path, title, type) {
+  const player = document.getElementById('player');
+  const imageDisplay = document.getElementById('imageDisplay');
+  const mediaUrl = resolveMediaUrl(path);
+  if (type === 'image') {
+    player.style.display = 'none';
+    imageDisplay.style.display = 'block';
+    imageDisplay.src = mediaUrl;
+  } else {
+    imageDisplay.style.display = 'none';
+    player.style.display = 'block';
+    const source = player.querySelector('source') || document.createElement('source');
+    source.src = mediaUrl; source.type = 'video/mp4';
+    if (!player.querySelector('source')) player.appendChild(source);
+    player.load(); player.play();
+  }
+}
+
+async function deleteFile(id) {
+  if (!confirm('¿Eliminar archivo?')) return;
+  try {
+    const response = await fetch(`${API_URL}/api/content/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!response.ok) throw new Error('Error');
+    updateStatus('Archivo eliminado', 'success');
+    loadContent();
+  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+}
+
+function openCreatePlaylistModal() {
+  currentPlaylistId = null; playlistItems = [];
+  document.getElementById('playlistModalTitle').textContent = 'Nueva Lista';
+  document.getElementById('playlistForm').reset();
+  document.getElementById('playlistContentList').innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0;">Vacío</p>';
+  document.getElementById('playlistModal').classList.add('active');
+}
+
+function closePlaylistModal() {
+  document.getElementById('playlistModal').classList.remove('active');
+}
+
+function addContent() {
+  const selector = document.getElementById('contentSelector');
+  const contentId = selector.value;
+  if (!contentId) { updateStatus('Selecciona un archivo', 'error'); return; }
+  const fileName = selector.options[selector.selectedIndex].textContent;
+  if (playlistItems.find(item => item.content_id == contentId)) { updateStatus('Ya está agregado', 'error'); return; }
+  const fileType = selector.options[selector.selectedIndex]?.dataset?.type || 'unknown';
+  playlistItems.push({ content_id: parseInt(contentId), title: fileName, type: fileType, duration_ms: 15000 });
+  renderPlaylistContent();
+  selector.value = '';
+}
+
+function renderPlaylistContent() {
+  const container = document.getElementById('playlistContentList');
+  if (!playlistItems.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:12px 0;">Vacío</p>';
+    return;
+  }
+  container.innerHTML = playlistItems.map((item, index) => `
+    <div class="playlist-content-item" style="display:flex;align-items:center;gap:8px;">
+      <div style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.title}</div>
+      ${item.type !== 'video' ? `
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          <input type="number"
+            id="dur_${item.content_id}"
+            value="${item.duration_ms ? Math.round(item.duration_ms/1000) : 15}"
+            min="1" max="300"
+            style="width:56px;padding:4px 6px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Montserrat',sans-serif;text-align:center;"
+            onchange="updateItemDuration(${item.content_id}, this.value)"
+            title="Duración en segundos">
+          <small style="color:var(--text-muted);font-size:11px;">seg</small>
+        </div>` : ''}
+      <button type="button" class="btn btn-danger btn-sm" onclick="playlistItems.splice(${index},1);renderPlaylistContent();">✕</button>
+    </div>
+  `).join('');
+}
+
+async function savePlaylist() {
+  const name = document.getElementById('playlistName').value;
+  const description = document.getElementById('playlistDescription').value;
+  const orientation = document.getElementById('playlistOrientation').value;
+  const shuffle_enabled = document.getElementById('playlistShuffle').checked;
+  const repeat_enabled = document.getElementById('playlistRepeat').checked;
+  if (!name || !playlistItems.length) { updateStatus('Rellena todos los campos y agrega contenido', 'error'); return; }
+  try {
+    const pData = currentPlaylistId ?
+      await fetch(`${API_URL}/api/playlists/${currentPlaylistId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ name, description, orientation, shuffle_enabled, repeat_enabled })
+      }).then(r => r.json()) :
+      await fetch(`${API_URL}/api/playlists`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ name, description, orientation, shuffle_enabled, repeat_enabled })
+      }).then(r => r.json());
+    const playlistId = pData.playlist.id;
+    for (let item of playlistItems) {
+      await fetch(`${API_URL}/api/playlists/${playlistId}/items`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ content_id: item.content_id, duration_override_ms: item.type === 'image' ? (item.duration_ms || 15000) : null })
+      });
+    }
+    updateStatus('Lista guardada', 'success');
+    closePlaylistModal(); loadPlaylists();
+  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+}
+
+async function loadPlaylists() {
+  try {
+    const response = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!response.ok) throw new Error('Error');
+    const playlists = await response.json();
+    const container = document.getElementById('playlistsList');
+    if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
+    container.innerHTML = playlists.map(pl => `
+      <div class="file-item">
+        <div class="file-info">
+          <strong>${pl.name}</strong>
+          <small>${pl.description || ''}</small>
+          <small>${pl.item_count} elementos</small>
+          <span class="file-type-badge" style="${pl.orientation === 'vertical' ? 'background:rgba(255,230,102,0.12);color:var(--yellow)' : 'background:rgba(255,140,0,0.12);color:var(--orange)'}">
+            ${pl.orientation === 'vertical' ? 'Vertical' : 'Horizontal'}
+          </span>
+          ${pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">Shuffle</span>' : ''}
+          ${pl.repeat_enabled ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">Repetir</span>' : ''}
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="editPlaylist(${pl.id})">✏ Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${pl.id})">✕</button>
+      </div>
+    `).join('');
+  } catch (err) { console.error('Error:', err); }
+}
+
+async function editPlaylist(playlistId) {
+  try {
+    const response = await fetch(`${API_URL}/api/playlists/${playlistId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const playlist = await response.json();
+    currentPlaylistId = playlistId;
+    playlistItems = playlist.items.map(item => ({ content_id: item.content_id, title: item.title, type: item.type, duration_ms: item.duration_ms }));
+    document.getElementById('playlistModalTitle').textContent = 'Editar Lista';
+    document.getElementById('playlistName').value = playlist.name;
+    document.getElementById('playlistDescription').value = playlist.description || '';
+    document.getElementById('playlistOrientation').value = playlist.orientation || 'horizontal';
+    document.getElementById('playlistShuffle').checked = playlist.shuffle_enabled || false;
+    document.getElementById('playlistRepeat').checked = playlist.repeat_enabled || false;
+    renderPlaylistContent();
+    document.getElementById('playlistModal').classList.add('active');
+  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+}
+
+async function deletePlaylist(playlistId) {
+  if (!confirm('¿Eliminar lista?')) return;
+  try {
+    await fetch(`${API_URL}/api/playlists/${playlistId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
+    updateStatus('Lista eliminada', 'success');
+    loadPlaylists();
+  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+}
+
+async function loadPlaylistsForPlayer() {
+  try {
+    const response = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const playlists = await response.json();
+    const select = document.getElementById('playlistSelect');
+    select.innerHTML = '<option value="">-- Seleccionar --</option>';
+    playlists.forEach(pl => {
+      const opt = document.createElement('option');
+      opt.value = pl.id;
+      opt.textContent = `${pl.name} (${pl.item_count} elementos)`;
+      select.appendChild(opt);
+    });
+  } catch (err) { console.error('Error:', err); }
+}
+
+async function loadPlaylistForPlayback() {
+  const playlistId = document.getElementById('playlistSelect').value;
+  if (!playlistId) {
+    document.getElementById('playlistInfo').style.display = 'none';
+    document.getElementById('playControls').style.display = 'none';
+    document.getElementById('playlistItemsList').style.display = 'none';
+    return;
+  }
+  try {
+    const response = await fetch(`${API_URL}/api/playlists/${playlistId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    currentPlaylist = await response.json();
+    currentTrackIndex = 0; isPlaying = false;
+    shuffleMode = currentPlaylist.shuffle_enabled || false;
+    repeatMode = currentPlaylist.repeat_enabled || false;
+    document.getElementById('pName').textContent = currentPlaylist.name;
+    document.getElementById('pDesc').textContent = currentPlaylist.description || '';
+    document.getElementById('pCount').textContent = currentPlaylist.items.length;
+    document.getElementById('pOrientation').textContent = currentPlaylist.orientation === 'vertical' ? 'Vertical' : 'Horizontal';
+    document.getElementById('pShuffle').textContent = shuffleMode ? 'Activado' : 'Desactivado';
+    document.getElementById('pRepeat').textContent = repeatMode ? 'Activado' : 'Desactivado';
+    document.getElementById('itemsList').innerHTML = currentPlaylist.items.length === 0 ?
+      '<div class="item-row empty">Vacío</div>' :
+      currentPlaylist.items.map((item, index) => `
+        <div class="item-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <strong style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${index + 1}. ${item.title}</strong>
+            <small>${item.type === 'image' ? 'Imagen' : 'Video'}</small>
+          </div>
+          ${item.type === 'image' ? `
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <input type="number"
+              id="dur_${item.content_id}"
+              value="${item.duration_ms ? Math.round(item.duration_ms/1000) : 15}"
+              min="1" max="300"
+              style="width:60px;padding:4px 6px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Montserrat',sans-serif;text-align:center;"
+              onchange="updateItemDuration(${item.content_id}, this.value)"
+              title="Duración en segundos">
+            <small style="color:var(--text-muted);">seg</small>
+          </div>` : ''}
+        </div>
+      `).join('');
+    document.getElementById('playlistInfo').style.display = 'block';
+    document.getElementById('playControls').style.display = 'flex';
+    document.getElementById('playlistItemsList').style.display = 'block';
+  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+}
+
+function updateShuffle() {}
+function updateRepeat() {}
+
+function updateItemDuration(contentId, seconds) {
+  const item = playlistItems.find(i => i.content_id == contentId);
+  if (item) {
+    item.duration_ms = parseInt(seconds) * 1000;
+  }
+}
+
+function startFullscreenPlayback() {
+  console.log('[Reproductor] currentPlaylist:', currentPlaylist);
+  if (!currentPlaylist) { updateStatus('Selecciona una lista primero', 'error'); return; }
+  if (!currentPlaylist.items || !currentPlaylist.items.length) { updateStatus('La lista no tiene elementos', 'error'); return; }
+  console.log('[Reproductor] items:', currentPlaylist.items.length, currentPlaylist.items.map(i => ({ title: i.title, type: i.type, file_path: i.file_path })));
+  isPlaying = true; currentTrackIndex = 0;
+  if (shuffleMode) {
+    shuffledOrder = Array.from({ length: currentPlaylist.items.length }, (_, i) => i);
+    for (let i = shuffledOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
+    }
+  }
+  document.getElementById('fullscreenPlayer').classList.add('active');
+  playNextTrack();
+}
+
+function stopPlayback() {
+  isPlaying = false;
+  if (playbackTimer) { clearTimeout(playbackTimer); playbackTimer = null; }
+  document.getElementById('fullscreenPlayer').classList.remove('active');
+  updateStatus('Detenido', 'info');
+}
+
+function resolveMediaUrl(filePath) {
+  if (!filePath) return '';
+  // Si ya es una URL absoluta, la devolvemos tal cual
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
+  // Si es ruta relativa, le anteponemos el API_URL
+  return `${API_URL}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+}
+
+function playNextTrack() {
+  if (!isPlaying) return;
+  const actualIndex = shuffleMode ? shuffledOrder[currentTrackIndex] : currentTrackIndex;
+  const track = currentPlaylist.items[actualIndex];
+  const display = document.getElementById('fullscreenDisplay');
+  const mediaUrl = resolveMediaUrl(track.file_path);
+  console.log(`[Reproductor] Reproduciendo #${currentTrackIndex}:`, track.title, '| tipo:', track.type, '| URL:', mediaUrl);
+
+  if (track.type === 'image') {
+    const durationMs = track.duration_ms || 15000;
+    const img = document.createElement('img');
+    img.src = mediaUrl;
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;';
+    img.onerror = () => { console.warn('No se pudo cargar imagen:', mediaUrl); goToNextTrack(); };
+    display.innerHTML = '';
+    display.appendChild(img);
+    if (playbackTimer) clearTimeout(playbackTimer);
+    playbackTimer = setTimeout(goToNextTrack, durationMs);
+  } else {
+    const video = document.createElement('video');
+    video.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+    video.autoplay = true;
+    video.id = 'fsVideo';
+    const source = document.createElement('source');
+    source.src = mediaUrl;
+    source.type = 'video/mp4';
+    video.appendChild(source);
+    video.onerror = () => { console.warn('No se pudo cargar video:', mediaUrl); goToNextTrack(); };
+    video.addEventListener('ended', goToNextTrack, { once: true });
+    display.innerHTML = '';
+    display.appendChild(video);
+    video.load();
+    video.play().catch(e => { console.warn('Autoplay bloqueado:', e); });
+  }
+}
+
+function goToNextTrack() {
+  currentTrackIndex++;
+  if (currentTrackIndex >= currentPlaylist.items.length) {
+    if (repeatMode) { currentTrackIndex = 0; playNextTrack(); }
+    else stopPlayback();
+    return;
+  }
+  playNextTrack();
+}
+
+async function savePlaylistSettings(playlistId, shuffleEnabled, repeatEnabled) {
+  try {
+    await fetch(`${API_URL}/api/playlists/${playlistId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ shuffle_enabled: shuffleEnabled, repeat_enabled: repeatEnabled })
+    });
+  } catch (err) { console.error('Error guardando opciones:', err); }
+}
+
+let devicesRefreshInterval = null;
+
+function startDevicesAutoRefresh() {
+  stopDevicesAutoRefresh();
+  devicesRefreshInterval = setInterval(() => refreshDeviceStatuses(), 30000);
+}
+
+function stopDevicesAutoRefresh() {
+  clearInterval(devicesRefreshInterval);
+  devicesRefreshInterval = null;
+}
+
+// Actualiza solo el estado de cada tarjeta sin recargar toda la lista
+async function refreshDeviceStatuses() {
+  try {
+    const res = await fetch(`${API_URL}/api/devices`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const devices = await res.json();
+    devices.forEach(d => {
+      const statusEl = document.getElementById(`status_${d.device_id}`);
+      const lastSeenEl = document.getElementById(`lastseen_${d.device_id}`);
+      if (!statusEl) return;
+      const isOnline = isOnlineStatus(d);
+      const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
+      statusEl.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}`;
+      if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
+    });
+  } catch(e) {}
+}
+
+function timeAgo(date) {
+  const diffMs = Date.now() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return `hace ${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `hace ${diffMin}m`;
+  return `hace ${Math.floor(diffMin/60)}h`;
+}
+
+function isOnlineStatus(device) {
+  if (device.status !== 'online') return false;
+  if (!device.last_seen) return false;
+  const lastSeen = new Date(device.last_seen);
+  const diffMs = Date.now() - lastSeen.getTime();
+  return diffMs < 90000; // offline si no hay heartbeat en 90 segundos
+}
+
+async function loadDevices(silent = false) {
+  const container = document.getElementById('devices-list');
+  if (!container.innerHTML || container.innerHTML.includes('Cargando') || container.innerHTML.includes('No hay')) {
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Cargando...</p>';
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/devices`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const devices = await res.json();
+    const plRes = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const plData = await plRes.json();
+    const playlists = plData.playlists || plData || [];
+    if (!devices.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay dispositivos registrados.</p>'; return; }
+    container.innerHTML = devices.map(d => {
+      const isOnline = isOnlineStatus(d);
+      const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
+      const currentPlaylistId = d.hdmi0_playlist_id || d.hdmi1_playlist_id || '';
+      return `
+        <div class="device-card">
+          <div class="device-header">
+            <div class="device-name">${d.name}</div>
+            <span id="status_${d.device_id}" class="status-badge ${isOnline ? 'online' : 'offline'}">
+              <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+              ${isOnline ? 'Online' : 'Offline'}
+            </span>
+          </div>
+          <div class="device-meta">
+            <span>ID: ${d.device_id}</span>
+            <span>IP: ${d.ip_address || 'N/A'}</span>
+<span>Último contacto: ${d.last_seen ? new Date(d.last_seen).toLocaleTimeString() : "nunca"}</span>
+          </div>
+          <div class="device-controls">
+            <div>
+              <label>Nombre</label>
+              <input type="text" id="name_${d.device_id}" value="${d.name || ''}" placeholder="Nombre del dispositivo" style="margin:0;font-size:12px;padding:9px 10px;">
+            </div>
+            <div>
+              <label>Playlist</label>
+              <select id="playlist_${d.device_id}">
+                <option value="">-- Sin playlist --</option>
+                ${playlists.map(p => {
+                  const badge = p.orientation === 'vertical' ? 'V' : 'H';
+                  const sel = currentPlaylistId == p.id ? 'selected' : '';
+                  return `<option value="${p.id}" ${sel}>${p.name} · ${badge}</option>`;
+                }).join('')}
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Control TV</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
+              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControl('${d.device_id}', 'on')">Encender TV</button>
+              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControl('${d.device_id}', 'off')">Apagar TV</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Cronograma TV</div>
+            </div>
+            <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
+              <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+            </div>
+            <button style="margin-top:8px;width:100%;padding:6px 12px;font-size:12px;color:var(--orange);background:none;border:0.5px dashed var(--orange);border-radius:6px;cursor:pointer;opacity:0.8;" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
+          </div>
+          <div class="device-footer" style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+            <span id="lastseen_${d.device_id}" style="font-size:11px;color:var(--text-muted);margin-right:auto;">Verificado ${lastSeen}</span>
+            <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar estado</button>
+            <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
+            <button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">↺ Reiniciar</button>
+            <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
+          </div>
+        </div>`;
+    }).join('');
+    devices.forEach(d => loadSchedules(d.device_id));
+    if (!silent) showStatus('Dispositivos actualizados', 'success');
+  } catch (err) { if (!silent) container.innerHTML = `<p style="color:var(--offline);">Error: ${err.message}</p>`; }
+}
+
+async function verifyDevice(deviceId) {
+  const lastSeenEl = document.getElementById(`lastseen_${deviceId}`);
+  const statusEl   = document.getElementById(`status_${deviceId}`);
+  if (lastSeenEl) lastSeenEl.textContent = 'Verificando...';
+  try {
+    const res = await fetch(`${API_URL}/api/devices`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const devices = await res.json();
+    const d = devices.find(x => x.device_id === deviceId);
+    if (!d) return;
+    const isOnline = isOnlineStatus(d);
+    const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
+    if (statusEl) {
+      statusEl.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}`;
+    }
+    if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
+  } catch(e) {
+    if (lastSeenEl) lastSeenEl.textContent = 'Error al verificar';
+  }
+}
+
+async function saveDevice(deviceId) {
+  const name = document.getElementById(`name_${deviceId}`).value;
+  const playlistId = document.getElementById(`playlist_${deviceId}`).value;
+  const pid = playlistId ? parseInt(playlistId) : null;
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({
+        name: name || undefined,
+        display_mode: 'mirror',
+        hdmi0_playlist_id: pid,
+        hdmi1_playlist_id: pid
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await saveSchedules(deviceId);
+    } else {
+      showStatus('Error: ' + (data.error || 'desconocido'), 'error');
+    }
+  } catch (err) { showStatus('Error: ' + err.message, 'error'); }
+}
+
+
+
+// ── CRONOGRAMA TV ─────────────────────────────────────────────
+const DAYS_LABELS = ['L','M','X','J','V','S','D'];
+const DAYS_KEYS   = ['mon','tue','wed','thu','fri','sat','sun'];
+
+function renderSchedules(deviceId, schedules) {
+  const container = document.getElementById(`schedules_${deviceId}`);
+  if (!container) return;
+  if (!schedules || !schedules.length) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>';
+    return;
+  }
+  container.innerHTML = schedules.map((s, idx) => {
+    const daysHtml = DAYS_KEYS.map((k, i) => {
+      const active = s.days.includes(k);
+      return `<div onclick="toggleDay('${deviceId}',${idx},'${k}')" style="width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0.5px solid ${active ? '#185FA5' : '#2e2e2e'};background:${active ? '#0C447C' : '#1e1e1e'};color:${active ? '#B5D4F4' : '#888'};">${DAYS_LABELS[i]}</div>`;
+    }).join('');
+    const toggleBg   = s.active ? '#27500A' : '#2e2e2e';
+    const toggleBdr  = s.active ? '#3B6D11' : '#444';
+    const dotColor   = s.active ? '#C0DD97' : '#888';
+    const dotPos     = s.active ? 'right:2px' : 'left:2px';
+    return `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #2e2e2e;" id="sched_${deviceId}_${idx}">
+      <div onclick="toggleScheduleActive('${deviceId}',${idx})" style="width:32px;height:18px;background:${toggleBg};border-radius:9px;position:relative;flex-shrink:0;cursor:pointer;border:0.5px solid ${toggleBdr};">
+        <div style="width:14px;height:14px;background:${dotColor};border-radius:50%;position:absolute;top:2px;${dotPos};"></div>
+      </div>
+      <div style="display:flex;gap:4px;">${daysHtml}</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+        <span style="color:#00e676;font-size:11px;">ON</span>
+        <input type="time" value="${s.time_on}" onchange="updateScheduleField('${deviceId}',${idx},'time_on',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;">
+        <span style="color:#FF1B8D;font-size:11px;">OFF</span>
+        <input type="time" value="${s.time_off}" onchange="updateScheduleField('${deviceId}',${idx},'time_off',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;">
+        <button onclick="deleteSchedule('${deviceId}',${idx})" style="background:none;border:none;color:#444;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let deviceSchedules = {};
+
+function getSchedules(deviceId) {
+  return deviceSchedules[deviceId] || [];
+}
+
+function addSchedule(deviceId) {
+  if (!deviceSchedules[deviceId]) deviceSchedules[deviceId] = [];
+  deviceSchedules[deviceId].push({ days: ['mon','tue','wed','thu','fri'], time_on: '08:00', time_off: '22:00', active: true });
+  renderSchedules(deviceId, deviceSchedules[deviceId]);
+}
+
+function deleteSchedule(deviceId, idx) {
+  deviceSchedules[deviceId].splice(idx, 1);
+  renderSchedules(deviceId, deviceSchedules[deviceId]);
+}
+
+function toggleScheduleActive(deviceId, idx) {
+  deviceSchedules[deviceId][idx].active = !deviceSchedules[deviceId][idx].active;
+  renderSchedules(deviceId, deviceSchedules[deviceId]);
+}
+
+function toggleDay(deviceId, idx, key) {
+  const s = deviceSchedules[deviceId][idx];
+  const pos = s.days.indexOf(key);
+  if (pos === -1) s.days.push(key);
+  else s.days.splice(pos, 1);
+  renderSchedules(deviceId, deviceSchedules[deviceId]);
+}
+
+function updateScheduleField(deviceId, idx, field, value) {
+  deviceSchedules[deviceId][idx][field] = value;
+}
+
+async function loadSchedules(deviceId) {
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv-schedule`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.schedules) {
+      deviceSchedules[deviceId] = data.schedules;
+      renderSchedules(deviceId, data.schedules);
+    }
+  } catch (e) { console.warn('No se pudieron cargar schedules:', e.message); }
+}
+
+async function saveSchedules(deviceId) {
+  const schedules = deviceSchedules[deviceId] || [];
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv-schedule`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ schedules })
+    });
+    const data = await res.json();
+    if (data.success) showStatus('Cronograma guardado y aplicado en el reproductor', 'success');
+    else showStatus('Error guardando cronograma: ' + (data.error || ''), 'error');
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+async function tvControl(deviceId, action) {
+  const labels = { on: "Encendiendo...", off: "Apagando...", status: "Consultando..." };
+  const btn = event.currentTarget;
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "...";
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv/${action}`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${authToken}`, "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (action === "status") {
+        const pwr = data.output.includes("on") ? "ON" : data.output.includes("standby") ? "STANDBY" : data.output || "OK";
+        showStatus("TV estado: " + pwr, "success");
+      } else {
+        showStatus("TV " + (action === "on" ? "encendido" : "apagado") + " correctamente", "success");
+      }
+    } else {
+      showStatus("Error TV: " + (data.error || "Sin respuesta"), "error");
+    }
+  } catch (e) {
+    showStatus("Error: " + e.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+async function rebootDevice(deviceId) {
+  if (!confirm('¿Reiniciar el dispositivo? Tardará ~40 segundos en volver.')) return;
+  try {
+    socket.emit('reboot_device', { device_id: deviceId });
+    showStatus('Reiniciando... vuelve en ~40 segundos', 'success');
+  } catch (err) { showStatus('Error: ' + err.message, 'error'); }
+}
+
+async function takeScreenshot(deviceId, ip, deviceName) {
+  const modal = document.getElementById('screenshotModal');
+  const img   = document.getElementById('screenshotImg');
+  const title = document.getElementById('screenshotTitle');
+  const status = document.getElementById('screenshotStatus');
+
+  title.textContent = `Captura — ${deviceName}`;
+  img.style.display = 'none';
+  status.textContent = ip ? 'Solicitando captura...' : 'Este dispositivo no tiene IP registrada';
+  status.style.color = ip ? 'var(--text-muted)' : 'var(--offline)';
+  modal.classList.add('active');
+
+  if (!ip) return;
+
+  try {
+    const res  = await fetch(`${API_URL}/api/admin/rpi/screenshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ device_id: deviceId, ip })
+    });
+    const data = await res.json();
+
+    if (data.success && data.screenshot_url) {
+      const url = resolveMediaUrl(data.screenshot_url) + '?t=' + Date.now();
+      img.onload = () => {
+        img.style.display = 'block';
+        status.textContent = 'Capturado: ' + new Date().toLocaleTimeString();
+        status.style.color = 'var(--online)';
+      };
+      img.onerror = () => {
+        status.textContent = 'No se pudo cargar la imagen';
+        status.style.color = 'var(--offline)';
+      };
+      img.src = url;
+    } else {
+      status.textContent = data.error || 'El dispositivo no respondió';
+      status.style.color = 'var(--offline)';
+    }
+  } catch (err) {
+    status.textContent = 'Error de conexión: ' + err.message;
+    status.style.color = 'var(--offline)';
+  }
+}
+</script>
+<!-- ══ MODAL ACTIVACIÓN ══ -->
+<div id="activationModal" class="modal">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Códigos de Activación</h3>
+      <button class="modal-close" onclick="closeActivationModal()">✕</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.7;">
+          Haz clic en <strong style="color:var(--text);">Generar código</strong>, luego sigue los pasos para activar tu reproductor.
+        </p>
+        <div style="font-size:13px;line-height:1.8;margin-bottom:20px;">
+          <div style="margin-bottom:10px;padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--magenta);">
+            <strong style="color:var(--text);">Si el reproductor está conectado por cable</strong><br>
+            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
+            2. Conecta el cable de red al reproductor y enciéndelo — aparecerá un QR en el televisor.<br>
+            3. Conecta tu celular a la misma red WiFi donde está conectado el reproductor.<br>
+            4. Escanea el QR con tu celular o escribe la dirección que aparece en pantalla.<br>
+            5. Ingresa el código que generaste aquí.</span>
+          </div>
+          <div style="padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--orange);">
+            <strong style="color:var(--text);">Si el reproductor no tiene cable</strong><br>
+            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
+            2. Enciéndelo — aparecerá un QR y el nombre de una red WiFi temporal.<br>
+            3. Conecta tu celular a esa red WiFi (<strong style="color:var(--text);">SONORO-Setup</strong>).<br>
+            4. Escanea el QR — se abrirá una página para configurar la conexión WiFi del reproductor.<br>
+            5. Selecciona tu red WiFi, ingresa la contraseña y el código.</span>
+          </div>
+        </div>
+      </p>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px;">Nombre del dispositivo (opcional)</label>
+        <input type="text" id="new-device-name" placeholder="Ej: Recepción, Sala de espera..."
+          style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'Montserrat',sans-serif;">
+      </div>
+      <button class="btn btn-grad" onclick="generateCode()" style="width:100%;padding:12px;">Generar código</button>
+
+      <div id="generated-code-wrap" style="display:none;margin-top:20px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Código de activación</div>
+          <div id="generated-code" style="font-size:28px;font-weight:900;letter-spacing:4px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></div>
+          <div id="generated-expires" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px;text-align:center;line-height:1.6;">
+          Comparte este código con quien va a activar la pantalla. Es válido por 7 días y solo se puede usar una vez.
+        </p>
+      </div>
+
+      <!-- Códigos existentes -->
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;">Códigos generados</div>
+        <div id="codes-list" style="font-size:12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── ACTIVATION CODES ─────────────────────────────────────────
+function openActivationModal() {
+  document.getElementById('activationModal').classList.add('active');
+  loadCodes();
+}
+function closeActivationModal() {
+  document.getElementById('activationModal').classList.remove('active');
+  document.getElementById('generated-code-wrap').style.display = 'none';
+  document.getElementById('new-device-name').value = '';
+}
+
+async function generateCode() {
+  const name = document.getElementById('new-device-name').value.trim();
+  try {
+    const res = await fetch(`${API_URL}/api/activation-codes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ device_name: name || undefined })
+    });
+    const data = await res.json();
+    if (!data.success) { showStatus('Error: ' + data.error, 'error'); return; }
+
+    document.getElementById('generated-code').textContent = data.code;
+    document.getElementById('generated-expires').textContent =
+      'Vence: ' + new Date(data.expires_at).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' });
+    document.getElementById('generated-code-wrap').style.display = 'block';
+    loadCodes();
+  } catch(e) { showStatus('Error generando código', 'error'); }
+}
+
+async function loadCodes() {
+  const el = document.getElementById('codes-list');
+  try {
+    const res = await fetch(`${API_URL}/api/activation-codes`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const codes = await res.json();
+    if (!codes.length) { el.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:12px;">Sin códigos generados</div>'; return; }
+    el.innerHTML = codes.map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <span style="font-weight:700;letter-spacing:2px;color:${c.used ? 'var(--text-muted)' : 'var(--text)'};">${c.code}</span>
+          ${c.device_name ? `<span style="color:var(--text-muted);margin-left:8px;">${c.device_name}</span>` : ''}
+          <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">
+            ${c.used
+              ? `<span style="color:var(--online);">✓ Usado · ${c.device_id}</span>`
+              : `Vence ${new Date(c.expires_at).toLocaleDateString('es-CO')}`}
+          </div>
+        </div>
+        ${!c.used ? `<button onclick="deleteCode(${c.id})" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:10px;">×</button>` : ''}
+      </div>`).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--offline);">Error cargando códigos</div>'; }
+}
+
+async function deleteCode(id) {
+  await fetch(`${API_URL}/api/activation-codes/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  });
+  loadCodes();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ATENCIÓN AL USUARIO — funciones del dashboard
+// ══════════════════════════════════════════════════════════════
+
+let currentBranchId = null;
+
+async function loadQueueTab() {
+  await loadLogoPreview();
+  await loadBranches();
+}
+
+// ── LOGO ──────────────────────────────────────────────────────
+async function loadLogoPreview() {
+  try {
+    const res  = await fetch(`${API_URL}/api/user/profile`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    if (data.logo_url) {
+      document.getElementById('logoPreview').src = `${API_URL}${data.logo_url}`;
+      document.getElementById('logoPreview').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function uploadLogo(input) {
+  if (!input.files[0]) return;
+  const formData = new FormData();
+  formData.append('logo', input.files[0]);
+  try {
+    const res  = await fetch(`${API_URL}/api/user/logo`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('logoPreview').src = `${API_URL}${data.logo_url}`;
+      document.getElementById('logoPreview').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+      showStatus('Logo actualizado', 'success');
+    } else {
+      showStatus(data.error || 'Error subiendo logo', 'error');
+    }
+  } catch(e) { showStatus('Error subiendo logo', 'error'); }
+}
+
+// ── SUCURSALES ────────────────────────────────────────────────
+async function deleteBranch(branchId, branchName) {
+  if (!confirm(`¿Eliminar la sucursal "${branchName}" y todos sus datos?
+Esta acción no se puede deshacer.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${branchId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadBranches();
+      showStatus('Sucursal eliminada', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function loadBranches() {
+  const grid = document.getElementById('branchesGrid');
+  grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Cargando...</div>';
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/branches`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const branches = await res.json();
+
+    if (!branches.length) {
+      grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No tienes sucursales. Crea una para empezar.</div>';
+      return;
+    }
+
+    const BASE = window.location.origin;
+    grid.innerHTML = branches.map(b => `
+      <div class="queue-card">
+        <div class="queue-card-header">
+          <div>
+            <div class="queue-card-title">${b.name}</div>
+            <div class="queue-card-sub">${b.city || ''} ${b.address ? '· ' + b.address : ''}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:nowrap;flex-shrink:0;">
+            <button class="btn btn-outline btn-sm" onclick="openServicesModal('${b.id}','${b.name}')">Servicios</button>
+            <button class="btn btn-outline btn-sm" onclick="openCountersModal('${b.id}','${b.name}')">Ventanillas</button>
+            <button class="btn btn-outline btn-sm" onclick="openAgentsModal('${b.id}','${b.name}')">Agentes</button>
+            <button class="btn btn-outline btn-sm" onclick="editBranch('${b.id}')">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBranch('${b.id}','${b.name}')">Eliminar</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+          <div style="flex:1;padding:12px 16px;border-right:1px solid var(--border);">
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Servicios</div>
+            <div style="font-size:20px;font-weight:800;color:var(--magenta);">${b.service_count || 0}</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;border-right:1px solid var(--border);">
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Ventanillas</div>
+            <div style="font-size:20px;font-weight:800;color:var(--orange);">${b.counter_count || 0}</div>
+          </div>
+          <div style="flex:1;padding:12px 16px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;">Horario</div>
+            <div style="font-size:14px;font-weight:700;">${b.open_time?.slice(0,5) || '08:00'} – ${b.close_time?.slice(0,5) || '18:00'}</div>
+          </div>
+        </div>
+        <div class="queue-urls">
+          <div class="queue-url-item">
+            <span class="queue-url-label">Kiosco</span>
+            <a class="queue-url-link" href="${BASE}/atencion/kiosco?branch=${b.id}" target="_blank">/atencion/kiosco?branch=${b.id.slice(0,8)}...</a>
+          </div>
+          <div class="queue-url-item">
+            <span class="queue-url-label">Agente</span>
+            <a class="queue-url-link" href="${BASE}/atencion/agente" target="_blank">/atencion/agente</a>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--offline);font-size:13px;">Error cargando sucursales</div>';
+  }
+}
+
+// ── MODAL NUEVA SUCURSAL ──────────────────────────────────────
+async function openNewBranchModal() {
+  currentBranchId = null;
+  document.getElementById('branchModalTitle').textContent = 'Nueva Sucursal';
+  document.getElementById('bName').value    = '';
+  document.getElementById('bAddress').value = '';
+  document.getElementById('bCity').value    = '';
+  document.getElementById('bWelcome').value = '';
+  document.getElementById('bOpenTime').value  = '08:00';
+  document.getElementById('bCloseTime').value = '18:00';
+
+  // Cargar playlists
+  const pSel = document.getElementById('bPlaylist');
+  pSel.innerHTML = '<option value="">Sin playlist</option>';
+  try {
+    const res = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    const playlists = data.playlists || data || [];
+    playlists.forEach(p => {
+      pSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+  } catch(e) {}
+
+  document.getElementById('branchModal').classList.add('active');
+}
+
+function closeBranchModal() {
+  document.getElementById('branchModal').classList.remove('active');
+}
+
+async function editBranch(branchId) {
+  // Cargar datos de la sucursal y abrir modal en modo edición
+  currentBranchId = branchId;
+  document.getElementById('branchModalTitle').textContent = 'Editar Sucursal';
+  // Por simplicidad abre el modal vacío — se puede expandir
+  await openNewBranchModal();
+  currentBranchId = branchId;
+  document.getElementById('branchModalTitle').textContent = 'Editar Sucursal';
+}
+
+async function saveBranch() {
+  const name    = document.getElementById('bName').value.trim();
+  if (!name) return showStatus('El nombre es requerido', 'error');
+
+  const body = {
+    name,
+    address:          document.getElementById('bAddress').value,
+    city:             document.getElementById('bCity').value,
+    welcome_message:  document.getElementById('bWelcome').value || 'Bienvenido, por favor tome un turno',
+    open_time:        document.getElementById('bOpenTime').value,
+    close_time:       document.getElementById('bCloseTime').value,
+    display_playlist_id: document.getElementById('bPlaylist').value || null
+  };
+
+  try {
+    const url    = currentBranchId ? `${API_URL}/api/queue/branches/${currentBranchId}` : `${API_URL}/api/queue/branches`;
+    const method = currentBranchId ? 'PUT' : 'POST';
+    const res    = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeBranchModal();
+      loadBranches();
+      showStatus(currentBranchId ? 'Sucursal actualizada' : 'Sucursal creada', 'success');
+    } else {
+      showStatus(data.error || 'Error guardando', 'error');
+    }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── MODAL SERVICIOS ───────────────────────────────────────────
+async function openServicesModal(branchId, branchName) {
+  currentBranchId = branchId;
+  document.getElementById('servicesModalTitle').textContent = `Servicios — ${branchName}`;
+  document.getElementById('servicesModal').classList.add('active');
+  await loadServicesList(branchId);
+}
+
+async function loadServicesList(branchId) {
+  const list = document.getElementById('servicesList');
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/branches/${branchId}/services`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const services = await res.json();
+
+    if (!services.length) {
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Sin servicios. Agrega el primero.</div>';
+      return;
+    }
+
+    list.innerHTML = services.map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div class="service-color-dot" style="background:${s.color};"></div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${s.prefix} · ${s.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);">~${s.avg_attention_min} min · ${s.waiting_count || 0} en espera hoy</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="toggleService('${s.id}', ${!s.active})">${s.active ? 'Desactivar' : 'Activar'}</button>
+      </div>
+    `).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:var(--offline);font-size:13px;">Error cargando servicios</div>';
+  }
+}
+
+async function addService() {
+  const name    = document.getElementById('svcName').value.trim();
+  const prefix  = document.getElementById('svcPrefix').value.trim().toUpperCase();
+  const color   = document.getElementById('svcColor').value;
+  const avgTime = document.getElementById('svcAvgTime').value;
+
+  if (!name || !prefix) return showStatus('Nombre y prefijo requeridos', 'error');
+
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${currentBranchId}/services`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, prefix, color, avg_attention_min: parseInt(avgTime) || 10 })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('svcName').value   = '';
+      document.getElementById('svcPrefix').value = '';
+      await loadServicesList(currentBranchId);
+      showStatus('Servicio agregado', 'success');
+    } else {
+      showStatus(data.error || 'Error', 'error');
+    }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── VENTANILLAS ───────────────────────────────────────────────
+async function openCountersModal(branchId, branchName) {
+  currentBranchId = branchId;
+  document.getElementById('countersModalTitle').textContent = `Ventanillas — ${branchName}`;
+  document.getElementById('countersModal').classList.add('active');
+  await loadCountersList(branchId);
+  await loadServicesForCounterForm(branchId, [], 'newCtrServicesCheck');
+}
+
+async function loadServicesForCounterForm(branchId, selectedIds = [], containerId = 'ctrServicesCheck') {
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${branchId}/services`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const services = await res.json();
+    const container = document.getElementById(containerId);
+    if (!services.length) {
+      container.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">No hay servicios creados aún</span>';
+      return;
+    }
+    container.innerHTML = services.map(s => `
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid ${selectedIds.includes(s.id) ? s.color : 'var(--border)'};background:${selectedIds.includes(s.id) ? s.color + '22' : 'transparent'};transition:all 0.15s;">
+        <input type="checkbox" value="${s.id}" ${selectedIds.includes(s.id) ? 'checked' : ''}
+          style="accent-color:${s.color};width:14px;height:14px;"
+          onchange="this.closest('label').style.borderColor=this.checked?'${s.color}':'var(--border)';this.closest('label').style.background=this.checked?'${s.color}22':'transparent';">
+        <span style="font-size:12px;font-weight:700;color:${s.color};">${s.prefix}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);">${s.name}</span>
+      </label>`).join('');
+  } catch(e) {
+    document.getElementById('ctrServicesCheck').innerHTML = '<span style="font-size:12px;color:var(--offline);">Error cargando servicios</span>';
+  }
+}
+
+function getSelectedServiceIds(containerId = 'ctrServicesCheck') {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)).map(c => c.value);
+}
+
+async function loadCountersList(branchId) {
+  const list = document.getElementById('countersList');
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/branches/${branchId}/counters`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const counters = await res.json();
+    if (!counters.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Sin ventanillas. Agrega la primera.</div>'; return; }
+    const BASE = window.location.origin;
+    list.innerHTML = counters.map(c => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;">${c.display_name || c.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Agente: ${c.current_agent || 'Sin agente activo'}</div>
+            ${c.service_names && c.service_names.length ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Servicios: ${c.service_names.join(', ')}</div>` : '<div style="font-size:11px;color:var(--offline);margin-top:2px;font-weight:700;">Sin servicios asignados</div>'}
+            ${c.rating_enabled ? `<div style="margin-top:4px;"><a href="${BASE}/atencion/calificacion?counter=${c.id}&branch=${currentBranchId}" target="_blank" style="font-size:11px;color:var(--magenta);font-family:monospace;">/atencion/calificacion?counter=${c.id.slice(0,8)}...</a></div>` : '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Sin calificación</div>'}
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="editCounterServices('${c.id}', ${JSON.stringify(c.service_ids || []).replace(/"/g, '&quot;')})">Servicios</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleCounter('${c.id}', ${!c.active})">${c.active ? 'Desactivar' : 'Activar'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCounter('${c.id}')">Eliminar</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = '<div style="color:var(--offline);font-size:13px;">Error cargando ventanillas</div>'; }
+}
+
+async function addCounter() {
+  const name        = document.getElementById('ctrName').value.trim();
+  const displayName = document.getElementById('ctrDisplayName').value.trim();
+  if (!name) return showStatus('El nombre es requerido', 'error');
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${currentBranchId}/counters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, display_name: displayName || name, rating_enabled: document.getElementById('ctrRating').checked, service_ids: getSelectedServiceIds('newCtrServicesCheck') })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('ctrName').value = '';
+      document.getElementById('ctrDisplayName').value = '';
+      await loadCountersList(currentBranchId);
+      loadBranches();
+      showStatus('Ventanilla agregada', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function deleteCounter(counterId) {
+  if (!confirm('¿Eliminar esta ventanilla? Esta acción no se puede deshacer.')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/counters/${counterId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadCountersList(currentBranchId);
+      loadBranches();
+      showStatus('Ventanilla eliminada', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function toggleCounter(counterId, active) {
+  try {
+    await fetch(`${API_URL}/api/queue/counters/${counterId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ active })
+    });
+    await loadCountersList(currentBranchId);
+  } catch(e) {}
+}
+
+async function editCounterServices(counterId, currentServiceIds) {
+  // Mostrar el form de edición debajo de la lista
+  document.getElementById('editServicesPanel').style.display = 'block';
+  document.getElementById('editServicesPanel').dataset.counterId = counterId;
+  await loadServicesForCounterForm(currentBranchId, currentServiceIds || []);
+  document.getElementById('editServicesPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function saveCounterServices() {
+  const counterId = document.getElementById('editServicesPanel').dataset.counterId;
+  const serviceIds = getSelectedServiceIds();
+  try {
+    const res = await fetch(`${API_URL}/api/queue/counters/${counterId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ service_ids: serviceIds })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('editServicesPanel').style.display = 'none';
+      await loadCountersList(currentBranchId);
+      showStatus('Servicios actualizados', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── AGENTES ───────────────────────────────────────────────────
+async function openAgentsModal(branchId, branchName) {
+  currentBranchId = branchId;
+  document.getElementById('agentsModalTitle').textContent = `Agentes — ${branchName}`;
+  document.getElementById('agentsModal').classList.add('active');
+  await loadAgentsList(branchId);
+}
+
+async function loadAgentsList(branchId) {
+  const list = document.getElementById('agentsList');
+  try {
+    const res    = await fetch(`${API_URL}/api/queue/branches/${branchId}/agents`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const agents = await res.json();
+    if (!agents.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Sin agentes. Agrega el primero.</div>'; return; }
+    list.innerHTML = agents.map(a => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="width:32px;height:32px;border-radius:50%;background:${a.avatar_color || '#FF1B8D'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:white;flex-shrink:0;">${a.name?.charAt(0) || '?'}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${a.name}</div>
+          <div style="font-size:11px;color:var(--text-muted);">Atendidos hoy: ${a.today_tokens || 0} · Calificación: ${a.avg_rating ? parseFloat(a.avg_rating).toFixed(1) : '—'}</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:${a.is_online ? 'var(--online)' : 'var(--border)'};flex-shrink:0;" title="${a.is_online ? 'En línea' : 'Offline'}"></div>
+        <button class="btn btn-outline btn-sm" onclick="toggleAgent('${a.id}', ${!a.active})">${a.active ? 'Desactivar' : 'Activar'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">Eliminar</button>
+      </div>`).join('');
+  } catch(e) { list.innerHTML = '<div style="color:var(--offline);font-size:13px;">Error cargando agentes</div>'; }
+}
+
+async function addAgent() {
+  const name  = document.getElementById('agentName').value.trim();
+  const pin   = document.getElementById('agentPin').value.trim();
+  const color = document.getElementById('agentColor').value;
+  const email = document.getElementById('agentEmail').value.trim();
+  if (!name) return showStatus('El nombre es requerido', 'error');
+  if (!pin)  return showStatus('El PIN es requerido', 'error');
+  if (!email) return showStatus('El email es requerido', 'error');
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${currentBranchId}/agents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, pin, avatar_color: color, email })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('agentName').value  = '';
+      document.getElementById('agentPin').value   = '';
+      document.getElementById('agentEmail').value = '';
+      await loadAgentsList(currentBranchId);
+      showStatus('Agente agregado — credenciales enviadas por email', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function deleteAgent(agentId) {
+  if (!confirm('¿Eliminar este agente?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/agents/${agentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      await loadAgentsList(currentBranchId);
+      showStatus('Agente eliminado', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function toggleAgent(agentId, active) {
+  try {
+    await fetch(`${API_URL}/api/queue/agents/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ active })
+    });
+    await loadAgentsList(currentBranchId);
+  } catch(e) {}
+}
+
+async function toggleService(serviceId, active) {
+  try {
+    await fetch(`${API_URL}/api/queue/services/${serviceId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ active })
+    });
+    await loadServicesList(currentBranchId);
+  } catch(e) {}
+}
+
+// ══ FIN ATENCIÓN AL USUARIO ══
+
+</script>
+<!-- ══ MODAL SCREENSHOT ══ -->
+<div id="screenshotModal" class="modal">
+  <div class="modal-content" style="max-width:860px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="screenshotTitle">Captura de pantalla</h3>
+      <button class="modal-close" onclick="document.getElementById('screenshotModal').classList.remove('active')">✕</button>
+    </div>
+    <div style="padding:20px;">
+      <div style="background:#000;border-radius:10px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+        <img id="screenshotImg" src="" alt="Screenshot"
+          style="display:none;width:100%;height:auto;border-radius:10px;object-fit:contain;max-height:600px;">
+        <div id="screenshotStatus" style="color:var(--text-muted);font-size:13px;font-weight:600;padding:40px;">
+          Solicitando captura...
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" onclick="
+          const img = document.getElementById('screenshotImg');
+          if (img.src) { const a = document.createElement('a'); a.href = img.src; a.download = 'captura.png'; a.click(); }
+        ">Descargar</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('screenshotModal').classList.remove('active')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

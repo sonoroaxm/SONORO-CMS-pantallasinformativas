@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO · Reportes de Atención</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --magenta: #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --black:   #f8f7f5;
+      --surface: #ffffff;
+      --surface2:#f3f2ef;
+      --border:  #e0ddd8;
+      --text:    #1a1a1a;
+      --muted:   #8a8680;
+      --grad:    linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+      --green:   #10b981;
+      --amber:   #f59e0b;
+      --red:     #ef4444;
+      --blue:    #3b82f6;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--black); color: var(--text);
+      min-height: 100vh; font-size: 14px;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: var(--surface); border-bottom: 2px solid var(--border);
+      padding: 0 28px; height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-logo {
+      font-size: 20px; font-weight: 900; letter-spacing: -0.5px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .topbar-title {
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      padding-left: 14px; border-left: 1px solid var(--border);
+    }
+    .btn-back {
+      padding: 7px 16px; border-radius: 8px;
+      border: 1px solid var(--border); background: transparent;
+      font-family: 'Montserrat', sans-serif; font-size: 12px;
+      font-weight: 700; color: var(--muted); cursor: pointer;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-back:hover { background: var(--surface2); }
+
+    /* ── FILTROS ── */
+    .filters-bar {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .filter-label { font-size: 11px; font-weight: 700; color: var(--muted);
+      letter-spacing: 1px; text-transform: uppercase; }
+    .filter-select, .filter-input {
+      padding: 8px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      font-family: 'Montserrat', sans-serif; font-size: 13px;
+      color: var(--text); cursor: pointer;
+    }
+    .filter-select:focus, .filter-input:focus { outline: none; border-color: var(--magenta); }
+    .btn-filter {
+      padding: 8px 20px; border-radius: 8px; border: none;
+      background: var(--grad); color: white;
+      font-family: 'Montserrat', sans-serif; font-size: 13px;
+      font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-filter:hover { opacity: 0.9; }
+
+    /* ── CONTENIDO ── */
+    .content { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── KPI CARDS ── */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px; margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+      position: relative; overflow: hidden;
+    }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .kpi-card.magenta::before { background: var(--magenta); }
+    .kpi-card.orange::before  { background: var(--orange); }
+    .kpi-card.green::before   { background: var(--green); }
+    .kpi-card.blue::before    { background: var(--blue); }
+    .kpi-card.amber::before   { background: var(--amber); }
+    .kpi-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
+    }
+    .kpi-value { font-size: 32px; font-weight: 900; letter-spacing: -1px; }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .kpi-card.magenta .kpi-value { color: var(--magenta); }
+    .kpi-card.orange  .kpi-value { color: var(--orange); }
+    .kpi-card.green   .kpi-value { color: var(--green); }
+    .kpi-card.blue    .kpi-value { color: var(--blue); }
+    .kpi-card.amber   .kpi-value { color: var(--amber); }
+
+    /* ── CHARTS GRID ── */
+    .charts-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+    }
+    .chart-card.full { grid-column: 1 / -1; }
+    .chart-title {
+      font-size: 13px; font-weight: 700; margin-bottom: 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chart-title span { font-size: 11px; color: var(--muted); font-weight: 600; }
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* ── TABLA AGENTES ── */
+    .table-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+      margin-bottom: 24px;
+    }
+    .table-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      font-size: 13px; font-weight: 700;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 10px 16px; text-align: left;
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted);
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 16px; font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .agent-name { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .agent-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; color: white; flex-shrink: 0;
+    }
+    .rank-badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; flex-shrink: 0;
+    }
+    .rank-1 { background: #FFD700; color: #8a6500; }
+    .rank-2 { background: #C0C0C0; color: #555; }
+    .rank-3 { background: #CD7F32; color: #fff; }
+    .rank-n { background: var(--surface2); color: var(--muted); }
+
+    .stars-inline { display: flex; gap: 2px; align-items: center; }
+    .star-svg { width: 14px; height: 14px; }
+
+    .loading-state { padding: 48px; text-align: center; color: var(--muted); }
+    .empty-state   { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">SONORO.</div>
+    <div class="topbar-title">Reportes de Atención al Usuario</div>
+  </div>
+  <a href="/dashboard.html" class="btn-back">← Volver al CMS</a>
+</div>
+
+<!-- FILTROS -->
+<div class="filters-bar">
+  <span class="filter-label">Filtrar por</span>
+  <select class="filter-select" id="branchFilter" onchange="loadReport()">
+    <option value="">Todas las sucursales</option>
+  </select>
+  <input type="date" class="filter-input" id="dateFrom">
+  <span style="font-size:12px;color:var(--muted);">hasta</span>
+  <input type="date" class="filter-input" id="dateTo">
+  <button class="btn-filter" onclick="loadReport()">Actualizar</button>
+</div>
+
+<!-- CONTENIDO -->
+<div class="content">
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card magenta">
+      <div class="kpi-label">Turnos atendidos</div>
+      <div class="kpi-value" id="kpiAttended">—</div>
+      <div class="kpi-sub" id="kpiAttendedSub">en el período</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Tiempo promedio espera</div>
+      <div class="kpi-value" id="kpiWait">—</div>
+      <div class="kpi-sub">minutos</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Tiempo prom. atención</div>
+      <div class="kpi-value" id="kpiAttention">—</div>
+      <div class="kpi-sub">minutos</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">Calificación promedio</div>
+      <div class="kpi-value" id="kpiRating">—</div>
+      <div class="kpi-sub">sobre 5.0</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">No presentados</div>
+      <div class="kpi-value" id="kpiNoShow">—</div>
+      <div class="kpi-sub" id="kpiNoShowPct">del total</div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div class="charts-grid">
+    <div class="chart-card full">
+      <div class="chart-title">
+        Turnos por hora del día
+        <span>Identifica horas pico</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="hourlyChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">
+        Demanda por servicio
+        <span>Turnos totales</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="servicesChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">
+        Calificación por servicio
+        <span>Promedio sobre 5</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="ratingsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA AGENTES -->
+  <div class="table-card">
+    <div class="table-header">
+      Desempeño por agente
+      <span style="font-size:11px;color:var(--muted);font-weight:600;" id="agentsPeriodLabel">—</span>
+    </div>
+    <div id="agentsTableContainer">
+      <div class="loading-state">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- TABLA SERVICIOS -->
+  <div class="table-card">
+    <div class="table-header">Detalle por servicio</div>
+    <div id="servicesTableContainer">
+      <div class="loading-state">Cargando...</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_URL   = window.location.origin;
+const authToken = localStorage.getItem('authToken');
+
+let hourlyChart   = null;
+let servicesChart = null;
+let ratingsChart  = null;
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  if (!authToken) { window.location.href = '/dashboard.html'; return; }
+
+  // Fechas por defecto: hoy
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = today;
+  document.getElementById('dateTo').value   = today;
+
+  await loadBranches();
+  await loadReport();
+}
+
+// ── SUCURSALES ────────────────────────────────────────────────
+async function loadBranches() {
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/branches`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const branches = await res.json();
+    const sel      = document.getElementById('branchFilter');
+    branches.forEach(b => {
+      sel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+    });
+    // Si solo hay una sucursal, seleccionarla automáticamente
+    if (branches.length === 1) sel.value = branches[0].id;
+  } catch(e) {}
+}
+
+// ── CARGAR REPORTE ────────────────────────────────────────────
+async function loadReport() {
+  const branchId = document.getElementById('branchFilter').value;
+  const from     = document.getElementById('dateFrom').value;
+  const to       = document.getElementById('dateTo').value;
+
+  if (!branchId) {
+    // Si no hay sucursal seleccionada, usar la primera
+    const sel = document.getElementById('branchFilter');
+    if (sel.options.length > 1) {
+      sel.value = sel.options[1].value;
+    }
+  }
+
+  const bid = document.getElementById('branchFilter').value;
+  if (!bid) return;
+
+  await Promise.all([
+    loadKPIs(bid, from, to),
+    loadHourlyChart(bid, from, to),
+    loadServicesCharts(bid, from, to),
+    loadAgentsTable(bid, from, to),
+    loadServicesTable(bid, from, to),
+  ]);
+}
+
+// ── KPIs ──────────────────────────────────────────────────────
+async function loadKPIs(branchId, from, to) {
+  try {
+    const [agentsRes, servicesRes] = await Promise.all([
+      fetch(`${API_URL}/api/queue/reports/agents?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/queue/reports/services?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+    ]);
+    const agents   = await agentsRes.json();
+    const services = await servicesRes.json();
+
+    // Agregar totales
+    const totalAttended = agents.reduce((s, a) => s + parseInt(a.tokens_attended || 0), 0);
+    const totalNoShow   = agents.reduce((s, a) => s + parseInt(a.tokens_no_show   || 0), 0);
+    const avgWait       = services.length ? services.reduce((s, sv) => s + parseFloat(sv.avg_wait || 0), 0) / services.filter(s => s.avg_wait).length : 0;
+    const avgAttention  = agents.filter(a => a.avg_attention_min).length
+      ? agents.reduce((s, a) => s + parseFloat(a.avg_attention_min || 0), 0) / agents.filter(a => a.avg_attention_min).length : 0;
+    const avgRating     = agents.filter(a => a.avg_rating).length
+      ? agents.reduce((s, a) => s + parseFloat(a.avg_rating || 0), 0) / agents.filter(a => a.avg_rating).length : 0;
+
+    document.getElementById('kpiAttended').textContent   = totalAttended;
+    document.getElementById('kpiWait').textContent       = avgWait ? avgWait.toFixed(1) : '—';
+    document.getElementById('kpiAttention').textContent  = avgAttention ? avgAttention.toFixed(1) : '—';
+    document.getElementById('kpiRating').textContent     = avgRating ? avgRating.toFixed(2) : '—';
+    document.getElementById('kpiNoShow').textContent     = totalNoShow;
+    const total = totalAttended + totalNoShow;
+    document.getElementById('kpiNoShowPct').textContent  = total ? `${Math.round(totalNoShow/total*100)}% del total` : 'del total';
+  } catch(e) {}
+}
+
+// ── GRÁFICO HORARIO ───────────────────────────────────────────
+async function loadHourlyChart(branchId, from, to) {
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/reports/hourly?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+
+    const hours    = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+    const attended = hours.map((_, h) => { const d = data.find(x => parseInt(x.hour) === h); return d ? parseInt(d.attended || 0) : 0; });
+    const noShow   = hours.map((_, h) => { const d = data.find(x => parseInt(x.hour) === h); return d ? parseInt(d.no_show || 0) : 0; });
+
+    if (hourlyChart) hourlyChart.destroy();
+    hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+      type: 'bar',
+      data: {
+        labels: hours,
+        datasets: [
+          { label: 'Atendidos', data: attended, backgroundColor: 'rgba(255,27,141,0.7)', borderRadius: 4 },
+          { label: 'No presentados', data: noShow, backgroundColor: 'rgba(245,158,11,0.5)', borderRadius: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { font: { family: 'Montserrat', size: 11 } } } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 10 } } },
+          y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { family: 'Montserrat', size: 10 } } }
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+// ── GRÁFICOS SERVICIOS ────────────────────────────────────────
+async function loadServicesCharts(branchId, from, to) {
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/reports/services?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const services = await res.json();
+    if (!services.length) return;
+
+    const names    = services.map(s => s.name);
+    const totals   = services.map(s => parseInt(s.total_tokens || 0));
+    const ratings  = services.map(s => parseFloat(s.avg_rating || 0));
+    const colors   = services.map(s => s.color || '#FF1B8D');
+
+    // Demanda
+    if (servicesChart) servicesChart.destroy();
+    servicesChart = new Chart(document.getElementById('servicesChart'), {
+      type: 'doughnut',
+      data: {
+        labels: names,
+        datasets: [{ data: totals, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: 'Montserrat', size: 11 }, padding: 12 } }
+        }
+      }
+    });
+
+    // Calificaciones
+    if (ratingsChart) ratingsChart.destroy();
+    ratingsChart = new Chart(document.getElementById('ratingsChart'), {
+      type: 'bar',
+      data: {
+        labels: names,
+        datasets: [{
+          label: 'Calificación promedio',
+          data: ratings,
+          backgroundColor: colors.map(c => c + 'bb'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 11 } } },
+          y: { min: 0, max: 5, grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { font: { family: 'Montserrat', size: 11 } } }
+        }
+      }
+    });
+  } catch(e) {}
+}
+
+// ── TABLA AGENTES ─────────────────────────────────────────────
+async function loadAgentsTable(branchId, from, to) {
+  const container = document.getElementById('agentsTableContainer');
+  const label     = document.getElementById('agentsPeriodLabel');
+  label.textContent = from === to ? formatDate(from) : `${formatDate(from)} — ${formatDate(to)}`;
+
+  try {
+    const res    = await fetch(`${API_URL}/api/queue/reports/agents?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const agents = await res.json();
+
+    if (!agents.length) { container.innerHTML = '<div class="empty-state">Sin datos de agentes en este período</div>'; return; }
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Agente</th>
+            <th>Atendidos</th>
+            <th>No pres.</th>
+            <th>Tiempo prom.</th>
+            <th>Espera prom.</th>
+            <th>Calificación</th>
+            <th>Horas trabajadas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${agents.map((a, i) => {
+            const rank = i < 3 ? `rank-${i+1}` : 'rank-n';
+            const rankLabel = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+            const rating = parseFloat(a.avg_rating || 0);
+            const stars  = renderStars(rating);
+            const hours  = a.total_hours ? parseFloat(a.total_hours).toFixed(1) + 'h' : '—';
+            return `
+            <tr>
+              <td><div class="rank-badge ${rank}">${rankLabel}</div></td>
+              <td>
+                <div class="agent-name">
+                  <div class="agent-avatar" style="background:${a.avatar_color || '#FF1B8D'}">${a.name?.charAt(0) || '?'}</div>
+                  ${a.name}
+                </div>
+              </td>
+              <td><strong>${a.tokens_attended || 0}</strong></td>
+              <td style="color:${parseInt(a.tokens_no_show) > 0 ? 'var(--amber)' : 'var(--muted)'};">${a.tokens_no_show || 0}</td>
+              <td>${a.avg_attention_min ? Math.round(a.avg_attention_min) + ' min' : '—'}</td>
+              <td>${a.avg_wait_min ? Math.round(a.avg_wait_min) + ' min' : '—'}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="stars-inline">${stars}</div>
+                  <span style="font-size:12px;color:var(--muted);">${rating ? rating.toFixed(1) : '—'}</span>
+                </div>
+              </td>
+              <td style="color:var(--muted);">${hours}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = '<div class="empty-state">Error cargando datos</div>';
+  }
+}
+
+// ── TABLA SERVICIOS ───────────────────────────────────────────
+async function loadServicesTable(branchId, from, to) {
+  const container = document.getElementById('servicesTableContainer');
+  try {
+    const res      = await fetch(`${API_URL}/api/queue/reports/services?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const services = await res.json();
+
+    if (!services.length) { container.innerHTML = '<div class="empty-state">Sin datos de servicios en este período</div>'; return; }
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Servicio</th>
+            <th>Total turnos</th>
+            <th>Atendidos</th>
+            <th>No presentados</th>
+            <th>En espera ahora</th>
+            <th>Espera prom.</th>
+            <th>Atención prom.</th>
+            <th>Calificación</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${services.map(s => `
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:${s.color || '#FF1B8D'};flex-shrink:0;"></div>
+                <strong>${s.prefix}</strong> ${s.name}
+              </div>
+            </td>
+            <td>${s.total_tokens || 0}</td>
+            <td style="color:var(--green);font-weight:700;">${s.attended || 0}</td>
+            <td style="color:${parseInt(s.no_show) > 0 ? 'var(--amber)' : 'var(--muted)'};">${s.no_show || 0}</td>
+            <td style="color:${parseInt(s.still_waiting) > 5 ? 'var(--red)' : 'var(--text)'};font-weight:700;">${s.still_waiting || 0}</td>
+            <td>${s.avg_wait ? Math.round(s.avg_wait) + ' min' : '—'}</td>
+            <td>${s.avg_attention ? Math.round(s.avg_attention) + ' min' : '—'}</td>
+            <td>${s.avg_rating ? parseFloat(s.avg_rating).toFixed(1) + ' ★' : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = '<div class="empty-state">Error cargando datos</div>';
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function renderStars(rating) {
+  return Array.from({length: 5}, (_, i) => {
+    const fill = i < Math.round(rating) ? '#FF8C00' : '#e0ddd8';
+    return `<svg class="star-svg" viewBox="0 0 24 24" fill="${fill}" xmlns="http://www.w3.org/2000/svg"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+  }).join('');
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+init();
+</script>
+</body>
+</html>

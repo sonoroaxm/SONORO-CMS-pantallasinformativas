@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SONORO · Calificación</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --magenta: #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --black:   #f8f7f5;
+      --surface: #ffffff;
+      --border:  #e0ddd8;
+      --text:    #1a1a1a;
+      --muted:   #8a8680;
+      --grad:    linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+    }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--black);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px; gap: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── HEADER ── */
+    .rating-header {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 64px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .rating-logo {
+      height: 36px; display: flex; align-items: center;
+    }
+    .rating-logo img {
+      max-height: 36px; max-width: 120px; object-fit: contain;
+      display: none;
+    }
+    .rating-logo-text {
+      font-size: 22px; font-weight: 900; letter-spacing: -1px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .rating-counter-name {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+
+    /* ══ PANTALLA IDLE — esperando que finalicen turno ══ */
+    #idleScreen {
+      background: var(--black); gap: 12px;
+      padding-top: 64px;
+    }
+    .idle-icon { opacity: 0.5; }
+    .idle-text {
+      font-size: 18px; font-weight: 700; color: var(--muted);
+      text-align: center;
+    }
+    .idle-sub {
+      font-size: 13px; color: var(--muted); opacity: 0.6;
+      text-align: center;
+    }
+    .idle-token {
+      margin-top: 20px; padding: 12px 32px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 40px; font-size: 13px; font-weight: 600;
+      color: var(--muted); display: none;
+    }
+
+    /* ══ PANTALLA DE CALIFICACIÓN ══ */
+    #ratingScreen { padding-top: 64px; gap: 0; }
+
+    .rating-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 24px; padding: 44px 40px;
+      text-align: center; max-width: 480px; width: 100%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      position: relative; overflow: hidden;
+    }
+    .rating-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--grad);
+    }
+
+    .rating-token-number {
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+    }
+    .rating-question {
+      font-size: clamp(20px, 4vw, 26px); font-weight: 800;
+      line-height: 1.2; margin-bottom: 8px; color: var(--text);
+    }
+    .rating-sub {
+      font-size: 14px; color: var(--muted); margin-bottom: 36px;
+    }
+
+    /* ── Estrellas interactivas ── */
+    .stars-row {
+      display: flex; justify-content: center; gap: 12px;
+      margin: 8px 0 24px;
+    }
+    .star-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 6px; border-radius: 8px;
+      transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);
+    }
+    .star-btn:hover  { transform: scale(1.18); }
+    .star-btn:active { transform: scale(0.92); }
+    .star-svg { display: block; transition: all 0.15s; }
+
+    .star-label-row {
+      display: flex; justify-content: space-between;
+      padding: 0 6px; margin-bottom: 28px;
+    }
+    .star-label-row span {
+      font-size: 11px; font-weight: 700;
+      color: var(--muted); letter-spacing: 0.5px;
+    }
+
+    .btn-submit {
+      width: 100%; padding: 16px; margin-top: 8px;
+      background: var(--grad); border: none; border-radius: 14px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 15px; font-weight: 800; color: white;
+      cursor: pointer; transition: opacity 0.2s;
+      display: none;
+    }
+    .btn-submit.show { display: block; }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-skip {
+      margin-top: 14px; background: none; border: none;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 13px; color: var(--muted); cursor: pointer;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+
+    /* ══ PANTALLA GRACIAS ══ */
+    #thanksScreen { gap: 16px; background: var(--black); padding-top: 64px; }
+
+    .thanks-icon {
+      font-size: 72px;
+      animation: bounceIn 0.5s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes bounceIn {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .thanks-title {
+      font-size: 28px; font-weight: 900; text-align: center;
+    }
+    .thanks-sub {
+      font-size: 15px; color: var(--muted); text-align: center;
+    }
+    .thanks-score {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 8px;
+    }
+    .thanks-stars { display: flex; gap: 4px; align-items: center; }
+    .thanks-countdown {
+      margin-top: 24px; font-size: 12px; color: var(--muted);
+    }
+    .countdown-bar {
+      width: 200px; height: 3px; background: var(--border);
+      border-radius: 2px; margin: 8px auto 0; overflow: hidden;
+    }
+    .countdown-fill {
+      height: 100%; background: var(--grad); border-radius: 2px;
+      animation: countdownAnim 5s linear forwards;
+    }
+    @keyframes countdownAnim { from{width:100%} to{width:0%} }
+  </style>
+</head>
+<body>
+
+<!-- IDLE -->
+<div class="screen active" id="idleScreen">
+  <div class="rating-header">
+    <div class="rating-logo">
+      <img id="clientLogo" src="" alt="">
+      <span class="rating-logo-text" id="logoText">SONORO.</span>
+    </div>
+    <div class="rating-counter-name" id="counterLabel">—</div>
+  </div>
+  <div class="idle-icon">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#d0cdc8" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  </div>
+  <div class="idle-text">¿Cómo fue tu experiencia?</div>
+  <div class="idle-sub">Califica cuando finalice tu turno</div>
+  <div class="idle-token" id="idleTokenBadge">—</div>
+</div>
+
+<!-- CALIFICACIÓN -->
+<div class="screen" id="ratingScreen">
+  <div class="rating-header">
+    <div class="rating-logo">
+      <img id="clientLogo2" src="" alt="">
+      <span class="rating-logo-text" id="logoText2">SONORO.</span>
+    </div>
+    <div class="rating-counter-name" id="counterLabel2">—</div>
+  </div>
+  <div class="rating-card">
+    <div class="rating-token-number" id="ratingTokenNumber">Turno —</div>
+    <div class="rating-question">¿Cómo calificarías la atención recibida?</div>
+    <div class="rating-sub">Toca la carita que mejor describe tu experiencia</div>
+
+    <div class="stars-row" id="starsRow">
+      <button class="star-btn" onclick="selectScore(1)" onmouseover="hoverStars(1)" onmouseout="hoverStars(0)">
+        <svg class="star-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path id="star1" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e0ddd8" stroke="none"/>
+        </svg>
+      </button>
+      <button class="star-btn" onclick="selectScore(2)" onmouseover="hoverStars(2)" onmouseout="hoverStars(0)">
+        <svg class="star-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path id="star2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e0ddd8" stroke="none"/>
+        </svg>
+      </button>
+      <button class="star-btn" onclick="selectScore(3)" onmouseover="hoverStars(3)" onmouseout="hoverStars(0)">
+        <svg class="star-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path id="star3" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e0ddd8" stroke="none"/>
+        </svg>
+      </button>
+      <button class="star-btn" onclick="selectScore(4)" onmouseover="hoverStars(4)" onmouseout="hoverStars(0)">
+        <svg class="star-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path id="star4" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e0ddd8" stroke="none"/>
+        </svg>
+      </button>
+      <button class="star-btn" onclick="selectScore(5)" onmouseover="hoverStars(5)" onmouseout="hoverStars(0)">
+        <svg class="star-svg" width="56" height="56" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path id="star5" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#e0ddd8" stroke="none"/>
+        </svg>
+      </button>
+    </div>
+    <div class="star-label-row">
+      <span>Muy mal</span>
+      <span>Excelente</span>
+    </div>
+
+    <button class="btn-submit" id="btnSubmit" onclick="submitRating()">
+      Enviar calificación
+    </button>
+    <button class="btn-skip" onclick="skipRating()">Omitir</button>
+  </div>
+</div>
+
+<!-- GRACIAS -->
+<div class="screen" id="thanksScreen">
+  <div class="rating-header">
+    <div class="rating-logo">
+      <img id="clientLogo3" src="" alt="">
+      <span class="rating-logo-text" id="logoText3">SONORO.</span>
+    </div>
+    <div class="rating-counter-name" id="counterLabel3">—</div>
+  </div>
+  <div class="thanks-icon" id="thanksIcon">😄</div>
+  <div class="thanks-title">¡Gracias por tu calificación!</div>
+  <div class="thanks-sub">Tu opinión nos ayuda a mejorar</div>
+  <div class="thanks-score">
+    <div class="thanks-stars" id="thanksStars" style="display:flex;gap:4px;align-items:center;"></div>
+  </div>
+  <div class="thanks-countdown">
+    Volviendo en 5 segundos
+    <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const API_URL    = window.location.origin;
+const COUNTER_ID = new URLSearchParams(window.location.search).get('counter');
+const BRANCH_ID  = new URLSearchParams(window.location.search).get('branch');
+const socket     = io();
+
+let selectedScore = null;
+let currentTokenId = null;
+let resetTimer     = null;
+
+const EMOJIS = { 1:'😞', 2:'😕', 3:'😐', 4:'😊', 5:'😄' };
+function renderStars(score) {
+  const colors = { 1:'#ef4444', 2:'#f97316', 3:'#f59e0b', 4:'#84cc16', 5:'#10b981' };
+  return Array.from({length: 5}, (_, i) => {
+    const color = i < score ? (colors[i+1] || colors[score]) : '#e0ddd8';
+    return `<svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="${color}" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+  }).join('');
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  if (COUNTER_ID) {
+    socket.emit('join_counter', COUNTER_ID);
+    setCounterLabel();
+  }
+  if (BRANCH_ID) {
+    socket.emit('join_branch', BRANCH_ID);
+    await loadBranchLogo();
+  }
+}
+
+async function setCounterLabel() {
+  try {
+    if (!BRANCH_ID) return;
+    const res      = await fetch(`${API_URL}/api/queue/public/branches/${BRANCH_ID}/counters`);
+    const counters = await res.json();
+    const counter  = counters.find(c => c.id === COUNTER_ID);
+    if (counter) {
+      const name = counter.display_name || counter.name;
+      ['counterLabel','counterLabel2','counterLabel3'].forEach(id => {
+        document.getElementById(id).textContent = name;
+      });
+    }
+  } catch(e) {}
+}
+
+async function loadBranchLogo() {
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/display/${BRANCH_ID}`);
+    const data = await res.json();
+    if (data.branch?.logo_url) {
+      ['clientLogo','clientLogo2','clientLogo3'].forEach((id, i) => {
+        const img  = document.getElementById(id);
+        const text = document.getElementById(['logoText','logoText2','logoText3'][i]);
+        img.src = data.branch.logo_url;
+        img.style.display  = 'block';
+        text.style.display = 'none';
+        img.onerror = () => { img.style.display = 'none'; text.style.display = 'block'; };
+      });
+    }
+  } catch(e) {}
+}
+
+// ── SOCKET — escuchar evento show_rating ──────────────────────
+socket.on('show_rating', (data) => {
+  if (COUNTER_ID && data.counter_id && data.counter_id !== COUNTER_ID) return;
+  showRatingScreen(data.token_id, data.token_number);
+});
+
+// ── MOSTRAR CALIFICACIÓN ──────────────────────────────────────
+function showRatingScreen(tokenId, tokenNumber) {
+  clearTimeout(resetTimer);
+  currentTokenId = tokenId;
+  selectedScore  = null;
+
+  document.getElementById('ratingTokenNumber').textContent = `Turno ${tokenNumber || ''}`;
+  paintStars(0, STAR_COLORS);
+  document.getElementById('btnSubmit').classList.remove('show');
+
+  // Mostrar badge en idle y luego pasar a rating
+  document.getElementById('idleTokenBadge').textContent = `Turno ${tokenNumber}`;
+  document.getElementById('idleTokenBadge').style.display = 'block';
+
+  setTimeout(() => showScreen('ratingScreen'), 300);
+
+  // Auto-skip si no califica en 30 segundos
+  resetTimer = setTimeout(skipRating, 30000);
+}
+
+// ── COLORES GRADIENTE ROJO → VERDE ───────────────────────────
+const STAR_COLORS = {
+  1: '#ef4444',
+  2: '#f97316',
+  3: '#f59e0b',
+  4: '#84cc16',
+  5: '#10b981'
+};
+
+function paintStars(upTo, colors) {
+  for (let i = 1; i <= 5; i++) {
+    const path = document.getElementById(`star${i}`);
+    if (path) path.setAttribute('fill', i <= upTo ? (colors[i] || colors[upTo]) : '#e0ddd8');
+  }
+}
+
+function hoverStars(upTo) {
+  if (upTo === 0) {
+    // Restaurar estado seleccionado
+    paintStars(selectedScore || 0, STAR_COLORS);
+    return;
+  }
+  paintStars(upTo, STAR_COLORS);
+}
+
+// ── SELECCIONAR PUNTAJE ───────────────────────────────────────
+function selectScore(score) {
+  selectedScore = score;
+  paintStars(score, STAR_COLORS);
+  document.getElementById('btnSubmit').classList.add('show');
+}
+
+// ── ENVIAR ────────────────────────────────────────────────────
+async function submitRating() {
+  if (!selectedScore || !currentTokenId) return;
+  try {
+    await fetch(`${API_URL}/api/queue/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token_id: currentTokenId,
+        score:    selectedScore,
+        channel:  'counter'
+      })
+    });
+  } catch(e) {}
+  showThanks(selectedScore);
+}
+
+function skipRating() {
+  clearTimeout(resetTimer);
+  showThanks(null);
+}
+
+// ── GRACIAS ───────────────────────────────────────────────────
+function showThanks(score) {
+  clearTimeout(resetTimer);
+
+  if (score) {
+    document.getElementById('thanksIcon').textContent  = EMOJIS[score];
+    document.getElementById('thanksStars').innerHTML = renderStars(score);
+    document.querySelector('.thanks-score').style.display = 'flex';
+  } else {
+    document.querySelector('.thanks-score').style.display = 'none';
+    document.getElementById('thanksIcon').textContent = '👋';
+  }
+
+  // Reiniciar animación countdown
+  const fill = document.getElementById('countdownFill');
+  fill.style.animation = 'none';
+  fill.offsetHeight;
+  fill.style.animation = 'countdownAnim 5s linear forwards';
+
+  showScreen('thanksScreen');
+
+  resetTimer = setTimeout(goToIdle, 5000);
+}
+
+function goToIdle() {
+  clearTimeout(resetTimer);
+  currentTokenId = null;
+  selectedScore  = null;
+  document.getElementById('idleTokenBadge').style.display = 'none';
+  showScreen('idleScreen');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>

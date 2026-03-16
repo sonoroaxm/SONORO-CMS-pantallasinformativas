@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SONORO · Atención al Usuario</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --magenta: #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --black:   #f8f7f5;
+      --surface: #ffffff;
+      --border:  #e0ddd8;
+      --text:    #1a1a1a;
+      --muted:   #8a8680;
+      --grad:    linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+    }
+
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--black);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 32px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    .screen.active { opacity: 1; pointer-events: all; }
+
+    /* ── HEADER COMÚN ── */
+    .kiosk-header {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 80px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 36px;
+      border-bottom: 1px solid var(--border);
+    }
+    .kiosk-logo {
+      font-size: 28px; font-weight: 900; letter-spacing: -1px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .kiosk-branch {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .kiosk-clock {
+      font-size: 20px; font-weight: 800; color: var(--text);
+    }
+
+    /* ══ PANTALLA BIENVENIDA ══ */
+    #welcomeScreen {
+      gap: 0;
+      padding-top: 80px;
+      padding-bottom: 56px;
+    }
+
+    .welcome-hero {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      flex: 0 0 auto; padding: 40px 0 32px;
+    }
+    .welcome-title {
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 900; letter-spacing: -1.5px;
+      text-align: center; line-height: 1.1;
+      margin-bottom: 10px;
+    }
+    .welcome-sub {
+      font-size: clamp(14px, 2vw, 18px);
+      color: var(--muted); font-weight: 600;
+      text-align: center; letter-spacing: 0.5px;
+    }
+    .welcome-instruction {
+      font-size: clamp(13px, 1.8vw, 16px);
+      color: var(--muted); text-align: center;
+      margin-top: 8px;
+    }
+
+    /* Grid de servicios */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      width: 100%; max-width: 960px;
+      padding: 0 0 32px;
+      flex: 1; align-content: center;
+    }
+
+    .service-btn {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 24px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.16,1,0.3,1);
+      position: relative; overflow: hidden;
+      min-height: 180px;
+    }
+    .service-btn::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--svc-color, var(--grad));
+      border-radius: 20px 20px 0 0;
+    }
+    .service-btn:active {
+      transform: scale(0.96);
+      border-color: var(--svc-color, var(--magenta));
+    }
+    .service-btn:hover {
+      border-color: var(--svc-color, var(--magenta));
+      background: #f3f2ef;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+
+    .service-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      background: rgba(255,255,255,0.06);
+    }
+    .service-prefix {
+      font-size: 32px; font-weight: 900; letter-spacing: -1px;
+    }
+    .service-name {
+      font-size: 16px; font-weight: 700; text-align: center;
+      line-height: 1.3;
+    }
+    .service-wait {
+      font-size: 12px; color: var(--muted); font-weight: 600;
+    }
+    .service-priority-badge {
+      position: absolute; top: 16px; right: 16px;
+      font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: rgba(255,140,0,0.15); color: var(--orange);
+      border: 1px solid rgba(255,140,0,0.3);
+      padding: 3px 8px; border-radius: 4px;
+    }
+
+    /* Botón prioritario especial */
+    .priority-btn {
+      max-width: 100%;
+      border-color: rgba(255,140,0,0.4);
+      background: rgba(255,140,0,0.05);
+    }
+
+    /* ══ PANTALLA DE CONFIRMACIÓN ══ */
+    #confirmScreen {
+      gap: 0; background: var(--black);
+      padding-bottom: 56px;
+    }
+
+    .confirm-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 56px 64px;
+      text-align: center;
+      position: relative; overflow: hidden;
+      max-width: 500px; width: 100%;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.12);
+    }
+    .confirm-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--grad);
+    }
+
+    .confirm-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+    .confirm-service {
+      font-size: 16px; font-weight: 600; color: var(--muted);
+      margin-bottom: 24px;
+    }
+    .confirm-number {
+      font-size: 100px; font-weight: 900; letter-spacing: -5px;
+      line-height: 1;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: popIn 0.5s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes popIn {
+      from { transform: scale(0.6) rotate(-3deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+    }
+
+    .confirm-wait-info {
+      margin-top: 28px; padding: 16px 24px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border); border-radius: 12px;
+    }
+    .confirm-wait-label {
+      font-size: 11px; color: var(--muted); font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .confirm-wait-value {
+      font-size: 28px; font-weight: 800; margin-top: 4px;
+    }
+    .confirm-position {
+      font-size: 13px; color: var(--muted); margin-top: 4px;
+    }
+
+    .confirm-print-status {
+      margin-top: 24px; font-size: 13px; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .print-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--orange);
+      animation: blink 1s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .confirm-countdown {
+      margin-top: 32px; font-size: 12px; color: var(--muted);
+    }
+    .countdown-bar {
+      width: 100%; height: 3px; background: var(--border);
+      border-radius: 2px; margin-top: 8px; overflow: hidden;
+    }
+    .countdown-fill {
+      height: 100%; background: var(--grad);
+      border-radius: 2px;
+      animation: countdownAnim 8s linear forwards;
+    }
+    @keyframes countdownAnim { from{width:100%} to{width:0%} }
+
+    .kiosk-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 10px 36px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 2px;
+      z-index: 10;
+    }
+    .kiosk-footer-brand {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .kiosk-footer-brand span {
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .kiosk-footer-url {
+      font-size: 11px; font-weight: 600;
+      color: var(--muted); letter-spacing: 0.5px;
+    }
+
+    .btn-new-turn {
+      margin-top: 24px; padding: 16px 48px;
+      background: var(--grad); border: none; border-radius: 14px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 15px; font-weight: 800; color: white;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-new-turn:hover { opacity: 0.9; }
+
+    /* ══ PANTALLA LOADING ══ */
+    #loadingScreen {
+      background: var(--black); gap: 20px;
+    }
+    .loading-logo {
+      font-size: 48px; font-weight: 900; letter-spacing: -2px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .loading-dots {
+      display: flex; gap: 8px;
+    }
+    .loading-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--border);
+      animation: loadDot 1.2s ease-in-out infinite;
+    }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes loadDot {
+      0%,80%,100% { background: #d0cdc8; transform: scale(0.8); }
+      40%          { background: var(--magenta); transform: scale(1.2); }
+    }
+
+    /* ══ ERROR ══ */
+    .error-msg {
+      text-align: center; padding: 24px; max-width: 400px;
+    }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .error-sub { font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="screen active" id="loadingScreen">
+  <div class="loading-logo">SONORO.</div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+  </div>
+</div>
+
+<!-- BIENVENIDA -->
+<div class="screen" id="welcomeScreen">
+  <div class="kiosk-header">
+    <div class="kiosk-logo"><img id="clientLogo" src="" alt="SONORO." style="max-height:40px;max-width:140px;object-fit:contain;display:none;" onerror="this.style.display='none';document.getElementById('logoText').style.display='block'"><span id="logoText" style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SONORO.</span></div>
+    <div class="kiosk-branch" id="branchName">—</div>
+    <div class="kiosk-clock" id="kioskClock">00:00</div>
+  </div>
+
+  <div class="welcome-hero">
+    <div class="welcome-title" id="welcomeMessage">Bienvenido</div>
+    <div class="welcome-sub">Atención al Usuario</div>
+    <div class="welcome-instruction">Toca el servicio que necesitas</div>
+  </div>
+
+  <div class="services-grid" id="servicesGrid">
+    <!-- Se llena dinámicamente -->
+  </div>
+</div>
+
+<!-- CONFIRMACIÓN -->
+<div class="screen" id="confirmScreen">
+  <div class="kiosk-header">
+    <div class="kiosk-logo"><img id="clientLogo" src="" alt="SONORO." style="max-height:40px;max-width:140px;object-fit:contain;display:none;" onerror="this.style.display='none';document.getElementById('logoText').style.display='block'"><span id="logoText" style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SONORO.</span></div>
+    <div class="kiosk-branch" id="confirmBranchName">—</div>
+    <div class="kiosk-clock" id="confirmClock">00:00</div>
+  </div>
+
+  <div class="confirm-card">
+    <div class="confirm-label">Tu turno es</div>
+    <div class="confirm-service" id="confirmService">—</div>
+    <div class="confirm-number" id="confirmNumber">—</div>
+
+    <div class="confirm-wait-info">
+      <div class="confirm-wait-label">Tiempo estimado de espera</div>
+      <div class="confirm-wait-value" id="confirmWait">—</div>
+      <div class="confirm-position" id="confirmPosition">—</div>
+    </div>
+
+    <div class="confirm-print-status" id="printStatus" style="display:none;">
+      <div class="print-dot"></div>
+      Imprimiendo tu tiquete...
+    </div>
+
+    <div class="confirm-countdown">
+      Volviendo al inicio en 8 segundos
+      <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
+    </div>
+
+    <button class="btn-new-turn" onclick="goToWelcome()">Tomar otro turno</button>
+  </div>
+</div>
+
+<div class="kiosk-footer">
+  <div class="kiosk-footer-brand"><span>SONORO.</span> CMS · Pantallas Informativas</div>
+  <div class="kiosk-footer-url">www.sonoro.com.co</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const API_URL   = window.location.origin;
+const BRANCH_ID = new URLSearchParams(window.location.search).get('branch');
+const socket    = io();
+
+let services      = [];
+let countdownTimer = null;
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  startClock();
+
+  if (!BRANCH_ID) {
+    showScreen('welcomeScreen');
+    document.getElementById('welcomeMessage').textContent = 'Sin sucursal configurada';
+    document.getElementById('servicesGrid').innerHTML =
+      '<div class="error-msg"><div class="error-icon">⚙️</div><div class="error-title">Configura el kiosco</div><div class="error-sub">Agrega ?branch=UUID a la URL</div></div>';
+    return;
+  }
+
+  try {
+    await loadBranch();
+    await loadServices();
+    showScreen('welcomeScreen');
+  } catch(e) {
+    showScreen('welcomeScreen');
+    document.getElementById('servicesGrid').innerHTML =
+      '<div class="error-msg"><div class="error-icon">🔌</div><div class="error-title">Sin conexión</div><div class="error-sub">Verificando servidor...</div></div>';
+    setTimeout(init, 5000);
+  }
+
+  socket.emit('join_branch', BRANCH_ID);
+  socket.on('new_token', loadServices); // actualizar conteos en tiempo real
+}
+
+// ── CARGAR SUCURSAL ────────────────────────────────────────────
+async function loadBranch() {
+  const res  = await fetch(`${API_URL}/api/queue/display/${BRANCH_ID}`);
+  const data = await res.json();
+  if (!data.branch) return;
+  const name = data.branch.name || 'SONORO';
+  document.getElementById('branchName').textContent        = name;
+  document.getElementById('confirmBranchName').textContent = name;
+  // Cargar logo del cliente
+  if (data.branch.logo_url) {
+    const logos = [document.getElementById('clientLogo'), document.getElementById('clientLogo2')];
+    const texts = [document.getElementById('logoText'), document.getElementById('logoText2')];
+    logos.forEach((img, i) => {
+      if (img) { img.src = data.branch.logo_url; img.style.display = 'block'; }
+      if (texts[i]) texts[i].style.display = 'none';
+    });
+  }
+  const msg = data.branch.welcome_message || 'Bienvenido';
+  document.getElementById('welcomeMessage').textContent    = msg;
+}
+
+// ── CARGAR SERVICIOS ───────────────────────────────────────────
+async function loadServices() {
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/public/branches/${BRANCH_ID}/services`);
+    services   = await res.json();
+    renderServices();
+  } catch(e) {}
+}
+
+function renderServices() {
+  const grid = document.getElementById('servicesGrid');
+  const active = services.filter(s => s.active);
+
+  if (!active.length) {
+    grid.innerHTML = '<div class="error-msg"><div class="error-icon">⏸</div><div class="error-title">Sin servicios disponibles</div><div class="error-sub">Por favor consulta con el personal</div></div>';
+    return;
+  }
+
+  grid.innerHTML = active.map(s => {
+    const wait = s.waiting_count > 0
+      ? `${s.waiting_count} en espera · ~${Math.round(s.waiting_count * (s.avg_attention_min || 10))} min`
+      : 'Sin espera';
+    const isPriority = s.priority_level > 0;
+
+    return `
+    <div class="service-btn ${isPriority ? 'priority-btn' : ''}"
+         style="--svc-color: ${s.color || '#FF1B8D'}"
+         onclick="requestToken('${s.id}', '${s.name}', '${s.color || '#FF1B8D'}', ${isPriority})">
+      <div class="service-icon" style="background:${s.color}22;">
+        <span style="color:${s.color};font-size:28px;font-weight:900;">${s.prefix}</span>
+      </div>
+      <div class="service-name">${s.name}</div>
+      <div class="service-wait">${wait}</div>
+      ${isPriority ? '<div class="service-priority-badge">Prioritario</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── SOLICITAR TURNO ────────────────────────────────────────────
+async function requestToken(serviceId, serviceName, serviceColor, isPriority) {
+  // Feedback táctil inmediato
+  showScreen('loadingScreen');
+
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        branch_id:   BRANCH_ID,
+        service_id:  serviceId,
+        is_priority: isPriority || false,
+        channel:     'kiosk'
+      })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      showScreen('welcomeScreen');
+      return;
+    }
+
+    // Mostrar confirmación
+    showConfirmation(data, serviceName, serviceColor);
+
+    // Imprimir tiquete si hay impresora
+    printTicket(data, serviceName);
+
+  } catch(e) {
+    showScreen('welcomeScreen');
+  }
+}
+
+// ── CONFIRMACIÓN ───────────────────────────────────────────────
+function showConfirmation(data, serviceName, serviceColor) {
+  document.getElementById('confirmNumber').textContent  = data.token_number;
+  document.getElementById('confirmService').textContent = serviceName;
+
+  // Tiempo de espera
+  const waitMin = data.estimated_wait_minutes || 0;
+  document.getElementById('confirmWait').textContent =
+    waitMin === 0 ? 'Sin espera' : `~${waitMin} minutos`;
+  document.getElementById('confirmPosition').textContent =
+    `Posición en cola: ${data.position_in_queue || 1}`;
+
+  // Color del número según servicio
+  const numEl = document.getElementById('confirmNumber');
+  numEl.style.background = `linear-gradient(135deg, ${serviceColor}, #FF8C00)`;
+  numEl.style.webkitBackgroundClip = 'text';
+  numEl.style.webkitTextFillColor  = 'transparent';
+
+  showScreen('confirmScreen');
+
+  // Reiniciar barra de countdown
+  const fill = document.getElementById('countdownFill');
+  fill.style.animation = 'none';
+  fill.offsetHeight; // reflow
+  fill.style.animation = 'countdownAnim 8s linear forwards';
+
+  // Auto-volver a bienvenida
+  clearTimeout(countdownTimer);
+  countdownTimer = setTimeout(() => {
+    goToWelcome();
+  }, 8000);
+}
+
+function goToWelcome() {
+  clearTimeout(countdownTimer);
+  loadServices();
+  showScreen('welcomeScreen');
+}
+
+// ── IMPRESIÓN ESC/POS ──────────────────────────────────────────
+async function printTicket(data, serviceName) {
+  // El servidor maneja la impresión via endpoint dedicado
+  try {
+    await fetch(`${API_URL}/api/queue/print`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        branch_id:    BRANCH_ID,
+        token_number: data.token_number,
+        service_name: serviceName,
+        wait_minutes: data.estimated_wait_minutes || 0,
+        position:     data.position_in_queue || 1,
+        token_id:     data.token_id
+      })
+    });
+    document.getElementById('printStatus').style.display = 'flex';
+    setTimeout(() => {
+      if (document.getElementById('printStatus')) {
+        document.getElementById('printStatus').style.display = 'none';
+      }
+    }, 3000);
+  } catch(e) {
+    // Sin impresora — ignorar silenciosamente
+  }
+}
+
+// ── PANTALLAS ──────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── RELOJ ──────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    const now = new Date();
+    const h   = String(now.getHours()).padStart(2,'0');
+    const m   = String(now.getMinutes()).padStart(2,'0');
+    const t   = `${h}:${m}`;
+    document.getElementById('kioskClock').textContent   = t;
+    document.getElementById('confirmClock').textContent = t;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── START ──────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

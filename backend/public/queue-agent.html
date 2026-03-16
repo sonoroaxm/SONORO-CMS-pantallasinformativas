@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO Atención al Usuario — Agente</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #f8f7f5;
+      --surface:  #ffffff;
+      --surface2: #f3f2ef;
+      --surface3: #ebe9e4;
+      --border:   #e0ddd8;
+      --text:     #1a1a1a;
+      --muted:    #8a8680;
+      --cyan:     #FF1B8D;
+      --cyan2:    #e0177d;
+      --violet:   #FF8C00;
+      --amber:    #FF8C00;
+      --red:      #ef4444;
+      --green:    #10b981;
+      --grad:     linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── LOGIN ── */
+    .login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+    .login-wrap {
+      width: 100%; max-width: 380px; padding: 24px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .login-logo {
+      font-size: 32px; font-weight: 900; letter-spacing: -1.5px;
+      background: var(--grad); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      font-size: 10px; font-weight: 700; letter-spacing: 3px;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 32px;
+    }
+    .login-card {
+      width: 100%; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+    }
+    .login-card-bar { height: 3px; background: var(--grad); }
+    .login-card-body { padding: 28px; }
+    .login-card-title {
+      font-size: 16px; font-weight: 700; margin-bottom: 4px;
+    }
+    .login-card-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: 10px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .field select, .field input {
+      width: 100%; padding: 11px 14px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: 'Montserrat', sans-serif; font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    .field select:focus, .field input:focus {
+      outline: none; border-color: var(--cyan);
+    }
+    .field input[type="number"] { letter-spacing: 6px; font-size: 20px; font-weight: 700; text-align: center; }
+    .btn-primary {
+      width: 100%; padding: 13px; background: var(--grad);
+      color: white; border: none; border-radius: 10px;
+      font-family: 'Montserrat', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .login-error {
+      margin-top: 12px; padding: 10px 14px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px; color: var(--red); font-size: 12px;
+      display: none;
+    }
+    .login-error.show { display: block; }
+
+    /* ── MAIN LAYOUT ── */
+    .main-screen { display: none; min-height: 100vh; flex-direction: column; }
+    .main-screen.active { display: flex; }
+
+    .topbar {
+      background: var(--surface); border-bottom: 2px solid var(--border);
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .topbar-logo { font-size: 18px; font-weight: 900; letter-spacing: -0.5px;
+      background: var(--grad); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text; }
+    .topbar-divider { width: 1px; height: 18px; background: var(--border); }
+    .topbar-name { font-size: 13px; font-weight: 600; }
+    .topbar-counter {
+      font-size: 11px; color: var(--cyan); font-weight: 700;
+      background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2);
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+    }
+    .status-dot.break { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .btn-sm {
+      padding: 6px 14px; border-radius: 8px; font-size: 12px;
+      font-weight: 700; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; transition: all 0.2s; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+    }
+    .btn-sm:hover { background: var(--surface3); color: var(--text); }
+    .btn-sm.danger { border-color: rgba(239,68,68,0.3); color: var(--red); }
+    .btn-sm.danger:hover { background: rgba(239,68,68,0.1); }
+
+    /* ── CONTENT ── */
+    .content {
+      flex: 1; display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 0;
+    }
+
+    /* ── PANEL IZQUIERDO — TURNO ACTUAL ── */
+    .left-panel {
+      padding: 28px 24px;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    .current-token-card {
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border-radius: 16px; padding: 28px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .current-token-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--service-color, var(--cyan));
+    }
+    .current-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+    .current-number {
+      font-size: 72px; font-weight: 900; letter-spacing: -3px;
+      line-height: 1; color: var(--text);
+      background: var(--grad); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+      animation: pulse-in 0.4s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes pulse-in {
+      from { transform: scale(0.8); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .current-service {
+      font-size: 14px; font-weight: 600; color: var(--muted);
+      margin-top: 8px;
+    }
+    .current-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 16px; padding: 5px 14px;
+      border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .current-status.waiting  { background: rgba(245,158,11,0.1); color: var(--amber); }
+    .current-status.calling  { background: rgba(255,140,0,0.1); color: var(--violet); }
+    .current-status.attending{ background: rgba(255,27,141,0.1); color: var(--cyan); }
+    .no-token-state {
+      padding: 48px 0; color: var(--muted); font-size: 14px;
+    }
+    .no-token-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+
+    /* ── ACCIONES PRINCIPALES ── */
+    .actions-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .action-btn {
+      padding: 16px; border-radius: 12px; border: none;
+      font-family: 'Montserrat', sans-serif; font-size: 13px;
+      font-weight: 700; cursor: pointer; transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .action-btn .action-icon { font-size: 22px; }
+
+    .btn-call-next {
+      grid-column: 1 / -1; padding: 20px;
+      background: var(--grad); color: white;
+      font-size: 15px; border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(124,111,239,0.3);
+    }
+    .btn-call-next:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-finish {
+      background: rgba(16,185,129,0.1); color: var(--green);
+      border: 1px solid rgba(16,185,129,0.25);
+    }
+    .btn-finish:hover:not(:disabled) { background: rgba(16,185,129,0.2); }
+    .btn-noshow {
+      background: rgba(239,68,68,0.1); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.25);
+    }
+    .btn-noshow:hover:not(:disabled) { background: rgba(239,68,68,0.2); }
+    .btn-transfer {
+      background: rgba(245,158,11,0.1); color: var(--amber);
+      border: 1px solid rgba(245,158,11,0.25);
+    }
+    .btn-transfer:hover:not(:disabled) { background: rgba(245,158,11,0.2); }
+    .btn-attend {
+      background: rgba(124,111,239,0.1); color: var(--violet);
+      border: 1px solid rgba(124,111,239,0.25);
+    }
+    .btn-attend:hover:not(:disabled) { background: rgba(124,111,239,0.2); }
+
+    /* ── STATS DEL DÍA ── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+      border-radius: 12px; padding: 14px 12px; text-align: center;
+    }
+    .stat-value { font-size: 22px; font-weight: 800; }
+    .stat-label { font-size: 10px; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .stat-card.cyan  .stat-value { color: var(--cyan); }
+    .stat-card.green .stat-value { color: var(--green); }
+    .stat-card.amber .stat-value { color: var(--amber); }
+    .stat-card.violet .stat-value { color: var(--violet); }
+
+    /* ── PANEL DERECHO — COLA ── */
+    .right-panel {
+      padding: 24px 20px;
+      display: flex; flex-direction: column; gap: 16px;
+      overflow-y: auto;
+    }
+    .panel-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .queue-count {
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 2px 10px; border-radius: 20px; font-size: 11px;
+      font-weight: 700; color: var(--text);
+    }
+    .queue-list { display: flex; flex-direction: column; gap: 8px; }
+    .queue-item {
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+      border-radius: 10px; padding: 12px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: border-color 0.2s;
+    }
+    .queue-item:hover { border-color: var(--border); }
+    .queue-item.priority { border-left: 3px solid var(--amber); }
+    .queue-item-number { font-size: 18px; font-weight: 800; }
+    .queue-item-info { flex: 1; margin-left: 12px; }
+    .queue-item-service { font-size: 12px; font-weight: 600; }
+    .queue-item-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .priority-badge {
+      font-size: 9px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--amber);
+      background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2);
+      padding: 2px 7px; border-radius: 4px;
+    }
+    .empty-queue {
+      text-align: center; padding: 40px 0;
+      color: var(--muted); font-size: 13px;
+    }
+
+    /* ── TRANSFER MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel {
+      flex: 1; padding: 11px; border-radius: 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .btn-confirm {
+      flex: 1; padding: 11px; border-radius: 10px; border: none;
+      background: var(--grad); color: white; font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+
+    /* ── BREAK BANNER ── */
+    .break-banner {
+      display: none; background: rgba(245,158,11,0.1);
+      border-bottom: 1px solid rgba(245,158,11,0.2);
+      padding: 10px 24px; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--amber);
+      align-items: center; justify-content: center; gap: 12px;
+    }
+    .break-banner.active { display: flex; }
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-logo">SONORO.</div>
+    <div class="login-sub" style="text-align:center;line-height:2;">Atención al Usuario<br>Panel de Agente</div>
+    <div class="login-card">
+      <div class="login-card-bar"></div>
+      <div class="login-card-body">
+        <div class="login-card-title">Iniciar turno</div>
+        <div class="login-card-sub">Selecciona tu sucursal y ventanilla</div>
+
+        <div class="field">
+          <label>Sucursal</label>
+          <select id="branchSelect" onchange="loadCounters()">
+            <option value="">Cargando...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Ventanilla</label>
+          <select id="counterSelect">
+            <option value="">Selecciona sucursal primero</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tu nombre</label>
+          <select id="agentSelect">
+            <option value="">Selecciona sucursal primero</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>PIN</label>
+          <input type="number" id="pinInput" placeholder="••••" maxlength="6">
+        </div>
+
+        <button class="btn-primary" onclick="doLogin()">Abrir ventanilla</button>
+        <div class="login-error" id="loginError"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BREAK BANNER ══ -->
+<div class="break-banner" id="breakBanner">
+  <span>⏸ En pausa</span>
+  <span id="breakTimer">00:00</span>
+  <button class="btn-sm" onclick="endBreak()">Volver</button>
+</div>
+
+<!-- ══ MAIN ══ -->
+<div class="main-screen" id="mainScreen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">SONORO.</div>
+      <div class="topbar-divider"></div>
+      <div class="topbar-name" id="agentName">—</div>
+      <div class="topbar-counter" id="counterLabel">—</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="statusDot"></div>
+      <button class="btn-sm" onclick="startBreak('almuerzo')">☕ Pausa</button>
+      <button class="btn-sm danger" onclick="closeSession()">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- PANEL IZQUIERDO -->
+    <div class="left-panel">
+
+      <!-- Turno actual -->
+      <div class="current-token-card" id="currentTokenCard">
+        <div class="no-token-state" id="noTokenState">
+          <div class="no-token-icon">🎫</div>
+          <div>Sin turno activo</div>
+          <div style="font-size:12px;margin-top:4px;color:var(--muted)">Llama el siguiente turno para comenzar</div>
+        </div>
+        <div id="tokenDisplay" style="display:none;">
+          <div class="current-label">Turno actual</div>
+          <div class="current-number" id="currentNumber">—</div>
+          <div class="current-service" id="currentService">—</div>
+          <div class="current-status calling" id="currentStatusBadge">Llamado</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px;" id="waitInfo">—</div>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="actions-grid">
+        <button class="action-btn btn-call-next" id="btnCallNext" onclick="callNext()">
+          <span class="action-icon">📢</span>
+          Llamar siguiente
+        </button>
+        <button class="action-btn btn-attend" id="btnAttend" onclick="attendToken()" disabled>
+          <span class="action-icon">✋</span>
+          En atención
+        </button>
+        <button class="action-btn btn-finish" id="btnFinish" onclick="finishToken()" disabled>
+          <span class="action-icon">✅</span>
+          Finalizar
+        </button>
+        <button class="action-btn btn-noshow" id="btnNoShow" onclick="noShowToken()" disabled>
+          <span class="action-icon">🚫</span>
+          No presentado
+        </button>
+        <button class="action-btn btn-transfer" id="btnTransfer" onclick="openTransferModal()" disabled style="grid-column:1/-1;">
+          <span class="action-icon">↩️</span>
+          Transferir turno
+        </button>
+      </div>
+
+      <!-- Stats del día -->
+      <div class="stats-row">
+        <div class="stat-card cyan">
+          <div class="stat-value" id="statAttended">0</div>
+          <div class="stat-label">Atendidos</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-value" id="statNoShow">0</div>
+          <div class="stat-label">No presentados</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="statAvgTime">—</div>
+          <div class="stat-label">Min. prom.</div>
+        </div>
+        <div class="stat-card violet">
+          <div class="stat-value" id="statRating">—</div>
+          <div class="stat-label">Calificación</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL DERECHO — COLA -->
+    <div class="right-panel">
+      <div class="panel-title">
+        Cola en espera
+        <span class="queue-count" id="queueCount">0</span>
+      </div>
+      <div class="queue-list" id="queueList">
+        <div class="empty-queue">Cola vacía</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSFER MODAL -->
+<div class="modal-overlay" id="transferModal">
+  <div class="modal">
+    <div class="modal-title">Transferir turno</div>
+    <div class="modal-sub" id="transferTokenLabel">—</div>
+    <div class="field">
+      <label>Transferir a ventanilla</label>
+      <select id="transferCounterSelect"></select>
+    </div>
+    <div class="field">
+      <label>Motivo (opcional)</label>
+      <input type="text" id="transferNote" placeholder="Ej: Cliente requiere otro servicio">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeTransferModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmTransfer()">Transferir</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const API_URL = window.location.origin;
+
+// ── JWT del agente (sessionStorage — se limpia al cerrar el tab)
+function getAgentToken() { return sessionStorage.getItem('agentToken'); }
+function setAgentToken(t) { sessionStorage.setItem('agentToken', t); }
+function clearAgentToken() { sessionStorage.removeItem('agentToken'); }
+function agentHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getAgentToken()}` };
+}
+const socket  = io();
+
+let session   = null;  // { id, agent_id, counter_id, branch_id }
+let agent     = null;  // { id, name }
+let currentToken = null;
+let breakRecord  = null;
+let breakInterval = null;
+let refreshInterval = null;
+
+// ── LOGIN ─────────────────────────────────────────────────────
+async function loadBranches() {
+  try {
+    const res = await fetch(`${API_URL}/api/queue/public/branches`);
+    const branches = await res.json();
+    const sel = document.getElementById('branchSelect');
+    sel.innerHTML = '<option value="">-- Selecciona sucursal --</option>';
+    branches.forEach(b => {
+      sel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function loadCounters() {
+  const branchId = document.getElementById('branchSelect').value;
+  if (!branchId) return;
+  try {
+    const [countersRes, agentsRes] = await Promise.all([
+      fetch(`${API_URL}/api/queue/public/branches/${branchId}/counters`),
+      fetch(`${API_URL}/api/queue/public/branches/${branchId}/agents`)
+    ]);
+    const counters = await countersRes.json();
+    const agents   = await agentsRes.json();
+
+    const cSel = document.getElementById('counterSelect');
+    cSel.innerHTML = '<option value="">-- Selecciona ventanilla --</option>';
+    counters.forEach(c => {
+      cSel.innerHTML += `<option value="${c.id}">${c.display_name || c.name}</option>`;
+    });
+
+    const aSel = document.getElementById('agentSelect');
+    aSel.innerHTML = '<option value="">-- Selecciona tu nombre --</option>';
+    agents.forEach(a => {
+      aSel.innerHTML += `<option value="${a.id}" data-name="${a.name}">${a.name}</option>`;
+    });
+
+    // Cargar ventanillas en modal de transferencia
+    const tSel = document.getElementById('transferCounterSelect');
+    tSel.innerHTML = '<option value="">-- Selecciona ventanilla --</option>';
+    counters.forEach(c => {
+      tSel.innerHTML += `<option value="${c.id}">${c.display_name || c.name}</option>`;
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function doLogin() {
+  const branchId   = document.getElementById('branchSelect').value;
+  const counterId  = document.getElementById('counterSelect').value;
+  const agentId    = document.getElementById('agentSelect').value;
+  const pin        = document.getElementById('pinInput').value;
+  const agentOpt   = document.getElementById('agentSelect').selectedOptions[0];
+  const agentName  = agentOpt?.dataset?.name || '';
+
+  if (!branchId || !counterId || !agentId || !pin) {
+    return showLoginError('Completa todos los campos incluyendo el PIN');
+  }
+
+  try {
+    // 1. Validar PIN y obtener JWT de agente
+    const loginRes = await fetch(`${API_URL}/api/queue/agent/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_id: agentId, pin })
+    });
+    const loginData = await loginRes.json();
+    if (!loginData.success) return showLoginError(loginData.error || 'PIN incorrecto');
+    setAgentToken(loginData.token);
+
+    // 2. Abrir sesión de ventanilla
+    const res = await fetch(`${API_URL}/api/queue/agent/session/open`, {
+      method: 'POST',
+      headers: agentHeaders(),
+      body: JSON.stringify({ agent_id: agentId, counter_id: counterId, branch_id: branchId })
+    });
+    const data = await res.json();
+    if (!data.success) return showLoginError(data.error || 'Error al abrir sesión');
+
+    session = { id: data.session.id, agent_id: agentId, counter_id: counterId, branch_id: branchId };
+    agent   = { id: agentId, name: loginData.agent.name };
+
+    document.getElementById('agentName').textContent    = loginData.agent.name;
+    document.getElementById('counterLabel').textContent = document.getElementById('counterSelect').selectedOptions[0]?.textContent || 'Ventanilla';
+
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainScreen').classList.add('active');
+
+    socket.emit('join_branch', branchId);
+    socket.emit('join_counter', counterId);
+
+    loadQueue();
+    loadStats();
+    refreshInterval = setInterval(() => { loadQueue(); loadStats(); }, 15000);
+  } catch(e) { showLoginError('Error de conexión'); }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg; el.classList.add('show');
+}
+
+// ── COLA ──────────────────────────────────────────────────────
+async function loadQueue() {
+  if (!session) return;
+  try {
+    const res = await fetch(
+      `${API_URL}/api/queue/branches/${session.branch_id}/queue?status=waiting`,
+      { headers: { 'Authorization': `Bearer ${getAgentToken()}` } }
+    );
+    const tokens = await res.json();
+    renderQueue(tokens);
+  } catch(e) {}
+}
+
+function renderQueue(tokens) {
+  const list = document.getElementById('queueList');
+  document.getElementById('queueCount').textContent = tokens.length;
+  if (!tokens.length) { list.innerHTML = '<div class="empty-queue">Cola vacía</div>'; return; }
+
+  const now = Date.now();
+  list.innerHTML = tokens.map(t => {
+    const waitMs = now - new Date(t.created_at).getTime();
+    const waitMin = Math.floor(waitMs / 60000);
+    return `
+    <div class="queue-item ${t.is_priority ? 'priority' : ''}">
+      <div class="queue-item-number" style="color:${t.service_color || 'var(--cyan)'}">${t.display_number}</div>
+      <div class="queue-item-info">
+        <div class="queue-item-service">${t.service_name}</div>
+        <div class="queue-item-time">Espera: ${waitMin} min</div>
+      </div>
+      ${t.is_priority ? '<span class="priority-badge">Prioritario</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── STATS ─────────────────────────────────────────────────────
+async function loadStats() {
+  if (!session) return;
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch(
+      `${API_URL}/api/queue/reports/agents?branch_id=${session.branch_id}&date_from=${today}&date_to=${today}&agent_id=${session.agent_id}`,
+      { headers: { 'Authorization': `Bearer ${getAgentToken()}` } }
+    );
+    const data = await res.json();
+    const stats = data[0] || {};
+    document.getElementById('statAttended').textContent = stats.tokens_attended || 0;
+    document.getElementById('statNoShow').textContent   = stats.tokens_no_show  || 0;
+    document.getElementById('statAvgTime').textContent  = stats.avg_attention_min ? `${Math.round(stats.avg_attention_min)}m` : '—';
+    document.getElementById('statRating').textContent   = stats.avg_rating ? parseFloat(stats.avg_rating).toFixed(1) : '—';
+  } catch(e) {}
+}
+
+// ── LLAMAR SIGUIENTE ──────────────────────────────────────────
+async function callNext() {
+  if (!session) return;
+  document.getElementById('btnCallNext').disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/call-next`, {
+      method: 'POST',
+      headers: agentHeaders(),
+      body: JSON.stringify({
+        session_id: session.id,
+        counter_id: session.counter_id,
+        branch_id:  session.branch_id
+      })
+    });
+    const data = await res.json();
+    if (!data.success) { document.getElementById('btnCallNext').disabled = false; return; }
+    if (!data.token)   { document.getElementById('btnCallNext').disabled = false; return; }
+
+    currentToken = data.token;
+    showCurrentToken(data.token, 'calling');
+    updateActionButtons('calling');
+    loadQueue();
+  } catch(e) {
+    document.getElementById('btnCallNext').disabled = false;
+  }
+}
+
+function showCurrentToken(token, status) {
+  document.getElementById('noTokenState').style.display = 'none';
+  document.getElementById('tokenDisplay').style.display  = 'block';
+  document.getElementById('currentNumber').textContent  = token.token_number;
+  document.getElementById('currentService').textContent = token.service_name || '';
+  document.getElementById('currentTokenCard').style.setProperty('--service-color', token.service_color || 'var(--cyan)');
+
+  const badge = document.getElementById('currentStatusBadge');
+  badge.className = `current-status ${status}`;
+  badge.textContent = status === 'calling' ? 'Llamado' : status === 'attending' ? 'En atención' : '';
+
+  const waitInfo = document.getElementById('waitInfo');
+  if (token.wait_minutes !== undefined) {
+    waitInfo.textContent = `Esperó ${Math.round(token.wait_minutes || 0)} min`;
+  }
+}
+
+function updateActionButtons(state) {
+  const btnCallNext = document.getElementById('btnCallNext');
+  const btnAttend   = document.getElementById('btnAttend');
+  const btnFinish   = document.getElementById('btnFinish');
+  const btnNoShow   = document.getElementById('btnNoShow');
+  const btnTransfer = document.getElementById('btnTransfer');
+
+  if (state === 'idle') {
+    btnCallNext.disabled = false;
+    btnAttend.disabled = btnFinish.disabled = btnNoShow.disabled = btnTransfer.disabled = true;
+  } else if (state === 'calling') {
+    btnCallNext.disabled = btnAttend.disabled = false;
+    btnFinish.disabled = false;
+    btnNoShow.disabled = false;
+    btnTransfer.disabled = false;
+  } else if (state === 'attending') {
+    btnCallNext.disabled = true;
+    btnAttend.disabled = true;
+    btnFinish.disabled = false;
+    btnNoShow.disabled = false;
+    btnTransfer.disabled = false;
+  }
+}
+
+async function attendToken() {
+  if (!currentToken || !session) return;
+  await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/attend`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({ agent_id: session.agent_id })
+  });
+  showCurrentToken(currentToken, 'attending');
+  updateActionButtons('attending');
+}
+
+async function finishToken() {
+  if (!currentToken || !session) return;
+  await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/finish`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({ agent_id: session.agent_id, session_id: session.id, branch_id: session.branch_id })
+  });
+  resetCurrentToken();
+  loadQueue(); loadStats();
+}
+
+async function noShowToken() {
+  if (!currentToken || !session) return;
+  if (!confirm('¿Marcar como no presentado?')) return;
+  await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/no-show`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({ agent_id: session.agent_id, session_id: session.id, branch_id: session.branch_id })
+  });
+  resetCurrentToken();
+  loadQueue(); loadStats();
+}
+
+function resetCurrentToken() {
+  currentToken = null;
+  document.getElementById('noTokenState').style.display = 'block';
+  document.getElementById('tokenDisplay').style.display = 'none';
+  updateActionButtons('idle');
+}
+
+// ── TRANSFERIR ────────────────────────────────────────────────
+function openTransferModal() {
+  if (!currentToken) return;
+  document.getElementById('transferTokenLabel').textContent = `Turno: ${currentToken.token_number}`;
+  document.getElementById('transferModal').classList.add('active');
+}
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.remove('active');
+}
+async function confirmTransfer() {
+  const toCounterId = document.getElementById('transferCounterSelect').value;
+  const note        = document.getElementById('transferNote').value;
+  if (!toCounterId) return;
+  await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/transfer`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({
+      agent_id: session.agent_id, session_id: session.id,
+      branch_id: session.branch_id, to_counter_id: toCounterId, note
+    })
+  });
+  closeTransferModal();
+  resetCurrentToken();
+  loadQueue();
+}
+
+// ── PAUSA ─────────────────────────────────────────────────────
+async function startBreak(reason) {
+  if (!session) return;
+  const res = await fetch(`${API_URL}/api/queue/agent/break/start`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({ session_id: session.id, reason })
+  });
+  const data = await res.json();
+  breakRecord = data.break;
+  document.getElementById('breakBanner').classList.add('active');
+  document.getElementById('statusDot').classList.add('break');
+  const start = Date.now();
+  breakInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    const m = Math.floor(elapsed / 60).toString().padStart(2,'0');
+    const s = (elapsed % 60).toString().padStart(2,'0');
+    document.getElementById('breakTimer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+async function endBreak() {
+  if (!breakRecord) return;
+  clearInterval(breakInterval);
+  await fetch(`${API_URL}/api/queue/agent/break/end`, {
+    method: 'POST',
+    headers: agentHeaders(),
+    body: JSON.stringify({ break_id: breakRecord.id })
+  });
+  breakRecord = null;
+  document.getElementById('breakBanner').classList.remove('active');
+  document.getElementById('statusDot').classList.remove('break');
+}
+
+// ── CERRAR SESIÓN ─────────────────────────────────────────────
+async function closeSession() {
+  if (!confirm('¿Cerrar la ventanilla?')) return;
+  if (session) {
+    await fetch(`${API_URL}/api/queue/agent/session/close`, {
+      method: 'POST',
+      headers: agentHeaders(),
+      body: JSON.stringify({ session_id: session.id, branch_id: session.branch_id })
+    });
+  }
+  clearInterval(refreshInterval);
+  clearAgentToken();
+  session = null; agent = null; currentToken = null;
+  document.getElementById('mainScreen').classList.remove('active');
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+// ── SOCKET.IO ─────────────────────────────────────────────────
+socket.on('new_token', () => { loadQueue(); });
+socket.on('token_called', (data) => {
+  if (data.counter_id !== session?.counter_id) loadQueue();
+});
+socket.on('token_finished', () => { loadQueue(); });
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const token = getAgentToken();
+  if (!token) {
+    // Redirigir a login si no hay sesión CMS
+    // window.location.href = '/dashboard.html';
+  }
+  loadBranches();
+});
+</script>
+</body>
+</html>
