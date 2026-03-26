@@ -1209,39 +1209,9 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
       );
     }
 
-    // Generar y aplicar crontab en el RPi via SSH
-    if (ip) {
-      const cronLines = [];
-      const TV_SCRIPT = '/home/sonoro/tv-ctl/tv-ctl.sh';
-      const DAY_MAP = { mon: '1', tue: '2', wed: '3', thu: '4', fri: '5', sat: '6', sun: '0' };
-
-      for (const s of schedules) {
-        if (!s.active) continue;
-        const [onH, onM]   = (s.time_on  || '08:00').split(':');
-        const [offH, offM] = (s.time_off || '22:00').split(':');
-        const dayNums = (s.days || []).map(d => DAY_MAP[d]).filter(Boolean).join(',');
-        if (!dayNums) continue;
-        cronLines.push(`${onM}  ${onH}  * * ${dayNums} ${TV_SCRIPT} on  >> /home/sonoro/tv-ctl/tv.log 2>&1`);
-        cronLines.push(`${offM} ${offH} * * ${dayNums} ${TV_SCRIPT} off >> /home/sonoro/tv-ctl/tv.log 2>&1`);
-      }
-
-      // Leer crontab actual, quitar líneas tv-ctl anteriores, agregar las nuevas
-      const cronHeader = '# SONORO TV schedules — no editar manualmente';
-      const newBlock   = cronLines.length
-        ? `${cronHeader}\n${cronLines.join('\n')}`
-        : `${cronHeader}`;
-
-      const sshCmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} `
-        + `"crontab -l 2>/dev/null | grep -v 'tv-ctl\\|SONORO TV' > /tmp/cron_tmp; `
-        + `echo '${newBlock.replace(/'/g, "'\\''")}' >> /tmp/cron_tmp; `
-        + `crontab /tmp/cron_tmp; rm /tmp/cron_tmp; echo OK"`;
-
-      exec(sshCmd, { windowsHide: true, timeout: 15000 }, (error, stdout) => {
-        if (error) console.warn(`⚠️ Crontab ${ip}:`, error.message);
-        else console.log(`📅 Crontab TV aplicado en ${device_id}: ${cronLines.length} entradas`);
-      });
-    }
-
+    // Enviar schedules al RPi via Socket.io para que aplique el crontab localmente
+    io.to(`device_${device_id}`).emit('tv_schedule', { device_id, schedules });
+    console.log(`📅 Cronograma TV enviado a ${device_id} via Socket.io (${schedules.length} entradas)`);
     res.json({ success: true, count: schedules.length });
   } catch (err) {
     console.error('❌ TV schedule error:', err.message);

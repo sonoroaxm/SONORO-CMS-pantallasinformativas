@@ -508,6 +508,31 @@ function connectSocket() {
     await startPlayer(newConfig);
   });
 
+  socket.on('tv_schedule', ({ device_id, schedules }) => {
+    console.log(`📅 Cronograma TV recibido: ${schedules.length} entradas`);
+    const TV_SCRIPT = '/home/sonoro/tv-ctl/tv-ctl.sh';
+    const DAY_MAP = { mon: '1', tue: '2', wed: '3', thu: '4', fri: '5', sat: '6', sun: '0' };
+    const cronLines = [];
+    for (const s of schedules) {
+      if (!s.active) continue;
+      const [onH, onM]   = (s.time_on  || '08:00').split(':');
+      const [offH, offM] = (s.time_off || '22:00').split(':');
+      const dayNums = (s.days || []).map(d => DAY_MAP[d]).filter(Boolean).join(',');
+      if (!dayNums) continue;
+      cronLines.push(`${onM} ${onH} * * ${dayNums} ${TV_SCRIPT} on  >> /home/sonoro/tv-ctl/tv.log 2>&1`);
+      cronLines.push(`${offM} ${offH} * * ${dayNums} ${TV_SCRIPT} off >> /home/sonoro/tv-ctl/tv.log 2>&1`);
+    }
+    const header = '# SONORO TV schedules — no editar manualmente';
+    const newCron = cronLines.length ? header + '\n' + cronLines.join('\n') : header;
+    const cmd = `(crontab -l 2>/dev/null | grep -v 'tv-ctl\|SONORO TV'; echo '${newCron.replace(/'/g, "\'")}') | crontab -`;
+    exec(cmd, (err) => {
+      if (err) console.error('📅 Crontab error:', err.message);
+      else console.log(`📅 Crontab aplicado: ${cronLines.length} entradas`);
+      axios.post(`${CMS_URL}/api/devices/${device_id}/tv-schedule-result`, { success: !err, count: cronLines.length })
+        .catch(() => {});
+    });
+  });
+
   socket.on('tv_request', ({ device_id, action }) => {
     console.log(`📺 TV ${action} solicitado`);
     const tvScript = '/home/sonoro/tv-ctl/tv-ctl.sh';
