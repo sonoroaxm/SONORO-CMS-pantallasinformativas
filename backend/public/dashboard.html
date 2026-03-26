@@ -1210,7 +1210,7 @@
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-const API_URL = 'http://localhost:5000';
+const API_URL = '';
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 let socket = null;
@@ -1876,14 +1876,36 @@ async function loadDevices(silent = false) {
             </div>
           </div>
           <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
-            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Control TV</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
+              <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
+                <span id="tv_status_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;"></span>
+                <span id="tv_status_text_${d.device_id}">--</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControl('${d.device_id}', 'on')">Encender TV</button>
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControl('${d.device_id}', 'off')">Apagar TV</button>
             </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
+                <div style="font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;">Entrada HDMI</div>
+                <select id="hdmi_sel_${d.device_id}" style="flex:1;padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid ${d.tv_status && d.tv_status.startsWith('hdmi') ? '#185FA5' : 'var(--border)'};border-radius:6px;cursor:pointer;">
+                  <option value="">-- Seleccionar --</option>
+                  <option value="hdmi1" ${d.tv_status === 'hdmi1' ? 'selected' : ''}>HDMI 1${d.tv_status === 'hdmi1' ? ' — activo' : ''}</option>
+                  <option value="hdmi2" ${d.tv_status === 'hdmi2' ? 'selected' : ''}>HDMI 2${d.tv_status === 'hdmi2' ? ' — activo' : ''}</option>
+                  <option value="hdmi3" ${d.tv_status === 'hdmi3' ? 'selected' : ''}>HDMI 3${d.tv_status === 'hdmi3' ? ' — activo' : ''}</option>
+                  <option value="hdmi4" ${d.tv_status === 'hdmi4' ? 'selected' : ''}>HDMI 4${d.tv_status === 'hdmi4' ? ' — activo' : ''}</option>
+                </select>
+                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#1A3A5C;color:#B5D4F4;white-space:nowrap;" onclick="tvControlHdmi('${d.device_id}')">Cambiar</button>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#3D2B00;color:#FAC775;" onclick="tvControl('${d.device_id}', 'mute')">Mute</button>
+                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControl('${d.device_id}', 'unmute')">Unmute</button>
+              </div>
+            </div>
           </div>
-          <div style="margin-top:8px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Cronograma TV</div>
             </div>
@@ -2051,6 +2073,12 @@ async function saveSchedules(deviceId) {
   } catch (e) { showStatus('Error: ' + e.message, 'error'); }
 }
 
+async function tvControlHdmi(deviceId) {
+  const sel = document.getElementById(`hdmi_sel_${deviceId}`);
+  if (!sel || !sel.value) { showStatus("Selecciona una entrada HDMI", "error"); return; }
+  await tvControl(deviceId, sel.value);
+}
+
 async function tvControl(deviceId, action) {
   const labels = { on: "Encendiendo...", off: "Apagando...", status: "Consultando..." };
   const btn = event.currentTarget;
@@ -2063,11 +2091,25 @@ async function tvControl(deviceId, action) {
     });
     const data = await res.json();
     if (data.success) {
+      const labels = { on: "encendido", off: "apagado", status: "estado", hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", mute: "silenciado", unmute: "activado" };
       if (action === "status") {
-        const pwr = data.output.includes("on") ? "ON" : data.output.includes("standby") ? "STANDBY" : data.output || "OK";
+        const pwr = (data.output||"").includes("on") ? "ON" : (data.output||"").includes("standby") ? "STANDBY" : data.output || "OK";
+        const dot  = document.getElementById(`tv_status_dot_${deviceId}`);
+        const txt  = document.getElementById(`tv_status_text_${deviceId}`);
+        if (dot && txt) {
+          dot.style.background = pwr === "ON" ? "#00e676" : "#888";
+          txt.style.color = pwr === "ON" ? "#00e676" : "#888";
+          txt.textContent = "TV " + pwr;
+        }
         showStatus("TV estado: " + pwr, "success");
+      } else if (action.startsWith("hdmi")) {
+        const sel = document.getElementById(`hdmi_sel_${deviceId}`);
+        if (sel) { sel.value = action; sel.style.borderColor = "#185FA5"; }
+        const txt = document.getElementById(`tv_status_text_${deviceId}`);
+        if (txt) txt.textContent = "TV ON · " + labels[action] + " activo";
+        showStatus("Entrada cambiada a " + (labels[action] || action), "success");
       } else {
-        showStatus("TV " + (action === "on" ? "encendido" : "apagado") + " correctamente", "success");
+        showStatus("TV " + (labels[action] || action) + " correctamente", "success");
       }
     } else {
       showStatus("Error TV: " + (data.error || "Sin respuesta"), "error");

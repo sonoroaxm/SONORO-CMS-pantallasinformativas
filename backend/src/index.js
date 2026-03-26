@@ -46,6 +46,22 @@ global.io = io;
 // Mapa de callbacks pendientes de screenshot por device_id
 const screenshotCallbacks = new Map();
 
+// Mapa de callbacks pendientes de TV control por device_id
+const tvCallbacks = new Map();
+
+// Funcion TV control via Socket.io + HTTP result
+async function doTV(deviceId, action) {
+  console.log(`📺 TV ${action} -> ${deviceId} via Socket.io`);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      tvCallbacks.delete(deviceId);
+      reject(new Error(`TV timeout — RPi no respondio en 45s`));
+    }, 45000);
+    tvCallbacks.set(deviceId, { resolve, reject, timeout, action });
+    io.to(`device_${deviceId}`).emit('tv_request', { device_id: deviceId, action });
+  });
+}
+
 // ========================================
 // MIDDLEWARE
 // ========================================
@@ -1103,55 +1119,43 @@ app.post('/api/devices/:device_id/screenshot', authenticateToken, async (req, re
 
 
 // ── CONTROL TV CEC ────────────────────────────────────────────
-// POST /api/devices/:device_id/tv/:action  (on | off | status)
+// POST /api/devices/:device_id/tv/:action — via Socket.io (no SSH)
 app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, res) => {
   const { device_id, action } = req.params;
-  if (!['on', 'off', 'status'].includes(action))
-    return res.status(400).json({ success: false, error: 'Accion invalida. Usar: on | off | status' });
+  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
+  if (!valid.includes(action))
+    return res.status(400).json({ success: false, error: 'Accion invalida. Usar: ' + valid.join(' | ') });
   try {
     const result = await pool.query(
-      'SELECT ip_address, name FROM devices WHERE device_id = $1 AND user_id = $2',
+      'SELECT name FROM devices WHERE device_id = $1 AND user_id = $2',
       [device_id, req.user.id]
     );
     if (!result.rows.length)
       return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
-    const { ip_address: ip, name } = result.rows[0];
-    if (!ip)
-      return res.status(400).json({ success: false, error: 'Dispositivo sin IP registrada' });
-    const tvScript = '/home/sonoro/tv-ctl/tv-ctl.sh';
-    const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} "${tvScript} ${action}"`;
-    console.log(`TV ${action.toUpperCase()} -> ${device_id} (${ip})`);
-    exec(cmd, { windowsHide: true, timeout: 15000 }, (error, stdout) => {
-      if (error) {
-        console.warn(`TV control ${ip}:`, error.message);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-      res.json({ success: true, device_id, device_name: name, action, output: (stdout || '').trim() });
-    });
+    const output = await doTV(device_id, action);
+    res.json({ success: true, device_id, device_name: result.rows[0].name, action, output });
   } catch (err) {
+    console.error('TV control error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// POST /api/admin/rpi/tv  (admin - recibe ip directamente)
+// POST /api/admin/rpi/tv — via Socket.io (no SSH)
 app.post('/api/admin/rpi/tv', authenticateToken, async (req, res) => {
-  const { device_id, ip, action } = req.body;
-  if (!['on', 'off', 'status'].includes(action))
+  const { device_id, action } = req.body;
+  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
+  if (!valid.includes(action))
     return res.status(400).json({ success: false, error: 'Accion invalida' });
-  if (!ip)
-    return res.status(400).json({ success: false, error: 'IP requerida' });
-  const tvScript = '/home/sonoro/tv-ctl/tv-ctl.sh';
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} "${tvScript} ${action}"`;
-  console.log(`[Admin] TV ${action.toUpperCase()} -> ${device_id} (${ip})`);
-  exec(cmd, { windowsHide: true, timeout: 15000 }, (error, stdout) => {
-    if (error) {
-      console.warn(`[Admin] TV control ${ip}:`, error.message);
-      return res.status(500).json({ success: false, error: error.message });
-    }
-    res.json({ success: true, device_id, action, output: (stdout || '').trim() });
-  });
+  if (!device_id)
+    return res.status(400).json({ success: false, error: 'device_id requerido' });
+  try {
+    const output = await doTV(device_id, action);
+    res.json({ success: true, device_id, action, output });
+  } catch (err) {
+    console.error('[Admin] TV control error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
-
 
 // ── TV SCHEDULES ──────────────────────────────────────────────
 // GET /api/devices/:device_id/tv-schedule
@@ -1243,6 +1247,25 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
     console.error('❌ TV schedule error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// POST /api/devices/:device_id/tv-result — RPi envia resultado de TV control
+app.post('/api/devices/:device_id/tv-result', async (req, res) => {
+  const { device_id } = req.params;
+  const { action, output, error } = req.body;
+  console.log(`📺 TV result recibido — device: ${device_id} action: ${action} output: ${output}`);
+  // Guardar estado HDMI activo en BD
+  if (action && action.startsWith('hdmi') && !error) {
+    pool.query('UPDATE devices SET tv_status = $1 WHERE device_id = $2', [action, device_id]).catch(() => {});
+  }
+  const cb = tvCallbacks.get(device_id);
+  if (cb) {
+    clearTimeout(cb.timeout);
+    tvCallbacks.delete(device_id);
+    if (error) cb.reject(new Error(error));
+    else cb.resolve(output || action);
+  }
+  res.json({ success: true });
 });
 
 // POST /api/devices/:device_id/screenshot-upload — RPi sube screenshot via HTTP

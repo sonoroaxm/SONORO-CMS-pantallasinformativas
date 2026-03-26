@@ -989,7 +989,7 @@
 <div id="toast"></div>
 
 <script>
-const API_URL = 'http://' + window.location.host;
+const API_URL = window.location.origin;
 let authToken = localStorage.getItem('authToken');
 const socket = io();
 
@@ -1435,22 +1435,36 @@ async function loadSchedulesAdmin(deviceId) {
   } catch (e) { console.warn('schedules admin:', e.message); }
 }
 
+async function tvControlAdminHdmi(deviceId, ip) {
+  const sel = document.getElementById(`ahdmi_sel_${deviceId}`);
+  if (!sel || !sel.value) { toast("Selecciona una entrada HDMI", "error"); return; }
+  await tvControlAdmin(deviceId, ip, sel.value);
+}
+
 async function tvControlAdmin(deviceId, ip, action) {
-  if (!ip) { toast("Dispositivo sin IP registrada", "error"); return; }
   const btn = event.currentTarget;
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = "...";
   try {
     const data = await api("/api/admin/rpi/tv", {
       method: "POST",
-      body: JSON.stringify({ device_id: deviceId, ip, action })
+      body: JSON.stringify({ device_id: deviceId, action })
     });
     if (data.success) {
+      const labels = { on: "encendido", off: "apagado", status: "estado", hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", mute: "silenciado", unmute: "activado" };
+      const dot = document.getElementById(`atv_dot_${deviceId}`);
+      const txt = document.getElementById(`atv_txt_${deviceId}`);
       if (action === "status") {
         const pwr = (data.output || "").includes("on") ? "ON" : (data.output || "").includes("standby") ? "STANDBY" : data.output || "OK";
+        if (dot && txt) { dot.style.background = pwr === "ON" ? "#00e676" : "#888"; txt.style.color = pwr === "ON" ? "#00e676" : "#888"; txt.textContent = "TV " + pwr; }
         toast("TV " + deviceId + ": " + pwr, "success");
+      } else if (action.startsWith("hdmi")) {
+        const sel = document.getElementById(`ahdmi_sel_${deviceId}`);
+        if (sel) { sel.value = action; sel.style.borderColor = "#185FA5"; }
+        if (txt) txt.textContent = "TV ON · " + (labels[action] || action) + " activo";
+        toast("Entrada cambiada a " + (labels[action] || action) + " — " + deviceId, "success");
       } else {
-        toast("TV " + (action === "on" ? "encendido" : "apagado") + " — " + deviceId, "success");
+        toast("TV " + (labels[action] || action) + " — " + deviceId, "success");
       }
     } else {
       toast("Error TV: " + (data.error || "Sin respuesta"), "error");
@@ -1747,11 +1761,34 @@ function renderRpis(devices) {
         <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
       </div>
       <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Control TV</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
+          <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;">
+            <span id="atv_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;"></span>
+            <span id="atv_txt_${d.device_id}">--</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
           <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','status')">Estado TV</button>
           <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','on')">Encender TV</button>
           <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','off')">Apagar TV</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
+            <div style="font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;">Entrada HDMI</div>
+            <select id="ahdmi_sel_${d.device_id}" style="width:120px;padding:5px 8px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text);border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;">
+              <option value="">-- HDMI --</option>
+              <option value="hdmi1">HDMI 1</option>
+              <option value="hdmi2">HDMI 2</option>
+              <option value="hdmi3">HDMI 3</option>
+              <option value="hdmi4">HDMI 4</option>
+            </select>
+            <button style="padding:5px 10px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#1A3A5C;color:#B5D4F4;white-space:nowrap;" onclick="tvControlAdminHdmi('${d.device_id}','${d.ip_address}')">Cambiar</button>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#3D2B00;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','mute')">Mute</button>
+            <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','unmute')">Unmute</button>
+          </div>
         </div>
       </div>
       <div style="margin-top:8px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">

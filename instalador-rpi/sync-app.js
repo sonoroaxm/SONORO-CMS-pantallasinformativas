@@ -508,6 +508,20 @@ function connectSocket() {
     await startPlayer(newConfig);
   });
 
+  socket.on('tv_request', ({ device_id, action }) => {
+    console.log(`📺 TV ${action} solicitado`);
+    const tvScript = '/home/sonoro/tv-ctl/tv-ctl.sh';
+    const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
+    if (!valid.includes(action)) return;
+    exec(`${tvScript} ${action}`, (err, stdout) => {
+      const output = (stdout || '').trim();
+      const error  = err ? err.message : null;
+      console.log(`📺 TV ${action} resultado:`, output || error);
+      axios.post(`${CMS_URL}/api/devices/${device_id}/tv-result`, { action, output, error })
+        .catch(e => console.error('📺 TV result upload error:', e.message));
+    });
+  });
+
   socket.on('screenshot_request', async ({ device_id, filename }) => {
     console.log('📸 Screenshot solicitado para:', device_id);
     const tmpPath = '/tmp/sonoro-screenshot.png';
