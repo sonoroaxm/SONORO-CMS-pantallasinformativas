@@ -38,17 +38,6 @@ let hasQueueLicense = false;
 let currentConfig   = null;
 let stopPlayback0   = false;
 
-// ── ESTADO GLOBAL DEL PLAYER ─────────────────────────────────
-let currentState = {
-  status: 'starting',        // starting | idle | playing | stopped | refreshing
-  current_playlist: null,    // { id, name }
-  current_item: null,        // { title, type, filename }
-  item_index: 0,
-  item_total: 0,
-  started_at: Date.now(),
-};
-let globalSocket = null;     // referencia al socket activo para comandos remotos
-
 // ── GENERAR DEVICE ID ÚNICO EN WINDOWS ──────────────────────
 function generateDeviceId() {
   try {
@@ -77,126 +66,6 @@ function getLocalIP() {
     }
   } catch(e) {}
   return '0.0.0.0';
-}
-
-// ── REPORTAR ESTADO AL SERVIDOR ─────────────────────────────
-function reportState(socket) {
-  const sock = socket || globalSocket;
-  if (!sock || !sock.connected) return;
-  sock.emit('device_state', {
-    device_id:        DEVICE_ID,
-    status:           currentState.status,
-    current_playlist: currentState.current_playlist,
-    current_item:     currentState.current_item,
-    item_index:       currentState.item_index,
-    item_total:       currentState.item_total,
-    uptime_s:         Math.floor((Date.now() - currentState.started_at) / 1000),
-    ip:               getLocalIP(),
-    platform:         IS_WINDOWS ? 'windows' : 'linux',
-    timestamp:        new Date().toISOString(),
-  });
-}
-
-// ── OBTENER INFO HDMI (solo Linux/RPi) ──────────────────────
-function getHdmiInfo() {
-  if (IS_WINDOWS) return Promise.resolve([]);
-  return new Promise((resolve) => {
-    exec(
-      'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr 2>/dev/null',
-      { encoding: 'utf8', timeout: 5000 },
-      (err, stdout) => {
-        if (err || !stdout) return resolve([]);
-        const ports = [];
-        const blocks = stdout.split('\n\n').filter(Boolean);
-        for (const block of blocks) {
-          const nameMatch  = block.match(/^(\S+)\s/m);
-          const resMatch   = block.match(/current\s+(\d+x\d+)/);
-          const enabledMatch = block.match(/Enabled:\s+(yes|no)/i);
-          const transformMatch = block.match(/Transform:\s+(\S+)/i);
-          if (nameMatch) {
-            ports.push({
-              port:      nameMatch[1],
-              connected: enabledMatch ? enabledMatch[1] === 'yes' : block.includes('current'),
-              resolution: resMatch ? resMatch[1] : null,
-              transform:  transformMatch ? transformMatch[1] : 'normal',
-            });
-          }
-        }
-        resolve(ports);
-      }
-    );
-  });
-}
-
-// ── OBTENER USO DE DISCO ─────────────────────────────────────
-function getDiskUsage() {
-  return new Promise((resolve) => {
-    const cmd = IS_WINDOWS
-      ? `powershell -NoProfile -Command "Get-PSDrive -PSProvider FileSystem | Select-Object Name,Used,Free | ConvertTo-Json"`
-      : `df -h / /home 2>/dev/null`;
-    exec(cmd, { encoding: 'utf8', timeout: 5000 }, (err, stdout) => {
-      if (err || !stdout) return resolve([]);
-      if (IS_WINDOWS) {
-        try {
-          const drives = JSON.parse(stdout);
-          const arr = Array.isArray(drives) ? drives : [drives];
-          return resolve(arr.map(d => ({
-            filesystem: d.Name + ':',
-            size: Math.round((d.Used + d.Free) / 1073741824) + 'G',
-            used: Math.round(d.Used / 1073741824) + 'G',
-            available: Math.round(d.Free / 1073741824) + 'G',
-            use_pct: d.Used + d.Free > 0 ? Math.round(d.Used / (d.Used + d.Free) * 100) + '%' : '0%',
-            mount: d.Name + ':',
-          })));
-        } catch(e) { return resolve([]); }
-      }
-      const lines = stdout.trim().split('\n').slice(1);
-      resolve(lines.map(l => {
-        const p = l.split(/\s+/);
-        return { filesystem: p[0], size: p[1], used: p[2], available: p[3], use_pct: p[4], mount: p[5] };
-      }));
-    });
-  });
-}
-
-// ── OBTENER INFO DE RED ──────────────────────────────────────
-function getNetworkInfo() {
-  return new Promise((resolve) => {
-    if (IS_WINDOWS) {
-      const ifaces = os.networkInterfaces();
-      const result = [];
-      for (const [name, addrs] of Object.entries(ifaces)) {
-        for (const addr of addrs) {
-          if (addr.family === 'IPv4' && !addr.internal) {
-            result.push({ iface: name, ip: addr.address, mac: addr.mac });
-          }
-        }
-      }
-      return resolve({ interfaces: result, ssid: null, signal: null });
-    }
-    // Linux: ip + iwconfig
-    exec(
-      `ip -4 addr show 2>/dev/null | grep -E 'inet |^[0-9]' | grep -v '127.0.0.1'; iwgetid -r 2>/dev/null; iwconfig 2>/dev/null | grep 'Signal level'`,
-      { encoding: 'utf8', timeout: 5000 },
-      (err, stdout) => {
-        const lines = (stdout || '').split('\n');
-        const ifaces = [];
-        let ssid = null;
-        let signal = null;
-        for (const line of lines) {
-          const ipMatch = line.match(/inet\s+([\d.]+).*\s(\S+)$/);
-          if (ipMatch) ifaces.push({ iface: ipMatch[2], ip: ipMatch[1] });
-          const ssidMatch = line.match(/^(.+)$/);
-          if (ssidMatch && !line.includes('inet') && !line.includes('Signal') && line.trim().length > 0 && !ssid) {
-            ssid = line.trim() || null;
-          }
-          const sigMatch = line.match(/Signal level[=:](-?\d+)/);
-          if (sigMatch) signal = parseInt(sigMatch[1]);
-        }
-        resolve({ interfaces: ifaces, ssid, signal });
-      }
-    );
-  });
 }
 
 // ── DETECTAR ORIENTACIÓN EN WINDOWS ─────────────────────────
@@ -377,12 +246,6 @@ async function playbackLoop(playlist, stopFlag) {
   let items = [...playlist.items];
   console.log(`▶️  Loop iniciado: ${playlist.name} (${items.length} items)`);
 
-  // Actualizar estado global con info de la playlist
-  currentState.current_playlist = { id: playlist.id, name: playlist.name };
-  currentState.item_total = items.length;
-  currentState.status = 'playing';
-  reportState();
-
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -393,23 +256,11 @@ async function playbackLoop(playlist, stopFlag) {
 
   while (!stopFlag()) {
     if (playlist.shuffle_enabled) items = shuffle([...playlist.items]);
-    let idx = 0;
     for (const item of items) {
       if (stopFlag()) break;
       if (!fs.existsSync(item.local_path)) { console.warn(`⚠️ No encontrado: ${item.local_path}`); continue; }
-
-      // ── Actualizar estado del item actual ──
-      currentState.current_item = {
-        title:    item.title || path.basename(item.local_path),
-        type:     item.type,
-        filename: path.basename(item.local_path),
-      };
-      currentState.item_index = idx + 1;
-      reportState();
-
       if (item.type === 'video')      await playVideo(item.local_path);
       else if (item.type === 'image') await showImage(item.local_path, item.duration_ms || IMAGE_DURATION);
-      idx++;
     }
     if (!playlist.repeat_enabled) break;
   }
@@ -557,10 +408,10 @@ async function getDeviceConfig() {
 // ── VERIFICAR RED ────────────────────────────────────────────
 async function hasNetwork() {
   try {
-    await axios.get(`${CMS_URL}/api/health`, { timeout: 5000 });
+    await axios.get(`${CMS_URL}/api/health`, { timeout: 15000 });
     return true;
   } catch(e) {
-    try { await axios.get('http://1.1.1.1', { timeout: 3000 }); return true; }
+    try { await axios.get('http://1.1.1.1', { timeout: 8000 }); return true; }
     catch(e2) { return false; }
   }
 }
@@ -633,27 +484,16 @@ function listenLicenseUpdates(socket) {
 function connectSocket() {
   console.log(`🔌 Conectando a ${CMS_URL}...`);
   const socket = io(CMS_URL, { reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity });
-
-  globalSocket = socket;
-
-  socket.on('connect', () => {
-    console.log('✅ Socket.io conectado');
-    // Registrar device en el servidor para recibir comandos dirigidos
-    socket.emit('device_register', { device_id: DEVICE_ID });
-    // Reportar estado inicial
-    reportState(socket);
-  });
-
+  socket.on('connect', () => console.log('✅ Socket.io conectado'));
   socket.on('disconnect', () => console.warn('⚠️ Socket.io desconectado'));
-
   listenLicenseUpdates(socket);
-
-  // ── Turnos (módulo de atención) ──────────────────────────
+  // Escuchar turnos llamados si tiene licencia de turnos
   socket.on('token_called', (data) => {
-    if (hasQueueLicense) writeQueueToken(data);
+    if (hasQueueLicense) {
+      writeQueueToken(data);
+    }
   });
 
-  // ── Actualización de config desde dashboard ──────────────
   socket.on(`device-config-update-${DEVICE_ID}`, async (newConfig) => {
     console.log('\n⚡ Nueva configuración recibida');
     currentConfig = newConfig;
@@ -661,163 +501,13 @@ function connectSocket() {
     killPlayers();
     await startPlayer(newConfig);
   });
-
-  // ════════════════════════════════════════════════════════
-  // COMANDOS REMOTOS — enviados desde admin dashboard o cmd
-  // ════════════════════════════════════════════════════════
-
-  // 1. Forzar re-sync y recarga de playlist (sin reboot)
-  socket.on('cmd_refresh_playlist', async () => {
-    console.log('⚡ [CMD] refresh_playlist');
-    currentState.status = 'refreshing';
-    reportState(socket);
-    killPlayers();
-    if (currentConfig) {
-      // Limpiar cache para forzar descarga nueva
-      const playlistId = currentConfig.hdmi0_playlist_id || currentConfig.hdmi1_playlist_id;
-      if (playlistId) {
-        const cacheDir = path.join(MEDIA_DIR, `playlist_${playlistId}`);
-        if (fs.existsSync(cacheDir)) {
-          try { fs.rmSync(cacheDir, { recursive: true, force: true }); } catch(e) {}
-        }
-      }
-      await startPlayer(currentConfig);
-    } else {
-      currentState.status = 'idle';
-      showIdleSplash();
-    }
-    socket.emit('cmd_result', { command: 'refresh_playlist', success: true, device_id: DEVICE_ID });
-  });
-
-  // 2. Detener reproducción (mostrar splash)
-  socket.on('cmd_stop', () => {
-    console.log('⚡ [CMD] stop');
-    currentState.status = 'stopped';
-    currentState.current_item = null;
-    killPlayers();
-    showIdleSplash();
-    reportState(socket);
-    socket.emit('cmd_result', { command: 'stop', success: true, device_id: DEVICE_ID });
-  });
-
-  // 3. Reanudar reproducción
-  socket.on('cmd_resume', async () => {
-    console.log('⚡ [CMD] resume');
-    if (currentConfig) {
-      await startPlayer(currentConfig);
-    } else {
-      currentState.status = 'idle';
-      showIdleSplash();
-    }
-    socket.emit('cmd_result', { command: 'resume', success: true, device_id: DEVICE_ID });
-  });
-
-  // 4. Solicitar estado inmediato
-  socket.on('cmd_get_status', () => {
-    console.log('⚡ [CMD] get_status');
-    reportState(socket);
-  });
-
-  // 5. Info HDMI detallada (puertos, resolución, orientación)
-  socket.on('cmd_get_hdmi', async () => {
-    console.log('⚡ [CMD] get_hdmi');
-    const hdmi = await getHdmiInfo();
-    socket.emit('device_hdmi', { device_id: DEVICE_ID, ports: hdmi, timestamp: new Date().toISOString() });
-  });
-
-  // 6. Info de disco
-  socket.on('cmd_get_disk', async () => {
-    console.log('⚡ [CMD] get_disk');
-    const disk = await getDiskUsage();
-    socket.emit('device_disk', { device_id: DEVICE_ID, disk, timestamp: new Date().toISOString() });
-  });
-
-  // 7. Info de red (IP, WiFi SSID, señal)
-  socket.on('cmd_get_network', async () => {
-    console.log('⚡ [CMD] get_network');
-    const net = await getNetworkInfo();
-    socket.emit('device_network', { device_id: DEVICE_ID, ...net, timestamp: new Date().toISOString() });
-  });
-
-  // 8. Control de volumen del sistema
-  socket.on('cmd_set_volume', ({ volume }) => {
-    console.log(`⚡ [CMD] set_volume → ${volume}%`);
-    const vol = Math.max(0, Math.min(100, parseInt(volume) || 50));
-    if (!IS_WINDOWS) {
-      exec(`pactl set-sink-volume @DEFAULT_SINK@ ${vol}% 2>/dev/null || amixer sset Master ${vol}% 2>/dev/null`, { stdio: 'ignore' });
-    } else {
-      exec(`powershell -NoProfile -WindowStyle Hidden -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]0xAD)" 2>nul`, { windowsHide: true });
-    }
-    socket.emit('cmd_result', { command: 'set_volume', success: true, volume: vol, device_id: DEVICE_ID });
-  });
-
-  // 9. Info completa del sistema RPi (CPU, RAM, temperatura)
-  socket.on('cmd_get_sysinfo', () => {
-    console.log('⚡ [CMD] get_sysinfo');
-    const cpus = os.cpus();
-    const totalMem = os.totalmem();
-    const freeMem  = os.freemem();
-    let temp = null;
-    if (!IS_WINDOWS) {
-      try {
-        const t = require('child_process').execSync('vcgencmd measure_temp 2>/dev/null', { encoding: 'utf8', timeout: 3000 });
-        const m = t.match(/temp=([\d.]+)/);
-        if (m) temp = parseFloat(m[1]);
-      } catch(e) {}
-    }
-    socket.emit('device_sysinfo', {
-      device_id: DEVICE_ID,
-      cpu: { cores: cpus.length, model: cpus[0]?.model, speed_mhz: cpus[0]?.speed },
-      memory: {
-        total_mb:   Math.round(totalMem / 1048576),
-        free_mb:    Math.round(freeMem  / 1048576),
-        used_mb:    Math.round((totalMem - freeMem) / 1048576),
-        use_pct:    ((totalMem - freeMem) / totalMem * 100).toFixed(1),
-      },
-      temp_celsius: temp,
-      platform: IS_WINDOWS ? 'windows' : 'linux',
-      node_version: process.version,
-      uptime_s: Math.floor((Date.now() - currentState.started_at) / 1000),
-      os_uptime_s: Math.floor(os.uptime()),
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // 10. Listar archivos de media descargados en la RPi
-  socket.on('cmd_list_media', () => {
-    console.log('⚡ [CMD] list_media');
-    try {
-      const files = [];
-      if (fs.existsSync(MEDIA_DIR)) {
-        const entries = fs.readdirSync(MEDIA_DIR, { withFileTypes: true });
-        for (const entry of entries) {
-          if (entry.isDirectory()) {
-            const subDir = path.join(MEDIA_DIR, entry.name);
-            const subFiles = fs.readdirSync(subDir).map(f => {
-              const fp = path.join(subDir, f);
-              const st = fs.statSync(fp);
-              return { name: f, size_bytes: st.size, dir: entry.name };
-            });
-            files.push(...subFiles);
-          }
-        }
-      }
-      socket.emit('device_media_list', { device_id: DEVICE_ID, files, total: files.length, timestamp: new Date().toISOString() });
-    } catch(e) {
-      socket.emit('device_media_list', { device_id: DEVICE_ID, files: [], error: e.message });
-    }
-  });
-
   return socket;
 }
 
 function startHeartbeat() {
   setInterval(async () => {
-    // Ping HTTP para mantener el device actualizado en BD
     try { await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 }); }
     catch(e) {}
-    // Reportar estado completo via socket
-    reportState();
   }, 30000);
 }
 
@@ -828,24 +518,10 @@ async function startPlayer(config) {
   await showSplash();
 
   const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
-  if (!playlistId) {
-    console.warn('⚠️ Sin playlist asignada');
-    currentState.status = 'idle';
-    currentState.current_playlist = null;
-    currentState.current_item = null;
-    reportState();
-    showIdleSplash();
-    return;
-  }
+  if (!playlistId) { console.warn('⚠️ Sin playlist asignada'); showIdleSplash(); return; }
 
   const localPlaylist = await syncPlaylist(playlistId);
-  if (!localPlaylist || !localPlaylist.items.length) {
-    console.warn('⚠️ Sin contenido');
-    currentState.status = 'idle';
-    reportState();
-    showIdleSplash();
-    return;
-  }
+  if (!localPlaylist || !localPlaylist.items.length) { console.warn('⚠️ Sin contenido'); showIdleSplash(); return; }
 
   stopPlayback0 = false;
   playbackLoop(localPlaylist, () => stopPlayback0);
