@@ -483,9 +483,11 @@ function listenLicenseUpdates(socket) {
 
 function connectSocket() {
   console.log(`🔌 Conectando a ${CMS_URL}...`);
-  const socket = io(CMS_URL, { reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity });
+  const socket = io(CMS_URL, { reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity, pingTimeout: 60000, pingInterval: 25000 });
   socket.on('connect', () => {
     console.log('✅ Socket.io conectado');
+    globalSocket = socket;
+    socket.emit('device_register', { device_id: DEVICE_ID });
     socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' });
     setInterval(() => socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' }), 30000);
   });
@@ -504,6 +506,26 @@ function connectSocket() {
     saveConfigCache(newConfig);
     killPlayers();
     await startPlayer(newConfig);
+  });
+
+  socket.on('screenshot_request', async ({ device_id, filename }) => {
+    console.log('📸 Screenshot solicitado para:', device_id);
+    const tmpPath = '/tmp/sonoro-screenshot.png';
+    exec(`grim ${tmpPath}`, async (err) => {
+      if (err) { console.error('📸 grim error:', err.message); return; }
+      try {
+        const FormData = require('form-data');
+        const form = new FormData();
+        form.append('screenshot', fs.createReadStream(tmpPath), { filename: filename || `screenshot-${device_id}.png` });
+        const uploadUrl = `${CMS_URL}/api/devices/${device_id}/screenshot-upload`;
+        console.log('📸 Subiendo a:', uploadUrl);
+        const response = await axios.post(uploadUrl, form, { headers: form.getHeaders(), timeout: 30000 });
+        console.log('📸 Screenshot subido exitosamente:', response.data);
+        try { fs.unlinkSync(tmpPath); } catch(e) {}
+      } catch(e) {
+        console.error('📸 Error subiendo screenshot:', e.message, e.code);
+      }
+    });
   });
   return socket;
 }

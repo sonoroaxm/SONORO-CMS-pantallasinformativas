@@ -36,11 +36,15 @@ const { videoConversionQueue, addConversionJob, getJobStatus, getQueueStats } = 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  maxHttpBufferSize: 10e6
 });
 
 // ⭐ GUARDAR IO EN GLOBAL PARA QUE LA COLA PUEDA EMITIR EVENTOS
 global.io = io;
+
+// Mapa de callbacks pendientes de screenshot por device_id
+const screenshotCallbacks = new Map();
 
 // ========================================
 // MIDDLEWARE
@@ -1050,45 +1054,22 @@ app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) =
 });
 
 // ── SCREENSHOT VIA SSH + GRIM (Wayland) ──────────────────────
-// Función compartida entre /api/admin/rpi/screenshot y /api/devices/:id/screenshot
+// Funcion compartida — Socket.io solicita, RPi sube via HTTP POST
 async function doScreenshot(ip, deviceId) {
+  console.log(`📸 Solicitando screenshot a ${deviceId} via Socket.io + HTTP upload`);
   const screenshotsDir = path.join(process.cwd(), 'uploads', 'screenshots');
   if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: true });
+  const filename = `screenshot-${deviceId}-${Date.now()}.png`;
+  const expectedPath = path.join(screenshotsDir, filename);
 
-  const filename   = `screenshot-${deviceId}-${Date.now()}.png`;
-  const localPath  = path.join(screenshotsDir, filename);
-  const remotePath = `/tmp/sonoro-screenshot.png`;
-  const sshOpts    = '-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes';
-
-  console.log(`📸 Solicitando screenshot a ${deviceId} (${ip})`);
-
-  // 1. Tomar captura con grim (Wayland)
-  await new Promise((resolve, reject) => {
-    exec(
-      `ssh ${sshOpts} sonoro@${ip} "WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 grim ${remotePath}"`,
-      { timeout: 15000, windowsHide: true },
-      (error) => error
-        ? reject(new Error('grim falló: ' + error.message))
-        : resolve()
-    );
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      screenshotCallbacks.delete(deviceId);
+      reject(new Error('Screenshot timeout — RPi no respondio en 60s'));
+    }, 60000);
+    screenshotCallbacks.set(deviceId, { resolve, reject, timeout, expectedPath, filename });
+    io.to(`device_${deviceId}`).emit('screenshot_request', { device_id: deviceId, filename });
   });
-
-  // 2. Traer el archivo con SCP
-  await new Promise((resolve, reject) => {
-    exec(
-      `scp ${sshOpts} sonoro@${ip}:${remotePath} "${localPath}"`,
-      { timeout: 15000, windowsHide: true },
-      (error) => error
-        ? reject(new Error('SCP falló: ' + error.message))
-        : resolve()
-    );
-  });
-
-  // 3. Limpiar temporal en el RPi (sin esperar)
-  exec(`ssh ${sshOpts} sonoro@${ip} "rm -f ${remotePath}"`, { windowsHide: true }, () => {});
-
-  console.log(`✅ Screenshot recibido: ${filename}`);
-  return `/uploads/screenshots/${filename}`;
 }
 
 // POST - Screenshot admin (usado por admin-dashboard.html)
@@ -1261,6 +1242,33 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
   } catch (err) {
     console.error('❌ TV schedule error:', err.message);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/devices/:device_id/screenshot-upload — RPi sube screenshot via HTTP
+app.post('/api/devices/:device_id/screenshot-upload', async (req, res) => {
+  const { device_id } = req.params;
+  if (!req.files || !req.files.screenshot) {
+    return res.status(400).json({ success: false, error: 'No se recibio archivo' });
+  }
+  try {
+    const screenshotsDir = path.join(process.cwd(), 'uploads', 'screenshots');
+    if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: true });
+    const cb = screenshotCallbacks.get(device_id);
+    const filename = cb?.filename || `screenshot-${device_id}-${Date.now()}.png`;
+    const savePath = path.join(screenshotsDir, filename);
+    await req.files.screenshot.mv(savePath);
+    const url = `/uploads/screenshots/${filename}`;
+    console.log(`📸 Screenshot recibido via HTTP: ${url}`);
+    if (cb) {
+      clearTimeout(cb.timeout);
+      screenshotCallbacks.delete(device_id);
+      cb.resolve(url);
+    }
+    res.json({ success: true, url });
+  } catch(e) {
+    console.error(`❌ Error guardando screenshot upload: ${e.message}`);
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -3106,9 +3114,42 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
 
 io.on('connection', (socket) => {
   console.log('🟢 Cliente conectado:', socket.id);
+  // DEBUG — capturar todos los eventos
+  const originalEmit = socket.onevent.bind(socket);
+  socket.onevent = function(packet) {
+    if (packet.data[0] === 'screenshot_result') {
+      console.log(`🔍 [DEBUG] Evento recibido: ${packet.data[0]} de socket ${socket.id}`);
+    }
+    originalEmit(packet);
+  };
+  // Auto-join: si el cliente envía su device_id al conectar, unirlo a su sala
+  socket.on('device_register', ({ device_id }) => {
+    socket.join(`device_${device_id}`);
+    console.log(`📱 ${device_id} unido a sala device_${device_id} (socket: ${socket.id})`);
+  });
+
+
+  socket.on('screenshot_result', ({ device_id, success, image, error }) => {
+    console.log(`📸 [RECV] screenshot_result — socket: ${socket.id} device: ${device_id} success: ${success} size: ${image?.length}`);
+    const cb = screenshotCallbacks.get(device_id);
+    if (!cb) { console.warn(`📸 Sin callback para ${device_id}`); return; }
+    clearTimeout(cb.timeout);
+    screenshotCallbacks.delete(device_id);
+    if (!success || !image) { cb.reject(new Error(error || 'Screenshot fallido')); return; }
+    try {
+      const screenshotsDir = path.join(process.cwd(), 'uploads', 'screenshots');
+      if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: true });
+      const filename = `screenshot-${device_id}-${Date.now()}.png`;
+      fs.writeFileSync(path.join(screenshotsDir, filename), Buffer.from(image, 'base64'));
+      const url = `/uploads/screenshots/${filename}`;
+      console.log(`📸 Screenshot guardado: ${url}`);
+      cb.resolve(url);
+    } catch(e) { cb.reject(e); }
+  });
 
   socket.on('device_heartbeat', async ({ device_id, status }) => {
     try {
+      socket.join(`device_${device_id}`);
       await pool.query(`UPDATE devices SET status = $1, last_seen = NOW() WHERE device_id = $2`, [status || 'online', device_id]);
     } catch(e) { console.warn('heartbeat error:', e.message); }
   });
