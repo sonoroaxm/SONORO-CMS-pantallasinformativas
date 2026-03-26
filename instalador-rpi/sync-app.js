@@ -484,7 +484,11 @@ function listenLicenseUpdates(socket) {
 function connectSocket() {
   console.log(`🔌 Conectando a ${CMS_URL}...`);
   const socket = io(CMS_URL, { reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity });
-  socket.on('connect', () => console.log('✅ Socket.io conectado'));
+  socket.on('connect', () => {
+    console.log('✅ Socket.io conectado');
+    socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' });
+    setInterval(() => socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' }), 30000);
+  });
   socket.on('disconnect', () => console.warn('⚠️ Socket.io desconectado'));
   listenLicenseUpdates(socket);
   // Escuchar turnos llamados si tiene licencia de turnos

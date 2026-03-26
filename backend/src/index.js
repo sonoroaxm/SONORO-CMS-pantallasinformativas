@@ -3107,6 +3107,12 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
 io.on('connection', (socket) => {
   console.log('🟢 Cliente conectado:', socket.id);
 
+  socket.on('device_heartbeat', async ({ device_id, status }) => {
+    try {
+      await pool.query(`UPDATE devices SET status = $1, last_seen = NOW() WHERE device_id = $2`, [status || 'online', device_id]);
+    } catch(e) { console.warn('heartbeat error:', e.message); }
+  });
+
   // ⭐ EVENTO: Reinicio remoto de dispositivo RPi
   socket.on('reboot_device', async ({ device_id }) => {
     try {
