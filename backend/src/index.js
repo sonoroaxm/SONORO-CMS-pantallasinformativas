@@ -114,7 +114,53 @@ pool.query('SELECT 1')
       created_at  TIMESTAMPTZ  DEFAULT NOW()
     )
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules)'))
+  .then(() => pool.query(`
+    CREATE TABLE IF NOT EXISTS content (
+      id                  SERIAL PRIMARY KEY,
+      user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      title               VARCHAR(255) NOT NULL,
+      type                VARCHAR(20) NOT NULL,
+      filename            VARCHAR(255),
+      file_path           VARCHAR(500),
+      thumbnail_path      VARCHAR(500),
+      size_bytes          BIGINT DEFAULT 0,
+      duration_ms         INTEGER DEFAULT 0,
+      width               INTEGER,
+      height              INTEGER,
+      codec               VARCHAR(50),
+      needs_conversion    BOOLEAN DEFAULT false,
+      conversion_status   VARCHAR(20) DEFAULT 'none',
+      uploaded_at         TIMESTAMPTZ DEFAULT NOW()
+    )
+  `))
+  .then(() => pool.query(`
+    CREATE TABLE IF NOT EXISTS playlist_items (
+      id                   SERIAL PRIMARY KEY,
+      playlist_id          INTEGER REFERENCES playlists(id) ON DELETE CASCADE,
+      content_id           INTEGER REFERENCES content(id) ON DELETE CASCADE,
+      display_order        INTEGER DEFAULT 0,
+      duration_override_ms INTEGER,
+      CONSTRAINT playlist_items_playlist_content_unique UNIQUE (playlist_id, content_id)
+    )
+  `))
+  .then(() => pool.query(`
+    ALTER TABLE playlists
+      ADD COLUMN IF NOT EXISTS user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS description   TEXT,
+      ADD COLUMN IF NOT EXISTS updated_at    TIMESTAMPTZ DEFAULT NOW(),
+      ADD COLUMN IF NOT EXISTS shuffle_enabled BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS repeat_enabled  BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS orientation   VARCHAR(20) DEFAULT 'horizontal'
+  `))
+  .then(() => pool.query(`
+    ALTER TABLE devices
+      ADD COLUMN IF NOT EXISTS hdmi0_playlist_id   INTEGER,
+      ADD COLUMN IF NOT EXISTS hdmi1_playlist_id   INTEGER,
+      ADD COLUMN IF NOT EXISTS display_mode        VARCHAR(20) DEFAULT 'mirror',
+      ADD COLUMN IF NOT EXISTS branch_id           UUID,
+      ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
+  `))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
