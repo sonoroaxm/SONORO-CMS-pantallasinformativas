@@ -1256,11 +1256,11 @@ async function openRpiLogs(deviceId, ip) {
 async function fetchRpiLogs(deviceId, ip) {
   const lines = document.getElementById('log-lines-select').value;
   const el = document.getElementById('modal-logs-content');
-  el.innerHTML = '<span class="loading">Obteniendo logs via SSH...</span>';
+  el.innerHTML = '<span class="loading">Obteniendo logs via Socket.io...</span>';
   try {
     const data = await api('/api/admin/rpi/logs', {
       method: 'POST',
-      body: JSON.stringify({ device_id: deviceId, ip, lines: parseInt(lines) })
+      body: JSON.stringify({ device_id: deviceId, lines: parseInt(lines) })
     });
     if (!data || !data.success) {
       el.innerHTML = `<span class="log-err">${data?.error || 'Error obteniendo logs'}</span>`;
@@ -1366,11 +1366,11 @@ async function verifyRpi(deviceId) {
 
 async function loadRpiStats(devices) {
   for (const d of devices) {
-    if (d.status !== 'online' || !d.ip_address) continue;
+    if (d.status !== 'online') continue;
     try {
       const data = await api('/api/admin/rpi/stats', {
         method: 'POST',
-        body: JSON.stringify({ ip: d.ip_address })
+        body: JSON.stringify({ device_id: d.device_id })
       });
       if (!data || !data.success) continue;
 
@@ -1675,6 +1675,26 @@ function renderAllDevices(devices) {
 }
 
 // ── FILTROS RPIs ───────────────────────────────────────────────
+
+function renderRpiStats(devices) {
+  for (const d of devices) {
+    const tempEl = document.querySelector('#stat-temp-' + d.device_id + ' .rpi-info-val');
+    if (tempEl) {
+      if (d.cpu_temp !== null && d.cpu_temp !== undefined) {
+        const t = parseFloat(d.cpu_temp);
+        const color = t >= 80 ? 'var(--offline)' : t >= 65 ? 'var(--warning)' : 'var(--online)';
+        tempEl.textContent = t.toFixed(1) + ' C';
+        tempEl.style.color = color;
+      } else {
+        tempEl.textContent = '--';
+        tempEl.style.color = 'var(--muted)';
+      }
+    }
+    const fanEl = document.querySelector('#stat-fan-' + d.device_id + ' .rpi-info-val');
+    if (fanEl) { fanEl.textContent = '--'; fanEl.style.color = 'var(--muted)'; }
+  }
+}
+
 let allRpisData = []; // cache global
 
 async function loadRPis() {
@@ -1696,8 +1716,8 @@ async function loadRPis() {
     } catch(e) {}
     populateUserFilter('rpis-user-filter', allRpisData, 'user_email', 'user_name');
     renderRpis(allRpisData);
-    loadRpiStats(allRpisData);
-  } catch(e) { grid.innerHTML = '<div class="empty">Error cargando dispositivos</div>'; }
+    renderRpiStats(allRpisData);
+  } catch(e) { console.error('loadRPis error:', e); grid.innerHTML = '<div class="empty">Error cargando dispositivos: ' + e.message + '</div>'; }
 }
 
 function filterRpis() {
@@ -1759,6 +1779,14 @@ function renderRpis(devices) {
         <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${d.name||d.device_id}')">Screenshot</button>
         <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
         <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+      </div>
+      <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
+        <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Acceso SSH remoto via tunnel</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <code style="flex:1;font-size:11px;font-family:monospace;color:#60a5fa;background:rgba(0,0,0,0.3);padding:5px 8px;border-radius:4px;overflow-x:auto;white-space:nowrap;">ssh -p 2222 sonoro@45.181.156.171</code>
+          <button onclick="navigator.clipboard.writeText('ssh -p 2222 sonoro@45.181.156.171').then(()=>toast('Copiado','success'))" style="padding:4px 10px;font-size:11px;background:#1A3A5C;color:#B5D4F4;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">Copiar</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Requiere tunnel activo en el RPi (sonoro-tunnel.service)</div>
       </div>
       <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">

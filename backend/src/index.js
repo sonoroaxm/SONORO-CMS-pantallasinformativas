@@ -1238,6 +1238,48 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
+app.post('/api/devices/:device_id/logs-result', async (req, res) => {
+  const { device_id } = req.params;
+  const { logs, error } = req.body;
+  const cb = global.logsCallbacks && global.logsCallbacks.get(device_id);
+  if (cb) {
+    clearTimeout(cb.timeout);
+    global.logsCallbacks.delete(device_id);
+    if (error) cb.res.json({ success: false, error });
+    else cb.res.json({ success: true, logs: logs || '' });
+  }
+  res.json({ success: true });
+});
+
+// POST /api/devices/:device_id/stats-result — RPi envia stats via HTTP
+app.post('/api/devices/:device_id/stats-result', async (req, res) => {
+  const { device_id } = req.params;
+  const { temp, fan_state, fan_label, temp_status, error } = req.body;
+  const cb = global.statsCallbacks && global.statsCallbacks.get(device_id);
+  if (cb) {
+    clearTimeout(cb.timeout);
+    global.statsCallbacks.delete(device_id);
+    if (error) cb.res.json({ success: false, error });
+    else cb.res.json({ success: true, temp, fan_state, fan_label, temp_status });
+  }
+  res.json({ success: true });
+});
+
+// POST /api/devices/:device_id/update-result — RPi confirma actualizacion
+app.post('/api/devices/:device_id/update-result', async (req, res) => {
+  const { device_id } = req.params;
+  const { success: ok, message, error } = req.body;
+  const cb = global.updateCallbacks && global.updateCallbacks.get(device_id);
+  if (cb) {
+    clearTimeout(cb.timeout);
+    global.updateCallbacks.delete(device_id);
+    if (error) cb.res.json({ success: false, error });
+    else cb.res.json({ success: true, message: message || 'Actualizado correctamente' });
+  }
+  res.json({ success: true });
+});
+
 // POST /api/devices/:device_id/screenshot-upload — RPi sube screenshot via HTTP
 app.post('/api/devices/:device_id/screenshot-upload', async (req, res) => {
   const { device_id } = req.params;
@@ -1374,6 +1416,7 @@ app.get('/api/player/playlist/:playlistId', async (req, res) => {
   }
 });
 const adminRoutes = require('./routes/admin');
+app.set('io', io);
 app.use('/api/admin', adminRoutes);
 
 app.get('/admin.html', (req, res) => {
@@ -3140,10 +3183,14 @@ io.on('connection', (socket) => {
     } catch(e) { cb.reject(e); }
   });
 
-  socket.on('device_heartbeat', async ({ device_id, status }) => {
+  socket.on('device_heartbeat', async ({ device_id, status, temp }) => {
     try {
       socket.join(`device_${device_id}`);
-      await pool.query(`UPDATE devices SET status = $1, last_seen = NOW() WHERE device_id = $2`, [status || 'online', device_id]);
+      if (temp !== undefined && temp !== null) {
+        await pool.query(`UPDATE devices SET status = $1, last_seen = NOW(), cpu_temp = $3 WHERE device_id = $2`, [status || 'online', device_id, temp]);
+      } else {
+        await pool.query(`UPDATE devices SET status = $1, last_seen = NOW() WHERE device_id = $2`, [status || 'online', device_id]);
+      }
     } catch(e) { console.warn('heartbeat error:', e.message); }
   });
 

@@ -488,8 +488,18 @@ function connectSocket() {
     console.log('✅ Socket.io conectado');
     globalSocket = socket;
     socket.emit('device_register', { device_id: DEVICE_ID });
-    socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' });
-    setInterval(() => socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online' }), 30000);
+
+    function sendHeartbeat() {
+      const { exec: ex } = require('child_process');
+      ex(`vcgencmd measure_temp 2>/dev/null`, (err, stdout) => {
+        let temp = null;
+        const m = (stdout || '').match(/temp=([\d.]+)/);
+        if (m) temp = parseFloat(m[1]);
+        socket.emit('device_heartbeat', { device_id: DEVICE_ID, status: 'online', temp });
+      });
+    }
+    sendHeartbeat();
+    setInterval(sendHeartbeat, 30000);
   });
   socket.on('disconnect', () => console.warn('⚠️ Socket.io desconectado'));
   listenLicenseUpdates(socket);
@@ -506,6 +516,52 @@ function connectSocket() {
     saveConfigCache(newConfig);
     killPlayers();
     await startPlayer(newConfig);
+  });
+
+  socket.on('logs_request', ({ device_id, lines }) => {
+    console.log(`📋 Logs solicitados: ${lines} lineas`);
+    const { exec: execSync } = require('child_process');
+    execSync(`sudo journalctl -u sonoro-player -n ${lines || 100} --no-pager 2>&1`, (err, stdout) => {
+      const logs = stdout || (err ? err.message : 'Sin logs');
+      axios.post(`${CMS_URL}/api/devices/${device_id}/logs-result`, { logs })
+        .catch(e => console.error('logs upload error:', e.message));
+    });
+  });
+
+  socket.on('stats_request', ({ device_id }) => {
+    console.log('📊 Stats solicitadas');
+    const { exec: execSync } = require('child_process');
+    execSync(`vcgencmd measure_temp 2>/dev/null; cat /sys/class/thermal/cooling_device0/cur_state 2>/dev/null || echo 'fan:n/a'`, (err, stdout) => {
+      let temp = null, fanState = null;
+      (stdout || '').split('\n').forEach(line => {
+        const tm = line.match(/temp=([\d.]+)/); if (tm) temp = parseFloat(tm[1]);
+        const fm = line.match(/^([0-3])$/); if (fm) fanState = parseInt(fm[1]);
+        if (line.trim() === 'fan:n/a') fanState = -1;
+      });
+      const fanLabels = { '-1': 'N/A', 0: 'Apagado', 1: 'Bajo', 2: 'Medio', 3: 'Maximo' };
+      const tempStatus = temp === null ? 'unknown' : temp >= 80 ? 'critical' : temp >= 65 ? 'warn' : 'ok';
+      axios.post(`${CMS_URL}/api/devices/${device_id}/stats-result`, {
+        temp, fan_state: fanState, fan_label: fanLabels[String(fanState)] || 'N/A', temp_status: tempStatus
+      }).catch(e => console.error('stats upload error:', e.message));
+    });
+  });
+
+  socket.on('update_request', ({ device_id, cmsUrl }) => {
+    console.log('🔄 Actualizacion solicitada desde:', cmsUrl);
+    const url = `${cmsUrl || CMS_URL}/sync-app.js`;
+    const dest = '/home/sonoro/sonoro-player/sync-app.js';
+    const { exec: execSync } = require('child_process');
+    execSync(`wget -q -O ${dest}.new ${url} && mv ${dest}.new ${dest} && echo OK`, (err, stdout) => {
+      if (err || !stdout.includes('OK')) {
+        axios.post(`${CMS_URL}/api/devices/${device_id}/update-result`, { success: false, error: err?.message || 'Error descargando' })
+          .catch(() => {});
+        return;
+      }
+      axios.post(`${CMS_URL}/api/devices/${device_id}/update-result`, { success: true, message: 'sync-app.js actualizado' })
+        .catch(() => {});
+      console.log('✅ sync-app.js actualizado — reiniciando...');
+      setTimeout(() => execSync('sudo systemctl restart sonoro-player', () => {}), 2000);
+    });
   });
 
   socket.on('tv_schedule', ({ device_id, schedules }) => {

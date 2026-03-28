@@ -291,19 +291,19 @@ router.get('/database/tables', auth, async (req, res) => {
 
 // GET logs de RPi via SSH
 router.post('/rpi/logs', auth, (req, res) => {
-  const { device_id, ip, lines = 100 } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "sudo journalctl -u sonoro-player -n ${lines} --no-pager 2>&1"`;
-  exec(cmd, { timeout: 15000, windowsHide: true }, (err, stdout, stderr) => {
-    if (err && !stdout) {
-      return res.json({ success: false, error: `No se pudo conectar a ${ip}: ${err.message}` });
-    }
-    res.json({ success: true, logs: stdout || stderr || '' });
-  });
+  const { device_id, lines = 100 } = req.body;
+  if (!device_id) return res.status(400).json({ error: 'device_id requerido' });
+  const io = req.app.get('io');
+  if (!io) return res.status(500).json({ error: 'Socket.io no disponible' });
+  const timeout = setTimeout(() => {
+    global.logsCallbacks && global.logsCallbacks.delete(device_id);
+    res.json({ success: false, error: 'Timeout — RPi no respondio en 15s' });
+  }, 15000);
+  if (!global.logsCallbacks) global.logsCallbacks = new Map();
+  global.logsCallbacks.set(device_id, { res, timeout });
+  io.to(`device_${device_id}`).emit('logs_request', { device_id, lines: parseInt(lines) });
 });
 
-// POST screenshot via SSH + grim (Wayland screenshot)
 router.post('/rpi/screenshot', auth, (req, res) => {
   const { device_id, ip } = req.body;
   if (!ip) return res.status(400).json({ error: 'IP requerida' });
@@ -403,169 +403,6 @@ router.get('/redis/stats', auth, (req, res) => {
 
 router.get('/redis/queue', auth, (req, res) => {
   res.json({ queue: { total_items: 0, items: [] } });
-});
-
-// ════════════════════════════════════════════════════════════
-// RPi — INFO HDMI, DISCO, RED, PROCESOS (via SSH)
-// ════════════════════════════════════════════════════════════
-
-// POST /api/admin/rpi/hdmi — puertos HDMI, resolución, orientación
-router.post('/rpi/hdmi', auth, (req, res) => {
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr 2>/dev/null"`;
-
-  exec(cmd, { timeout: 12000, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
-    if (err && !stdout) return res.json({ success: false, error: `No se pudo conectar a ${ip}` });
-
-    const ports = [];
-    const blocks = (stdout || '').split('\n\n').filter(Boolean);
-    for (const block of blocks) {
-      const nameMatch      = block.match(/^(\S+)\s/m);
-      const resMatch       = block.match(/current\s+(\d+x\d+)/);
-      const enabledMatch   = block.match(/Enabled:\s+(yes|no)/i);
-      const transformMatch = block.match(/Transform:\s+(\S+)/i);
-      const freqMatch      = block.match(/(\d+\.\d+)\s+Hz/);
-      if (nameMatch) {
-        ports.push({
-          port:       nameMatch[1],
-          connected:  enabledMatch ? enabledMatch[1] === 'yes' : block.includes('current'),
-          resolution: resMatch       ? resMatch[1]       : null,
-          transform:  transformMatch ? transformMatch[1] : 'normal',
-          refresh_hz: freqMatch      ? parseFloat(freqMatch[1]) : null,
-        });
-      }
-    }
-    res.json({ success: true, ip, ports, raw: stdout });
-  });
-});
-
-// POST /api/admin/rpi/disk — uso de disco
-router.post('/rpi/disk', auth, (req, res) => {
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "df -h --output=source,size,used,avail,pcent,target 2>/dev/null | tail -n +2"`;
-
-  exec(cmd, { timeout: 10000, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
-    if (err && !stdout) return res.json({ success: false, error: `No se pudo conectar a ${ip}` });
-
-    const lines = (stdout || '').trim().split('\n').filter(Boolean);
-    const disks = lines.map(line => {
-      const p = line.trim().split(/\s+/);
-      return { filesystem: p[0], size: p[1], used: p[2], available: p[3], use_pct: p[4], mount: p[5] };
-    }).filter(d => !d.filesystem.startsWith('tmpfs') && !d.filesystem.startsWith('udev'));
-
-    res.json({ success: true, ip, disks });
-  });
-});
-
-// POST /api/admin/rpi/network — info de red e interfaz WiFi
-router.post('/rpi/network', auth, (req, res) => {
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "ip -4 addr show 2>/dev/null | grep -E '^[0-9]+:|inet '; echo '---SSID---'; iwgetid -r 2>/dev/null || echo ''; echo '---SIGNAL---'; iwconfig wlan0 2>/dev/null | grep 'Signal level' || echo ''; echo '---GATEWAY---'; ip route show default 2>/dev/null"`;
-
-  exec(cmd, { timeout: 12000, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
-    if (err && !stdout) return res.json({ success: false, error: `No se pudo conectar a ${ip}` });
-
-    const parts    = (stdout || '').split('---SSID---');
-    const ifPart   = parts[0] || '';
-    const rest     = (parts[1] || '').split('---SIGNAL---');
-    const ssidPart = rest[0] || '';
-    const rest2    = (rest[1] || '').split('---GATEWAY---');
-    const sigPart  = rest2[0] || '';
-    const gwPart   = rest2[1] || '';
-
-    const interfaces = [];
-    let currentIface = null;
-    for (const line of ifPart.split('\n')) {
-      const ifaceMatch = line.match(/^\d+:\s+(\S+):/);
-      if (ifaceMatch) { currentIface = ifaceMatch[1]; continue; }
-      const ipMatch = line.match(/inet\s+([\d.\/]+)/);
-      if (ipMatch && currentIface) {
-        interfaces.push({ iface: currentIface, ip: ipMatch[1].split('/')[0], prefix: ipMatch[1].split('/')[1] });
-      }
-    }
-
-    const ssid   = ssidPart.trim() || null;
-    const sigMatch = sigPart.match(/Signal level[=:](-?\d+)/);
-    const signal = sigMatch ? parseInt(sigMatch[1]) : null;
-    const gwMatch = gwPart.match(/default via\s+([\d.]+)/);
-    const gateway = gwMatch ? gwMatch[1] : null;
-
-    const signalQuality = signal === null ? null
-      : signal >= -50 ? 'excelente'
-      : signal >= -60 ? 'buena'
-      : signal >= -70 ? 'regular' : 'débil';
-
-    res.json({ success: true, ip, interfaces, wifi: { ssid, signal_dbm: signal, quality: signalQuality }, gateway });
-  });
-});
-
-// POST /api/admin/rpi/processes — procesos activos + estado del servicio
-router.post('/rpi/processes', auth, (req, res) => {
-  const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "ps aux --sort=-%cpu | head -15 2>/dev/null; echo '---SERVICE---'; systemctl is-active sonoro-player 2>/dev/null; systemctl is-enabled sonoro-player 2>/dev/null"`;
-
-  exec(cmd, { timeout: 12000, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
-    if (err && !stdout) return res.json({ success: false, error: `No se pudo conectar a ${ip}` });
-
-    const parts    = (stdout || '').split('---SERVICE---');
-    const psLines  = (parts[0] || '').trim().split('\n').slice(1);
-    const svcLines = (parts[1] || '').trim().split('\n');
-
-    const processes = psLines.map(line => {
-      const p = line.trim().split(/\s+/);
-      return { user: p[0], pid: p[1], cpu: p[2] + '%', mem: p[3] + '%', command: p.slice(10).join(' ') };
-    }).filter(p => p.pid);
-
-    res.json({
-      success: true, ip,
-      sonoro_player: { active: svcLines[0]?.trim() || 'unknown', enabled: svcLines[1]?.trim() || 'unknown' },
-      top_processes: processes,
-    });
-  });
-});
-
-// POST /api/admin/rpi/cmd-ssh — ejecutar comando de lista blanca
-router.post('/rpi/cmd-ssh', auth, (req, res) => {
-  const { ip, command } = req.body;
-  if (!ip || !command) return res.status(400).json({ error: 'IP y command requeridos' });
-
-  const ALLOWED = [
-    'sudo systemctl restart sonoro-player',
-    'sudo systemctl stop sonoro-player',
-    'sudo systemctl start sonoro-player',
-    'sudo systemctl status sonoro-player --no-pager',
-    'free -h',
-    'uptime',
-    'uname -a',
-    'cat /proc/device-tree/model',
-    'vcgencmd get_throttled',
-    'vcgencmd measure_volts',
-    'sudo journalctl -u sonoro-player -n 50 --no-pager',
-    'ls -lh /home/sonoro/media',
-    'ls -lh /home/sonoro/sonoro-player',
-    'cat /home/sonoro/sonoro-player/.env',
-    'node --version',
-    'df -h',
-    'free -h',
-  ];
-
-  if (!ALLOWED.includes(command)) {
-    return res.status(403).json({ error: 'Comando no permitido', allowed_commands: ALLOWED });
-  }
-
-  const sshCmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "${command}"`;
-  exec(sshCmd, { timeout: 20000, windowsHide: true, encoding: 'utf8' }, (err, stdout, stderr) => {
-    if (err && !stdout) return res.json({ success: false, error: err.message });
-    res.json({ success: true, ip, command, output: stdout || stderr || '' });
-  });
 });
 
 module.exports = router;
