@@ -96,6 +96,16 @@ async function connectToWifi(ssid, password) {
     await new Promise(r => setTimeout(r, 2000));
     
     // Intentar conectar
+    try { await run('sudo nmcli dev wifi rescan ifname wlan0 2>/dev/null'); } catch(e) {}
+    await new Promise(r => setTimeout(r, 2000));
+    // Verificar si ya esta conectado a esta red
+    const currentSSID = await run("nmcli -t -f active,ssid dev wifi | grep '^yes' | cut -d: -f2").catch(() => '');
+    if (currentSSID.trim() === ssid) {
+      log(`Ya conectado a ${ssid} — continuando`);
+      return true;
+    }
+    // Eliminar perfil anterior si existe
+    try { await run(`sudo nmcli con delete "${ssid}" 2>/dev/null`); } catch(e) {}
     if (password) {
       await run(`sudo nmcli dev wifi connect "${ssid}" password "${password}" ifname wlan0`);
     } else {
@@ -147,25 +157,30 @@ async function activateDevice(code) {
 }
 
 // ── QR EN TV ─────────────────────────────────────────────────
-function showQRonTV(url) {
+function getLocalIP() {
   try {
-    // Generar QR como texto en la consola
-    exec(`qrencode -t UTF8 "${url}" 2>/dev/null`, (err, stdout) => {
-      if (!err) {
-        console.log('\n\n');
-        console.log('  ╔══════════════════════════════════════╗');
-        console.log('  ║        CONFIGURAR REPRODUCTOR        ║');
-        console.log('  ║                                      ║');
-        console.log(`  ║  Red WiFi: ${HOTSPOT_NAME.padEnd(26)}║`);
-        console.log(`  ║  O visita: ${url.padEnd(26)}║`);
-        console.log('  ║                                      ║');
-        console.log('  ║  Escanea el QR desde tu celular:     ║');
-        console.log('  ╚══════════════════════════════════════╝');
-        console.log('');
-        console.log(stdout);
-      }
-    });
-  } catch(e) {}
+    const out = require('child_process').execSync(
+      "ip route get 1 2>/dev/null | awk '{print $7; exit}'"
+    ).toString().trim();
+    return out || HOTSPOT_IP;
+  } catch(e) { return HOTSPOT_IP; }
+}
+
+function showQRonTV(url) {
+  const QR_PATH = '/tmp/sonoro-qr.png';
+  const WAYLAND = 'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000';
+  exec('pkill -f mpv || true', () => {
+    setTimeout(() => {
+      exec('qrencode -o ' + QR_PATH + ' -s 12 -m 3 "' + url + '" 2>/dev/null', (err) => {
+        if (err) { console.error('[Portal] Error generando QR:', err.message); return; }
+        const cmd = WAYLAND + ' mpv --fullscreen --no-audio --loop=inf '
+          + '--osd-msg1="Escanea el QR o visita: ' + url + '" '
+          + '--osd-font-size=40 --osd-duration=999999 ' + QR_PATH;
+        exec(cmd, { windowsHide: false });
+        console.log('[Portal] QR mostrado en TV: ' + url);
+      });
+    }, 1000);
+  });
 }
 
 // ── HTML DEL PORTAL ──────────────────────────────────────────
@@ -183,36 +198,35 @@ function getPortalHTML(networks, step, message, error) {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           background: #f5f5f5; color: #1a1a1a; min-height: 100vh;
+           background: #0f0f0f; color: #f0f0f0; min-height: 100vh;
            display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { background: #ffffff; border-radius: 20px; padding: 36px 32px;
-            max-width: 420px; width: 100%; border: 1px solid #e8e8e8;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .card { background: #1a1a1a; border-radius: 16px; padding: 32px 28px;
+            max-width: 420px; width: 100%; border: 1px solid #2a2a2a; }
     .logo { text-align: center; margin-bottom: 24px; }
     .logo span { font-size: 28px; font-weight: 900; background: linear-gradient(135deg, #FF1B8D, #FF6B35);
                  -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .logo p { font-size: 13px; color: #999; margin-top: 4px; }
+    .logo p { font-size: 13px; color: #888; margin-top: 4px; }
     h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-    p.sub { font-size: 13px; color: #666; margin-bottom: 24px; line-height: 1.6; }
-    label { display: block; font-size: 11px; font-weight: 700; color: #999;
+    p.sub { font-size: 13px; color: #888; margin-bottom: 24px; line-height: 1.6; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #888;
             text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    select, input { width: 100%; padding: 12px 14px; background: #f8f8f8;
-                    border: 1.5px solid #e8e8e8; border-radius: 10px; color: #1a1a1a;
+    select, input { width: 100%; padding: 12px 14px; background: #111;
+                    border: 1px solid #333; border-radius: 10px; color: #f0f0f0;
                     font-size: 14px; margin-bottom: 16px; }
-    select:focus, input:focus { outline: none; border-color: #FF1B8D; background: #fff; }
+    select:focus, input:focus { outline: none; border-color: #FF1B8D; }
     button { width: 100%; padding: 14px; background: linear-gradient(135deg, #FF1B8D, #FF6B35);
              border: none; border-radius: 10px; color: white; font-size: 15px;
              font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
     button:active { opacity: 0.9; }
     .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
-    .msg.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-    .msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .msg.ok  { background: #0a2e14; color: #4ade80; border: 1px solid #166534; }
+    .msg.err { background: #2e0a0a; color: #f87171; border: 1px solid #991b1b; }
     .msg.inf { background: #0a1a2e; color: #60a5fa; border: 1px solid #1e3a5f; }
     .steps { display: flex; gap: 8px; margin-bottom: 24px; }
-    .step { flex: 1; height: 4px; border-radius: 2px; background: #e8e8e8; }
+    .step { flex: 1; height: 4px; border-radius: 2px; background: #333; }
     .step.active { background: #FF1B8D; }
     .step.done { background: #4ade80; }
-    .device-id { text-align: center; font-size: 11px; color: #bbb; margin-top: 20px; }
+    .device-id { text-align: center; font-size: 11px; color: #555; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -301,15 +315,9 @@ async function startServer() {
     }
 
     if (req.method === 'GET' && url.pathname === '/') {
-      const internet = await hasInternet();
-      if (internet) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(getPortalHTML([], 1, '', ''));
-      } else {
-        const freshNetworks = await getWifiNetworks();
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(getPortalHTML(freshNetworks, 0, '', ''));
-      }
+      const freshNetworks = await getWifiNetworks();
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(getPortalHTML(freshNetworks, 0, '', ''));
       return;
     }
 
@@ -412,6 +420,9 @@ async function startServer() {
     log(`Servidor portal en http://${listenIP}:${PORT}`);
     if (hotspotActive) {
       showQRonTV(`http://${HOTSPOT_IP}:${PORT}`);
+    } else {
+      const localIP = getLocalIP();
+      if (localIP) showQRonTV(`http://${localIP}:${PORT}`);
     }
   });
 }
