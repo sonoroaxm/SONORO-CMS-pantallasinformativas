@@ -1,328 +1,481 @@
-/**
- * ============================================================
- * SONORO AV — Portal de Activación v2
- * /home/sonoro/sonoro-player/activation-portal.js
- * ============================================================
- */
+#!/usr/bin/env node
+// ============================================================
+// SONORO AV — Portal de Activacion WiFi
+// Crea hotspot, sirve pagina de configuracion, activa el RPi
+// ============================================================
+'use strict';
 
-require('dotenv').config();
-const express = require('express');
-const axios   = require('axios');
+const http    = require('http');
+const fs      = require('fs');
 const { exec, execSync } = require('child_process');
-const fs   = require('fs');
-const path = require('path');
-const os   = require('os');
+const path    = require('path');
 
-const app      = express();
-const CMS_URL  = process.env.CMS_URL || 'https://cms.sonoro.com.co';
-const PORT     = 8080;
-const ENV_FILE = path.join(__dirname, '.env');
-const AP_CONFIG_FILE = path.join(__dirname, 'ap-config.json');
+const CMS_URL   = process.env.CMS_URL   || 'https://cms.sonoro.com.co';
+const DEVICE_ID = process.env.DEVICE_ID || 'rpi4-sonoro-01';
+const HOTSPOT_IP = '192.168.4.1';
+const PORT       = 8080;
+const HOTSPOT_NAME = `SONORO-${DEVICE_ID.replace('rpi4-','').toUpperCase().substring(0,6)}`;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+let hotspotActive = false;
+let server = null;
 
-function getLocalIP() {
-  const ifaces = os.networkInterfaces();
-  for (const iface of Object.values(ifaces)) {
-    for (const addr of iface) {
-      if (addr.family === 'IPv4' && !addr.internal) return addr.address;
-    }
-  }
-  return null;
-}
+// ── UTILIDADES ───────────────────────────────────────────────
+function log(msg) { console.log(`[Portal] ${msg}`); }
 
-function getDeviceId() {
-  try {
-    const env = fs.readFileSync(ENV_FILE, 'utf8');
-    const match = env.match(/DEVICE_ID=(.+)/);
-    return match ? match[1].trim() : 'rpi-unknown';
-  } catch(e) { return 'rpi-unknown'; }
-}
-
-function getAPConfig() {
-  try { return JSON.parse(fs.readFileSync(AP_CONFIG_FILE, 'utf8')); }
-  catch(e) { return { ap_ssid: 'SONORO-Setup', ap_ip: '192.168.99.1', portal_port: 8080 }; }
-}
-
-function isAPMode() {
-  const ip = getLocalIP();
-  const apConfig = getAPConfig();
-  return ip === apConfig.ap_ip;
-}
-
-function scanWifi() {
-  return new Promise((resolve) => {
-    exec('nmcli -t -f SSID,SIGNAL dev wifi list 2>/dev/null', (err, stdout) => {
-      if (err) { resolve([]); return; }
-      const networks = stdout.split('\n')
-        .filter(l => l.trim())
-        .map(l => { const p = l.split(':'); return { ssid: p[0], signal: parseInt(p[1]) || 0 }; })
-        .filter(n => n.ssid && n.ssid !== '--')
-        .sort((a, b) => b.signal - a.signal)
-        .slice(0, 10);
-      resolve(networks);
+function run(cmd) {
+  return new Promise((resolve, reject) => {
+    exec(cmd, { timeout: 30000 }, (err, stdout, stderr) => {
+      if (err) reject(new Error(stderr || err.message));
+      else resolve(stdout.trim());
     });
   });
 }
 
-function showActivationScreen(ip, deviceId, mode) {
-  const url = `http://${ip}:${PORT}`;
-  const isAP = mode === 'ap';
-  const py = `
-import subprocess, sys
-try:
-    from PIL import Image, ImageDraw, ImageFont
-    import qrcode
-except:
-    subprocess.run(['pip3','install','pillow','qrcode','--quiet','--break-system-packages'],capture_output=True)
-    from PIL import Image, ImageDraw, ImageFont
-    import qrcode
-
-img = Image.new('RGB',(1920,1080),color=(15,15,15))
-draw = ImageDraw.Draw(img)
-try:
-    fL = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',72)
-    fB = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',40)
-    fS = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',28)
-except:
-    fL=fB=fS=ImageFont.load_default()
-
-draw.text((960,90),'SONORO.',font=fL,fill=(255,27,141),anchor='mm')
-draw.text((960,165),'CMS · Pantallas Informativas',font=fS,fill=(100,100,100),anchor='mm')
-
-qr=qrcode.QRCode(version=2,box_size=7,border=2)
-qr.add_data('${url}')
-qr.make(fit=True)
-qi=qr.make_image(fill_color='white',back_color=(15,15,15))
-qs=qi.size[0]
-img.paste(qi,((1920-qs)//2,240))
-
-draw.text((960,240+qs+36),'${url}',font=fB,fill=(240,240,240),anchor='mm')
-${isAP
-  ? "draw.text((960,240+qs+90),'1. Conecta tu celular al WiFi: SONORO-Setup',font=fS,fill=(255,140,0),anchor='mm')\ndraw.text((960,240+qs+128),'2. Abre el navegador y entra a la direccion de arriba',font=fS,fill=(136,136,136),anchor='mm')"
-  : "draw.text((960,240+qs+90),'Escanea el QR o abre esta direccion desde tu celular',font=fS,fill=(136,136,136),anchor='mm')\ndraw.text((960,240+qs+128),'(conectado a la misma red WiFi o cable)',font=fS,fill=(70,70,70),anchor='mm')"}
-draw.text((960,1040),'ID: ${deviceId}',font=fS,fill=(50,50,50),anchor='mm')
-img.save('/tmp/sonoro-activation.png')
-`;
+async function hasInternet() {
   try {
-    execSync(`python3 -c "${py.replace(/"/g, '\\"')}"`, { timeout: 30000 });
-    exec(`WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 mpv --vo=gpu --gpu-context=wayland --fullscreen --fs-screen-name=HDMI-A-2 --no-audio --no-osc --no-osd-bar --loop=inf --image-display-duration=inf /tmp/sonoro-activation.png`);
-    console.log(`✅ Pantalla de activación mostrada (${mode})`);
-  } catch(e) { console.warn('⚠️ No se pudo mostrar pantalla:', e.message); }
+    await run('curl -s --connect-timeout 5 https://cms.sonoro.com.co/api/health');
+    return true;
+  } catch(e) { return false; }
 }
 
-// ── PÁGINA PRINCIPAL ─────────────────────────────────────────
-app.get('/', async (req, res) => {
-  const ip       = getLocalIP();
-  const deviceId = getDeviceId();
-  const apMode   = isAPMode();
-  let wifiNetworks = [];
-  if (apMode) wifiNetworks = await scanWifi();
-
-  const CSS = `
-    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-    .card{background:#161616;border:1px solid #2e2e2e;border-radius:20px;padding:36px 28px;width:100%;max-width:400px}
-    .logo{font-size:34px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
-    .sub{font-size:11px;color:#555;letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
-    .step{display:flex;align-items:flex-start;gap:14px;margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #2e2e2e}
-    .step:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0}
-    .step-num{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#FF1B8D,#FF8C00);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:white}
-    .step-num.done{background:#1a3a1a;color:#00e676;font-size:16px}
-    .step-title{font-size:15px;font-weight:700;margin-bottom:6px}
-    .step-desc{font-size:13px;color:#888;line-height:1.5}
-    label{display:block;font-size:11px;font-weight:700;letter-spacing:1px;color:#666;text-transform:uppercase;margin-bottom:8px;margin-top:14px}
-    input,select{width:100%;padding:13px 14px;background:#1e1e1e;border:1px solid #2e2e2e;border-radius:10px;color:#f0f0f0;font-size:15px;font-family:inherit;transition:border-color .2s}
-    input:focus,select:focus{outline:none;border-color:#FF1B8D}
-    .code-input{font-size:22px;font-weight:800;letter-spacing:4px;text-align:center;text-transform:uppercase}
-    .code-input::placeholder{font-size:14px;font-weight:400;letter-spacing:1px;color:#444}
-    select option{background:#1e1e1e}
-    .btn{width:100%;padding:15px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;transition:opacity .2s;font-family:inherit}
-    .btn:active{opacity:.8}
-    .btn:disabled{opacity:.4;cursor:not-allowed}
-    .msg{margin-top:14px;padding:13px 16px;border-radius:10px;font-size:13px;font-weight:600;text-align:center;line-height:1.5;display:none}
-    .msg.ok{background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25)}
-    .msg.err{background:rgba(255,23,68,.1);color:#ff5252;border:1px solid rgba(255,23,68,.25)}
-    .msg.info{background:rgba(255,140,0,.1);color:#FF8C00;border:1px solid rgba(255,140,0,.25)}
-    .device-id{margin-top:24px;padding:10px 14px;background:#1a1a1a;border-radius:8px;font-size:11px;color:#444;text-align:center}
-  `;
-
-  const apSteps = `
-    <div class="step">
-      <div class="step-num done">✓</div>
-      <div class="step-content">
-        <div class="step-title">Conectado a SONORO-Setup</div>
-        <div class="step-desc">Tu celular está conectado correctamente.</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-content">
-        <div class="step-title">Selecciona tu red WiFi</div>
-        <div class="step-desc">La pantalla se conectará a esta red para funcionar.</div>
-        <label>Red WiFi</label>
-        <select id="wifi-ssid" onchange="checkCustom()">
-          <option value="">— Selecciona tu red —</option>
-          ${wifiNetworks.map(n => `<option value="${n.ssid}">${n.ssid} (${n.signal}%)</option>`).join('')}
-          <option value="__custom__">Otra red (escribir manualmente)</option>
-        </select>
-        <input type="text" id="wifi-custom" placeholder="Nombre de la red WiFi" style="display:none;margin-top:10px">
-        <label>Contraseña WiFi</label>
-        <input type="password" id="wifi-pass" placeholder="Contraseña de tu red">
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-content">
-        <div class="step-title">Código de activación</div>
-        <div class="step-desc">Encuéntralo en <strong style="color:#f0f0f0">cms.sonoro.com.co</strong> → Dispositivos → Generar Código</div>
-        <label>Código</label>
-        <input type="text" id="code" class="code-input" placeholder="SNR-XXXX-XXXX" maxlength="12" autocomplete="off">
-      </div>
-    </div>
-    <button class="btn" onclick="activateWifi()" id="btn">Conectar y activar</button>
-  `;
-
-  const ethSteps = `
-    <div class="step">
-      <div class="step-num done">✓</div>
-      <div class="step-content">
-        <div class="step-title">Pantalla conectada a la red</div>
-        <div class="step-desc">La pantalla tiene conexión correctamente.</div>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-content">
-        <div class="step-title">Ingresa tu código de activación</div>
-        <div class="step-desc">Encuéntralo en <strong style="color:#f0f0f0">cms.sonoro.com.co</strong> → Dispositivos → Generar Código</div>
-        <label>Código de activación</label>
-        <input type="text" id="code" class="code-input" placeholder="SNR-XXXX-XXXX" maxlength="12" autocomplete="off">
-      </div>
-    </div>
-    <button class="btn" onclick="activate()" id="btn">Activar pantalla</button>
-  `;
-
-  const JS = `
-    function fmt(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('input', e => {
-        let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
-        if (v.length>3) v=v.slice(0,3)+'-'+v.slice(3);
-        if (v.length>8) v=v.slice(0,8)+'-'+v.slice(8);
-        e.target.value=v.slice(0,12);
-      });
-      el.addEventListener('keydown', e => { if(e.key==='Enter') ${apMode ? 'activateWifi' : 'activate'}(); });
-    }
-    fmt('code');
-
-    function checkCustom() {
-      const sel = document.getElementById('wifi-ssid');
-      const c = document.getElementById('wifi-custom');
-      if (c) c.style.display = sel.value==='__custom__' ? 'block' : 'none';
-    }
-
-    function showMsg(t, type) {
-      const el = document.getElementById('msg');
-      el.textContent = t; el.className = 'msg '+type;
-      el.style.display = t ? 'block' : 'none';
-    }
-
-    async function activate() {
-      const code = (document.getElementById('code')?.value||'').trim();
-      if (code.length<12) { showMsg('Ingresa el código completo (SNR-XXXX-XXXX)','err'); return; }
-      const btn = document.getElementById('btn');
-      btn.disabled=true; btn.textContent='Activando...';
-      try {
-        const res = await fetch('/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
-        const data = await res.json();
-        if (data.success) { showMsg('✓ Pantalla activada. Iniciando en unos segundos...','ok'); btn.textContent='✓ Listo'; }
-        else { showMsg(data.error||'Código inválido o expirado','err'); btn.disabled=false; btn.textContent='Activar pantalla'; }
-      } catch(e) { showMsg('Error de conexión. Verifica que estés en la misma red.','err'); btn.disabled=false; btn.textContent='Activar pantalla'; }
-    }
-
-    async function activateWifi() {
-      const selEl = document.getElementById('wifi-ssid');
-      const ssid = selEl.value==='__custom__' ? document.getElementById('wifi-custom')?.value.trim() : selEl.value;
-      const pass = document.getElementById('wifi-pass')?.value||'';
-      const code = (document.getElementById('code')?.value||'').trim();
-      if (!ssid) { showMsg('Selecciona tu red WiFi','err'); return; }
-      if (!pass)  { showMsg('Ingresa la contraseña de tu WiFi','err'); return; }
-      if (code.length<12) { showMsg('Ingresa el código completo (SNR-XXXX-XXXX)','err'); return; }
-      const btn = document.getElementById('btn');
-      btn.disabled=true; btn.textContent='Conectando...';
-      showMsg('Conectando a tu red WiFi...','info');
-      try {
-        await fetch('/activate-wifi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,password:pass,code})});
-        showMsg('✓ Todo listo. La pantalla se está conectando a tu red y arrancará en unos segundos. Puedes cerrar esta página.','ok');
-        btn.textContent='✓ Listo';
-      } catch(e) {
-        showMsg('✓ Configuración enviada. La pantalla se está conectando a tu red WiFi.','ok');
-        btn.textContent='✓ Listo';
+async function getWifiNetworks() {
+  try {
+    const out = await run("sudo nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null | grep -v '^:' | sort -t: -k2 -rn");
+    const networks = [];
+    const seen = new Set();
+    for (const line of out.split('\n')) {
+      const parts = line.split(':');
+      const ssid = parts[0]?.trim();
+      const signal = parseInt(parts[1]) || 0;
+      const security = parts[2]?.trim() || '';
+      if (ssid && !seen.has(ssid) && ssid !== HOTSPOT_NAME) {
+        seen.add(ssid);
+        networks.push({ ssid, signal, security });
       }
     }
-  `;
+    return networks.slice(0, 15);
+  } catch(e) { return []; }
+}
 
-  res.send(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"><title>SONORO. — Activar pantalla</title><style>${CSS}</style></head><body><div class="card"><div class="logo">SONORO.</div><div class="sub">Activación de pantalla</div>${apMode ? apSteps : ethSteps}<div class="msg" id="msg"></div><div class="device-id">ID: ${deviceId}</div></div><script>${JS}</script></body></html>`);
-});
-
-// ── ACTIVACIÓN ETHERNET ──────────────────────────────────────
-app.post('/activate', async (req, res) => {
-  const { code } = req.body;
-  const deviceId = getDeviceId();
-  const ip = getLocalIP();
+// ── HOTSPOT ──────────────────────────────────────────────────
+async function startHotspot() {
+  log(`Creando hotspot: ${HOTSPOT_NAME}`);
   try {
-    const r = await axios.post(`${CMS_URL}/api/activate`, {
-      code: code.toUpperCase().trim(), device_id: deviceId,
-      ip_address: ip, display_mode: process.env.DISPLAY_MODE || 'mirror'
-    }, { timeout: 10000 });
-    if (r.data.success) {
-      console.log(`✅ Activado: ${deviceId}`);
-      setTimeout(() => { exec('sudo systemctl restart sonoro-player'); process.exit(0); }, 3000);
-      return res.json({ success: true });
+    // Verificar si ya existe el hotspot
+    try { await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {}
+    
+    // Crear hotspot con nmcli
+    await run(`sudo nmcli con add type wifi ifname wlan0 con-name "${HOTSPOT_NAME}" autoconnect no ssid "${HOTSPOT_NAME}"`);
+    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared`);
+    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" ipv4.addresses ${HOTSPOT_IP}/24`);
+    await run(`sudo nmcli con up "${HOTSPOT_NAME}"`);
+    hotspotActive = true;
+    log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
+    return true;
+  } catch(e) {
+    log(`Error creando hotspot: ${e.message}`);
+    return false;
+  }
+}
+
+async function stopHotspot() {
+  if (!hotspotActive) return;
+  try {
+    await run(`sudo nmcli con down "${HOTSPOT_NAME}" 2>/dev/null`);
+    await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`);
+    hotspotActive = false;
+    log('Hotspot detenido');
+  } catch(e) {}
+}
+
+async function connectToWifi(ssid, password) {
+  log(`Conectando a WiFi: ${ssid}`);
+  try {
+    // Detener hotspot primero
+    await stopHotspot();
+    await new Promise(r => setTimeout(r, 2000));
+    
+    // Intentar conectar
+    if (password) {
+      await run(`sudo nmcli dev wifi connect "${ssid}" password "${password}" ifname wlan0`);
+    } else {
+      await run(`sudo nmcli dev wifi connect "${ssid}" ifname wlan0`);
     }
-    res.json({ success: false, error: r.data.error });
-  } catch(e) { res.json({ success: false, error: e.response?.data?.error || 'No se pudo conectar al servidor' }); }
-});
-
-// ── ACTIVACIÓN WIFI ──────────────────────────────────────────
-app.post('/activate-wifi', async (req, res) => {
-  const { ssid, password, code } = req.body;
-  const deviceId = getDeviceId();
-  res.json({ success: true });
-
-  console.log(`📶 Conectando WiFi: ${ssid}`);
-  exec(`/usr/local/bin/sonoro-ap-stop "${ssid}" "${password}"`, { timeout: 30000 }, async (err) => {
-    if (err) { console.error('Error WiFi:', err.message); return; }
+    
+    // Esperar conexion
     await new Promise(r => setTimeout(r, 5000));
-    const newIP = getLocalIP();
-    try {
-      const r = await axios.post(`${CMS_URL}/api/activate`, {
-        code: code.toUpperCase().trim(), device_id: deviceId,
-        ip_address: newIP, display_mode: process.env.DISPLAY_MODE || 'mirror'
-      }, { timeout: 15000 });
-      if (r.data.success) {
-        console.log(`✅ Activado: ${deviceId}`);
-        setTimeout(() => { exec('sudo systemctl restart sonoro-player'); process.exit(0); }, 2000);
-      }
-    } catch(e) { console.error('Error CMS:', e.message); }
-  });
-});
+    const connected = await hasInternet();
+    if (connected) {
+      log(`Conectado a ${ssid} con internet`);
+      return true;
+    }
+    log(`Conectado a ${ssid} pero sin internet`);
+    return false;
+  } catch(e) {
+    log(`Error conectando a ${ssid}: ${e.message}`);
+    return false;
+  }
+}
 
-// ── INICIO ───────────────────────────────────────────────────
-async function start() {
-  const ip = getLocalIP();
-  const deviceId = getDeviceId();
-  const apMode = isAPMode();
-  console.log(`\n🌐 SONORO Portal de Activación v2`);
-  console.log(`📱 URL: http://${ip}:${PORT}`);
-  console.log(`🔌 Modo: ${apMode ? 'AP (SONORO-Setup)' : 'Ethernet/WiFi'}`);
-  console.log(`🖥️  Device ID: ${deviceId}\n`);
-  app.listen(PORT, '0.0.0.0', () => {
-    showActivationScreen(ip, deviceId, apMode ? 'ap' : 'ethernet');
+async function activateDevice(code) {
+  log(`Activando dispositivo con codigo: ${code}`);
+  const https = require('https');
+  const http2 = require('http');
+  const url = new URL(`${CMS_URL}/api/activate`);
+  const body = JSON.stringify({ code, device_id: DEVICE_ID });
+  
+  return new Promise((resolve, reject) => {
+    const client = url.protocol === 'https:' ? https : http2;
+    const req = client.request({
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch(e) { reject(new Error('Respuesta invalida del servidor')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
   });
 }
 
-start().catch(console.error);
+// ── QR EN TV ─────────────────────────────────────────────────
+function showQRonTV(url) {
+  try {
+    // Generar QR como texto en la consola
+    exec(`qrencode -t UTF8 "${url}" 2>/dev/null`, (err, stdout) => {
+      if (!err) {
+        console.log('\n\n');
+        console.log('  ╔══════════════════════════════════════╗');
+        console.log('  ║        CONFIGURAR REPRODUCTOR        ║');
+        console.log('  ║                                      ║');
+        console.log(`  ║  Red WiFi: ${HOTSPOT_NAME.padEnd(26)}║`);
+        console.log(`  ║  O visita: ${url.padEnd(26)}║`);
+        console.log('  ║                                      ║');
+        console.log('  ║  Escanea el QR desde tu celular:     ║');
+        console.log('  ╚══════════════════════════════════════╝');
+        console.log('');
+        console.log(stdout);
+      }
+    });
+  } catch(e) {}
+}
+
+// ── HTML DEL PORTAL ──────────────────────────────────────────
+function getPortalHTML(networks, step, message, error) {
+  const networkOptions = networks.map(n =>
+    `<option value="${n.ssid}">${n.ssid} (${n.signal}%)</option>`
+  ).join('');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar SONORO</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #f5f5f5; color: #1a1a1a; min-height: 100vh;
+           display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #ffffff; border-radius: 20px; padding: 36px 32px;
+            max-width: 420px; width: 100%; border: 1px solid #e8e8e8;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .logo { text-align: center; margin-bottom: 24px; }
+    .logo span { font-size: 28px; font-weight: 900; background: linear-gradient(135deg, #FF1B8D, #FF6B35);
+                 -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo p { font-size: 13px; color: #999; margin-top: 4px; }
+    h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    p.sub { font-size: 13px; color: #666; margin-bottom: 24px; line-height: 1.6; }
+    label { display: block; font-size: 11px; font-weight: 700; color: #999;
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    select, input { width: 100%; padding: 12px 14px; background: #f8f8f8;
+                    border: 1.5px solid #e8e8e8; border-radius: 10px; color: #1a1a1a;
+                    font-size: 14px; margin-bottom: 16px; }
+    select:focus, input:focus { outline: none; border-color: #FF1B8D; background: #fff; }
+    button { width: 100%; padding: 14px; background: linear-gradient(135deg, #FF1B8D, #FF6B35);
+             border: none; border-radius: 10px; color: white; font-size: 15px;
+             font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
+    button:active { opacity: 0.9; }
+    .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+    .msg.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .msg.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .msg.inf { background: #0a1a2e; color: #60a5fa; border: 1px solid #1e3a5f; }
+    .steps { display: flex; gap: 8px; margin-bottom: 24px; }
+    .step { flex: 1; height: 4px; border-radius: 2px; background: #e8e8e8; }
+    .step.active { background: #FF1B8D; }
+    .step.done { background: #4ade80; }
+    .device-id { text-align: center; font-size: 11px; color: #bbb; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <span>SONORO.</span>
+      <p>Configuracion del reproductor</p>
+    </div>
+    <div class="steps">
+      <div class="step ${step >= 1 ? 'done' : ''} ${step === 0 ? 'active' : ''}"></div>
+      <div class="step ${step >= 2 ? 'done' : ''} ${step === 1 ? 'active' : ''}"></div>
+      <div class="step ${step === 2 ? 'active' : ''}"></div>
+    </div>
+
+    ${error ? `<div class="msg err">${error}</div>` : ''}
+    ${message ? `<div class="msg ok">${message}</div>` : ''}
+
+    ${step === 0 ? `
+      <h2>Conectar a WiFi</h2>
+      <p class="sub">Selecciona la red WiFi donde quedara conectado el reproductor.</p>
+      <form method="POST" action="/wifi">
+        <label>Red WiFi</label>
+        <select name="ssid" required>
+          <option value="">-- Seleccionar red --</option>
+          ${networkOptions}
+          <option value="__manual__">Escribir nombre manualmente</option>
+        </select>
+        <label>Contrasena WiFi</label>
+        <input type="password" name="password" placeholder="Dejar vacio si es red abierta">
+        <button type="submit">Conectar</button>
+      </form>
+    ` : ''}
+
+    ${step === 1 ? `
+      <h2>Activar dispositivo</h2>
+      <p class="sub">Ingresa el codigo de activacion que generaste en cms.sonoro.com.co</p>
+      <form method="POST" action="/activate">
+        <label>Codigo de activacion</label>
+        <input type="text" name="code" placeholder="SNR-XXXX-XXXX" 
+               style="text-transform:uppercase;letter-spacing:2px;font-size:18px;font-weight:700;text-align:center;"
+               required autocomplete="off" autocorrect="off" autocapitalize="characters">
+        <button type="submit">Activar</button>
+      </form>
+    ` : ''}
+
+    ${step === 2 ? `
+      <div class="msg ok" style="text-align:center;padding:24px;">
+        <div style="font-size:32px;margin-bottom:12px;">&#10003;</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Reproductor activado</div>
+        <div style="font-size:13px;opacity:0.8;">El contenido se descargara en unos segundos y comenzara a reproducirse automaticamente.</div>
+      </div>
+    ` : ''}
+
+    <div class="device-id">ID: ${DEVICE_ID}</div>
+  </div>
+  ${step === 0 ? `
+  <script>
+    document.querySelector('select[name=ssid]').addEventListener('change', function() {
+      if (this.value === '__manual__') {
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.name = 'ssid'; inp.placeholder = 'Nombre exacto de la red';
+        inp.style.cssText = this.style.cssText;
+        this.parentNode.replaceChild(inp, this);
+        inp.focus();
+      }
+    });
+  </script>` : ''}
+</body>
+</html>`;
+}
+
+// ── SERVIDOR HTTP ─────────────────────────────────────────────
+async function startServer() {
+  const networks = await getWifiNetworks();
+  log(`Redes WiFi encontradas: ${networks.length}`);
+
+  server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    log(`${req.method} ${url.pathname}`);
+
+    // Redirect captive portal (Android/iOS auto-detect)
+    if (req.method === 'GET' && !['/', '/wifi', '/activate', '/status'].includes(url.pathname)) {
+      res.writeHead(302, { Location: `http://${HOTSPOT_IP}:${PORT}/` });
+      res.end();
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/') {
+      const internet = await hasInternet();
+      if (internet) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getPortalHTML([], 1, '', ''));
+      } else {
+        const freshNetworks = await getWifiNetworks();
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(getPortalHTML(freshNetworks, 0, '', ''));
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ device_id: DEVICE_ID, hotspot: HOTSPOT_NAME, ready: true }));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/wifi') {
+      let body = '';
+      req.on('data', d => body += d);
+      req.on('end', async () => {
+        const params = new URLSearchParams(body);
+        const ssid = params.get('ssid')?.trim();
+        const password = params.get('password')?.trim() || '';
+
+        if (!ssid || ssid === '__manual__') {
+          const nets = await getWifiNetworks();
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(getPortalHTML(nets, 0, '', 'Por favor selecciona o escribe el nombre de la red'));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <style>body{font-family:sans-serif;background:#0f0f0f;color:#f0f0f0;display:flex;align-items:center;
+          justify-content:center;height:100vh;text-align:center;}
+          .spinner{width:40px;height:40px;border:3px solid #333;border-top:3px solid #FF1B8D;
+          border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
+          @keyframes spin{to{transform:rotate(360deg);}}</style></head>
+          <body><div><div class="spinner"></div>
+          <p>Conectando a <b>${ssid}</b>...</p>
+          <p style="font-size:12px;color:#666;margin-top:8px;">Esto puede tardar hasta 15 segundos</p>
+          </div><script>setTimeout(()=>location.href='/activate-form',12000)</script></body></html>`);
+
+        // Conectar en background
+        setTimeout(async () => {
+          const ok = await connectToWifi(ssid, password);
+          // Reiniciar servidor en nueva IP si conecta
+          if (ok && server) {
+            server.close();
+            await new Promise(r => setTimeout(r, 3000));
+            startServerOnNewIP();
+          }
+        }, 500);
+      });
+      return;
+    }
+
+    if ((req.method === 'GET' && url.pathname === '/activate-form') ||
+        (req.method === 'GET' && url.pathname === '/activate')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(getPortalHTML([], 1, '', ''));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/activate') {
+      let body = '';
+      req.on('data', d => body += d);
+      req.on('end', async () => {
+        const params = new URLSearchParams(body);
+        const code = params.get('code')?.trim().toUpperCase();
+
+        if (!code) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(getPortalHTML([], 1, '', 'Ingresa el codigo de activacion'));
+          return;
+        }
+
+        try {
+          const result = await activateDevice(code);
+          if (result.success) {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(getPortalHTML([], 2, 'Dispositivo activado correctamente', ''));
+            log('Activacion exitosa — cerrando portal en 5s');
+            setTimeout(() => {
+              if (server) server.close();
+              process.exit(0);
+            }, 5000);
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(getPortalHTML([], 1, '', result.error || 'Codigo invalido o expirado'));
+          }
+        } catch(e) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(getPortalHTML([], 1, '', 'Error conectando al servidor. Verifica que el WiFi tiene internet.'));
+        }
+      });
+      return;
+    }
+
+    res.writeHead(302, { Location: '/' });
+    res.end();
+  });
+
+  const listenIP = hotspotActive ? HOTSPOT_IP : '0.0.0.0';
+  server.listen(PORT, listenIP, () => {
+    log(`Servidor portal en http://${listenIP}:${PORT}`);
+    if (hotspotActive) {
+      showQRonTV(`http://${HOTSPOT_IP}:${PORT}`);
+    }
+  });
+}
+
+async function startServerOnNewIP() {
+  server = http.createServer(async (req, res) => {
+    if (req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(getPortalHTML([], 1, 'WiFi conectado. Ahora ingresa tu codigo de activacion.', ''));
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/activate') {
+      let body = '';
+      req.on('data', d => body += d);
+      req.on('end', async () => {
+        const params = new URLSearchParams(body);
+        const code = params.get('code')?.trim().toUpperCase();
+        try {
+          const result = await activateDevice(code);
+          if (result.success) {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(getPortalHTML([], 2, '', ''));
+            setTimeout(() => { if(server) server.close(); process.exit(0); }, 5000);
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(getPortalHTML([], 1, '', result.error || 'Codigo invalido'));
+          }
+        } catch(e) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(getPortalHTML([], 1, '', 'Error: ' + e.message));
+        }
+      });
+      return;
+    }
+    res.writeHead(302, { Location: '/' });
+    res.end();
+  });
+  server.listen(PORT, '0.0.0.0', () => log(`Servidor en nueva IP, puerto ${PORT}`));
+}
+
+// ── MAIN ─────────────────────────────────────────────────────
+async function main() {
+  log(`Iniciando portal — DEVICE_ID: ${DEVICE_ID}`);
+
+  const internet = await hasInternet();
+  log(`Internet disponible: ${internet}`);
+
+  if (!internet) {
+    log('Sin internet — creando hotspot WiFi');
+    const ok = await startHotspot();
+    if (!ok) {
+      log('No se pudo crear hotspot — iniciando servidor en todas las interfaces');
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  } else {
+    log('Internet disponible — saltando directo al paso de activacion');
+  }
+
+  await startServer();
+}
+
+// Limpiar al salir
+process.on('SIGINT', async () => { await stopHotspot(); process.exit(0); });
+process.on('SIGTERM', async () => { await stopHotspot(); process.exit(0); });
+process.on('exit', () => { try { execSync(`sudo nmcli con down "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {} });
+
+main().catch(e => { console.error('Error fatal:', e); process.exit(1); });
