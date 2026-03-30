@@ -88,6 +88,42 @@ async function stopHotspot() {
   } catch(e) {}
 }
 
+async function applyStaticIP(ip, netmask, gateway, dns) {
+  log(`Configurando IP estatica: ${ip}`);
+  const prefix = netmaskToPrefix(netmask || '255.255.255.0');
+  const dnsVal = dns || '8.8.8.8';
+  try {
+    await run(`sudo nmcli con mod "$(sudo nmcli -t -f NAME con show --active | head -1)" ipv4.method manual ipv4.addresses "${ip}/${prefix}" ipv4.gateway "${gateway}" ipv4.dns "${dnsVal}"`);
+    log(`IP estatica configurada: ${ip}/${prefix}`);
+  } catch(e) {
+    // Si falla con la conexion activa, configurar en dhcpcd.conf
+    const conf = `\ninterface wlan0\nstatic ip_address=${ip}/${prefix}\nstatic routers=${gateway}\nstatic domain_name_servers=${dnsVal}\n`;
+    require('fs').appendFileSync('/etc/dhcpcd.conf', conf);
+    log('IP estatica configurada via dhcpcd.conf');
+  }
+}
+
+function netmaskToPrefix(netmask) {
+  try {
+    return netmask.split('.').reduce((acc, octet) => {
+      return acc + parseInt(octet).toString(2).split('').filter(b => b === '1').length;
+    }, 0);
+  } catch(e) { return 24; }
+}
+
+async function applyProxy(proxy) {
+  log(`Configurando proxy: ${proxy}`);
+  const envLine = `\nhttp_proxy="${proxy}"\nhttps_proxy="${proxy}"\nno_proxy="localhost,127.0.0.1"\n`;
+  require('fs').appendFileSync('/etc/environment', envLine);
+  // Configurar para el player
+  const playerEnv = `/home/sonoro/sonoro-player/.env`;
+  const envContent = require('fs').readFileSync(playerEnv, 'utf8');
+  if (!envContent.includes('HTTPS_PROXY')) {
+    require('fs').appendFileSync(playerEnv, `\nHTTPS_PROXY=${proxy}\nHTTP_PROXY=${proxy}\n`);
+  }
+  log('Proxy configurado');
+}
+
 async function connectToWifi(ssid, password) {
   log(`Conectando a WiFi: ${ssid}`);
   try {
@@ -256,6 +292,24 @@ function getPortalHTML(networks, step, message, error) {
         </select>
         <label>Contrasena WiFi</label>
         <input type="password" name="password" placeholder="Dejar vacio si es red abierta">
+        <details style="margin-bottom:16px;">
+          <summary style="font-size:12px;color:#999;cursor:pointer;padding:8px 0;">
+            Configuracion de red avanzada (IP estatica / Proxy)
+          </summary>
+          <div style="margin-top:12px;padding:12px;background:#f8f8f8;border-radius:8px;border:1px solid #e8e8e8;">
+            <p style="font-size:11px;color:#999;margin-bottom:12px;">Solo para redes corporativas. Dejar vacio para usar DHCP automatico.</p>
+            <label>Direccion IP estatica</label>
+            <input type="text" name="static_ip" placeholder="Ej: 192.168.1.100">
+            <label>Mascara de subred</label>
+            <input type="text" name="netmask" placeholder="Ej: 255.255.255.0">
+            <label>Gateway (puerta de enlace)</label>
+            <input type="text" name="gateway" placeholder="Ej: 192.168.1.1">
+            <label>DNS primario</label>
+            <input type="text" name="dns" placeholder="Ej: 8.8.8.8">
+            <label>Proxy HTTP (opcional)</label>
+            <input type="text" name="proxy" placeholder="Ej: http://proxy.empresa.com:8080">
+          </div>
+        </details>
         <button type="submit">Conectar</button>
       </form>
     ` : ''}
@@ -354,6 +408,20 @@ async function startServer() {
           <p>Conectando a <b>${ssid}</b>...</p>
           <p style="font-size:12px;color:#666;margin-top:8px;">Esto puede tardar hasta 15 segundos</p>
           </div><script>setTimeout(()=>location.href='/activate-form',12000)</script></body></html>`);
+
+        // Aplicar configuracion de red avanzada si se proporcionó
+        const staticIP  = params.get('static_ip')?.trim();
+        const netmask   = params.get('netmask')?.trim();
+        const gateway   = params.get('gateway')?.trim();
+        const dns       = params.get('dns')?.trim();
+        const proxy     = params.get('proxy')?.trim();
+
+        if (staticIP && gateway) {
+          await applyStaticIP(staticIP, netmask, gateway, dns).catch(e => log('Static IP error: ' + e.message));
+        }
+        if (proxy) {
+          await applyProxy(proxy).catch(e => log('Proxy error: ' + e.message));
+        }
 
         // Conectar en background
         setTimeout(async () => {
