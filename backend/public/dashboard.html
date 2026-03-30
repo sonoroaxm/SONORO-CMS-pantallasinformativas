@@ -924,7 +924,7 @@
       <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
 
       <!-- GRUPO 2: Gestión de la Atención -->
-      <div class="sidebar-group atencion open" id="group-atencion">
+      <div class="sidebar-group atencion open" id="group-atencion" style="display:none;">
         <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-atencion')">
           <div class="sidebar-group-label">Gestión de<br>la Atención</div>
           <div class="sidebar-group-arrow">▶</div>
@@ -1346,13 +1346,16 @@ function showLogin() {
 
 function checkQueueLicense() {
   try {
-    const res = fetch(`${API_URL}/api/license/status`, {
+    const features = currentUser?.features || {};
+    const g = document.getElementById('group-atencion');
+    if (g) g.style.display = features.turnos ? '' : 'none';
+    fetch(`${API_URL}/api/license/status`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
     }).then(r => r.json()).then(data => {
       const hasQueue = ['cms_queue','queue'].includes(data.license_type);
-      const queueBtn = document.querySelector('[data-tab="queue"]');
-      if (queueBtn) queueBtn.style.display = hasQueue ? 'flex' : 'none';
-    });
+      const hasTurnos = features.turnos || hasQueue;
+      if (g) g.style.display = hasTurnos ? '' : 'none';
+    }).catch(() => {});
   } catch(e) {}
 }
 
@@ -1361,6 +1364,12 @@ function showDashboard() {
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
   document.getElementById('userName').textContent = currentUser.email;
+  // Mostrar modulos segun features del usuario
+  const features = currentUser.features || {};
+  if (features.turnos) {
+    const g = document.getElementById('group-atencion');
+    if (g) g.style.display = '';
+  }
 }
 
 function showAuthStatus(message, type) {
@@ -1382,6 +1391,36 @@ function showStatus(msg, type) { updateStatus(msg, type); }
 
 function connectWebSocket() {
   socket = io(API_URL, { extraHeaders: { 'Authorization': `Bearer ${authToken}` } });
+  socket.on('connect', () => {
+    if (currentUser) {
+      socket.emit('join_user_room', { user_id: currentUser.id });
+      console.log('Unido a sala user_' + currentUser.id);
+    }
+  });
+  // Si ya esta conectado al momento de registrar el listener
+  if (socket.connected && currentUser) {
+    socket.emit('join_user_room', { user_id: currentUser.id });
+  }
+  socket.on('features_updated', async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        authToken = data.token;
+        currentUser = { ...currentUser, ...data.user };
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        const features = currentUser.features || {};
+        const g = document.getElementById('group-atencion');
+        if (g) g.style.display = features.turnos ? '' : 'none';
+        showStatus('Modulos actualizados', 'success');
+        console.log('Features actualizados:', features);
+      }
+    } catch(e) { console.error('Error refresh features:', e); }
+  });
   socket.on('connect', () => updateStatus('Conectado al servidor', 'success'));
   socket.on('upload_complete', () => { updateStatus('Archivo procesado', 'success'); setTimeout(loadContent, 1000); });
   socket.on('upload_error', (data) => updateStatus(`Error: ${data.error}`, 'error'));

@@ -406,3 +406,33 @@ router.get('/redis/queue', auth, (req, res) => {
 });
 
 module.exports = router;
+// ── FEATURES POR USUARIO ─────────────────────────────────────
+router.put('/users/:id/features', auth, async (req, res) => {
+  const { id } = req.params;
+  const { features } = req.body;
+  if (!features) return res.status(400).json({ error: 'features requerido' });
+  try {
+    const result = await req.app.get('db').query(
+      'UPDATE users SET features = $1 WHERE id = $2 RETURNING id, email, name, features',
+      [JSON.stringify(features), id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, user: result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/users/:id/features', auth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await req.app.get('db').query(
+      'SELECT id, email, name, features FROM users WHERE id = $1',
+      [id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, ...result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});

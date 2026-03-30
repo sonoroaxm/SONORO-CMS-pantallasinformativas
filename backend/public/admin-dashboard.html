@@ -1556,10 +1556,43 @@ async function loadUsers() {
           <button class="btn btn-outline btn-sm" onclick="viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
           ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="renewLicense(${u.id})">Reactivar</button>`}
           <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
+        </div>
+        <div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Modulos activos:</span>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
+              onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
+            Puntos de Atencion
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
+              onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
+            Reportes / Analytics
+          </label>
         </div>` : ''}
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
+}
+
+async function toggleFeature(userId, feature, enabled) {
+  try {
+    const users = await api('/api/admin/users');
+    const user = users.find(u => u.id === userId);
+    const features = Object.assign({ turnos: false, analytics: false }, user?.features || {});
+    features[feature] = enabled;
+    const data = await api(`/api/admin/users/${userId}/features`, {
+      method: 'PUT',
+      body: JSON.stringify({ features })
+    });
+    if (data.success) {
+      toast(`Modulo ${feature} ${enabled ? 'activado' : 'desactivado'} para ${user?.name || user?.email}`, 'success');
+      // Notificar al usuario via Socket.io para que refresque su token
+      if (socket) socket.emit('refresh_features', { user_id: userId, features });
+    } else {
+      toast('Error: ' + (data.error || 'Sin respuesta'), 'error');
+    }
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
 async function renewLicense(userId) {

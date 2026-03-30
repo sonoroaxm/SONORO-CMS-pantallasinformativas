@@ -399,6 +399,7 @@ app.post('/api/auth/register', async (req, res) => {
     );
 
     console.log(`✅ Usuario registrado: ${email}`);
+    emailService.sendWelcomeEmail(user).catch(e => console.warn('Email bienvenida:', e.message));
 
     res.json({
       success: true,
@@ -1417,6 +1418,7 @@ app.get('/api/player/playlist/:playlistId', async (req, res) => {
 });
 const adminRoutes = require('./routes/admin');
 app.set('io', io);
+app.set('db', pool);
 app.use('/api/admin', adminRoutes);
 
 app.get('/admin.html', (req, res) => {
@@ -1747,7 +1749,7 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
       SELECT
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
-        u.created_at,
+        u.created_at, u.features,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
         COUNT(DISTINCT p.id) as playlist_count
@@ -1769,6 +1771,47 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Refrescar token con features actualizados ────────────────
+app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, name, role, features FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const user = result.rows[0];
+    const isAdmin = user.role === 'admin';
+    const features = isAdmin
+      ? { turnos: true, analytics: true }
+      : (user.features || { turnos: false, analytics: false });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, features },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+    res.json({ success: true, token, user: { ...user, features } });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ADMIN: Actualizar features de un usuario ─────────────────
+app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+  const { features } = req.body;
+  if (!features) return res.status(400).json({ error: 'features requerido' });
+  try {
+    const result = await pool.query(
+      'UPDATE users SET features = $1 WHERE id = $2 RETURNING id, email, name, features',
+      [JSON.stringify(features), userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, user: result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -3181,6 +3224,16 @@ io.on('connection', (socket) => {
       console.log(`📸 Screenshot guardado: ${url}`);
       cb.resolve(url);
     } catch(e) { cb.reject(e); }
+  });
+
+  socket.on('join_user_room', ({ user_id }) => {
+    socket.join(`user_${user_id}`);
+  });
+
+  socket.on('refresh_features', ({ user_id, features }) => {
+    console.log(`🔄 refresh_features recibido — user_id: ${user_id} features: ${JSON.stringify(features)}`);
+    io.to(`user_${user_id}`).emit('features_updated');
+    console.log(`🔄 features_updated emitido a user_${user_id}`);
   });
 
   socket.on('device_heartbeat', async ({ device_id, status, temp }) => {
