@@ -829,6 +829,142 @@
     .service-color-dot {
       width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     }
+
+    /* ── RESPONSIVE MOVIL ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+      .sidebar {
+        display: none !important;
+      }
+      .main {
+        padding-bottom: 70px;
+      }
+      .topbar {
+        padding: 0 16px;
+        height: 52px;
+      }
+      .topbar-version { display: none; }
+      .topbar-divider { display: none; }
+      .topbar-user { font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .logout-btn { padding: 6px 10px; font-size: 11px; }
+      .container { padding: 12px; }
+      .device-card { margin-bottom: 16px; }
+      /* Tablas scrollables */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+      /* Menú inferior */
+      .mobile-tabbar {
+        display: flex !important;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+        height: 62px;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    }
+    @media (min-width: 769px) {
+      .mobile-tabbar { display: none !important; }
+    }
+    .hidden-feature { display: none !important; }
+    .mobile-tabbar {
+      display: none;
+    }
+    .mobile-tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px 4px;
+      transition: color 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .mobile-tab-btn.active { color: var(--magenta); }
+    .mobile-tab-btn svg { width: 22px; height: 22px; }
+    .mobile-tab-btn.active svg path,
+    .mobile-tab-btn.active svg rect,
+    .mobile-tab-btn.active svg circle { stroke: var(--magenta); }
+
+    /* ── RESPONSIVE MOVIL ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+      .sidebar {
+        display: none !important;
+      }
+      .main {
+        padding-bottom: 70px;
+      }
+      .topbar {
+        padding: 0 16px;
+        height: 52px;
+      }
+      .topbar-version { display: none; }
+      .topbar-divider { display: none; }
+      .topbar-user { font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .logout-btn { padding: 6px 10px; font-size: 11px; }
+      .container { padding: 12px; }
+      .device-card { margin-bottom: 16px; }
+      /* Tablas scrollables */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 500px; }
+      /* Menú inferior */
+      .mobile-tabbar {
+        display: flex !important;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+        height: 62px;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    }
+    @media (min-width: 769px) {
+      .mobile-tabbar { display: none !important; }
+    }
+    .hidden-feature { display: none !important; }
+    .mobile-tabbar {
+      display: none;
+    }
+    .mobile-tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px 4px;
+      transition: color 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .mobile-tab-btn.active { color: var(--magenta); }
+    .mobile-tab-btn svg { width: 22px; height: 22px; }
+    .mobile-tab-btn.active svg path,
+    .mobile-tab-btn.active svg rect,
+    .mobile-tab-btn.active svg circle { stroke: var(--magenta); }
   </style>
   <script src="/auto-token-refresh.js"></script>
 </head>
@@ -924,7 +1060,7 @@
       <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
 
       <!-- GRUPO 2: Gestión de la Atención -->
-      <div class="sidebar-group atencion open" id="group-atencion" style="display:none;">
+      <div class="sidebar-group atencion open hidden-feature" id="group-atencion">
         <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-atencion')">
           <div class="sidebar-group-label">Gestión de<br>la Atención</div>
           <div class="sidebar-group-arrow">▶</div>
@@ -1147,6 +1283,43 @@
 
     </div><!-- /main -->
   </div><!-- /layout -->
+
+  <!-- MENU INFERIOR MOVIL -->
+  <nav class="mobile-tabbar" id="mobileTabbar">
+    <button class="mobile-tab-btn active" id="mtab-content" onclick="switchMobileTab('content')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      Contenido
+    </button>
+    <button class="mobile-tab-btn" id="mtab-playlists" onclick="switchMobileTab('playlists')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+        <line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/>
+      </svg>
+      Listas
+    </button>
+    <button class="mobile-tab-btn" id="mtab-devices" onclick="switchMobileTab('devices')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+      Pantallas
+    </button>
+    <button class="mobile-tab-btn" id="mtab-queue" onclick="switchMobileTab('queue')" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+      Turnos
+    </button>
+    <button class="mobile-tab-btn" id="mtab-more" onclick="toggleMobileSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+      </svg>
+      Mas
+    </button>
+  </nav>
 </div>
 
 <!-- ══ MODAL PLAYLIST ══ -->
@@ -1224,11 +1397,26 @@ let repeatMode = false;
 let shuffledOrder = [];
 let playbackTimer = null;
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   setupTabs();
   setupEvents();
   setupKeyboard();
   if (authToken && currentUser) {
+    // Refrescar features ANTES de mostrar el dashboard
+    try {
+      const r = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await r.json();
+      if (data.success) {
+        authToken = data.token;
+        currentUser = { ...currentUser, ...data.user };
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      }
+    } catch(e) { console.error('refresh error:', e); }
+    console.log('[INIT] features antes showDashboard:', JSON.stringify(currentUser?.features));
     showDashboard();
     connectWebSocket();
     loadContent();
@@ -1236,6 +1424,42 @@ window.addEventListener('DOMContentLoaded', () => {
     showLogin();
   }
 });
+
+function switchMobileTab(tab) {
+  // Actualizar botones activos
+  document.querySelectorAll('.mobile-tab-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('mtab-' + tab);
+  if (activeBtn) activeBtn.classList.add('active');
+  // Activar la pestaña correspondiente
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.tab === tab) b.click();
+  });
+}
+
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+  if (sidebar.style.display === 'flex') {
+    sidebar.style.display = 'none';
+  } else {
+    sidebar.style.cssText = 'display:flex!important;position:fixed;top:0;left:0;bottom:0;width:260px;z-index:999;overflow-y:auto;';
+    // Cerrar al hacer clic fuera
+    setTimeout(() => {
+      document.addEventListener('click', function closeSidebar(e) {
+        if (!sidebar.contains(e.target)) {
+          sidebar.style.display = 'none';
+          document.removeEventListener('click', closeSidebar);
+        }
+      });
+    }, 100);
+  }
+}
+
+function syncMobileTab(tabName) {
+  document.querySelectorAll('.mobile-tab-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('mtab-' + tabName);
+  if (btn) btn.classList.add('active');
+}
 
 function setupKeyboard() {
   document.addEventListener('keydown', (e) => {
@@ -1262,6 +1486,7 @@ function setupTabs() {
       document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
       const tabEl = document.getElementById(`${tabName}-tab`);
       if (tabEl) tabEl.classList.remove('hidden');
+      syncMobileTab(tabName);
       if (tabName === 'playlists') loadPlaylists();
       if (tabName === 'player') loadPlaylistsForPlayer();
       if (tabName === 'devices') {
@@ -1348,28 +1573,34 @@ function checkQueueLicense() {
   try {
     const features = currentUser?.features || {};
     const g = document.getElementById('group-atencion');
-    if (g) g.style.display = features.turnos ? '' : 'none';
-    fetch(`${API_URL}/api/license/status`, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    }).then(r => r.json()).then(data => {
-      const hasQueue = ['cms_queue','queue'].includes(data.license_type);
-      const hasTurnos = features.turnos || hasQueue;
-      if (g) g.style.display = hasTurnos ? '' : 'none';
-    }).catch(() => {});
+    const mBtn = document.getElementById('mtab-queue');
+    const show = features.turnos === true;
+    if (g) {
+      if (show) g.classList.remove('hidden-feature');
+      else g.classList.add('hidden-feature');
+    }
+    if (mBtn) mBtn.style.display = show ? '' : 'none';
   } catch(e) {}
 }
 
 function showDashboard() {
+  console.log('[DEBUG] showDashboard — features:', JSON.stringify(currentUser?.features));
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
+  console.log('[DEBUG] despues checkQueueLicense — group class:', document.getElementById('group-atencion')?.classList.toString());
   document.getElementById('userName').textContent = currentUser.email;
   // Mostrar modulos segun features del usuario
   const features = currentUser.features || {};
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
     if (g) g.style.display = '';
+    const mBtn = document.getElementById('mtab-queue');
+    if (mBtn) mBtn.style.display = '';
   }
+  // Asegurar que el tab inicial este visible
+  const firstTab = document.querySelector('.tab-btn.active');
+  if (firstTab) firstTab.click();
 }
 
 function showAuthStatus(message, type) {

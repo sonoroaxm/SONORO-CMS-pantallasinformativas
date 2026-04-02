@@ -393,7 +393,7 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Generar JWT
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, features: user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -404,7 +404,7 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name }
+      user: { id: user.id, email: user.email, name: user.name, features: user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) }
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -421,7 +421,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Buscar usuario
-    const result = await pool.query('SELECT id, email, password, name FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT id, email, password, name, role, features FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
@@ -432,12 +432,12 @@ app.post('/api/auth/login', async (req, res) => {
     // Verificar contraseña
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    const result = await pool.query('SELECT id, email, password, name, role, features FROM users WHERE email = $1', [email]);
     }
 
     // Generar JWT
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -447,7 +447,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name }
+      user: { id: user.id, email: user.email, name: user.name, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) }
     });
   } catch (err) {
     console.error('❌ Login error:', err);

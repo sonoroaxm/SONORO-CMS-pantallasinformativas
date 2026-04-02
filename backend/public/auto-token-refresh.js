@@ -10,7 +10,7 @@
   // Configuración
   const LOGIN_EMAIL = 'sonoroaxm@gmail.com';
   const LOGIN_PASSWORD = 'sOnoro2025@';
-  const API_URL = 'http://localhost:5000';
+  const API_URL = '';
   const TOKEN_KEY = 'authToken';
   const REFRESH_INTERVAL = 60000; // Renovar cada 60 segundos
   const EXPIRY_BUFFER = 300000; // Renovar 5 minutos antes de expirar
