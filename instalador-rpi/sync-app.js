@@ -500,6 +500,50 @@ function connectSocket() {
     }
     sendHeartbeat();
     setInterval(sendHeartbeat, 30000);
+    // Monitor de red — verifica cada 30s
+// ── MONITOR DE RED ──────────────────────────────────────────
+let networkFailCount = 0;
+const NETWORK_FAIL_THRESHOLD = 20; // 20 x 30s = 10 minutos sin red
+let reconnectPortalActive = false;
+
+async function checkNetworkAndReconnect() {
+  try {
+    await axios.get(`${CMS_URL}/api/health`, { timeout: 5000 });
+    if (networkFailCount > 0) {
+      console.log('✅ Red reconectada');
+      networkFailCount = 0;
+    }
+    if (reconnectPortalActive) {
+      console.log('🌐 Red recuperada — cerrando portal de reconexion');
+      reconnectPortalActive = false;
+      require('child_process').exec('pkill -f "activation-portal" 2>/dev/null || true');
+      const hotspotName = 'SCMS-' + DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
+      require('child_process').exec(`sudo nmcli con down "${hotspotName}" 2>/dev/null || true`);
+    }
+  } catch(e) {
+    networkFailCount++;
+    console.log(`⚠️ Sin red (${networkFailCount}/${NETWORK_FAIL_THRESHOLD})`);
+    if (networkFailCount >= NETWORK_FAIL_THRESHOLD && !reconnectPortalActive) {
+      console.log('📡 Sin red 10min — iniciando portal reconexion silencioso');
+      reconnectPortalActive = true;
+      const env = Object.assign({}, process.env, {
+        CMS_URL, DEVICE_ID, RECONNECT_MODE: 'true'
+      });
+      const { spawn } = require('child_process');
+      const portalPath = '/home/sonoro/sonoro-player/activation-portal.js';
+      console.log(`📡 Lanzando portal: ${portalPath}`);
+      const portal = spawn('node', [portalPath],
+        { detached: true, stdio: ['ignore', 'ignore', 'pipe'], env }
+      );
+      portal.stderr.on('data', d => console.error('Portal error:', d.toString()));
+      portal.on('error', e => { console.error('Portal spawn error:', e.message); reconnectPortalActive = false; });
+      portal.on('exit', code => { if (code !== 0) { console.log('Portal exit:', code, '— reintentara en 30s'); reconnectPortalActive = false; } });
+      portal.unref();
+    }
+  }
+}
+
+    setInterval(checkNetworkAndReconnect, 30000);
   });
   socket.on('disconnect', () => console.warn('⚠️ Socket.io desconectado'));
   listenLicenseUpdates(socket);
@@ -516,6 +560,13 @@ function connectSocket() {
     saveConfigCache(newConfig);
     killPlayers();
     await startPlayer(newConfig);
+  });
+
+  socket.on('reboot_request', ({ device_id }) => {
+    console.log('🔄 Reboot solicitado — reiniciando en 3 segundos...');
+    setTimeout(() => {
+      require('child_process').exec('sudo reboot', () => {});
+    }, 3000);
   });
 
   socket.on('logs_request', ({ device_id, lines }) => {

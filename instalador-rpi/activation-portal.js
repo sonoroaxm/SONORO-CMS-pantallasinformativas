@@ -10,11 +10,13 @@ const fs      = require('fs');
 const { exec, execSync } = require('child_process');
 const path    = require('path');
 
-const CMS_URL   = process.env.CMS_URL   || 'https://cms.sonoro.com.co';
-const DEVICE_ID = process.env.DEVICE_ID || 'rpi4-sonoro-01';
+const CMS_URL        = process.env.CMS_URL   || 'https://cms.sonoro.com.co';
+const DEVICE_ID      = process.env.DEVICE_ID || 'rpi4-sonoro-01';
+const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
 const HOTSPOT_IP = '192.168.4.1';
 const PORT       = 8080;
-const HOTSPOT_NAME = `SONORO-${DEVICE_ID.replace('rpi4-','').toUpperCase().substring(0,6)}`;
+const _devSuffix = DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
+const HOTSPOT_NAME = `SCMS-${_devSuffix}`;
 
 let hotspotActive = false;
 let server = null;
@@ -68,6 +70,7 @@ async function startHotspot() {
     await run(`sudo nmcli con add type wifi ifname wlan0 con-name "${HOTSPOT_NAME}" autoconnect no ssid "${HOTSPOT_NAME}"`);
     await run(`sudo nmcli con modify "${HOTSPOT_NAME}" 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared`);
     await run(`sudo nmcli con modify "${HOTSPOT_NAME}" ipv4.addresses ${HOTSPOT_IP}/24`);
+    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "sonorocms"`);
     await run(`sudo nmcli con up "${HOTSPOT_NAME}"`);
     hotspotActive = true;
     log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
@@ -486,11 +489,15 @@ async function startServer() {
   const listenIP = hotspotActive ? HOTSPOT_IP : '0.0.0.0';
   server.listen(PORT, listenIP, () => {
     log(`Servidor portal en http://${listenIP}:${PORT}`);
-    if (hotspotActive) {
-      showQRonTV(`http://${HOTSPOT_IP}:${PORT}`);
+    if (!RECONNECT_MODE) {
+      if (hotspotActive) {
+        showQRonTV(`http://${HOTSPOT_IP}:${PORT}`);
+      } else {
+        const localIP = getLocalIP();
+        if (localIP) showQRonTV(`http://${localIP}:${PORT}`);
+      }
     } else {
-      const localIP = getLocalIP();
-      if (localIP) showQRonTV(`http://${localIP}:${PORT}`);
+      log('Modo reconexion — sin QR en pantalla');
     }
   });
 }
@@ -533,7 +540,7 @@ async function startServerOnNewIP() {
 
 // ── MAIN ─────────────────────────────────────────────────────
 async function main() {
-  log(`Iniciando portal — DEVICE_ID: ${DEVICE_ID}`);
+  log(`Iniciando portal — DEVICE_ID: ${DEVICE_ID} — Modo: ${RECONNECT_MODE ? 'RECONEXION' : 'ACTIVACION'}`);
 
   const internet = await hasInternet();
   log(`Internet disponible: ${internet}`);
@@ -545,6 +552,13 @@ async function main() {
       log('No se pudo crear hotspot — iniciando servidor en todas las interfaces');
     }
     await new Promise(r => setTimeout(r, 3000));
+    // En modo reconexion NO mostrar QR en TV — hotspot silencioso
+    if (!RECONNECT_MODE) {
+      const localIP = getLocalIP() || HOTSPOT_IP;
+      showQRonTV(`http://${localIP}:${PORT}`);
+    } else {
+      log('Modo reconexion — hotspot silencioso activo: ' + HOTSPOT_NAME + ' / sonorocms');
+    }
   } else {
     log('Internet disponible — saltando directo al paso de activacion');
   }
