@@ -2115,11 +2115,14 @@ async function loadDevices(silent = false) {
       const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
       const hasDual  = !!(currentUser.features && currentUser.features.dual_hdmi);
       const mode     = d.display_mode || 'mirror';
-      const isDual   = mode === 'dual' || mode === 'videowall';
-      const pl0      = d.hdmi0_playlist_id || '';
-      const pl1      = d.hdmi1_playlist_id || '';
-      const or0      = d.orientation_hdmi0 || 'horizontal';
-      const or1      = d.orientation_hdmi1 || 'horizontal';
+      const isDual      = mode === 'dual' || mode === 'videowall';
+      const isVideowall = mode === 'videowall';
+      const pl0         = d.hdmi0_playlist_id || '';
+      const pl1         = d.hdmi1_playlist_id || '';
+      const or0         = d.orientation_hdmi0 || 'horizontal';
+      const or1         = d.orientation_hdmi1 || 'horizontal';
+      const vwLayout    = d.videowall_position || 'horizontal';
+      const vwSlot      = d.videowall_cols     || '1';
 
       const playlistOpts = (selId) => `
         <option value="">-- Sin playlist --</option>
@@ -2171,10 +2174,10 @@ async function loadDevices(silent = false) {
             </div>
             <div>
               <label>${isDual ? 'Orientación HDMI 1' : 'Orientación'}</label>
-              <select id="orient0_${d.device_id}">${orientOpts(or0)}</select>
+              <select id="orient0_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')">${orientOpts(or0)}</select>
             </div>
           </div>
-          <!-- Controles HDMI 1 (solo modo dual/videowall) -->
+          <!-- Controles HDMI 2 (solo modo dual/videowall) -->
           <div id="dual_controls_${d.device_id}" style="display:${isDual?'grid':'none'};grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
             <div>
               <label style="font-size:11px;color:var(--text-muted);">Playlist HDMI 2</label>
@@ -2182,7 +2185,38 @@ async function loadDevices(silent = false) {
             </div>
             <div>
               <label style="font-size:11px;color:var(--text-muted);">Orientación HDMI 2</label>
-              <select id="orient1_${d.device_id}" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${orientOpts(or1)}</select>
+              <select id="orient1_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${orientOpts(or1)}</select>
+            </div>
+          </div>
+          <!-- Config Videowall (solo modo videowall) -->
+          <div id="vw_controls_${d.device_id}" style="display:${isVideowall?'block':'none'};margin-top:12px;padding:12px;background:var(--surface2);border:0.5px solid var(--accent);border-radius:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Configuración Videowall</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div>
+                <label style="font-size:11px;color:var(--text-muted);">Disposición</label>
+                <select id="vw_layout_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+                  style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
+                  <option value="horizontal" ${vwLayout==='horizontal'?'selected':''}>Horizontal — lado a lado ↔</option>
+                  <option value="vertical"   ${vwLayout==='vertical'  ?'selected':''}>Vertical — arriba/abajo ↕</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text-muted);">Posición HDMI-A-1 (TV 1)</label>
+                <select id="vw_slot_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+                  style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
+                  <option value="1" ${vwSlot==='1'||vwSlot===1?'selected':''}>Primera posición (izq / arriba)</option>
+                  <option value="2" ${vwSlot==='2'||vwSlot===2?'selected':''}>Segunda posición (der / abajo)</option>
+                </select>
+              </div>
+            </div>
+            <!-- Info canvas resultante -->
+            <div id="vw_canvas_${d.device_id}" style="margin-top:10px;padding:8px 10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:8px;">
+              <span style="font-size:16px;">🖥</span>
+              <span id="vw_canvas_txt_${d.device_id}">${vwLayout==='vertical'?'Canvas: 1920×2160 px — contenido recomendado 1920×2160':'Canvas: 3840×1080 px — contenido recomendado 3840×1080'}</span>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--text-muted);line-height:1.5;">
+              ⚠️ El contenido debe tener la resolución exacta del canvas para verse correctamente.<br>
+              Sube el video/imagen con esa resolución desde <strong>Contenido</strong>.
             </div>
           </div>
           ${d.platform === 'windows' ? `
@@ -2388,36 +2422,69 @@ async function verifyDevice(deviceId) {
   }
 }
 
-// Mostrar/ocultar controles de HDMI 2 según el modo seleccionado
+// Mostrar/ocultar controles de HDMI 2 y videowall según el modo seleccionado
 function onModeChange(deviceId) {
-  const mode  = document.getElementById(`mode_${deviceId}`)?.value;
-  const panel = document.getElementById(`dual_controls_${deviceId}`);
-  const lbl0  = document.getElementById(`lbl_pl0_${deviceId}`);
+  const mode      = document.getElementById(`mode_${deviceId}`)?.value;
+  const panel     = document.getElementById(`dual_controls_${deviceId}`);
+  const vwPanel   = document.getElementById(`vw_controls_${deviceId}`);
   if (!panel) return;
-  const isDual = mode === 'dual' || mode === 'videowall';
-  panel.style.display = isDual ? 'grid' : 'none';
+  const isDual      = mode === 'dual' || mode === 'videowall';
+  const isVideowall = mode === 'videowall';
+  panel.style.display   = isDual      ? 'grid'  : 'none';
+  if (vwPanel) vwPanel.style.display = isVideowall ? 'block' : 'none';
+  if (isVideowall) updateCanvasInfo(deviceId);
+}
+
+// Calcular y mostrar las dimensiones del canvas videowall según configuración actual
+function updateCanvasInfo(deviceId) {
+  const layout = document.getElementById(`vw_layout_${deviceId}`)?.value || 'horizontal';
+  const or0    = document.getElementById(`orient0_${deviceId}`)?.value  || 'horizontal';
+  const or1    = document.getElementById(`orient1_${deviceId}`)?.value  || 'horizontal';
+  const txtEl  = document.getElementById(`vw_canvas_txt_${deviceId}`);
+  if (!txtEl) return;
+
+  // Dimensiones efectivas de cada salida según su orientación
+  const w0 = or0 === 'vertical' ? 1080 : 1920;
+  const h0 = or0 === 'vertical' ? 1920 : 1080;
+  const w1 = or1 === 'vertical' ? 1080 : 1920;
+  const h1 = or1 === 'vertical' ? 1920 : 1080;
+
+  let cw, ch;
+  if (layout === 'horizontal') {
+    cw = w0 + w1;
+    ch = Math.max(h0, h1);
+  } else {
+    cw = Math.max(w0, w1);
+    ch = h0 + h1;
+  }
+  txtEl.textContent = `Canvas: ${cw}×${ch} px — contenido recomendado ${cw}×${ch}`;
 }
 
 async function saveDevice(deviceId) {
-  const name  = document.getElementById(`name_${deviceId}`)?.value;
-  const mode  = document.getElementById(`mode_${deviceId}`)?.value  || 'mirror';
-  const pid0  = document.getElementById(`playlist0_${deviceId}`)?.value;
-  const pid1  = document.getElementById(`playlist1_${deviceId}`)?.value;
-  const or0   = document.getElementById(`orient0_${deviceId}`)?.value  || 'horizontal';
-  const or1   = document.getElementById(`orient1_${deviceId}`)?.value  || 'horizontal';
-  const isDual = mode === 'dual' || mode === 'videowall';
+  const name        = document.getElementById(`name_${deviceId}`)?.value;
+  const mode        = document.getElementById(`mode_${deviceId}`)?.value  || 'mirror';
+  const pid0        = document.getElementById(`playlist0_${deviceId}`)?.value;
+  const pid1        = document.getElementById(`playlist1_${deviceId}`)?.value;
+  const or0         = document.getElementById(`orient0_${deviceId}`)?.value  || 'horizontal';
+  const or1         = document.getElementById(`orient1_${deviceId}`)?.value  || 'horizontal';
+  const isDual      = mode === 'dual' || mode === 'videowall';
+  const isVideowall = mode === 'videowall';
+  const vwLayout    = document.getElementById(`vw_layout_${deviceId}`)?.value || 'horizontal';
+  const vwSlot      = document.getElementById(`vw_slot_${deviceId}`)?.value   || '1';
 
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({
-        name:               name || undefined,
-        display_mode:       mode,
-        hdmi0_playlist_id:  pid0 ? parseInt(pid0) : null,
-        hdmi1_playlist_id:  isDual && pid1 ? parseInt(pid1) : (pid0 ? parseInt(pid0) : null),
-        orientation_hdmi0:  or0,
-        orientation_hdmi1:  isDual ? or1 : or0,
+        name:                name || undefined,
+        display_mode:        mode,
+        hdmi0_playlist_id:   pid0 ? parseInt(pid0) : null,
+        hdmi1_playlist_id:   isDual && pid1 ? parseInt(pid1) : (pid0 ? parseInt(pid0) : null),
+        orientation_hdmi0:   or0,
+        orientation_hdmi1:   isDual ? or1 : or0,
+        videowall_position:  isVideowall ? vwLayout : null,
+        videowall_cols:      isVideowall ? vwSlot   : null,
       })
     });
     const data = await res.json();

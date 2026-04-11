@@ -178,15 +178,47 @@ function configureWaylandOutputs(mode, ports, config) {
   const t1 = transformMap[config.orientation_hdmi1 || 'horizontal'] || 'normal';
 
   if (mode === 'videowall') {
-    // Superficie extendida: HDMI-A-1 izquierda, HDMI-A-2 derecha
+    // Layout: 'horizontal' (lado a lado) | 'vertical' (arriba/abajo)
+    // hdmi0_slot: 1 = HDMI-A-1 en primera posición (izq/arriba)
+    //             2 = HDMI-A-1 en segunda posición (der/abajo)
+    const layout    = config.videowall_position || 'horizontal';
+    const hdmi0slot = parseInt(config.videowall_cols || '1') || 1;
+
+    // Dimensiones efectivas de cada salida según orientación
+    const w0 = t0 === '90' ? 1080 : 1920;
+    const h0 = t0 === '90' ? 1920 : 1080;
+    const w1 = t1 === '90' ? 1080 : 1920;
+    const h1 = t1 === '90' ? 1920 : 1080;
+
+    let pos0, pos1, canvasDesc;
+    if (layout === 'horizontal') {
+      if (hdmi0slot === 1) {
+        pos0 = '0,0';
+        pos1 = `${w0},0`;
+      } else {
+        pos1 = '0,0';
+        pos0 = `${w1},0`;
+      }
+      canvasDesc = `${w0 + w1}×${Math.max(h0, h1)}`;
+    } else {
+      if (hdmi0slot === 1) {
+        pos0 = '0,0';
+        pos1 = `0,${h0}`;
+      } else {
+        pos1 = '0,0';
+        pos0 = `0,${h1}`;
+      }
+      canvasDesc = `${Math.max(w0, w1)}×${h0 + h1}`;
+    }
+
     try {
       execSync(
         `${WAYLAND_ENV} wlr-randr ` +
-        `--output HDMI-A-1 --on --pos 0,0    --mode 1920x1080@60 --transform ${t0} ` +
-        `--output HDMI-A-2 --on --pos 1920,0 --mode 1920x1080@60 --transform ${t1}`,
+        `--output HDMI-A-1 --on --pos ${pos0} --mode 1920x1080@60 --transform ${t0} ` +
+        `--output HDMI-A-2 --on --pos ${pos1} --mode 1920x1080@60 --transform ${t1}`,
         { stdio: 'ignore' }
       );
-      console.log('🖥️  Wayland: modo videowall 3840×1080');
+      console.log(`🖥️  Wayland: videowall ${layout} — canvas ${canvasDesc} (HDMI-A-1 pos:${pos0} / HDMI-A-2 pos:${pos1})`);
     } catch(e) { console.warn('⚠️ wlr-randr videowall:', e.message); }
   } else if (mode === 'dual') {
     // Pantallas independientes extendidas
