@@ -1,141 +1,142 @@
-============================================================
-SONORO AV — Preparación RPi4 v3.4
-============================================================
+SONORO AV CMS — Instalador RPi v4.0
+=====================================
+Fecha: Abril 2026
+Soporte: daniel@sonoro.com.co | cms.sonoro.com.co
 
-ARCHIVOS:
-  sonoro-setup.sh       → Instalación principal (Node, PM2, systemd, CEC)
-  sonoro-wifi-setup.sh  → Configuración WiFi provisioning (hostapd)
-  sync-app.js           → Player principal
-  activation-portal.js  → Portal de activación
-  queue-display.lua     → Overlay de turnos para mpv (licencia cms_queue)
-  generate-overlay.js   → Generador de overlay PNG para turnos
-  tv-ctl.sh             → Control CEC encendido/apagado TV via HDMI
-  package.json          → Dependencias npm del player
+═══════════════════════════════════════
+  NOVEDADES v4.0 — DUAL HDMI + TURNOS
+═══════════════════════════════════════
 
-ORDEN DE EJECUCIÓN EN LA RPi:
-  1. sudo bash sonoro-setup.sh
-  2. sudo bash sonoro-wifi-setup.sh
-  3. sudo reboot
+PANTALLAS:
+  - Soporte dual HDMI — dos TVs independientes desde una sola RPi4
+  - Modos: single · mirror · dual (lista por pantalla) · videowall
+  - Orientación configurable por pantalla (horizontal / vertical)
+  - Detección automática de puertos conectados al arrancar
+  - Reconexión automática si se desconecta/reconecta un HDMI
 
-============================================================
-CONTROL CEC — ENCENDIDO/APAGADO DEL TV VIA HDMI
-============================================================
+SISTEMA DE ATENCIÓN AL CLIENTE (TURNOS):
+  - Display de turnos por Chromium — sin limitaciones gráficas
+  - Lower third con tickets activos en tiempo real (Socket.io)
+  - Overlay fullscreen al llamar turno con animaciones CSS
+  - Branding personalizable: tema oscuro/claro, color de marca, logo propio
+  - Voz de locución neural (Piper TTS, voz latinoamericana offline)
 
-El script tv-ctl.sh se instala automáticamente en /home/sonoro/tv-ctl/
-Auto-detecta el puerto CEC activo (/dev/cec0 o /dev/cec1).
+CONTROL CEC:
+  - Control independiente TV1 (HDMI-A-1) y TV2 (HDMI-A-2)
+  - Selector en el dashboard: Ambas / TV 1 / TV 2
 
-Uso manual:
-  /home/sonoro/tv-ctl/tv-ctl.sh on      → Encender TV
-  /home/sonoro/tv-ctl/tv-ctl.sh off     → Apagar TV (standby)
-  /home/sonoro/tv-ctl/tv-ctl.sh status  → Ver estado (on/standby)
+LICENCIAS:
+  - dual_hdmi: habilita modos Dual y Videowall (premium)
+  - turnos: módulo de atención al cliente
+  - onpremise: instalación en red local Windows
+  - analytics: reportes de reproducción
 
-Logs en: /home/sonoro/tv-ctl/tv.log
+═══════════════════════════════════════
+  INSTALACIÓN EN RPi4
+═══════════════════════════════════════
 
-------------------------------------------------------------
-COMPATIBILIDAD POR MARCA
-------------------------------------------------------------
+Repositorio instalador:
+  https://github.com/sonoroaxm/SONORO-CMS-pantallasinformativas/tree/main/instalador-rpi
 
-LG Signage (series SM, UL, SE, UH, SR, UM)
-  Encendido : SI
-  Apagado   : SI
-  Configuración en el TV:
-    Menu → General → SIMPLINK (HDMI-CEC) → ON
-    Menu → General → Standby Mode → Receive Only  ← OBLIGATORIO
-  Probado con: LG 32SM5J-B
+Requisitos:
+  - Raspberry Pi 4 Model B (2GB RAM mínimo)
+  - Raspbian OS Lite 64-bit (Debian Bookworm/Trixie)
+  - Wayland habilitado (wlroots)
+  - Acceso a internet para instalación inicial
 
-Samsung (Tizen consumer y Signage — Anynet+)
-  Encendido : SI
-  Apagado   : SI
-  Configuración en el TV:
-    Settings → General → External Device Manager → Anynet+ (HDMI-CEC) → ON
-    Anynet+ → Auto Turn Off → ON  ← OBLIGATORIO para el apagado
+Pasos:
+  1. En el RPi, descargar el instalador completo:
 
-Philips (EasyLink)
-  Encendido : SI
-  Apagado   : SI
-  Configuración en el TV:
-    Settings → EasyLink → ON
+     git clone https://github.com/sonoroaxm/SONORO-CMS-pantallasinformativas.git
+     cd SONORO-CMS-pantallasinformativas/instalador-rpi
 
-Sony Bravia (Bravia Sync)
-  Encendido : SI
-  Apagado   : SI
-  Configuración en el TV:
-    Settings → Bravia Sync → ON
-    Device Auto Power Off → ON
+  2. Editar las variables al inicio del script (opcional — el script las pide si no se tocan):
 
-LG TV doméstico (webOS consumer)
-  Encendido : SI
-  Apagado   : NO — limitación de firmware LG consumer
-  Configuración en el TV:
-    Menu → General → SIMPLINK (HDMI-CEC) → ON
-  ALTERNATIVA APAGADO: usar el timer integrado del TV
-    Menu → General → Timers → Off Time → configurar horario
+     nano sonoro-setup.sh
+       DEVICE_ID="rpi4-cliente-01"   ← cambiar al ID del dispositivo
+       CMS_URL="https://cms.sonoro.com.co"  ← o IP local si es on-premise
 
-TCL (Roku TV / Google TV)
-  Encendido : SI (mayoría de modelos)
-  Apagado   : VARIABLE — depende del modelo específico
-  Configuración en el TV:
-    Settings → System → Control other devices (CEC) → ON
-  ALTERNATIVA APAGADO: timer integrado del TV
+  3. Ejecutar como root:
 
-Hisense (VIDAA / Google TV)
-  Encendido : SI (mayoría de modelos)
-  Apagado   : VARIABLE — funcionalidad CEC limitada reportada
-  Configuración en el TV:
-    Settings → Device Preferences → CEC → ON
-  ALTERNATIVA APAGADO: timer integrado del TV
+     sudo bash sonoro-setup.sh
 
-Hyundai / Caixun (Android TV económico)
-  Encendido : VARIABLE — probar caso por caso
-  Apagado   : VARIABLE — sin documentación oficial de CEC
-  ALTERNATIVA APAGADO: timer integrado del TV
+  4. El script instala: Node.js, mpv, Chromium, Piper TTS (voz es_MX),
+     crea el servicio systemd, configura tunnel SSH al VPS.
 
-------------------------------------------------------------
-NOTA IMPORTANTE PARA EL CLIENTE
-------------------------------------------------------------
+  5. Al finalizar, agrega la clave pública SSH al VPS (el script la muestra):
 
-Para las marcas que no soportan apagado via CEC (LG doméstico,
-TCL, Hisense, Hyundai, Caixun), la alternativa más confiable
-es el TIMER INTEGRADO DEL TV:
+     echo "ssh-ed25519 AAAA..." >> ~/.ssh/authorized_keys  (en el VPS)
 
-  Todos los TVs modernos tienen una función de programación
-  de encendido/apagado en su menú de configuración.
-  Configure el horario directamente en el TV y el RPi
-  continuará reproduciendo contenido independientemente.
+  6. sudo reboot — el dispositivo aparece en el dashboard en ~30 segundos
 
-  Esta solución no requiere ningún cable adicional ni
-  configuración extra en el RPi.
+NOTA: El script copia sync-app.js, activation-portal.js y package.json
+desde el mismo directorio — NO ejecutar el .sh solo, siempre clonar la
+carpeta completa instalador-rpi/.
 
-------------------------------------------------------------
-DIAGNÓSTICO CEC (si el TV no responde)
-------------------------------------------------------------
+Config /boot/firmware/config.txt (agregar antes de ejecutar el instalador):
+  hdmi_force_hotplug:0=1
+  hdmi_force_hotplug:1=1
+  hdmi_mode:0=16
+  hdmi_mode:1=16
 
-1. Verificar que el cable HDMI soporte CEC (pin 13 activo):
-   ls -la /dev/cec*
-   → Debe aparecer /dev/cec0 o /dev/cec1
+Hotspot de emergencia (si pierde WiFi):
+  Red:    SCMS-[últimos 6 chars del DEVICE_ID en mayúsculas]
+  Clave:  sonorocms
+  Portal: http://192.168.4.1:8080
 
-2. Ver topología de red CEC:
-   cec-ctl -d /dev/cec1 -s -S
-   → Debe mostrar el TV en 0.0.0.0
+═══════════════════════════════════════
+  INSTALACIÓN ON-PREMISE (WINDOWS)
+═══════════════════════════════════════
 
-3. Si la topología está vacía:
-   → Verificar que CEC/SimpLink/Anynet+ esté activo en el TV
-   → Probar con otro cable HDMI (cables baratos no tienen pin 13)
-   → No usar splitters HDMI sin CEC passthrough
+Para redes corporativas sin acceso a internet o con política de
+datos internos, SONORO CMS ofrece instalación on-premise en Windows.
 
-============================================================
-FLUJO DE ACTIVACIÓN (cliente)
-============================================================
+Requisitos:
+  - Windows 10/11 Pro (64-bit)
+  - 4GB RAM, 50GB disco libre
+  - Red local (no requiere internet)
 
-Con cable ethernet:
-  → RPi arranca → muestra QR en pantalla
-  → Cliente abre URL desde celular → ingresa código SNR-XXXX-XXXX
-  → Listo
+Paquete: CMSWIN — repo sonoroaxm/CMSWIN
+  - Backend Node.js + PostgreSQL como servicio Windows (NSSM)
+  - Dashboard web accesible desde cualquier PC en la red
+  - Módulo de gestión de turnos funciona 100% en red local
+  - Reproductores RPi apuntan a IP local del servidor Windows
 
-Sin cable (solo WiFi):
-  → RPi arranca → activa WiFi "SONORO-Setup"
-  → Cliente conecta celular a "SONORO-Setup"
-  → Cliente abre URL → selecciona su WiFi + ingresa código
-  → RPi se conecta al WiFi del cliente → Listo
+Activación:
+  - Feature "onpremise" debe estar activo en la licencia del usuario
+  - El servidor Windows no requiere DNS/dominio — solo IP local
+  - Los RPi se configuran con CMS_URL=http://[IP-SERVIDOR]:3000
 
-============================================================
+═══════════════════════════════════════
+  TIPOS DE LICENCIA Y MÓDULOS
+═══════════════════════════════════════
+
+Tipo          | Turnos | Analytics | Dual HDMI | On-Premise
+--------------+--------+-----------+-----------+-----------
+cms           |   -    |     -     |     -     |     -
+cms_queue     |   ✓    |     ✓     |     -     |     -
+queue         |   ✓    |     -     |     -     |     -
+rpi           |   -    |     -     |     -     |     -
+windows       |   ✓    |     -     |     -     |     ✓
+
+Dual HDMI se activa manualmente desde el panel admin independiente
+del tipo de licencia (add-on premium).
+
+═══════════════════════════════════════
+  DIAGNÓSTICO RÁPIDO
+═══════════════════════════════════════
+
+VPS:
+  pm2 status
+  pm2 logs sonoro-backend --lines 20 --nostream | grep -i error
+  curl -s https://cms.sonoro.com.co/api/health
+
+RPi:
+  sudo systemctl status sonoro-player
+  sudo journalctl -u sonoro-player -n 30 --no-pager
+  /home/sonoro/tv-ctl/tv-ctl.sh status
+  piper --model ~/piper/es_MX-claude-high.onnx --version
+
+SSH remoto al RPi via VPS:
+  ssh -i ssh_sonoro.key debian@45.181.156.171
+  ssh -p 2222 sonoro@localhost

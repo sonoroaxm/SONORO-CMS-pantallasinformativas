@@ -1,5 +1,5 @@
 #!/bin/bash
-# SONORO AV CMS — Instalador RPi v3.5
+# SONORO AV CMS — Instalador RPi v4.0
 # Ejecutar como: sudo bash sonoro-setup.sh
 
 set -e
@@ -126,7 +126,7 @@ step "8/8 Instalacion completada"
 TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  SONORO AV CMS v3.5 instalado${NC}"
+echo -e "${GREEN}  SONORO AV CMS v4.0 instalado${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "  DEVICE_ID : ${DEVICE_ID}"
