@@ -1183,7 +1183,6 @@
                 <div class="form-group"><label>Apertura</label><input type="time" id="bOpenTime" value="08:00"></div>
                 <div class="form-group"><label>Cierre</label><input type="time" id="bCloseTime" value="18:00"></div>
               </div>
-              <div class="form-group"><label>Playlist publicitaria</label><select id="bPlaylist"><option value="">Sin playlist</option></select></div>
               <button class="btn btn-grad" onclick="saveBranch()" style="margin-top:8px;">Guardar sucursal</button>
             </div>
           </div>
@@ -2527,10 +2526,9 @@ async function saveDisplayConfig(deviceId) {
   const brandHex  = document.getElementById(`disp_brand_hex_${deviceId}`)?.value || '#FF1B8D';
   const logoUrl   = document.getElementById(`disp_logo_${deviceId}`)?.value?.trim() || null;
 
-  // Necesitamos el branch_id — lo buscamos en la lista cacheada de dispositivos
-  const dev = (window._devicesCache || []).find(d => d.device_id === deviceId);
-  const branchId = dev?.branch_id || dev?.hdmi0_branch_id;
-  if (!branchId) { showStatus('Este dispositivo no tiene una sucursal asignada', 'error'); return; }
+  // Leer branch_id del selector en la tarjeta (fuente de verdad actual)
+  const branchId = document.getElementById(`branch_${deviceId}`)?.value;
+  if (!branchId) { showStatus('Primero asigna una sucursal al dispositivo y guarda.', 'error'); return; }
 
   try {
     const res = await fetch(`${API_URL}/api/queue/branches/${branchId}/display-config`, {
@@ -2999,18 +2997,6 @@ async function openNewBranchModal() {
   document.getElementById('bOpenTime').value  = '08:00';
   document.getElementById('bCloseTime').value = '18:00';
 
-  // Cargar playlists
-  const pSel = document.getElementById('bPlaylist');
-  pSel.innerHTML = '<option value="">Sin playlist</option>';
-  try {
-    const res = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const data = await res.json();
-    const playlists = data.playlists || data || [];
-    playlists.forEach(p => {
-      pSel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-    });
-  } catch(e) {}
-
   document.getElementById('branchModal').classList.add('active');
 }
 
@@ -3038,8 +3024,7 @@ async function saveBranch() {
     city:             document.getElementById('bCity').value,
     welcome_message:  document.getElementById('bWelcome').value || 'Bienvenido, por favor tome un turno',
     open_time:        document.getElementById('bOpenTime').value,
-    close_time:       document.getElementById('bCloseTime').value,
-    display_playlist_id: document.getElementById('bPlaylist').value || null
+    close_time:       document.getElementById('bCloseTime').value
   };
 
   try {
