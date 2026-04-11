@@ -181,7 +181,11 @@ pool.query('SELECT 1')
       ADD COLUMN IF NOT EXISTS branch_id           UUID,
       ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices)'))
+  .then(() => pool.query(`
+    ALTER TABLE branches
+      ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
+  `))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
