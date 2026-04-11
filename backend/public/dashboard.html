@@ -2106,15 +2106,21 @@ async function loadDevices(silent = false) {
   try {
     const res = await fetch(`${API_URL}/api/devices`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const devices = await res.json();
-    const plRes = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const plData = await plRes.json();
+    const [plRes, brRes] = await Promise.all([
+      fetch(`${API_URL}/api/playlists`,       { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/queue/branches`,  { headers: { 'Authorization': `Bearer ${authToken}` } }),
+    ]);
+    const plData   = await plRes.json();
     const playlists = plData.playlists || plData || [];
+    const brData   = await brRes.json().catch(() => []);
+    const branches = Array.isArray(brData) ? brData : (brData.branches || []);
     if (!devices.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay dispositivos registrados.</p>'; return; }
     container.innerHTML = devices.map(d => {
       const isOnline = isOnlineStatus(d);
       const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
-      const hasDual  = !!(currentUser.features && currentUser.features.dual_hdmi);
-      const mode     = d.display_mode || 'mirror';
+      const hasDual     = !!(currentUser.features && currentUser.features.dual_hdmi);
+      const hasTurnos   = !!(currentUser.features && currentUser.features.turnos);
+      const mode        = d.display_mode || 'mirror';
       const isDual      = mode === 'dual' || mode === 'videowall';
       const isVideowall = mode === 'videowall';
       const pl0         = d.hdmi0_playlist_id || '';
@@ -2123,6 +2129,7 @@ async function loadDevices(silent = false) {
       const or1         = d.orientation_hdmi1 || 'horizontal';
       const vwLayout    = d.videowall_position || 'horizontal';
       const vwSlot      = d.videowall_cols     || '1';
+      const devBranch   = d.branch_id          || '';
 
       const playlistOpts = (selId) => `
         <option value="">-- Sin playlist --</option>
@@ -2309,6 +2316,21 @@ async function loadDevices(silent = false) {
           </div>
           `}
 
+          <!-- ── Sucursal asignada (solo si tiene turnos) ── -->
+          ${hasTurnos ? `
+          <div style="margin-top:12px;display:grid;grid-template-columns:1fr;gap:8px;">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);">Sucursal de atención asignada</label>
+              <select id="branch_${d.device_id}"
+                style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
+                <option value="">— Sin sucursal —</option>
+                ${branches.map(b =>
+                  '<option value="' + b.id + '"' + (devBranch === b.id ? ' selected' : '') + '>' + b.name + '</option>'
+                ).join('')}
+              </select>
+            </div>
+          </div>` : ''}
+
           <!-- ── Configuración visual del display de turnos ── -->
           ${(currentUser.features && currentUser.features.turnos) ? `
           <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
@@ -2471,6 +2493,7 @@ async function saveDevice(deviceId) {
   const isVideowall = mode === 'videowall';
   const vwLayout    = document.getElementById(`vw_layout_${deviceId}`)?.value || 'horizontal';
   const vwSlot      = document.getElementById(`vw_slot_${deviceId}`)?.value   || '1';
+  const branchId    = document.getElementById(`branch_${deviceId}`)?.value    || null;
 
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
@@ -2485,6 +2508,7 @@ async function saveDevice(deviceId) {
         orientation_hdmi1:   isDual ? or1 : or0,
         videowall_position:  isVideowall ? vwLayout : null,
         videowall_cols:      isVideowall ? vwSlot   : null,
+        branch_id:           branchId || null,
       })
     });
     const data = await res.json();

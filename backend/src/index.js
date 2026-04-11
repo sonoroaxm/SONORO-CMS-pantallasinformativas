@@ -1027,7 +1027,9 @@ app.get('/api/devices/:device_id/config', async (req, res) => {
       `SELECT d.*,
               p0.name as hdmi0_playlist_name,
               p1.name as hdmi1_playlist_name,
-              (SELECT id FROM branches WHERE user_id = d.user_id LIMIT 1) as branch_id
+              COALESCE(d.branch_id,
+                (SELECT id FROM branches WHERE user_id = d.user_id LIMIT 1)
+              ) as branch_id
        FROM devices d
        LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
        LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
@@ -1510,7 +1512,8 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     const { device_id } = req.params;
     const { name, display_mode, hdmi0_playlist_id, hdmi1_playlist_id,
             orientation_hdmi0, orientation_hdmi1,
-            videowall_position, videowall_cols, videowall_rows } = req.body;
+            videowall_position, videowall_cols, videowall_rows,
+            branch_id } = req.body;
 
     // Validar licencia para modos premium
     if (['dual', 'videowall'].includes(display_mode) && !req.user.features?.dual_hdmi) {
@@ -1530,12 +1533,14 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
          videowall_position = $7,
          videowall_cols = $8,
          videowall_rows = $9,
+         branch_id = COALESCE($10, branch_id),
          updated_at = CURRENT_TIMESTAMP
-       WHERE device_id = $10
+       WHERE device_id = $11
        RETURNING *`,
       [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
        orientation_hdmi0, orientation_hdmi1,
        videowall_position || null, videowall_cols || null, videowall_rows || null,
+       branch_id || null,
        device_id]
     );
 
