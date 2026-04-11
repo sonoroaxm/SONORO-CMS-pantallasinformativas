@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONORO — Display de Turnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ══════════════════════════════════════════════
+     VARIABLES DE TEMA
+     brand_color y logo_url se inyectan desde JS
+  ══════════════════════════════════════════════ */
+  :root {
+    --brand: #FF1B8D;
+  }
+
+  /* Tema oscuro — default */
+  body.theme-dark {
+    --bg:           #080808;
+    --text:         #ffffff;
+    --text-muted:   #777777;
+    --card-bg:      rgba(255,255,255,0.07);
+    --card-border:  rgba(255,255,255,0.10);
+    --lt-body-bg:   rgba(8,8,8,0.94);
+    --lt-border:    rgba(255,255,255,0.07);
+    --ov-bg:        rgba(6,6,6,0.97);
+    --ov-text:      #ffffff;
+    --ov-muted:     #888888;
+    --ov-sep:       rgba(255,255,255,0.08);
+    --logo-col:     rgba(255,255,255,0.85);
+  }
+
+  /* Tema claro */
+  body.theme-light {
+    --bg:           #f2f2f2;
+    --text:         #0d0d0d;
+    --text-muted:   #606060;
+    --card-bg:      rgba(0,0,0,0.055);
+    --card-border:  rgba(0,0,0,0.09);
+    --lt-body-bg:   rgba(242,242,242,0.96);
+    --lt-border:    rgba(0,0,0,0.07);
+    --ov-bg:        rgba(245,245,245,0.97);
+    --ov-text:      #0d0d0d;
+    --ov-muted:     #555555;
+    --ov-sep:       rgba(0,0,0,0.09);
+    --logo-col:     rgba(0,0,0,0.80);
+  }
+
+  body {
+    background: var(--bg);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  /* ══════════════════════════════════════════════
+     CAPA 1 — Signage background (z: 0)
+  ══════════════════════════════════════════════ */
+  #signage-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background: var(--bg);
+  }
+  #bg-video,
+  #bg-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  #bg-image { display: none; }
+
+  /* ══════════════════════════════════════════════
+     CAPA 2 — Lower third Bold Split (z: 10)
+     Siempre visible. Tickets en atención.
+  ══════════════════════════════════════════════ */
+  #lower-third {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 110px;
+    z-index: 10;
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid var(--lt-border);
+  }
+
+  /* ── Bloque izquierdo de color de marca ── */
+  #lt-brand-block {
+    width: 210px;
+    flex-shrink: 0;
+    background: var(--brand);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 14px 18px;
+  }
+  #lt-brand-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.65);
+    white-space: nowrap;
+  }
+  #lt-brand-name {
+    font-size: 14px;
+    font-weight: 900;
+    color: #ffffff;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 185px;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ── Área central de tickets ── */
+  #lt-tickets-area {
+    flex: 1;
+    background: var(--lt-body-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex;
+    align-items: stretch;
+    padding: 0 14px;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .lt-ticket {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 14px 22px;
+    margin: 14px 0;
+    flex-shrink: 0;
+    min-width: 170px;
+    animation: slideInUp 0.30s cubic-bezier(0.22,1,0.36,1);
+  }
+  .lt-num {
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .lt-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .lt-svc {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .lt-ctr {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  #lt-empty {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 400;
+    padding: 0 8px;
+  }
+
+  /* ── Bloque derecho — logo del cliente ── */
+  #lt-logo-area {
+    width: 190px;
+    flex-shrink: 0;
+    background: var(--lt-body-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-left: 1px solid var(--lt-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 22px;
+  }
+  #lt-logo-img {
+    max-height: 64px;
+    max-width: 150px;
+    object-fit: contain;
+    display: none;
+  }
+  #lt-logo-text {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    color: var(--logo-col);
+  }
+
+  /* ══════════════════════════════════════════════
+     CAPA 3 — Overlay fullscreen al llamar turno (z: 100)
+     Sin franjas de color. Número gigante con brand color.
+     Adapt a tema: oscuro/claro.
+  ══════════════════════════════════════════════ */
+  #call-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--ov-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    pointer-events: none;
+
+    opacity: 0;
+    transform: scale(1.012);
+    transition: opacity 0.32s ease, transform 0.32s ease;
+  }
+  #call-overlay.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .ov-eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: var(--ov-muted);
+  }
+
+  .ov-number {
+    font-size: clamp(120px, 20vw, 260px);
+    font-weight: 900;
+    line-height: 0.88;
+    letter-spacing: -5px;
+    color: var(--brand);
+    animation: popIn 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .ov-sep {
+    width: 90px;
+    height: 1px;
+    background: var(--ov-sep);
+    border-radius: 1px;
+  }
+
+  .ov-service {
+    font-size: clamp(24px, 3.5vw, 48px);
+    font-weight: 800;
+    color: var(--ov-text);
+    text-align: center;
+    max-width: 72vw;
+    line-height: 1.15;
+  }
+
+  .ov-counter {
+    font-size: clamp(17px, 2.2vw, 30px);
+    font-weight: 500;
+    color: var(--ov-muted);
+    text-align: center;
+  }
+
+  .ov-priority {
+    display: none;
+    background: var(--brand);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 7px 24px;
+    border-radius: 24px;
+  }
+  .ov-priority.show { display: block; }
+
+  /* Barra de progreso — pie, sin gradiente multicolor */
+  .ov-progress {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 4px;
+    background: var(--brand);
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(1);
+    opacity: 0.55;
+  }
+  #call-overlay.visible .ov-progress {
+    animation: shrinkBar var(--overlay-duration, 7s) linear forwards;
+  }
+
+  /* ══════════════════════════════════════════════
+     ANIMACIONES
+  ══════════════════════════════════════════════ */
+  @keyframes slideInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes popIn {
+    0%   { transform: scale(0.72); opacity: 0; }
+    68%  { transform: scale(1.06); }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+  @keyframes shrinkBar {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
+</style>
+</head>
+<body class="theme-dark">
+
+<!-- CAPA 1: Signage background -->
+<div id="signage-bg">
+  <video id="bg-video" muted playsinline autoplay></video>
+  <img   id="bg-image" alt="">
+</div>
+
+<!-- CAPA 2: Lower third Bold Split -->
+<div id="lower-third">
+  <div id="lt-brand-block">
+    <span id="lt-brand-label">En atención</span>
+    <span id="lt-brand-name">Atención al cliente</span>
+  </div>
+  <div id="lt-tickets-area">
+    <span id="lt-empty">Sin turnos activos</span>
+  </div>
+  <div id="lt-logo-area">
+    <img  id="lt-logo-img" alt="Logo">
+    <span id="lt-logo-text">SONORO.</span>
+  </div>
+</div>
+
+<!-- CAPA 3: Overlay al llamar turno -->
+<div id="call-overlay">
+  <span class="ov-eyebrow">Turno llamado</span>
+  <div  class="ov-number"   id="ov-number"></div>
+  <div  class="ov-sep"></div>
+  <div  class="ov-service"  id="ov-service"></div>
+  <div  class="ov-counter"  id="ov-counter"></div>
+  <div  class="ov-priority" id="ov-priority">Prioritario</div>
+  <div  class="ov-progress"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // ── Parámetros desde URL ─────────────────────────────────────
+  // El dashboard construye la URL con los params de configuración.
+  // Los params de URL tienen prioridad sobre la config por defecto
+  // pero la BD sobreescribe todo si existe.
+  const params    = new URLSearchParams(location.search);
+  const DEVICE_ID = params.get('device');
+  const BRANCH_ID = params.get('branch');
+  const API_URL   = window.location.origin;
+  const OVERLAY_DURATION_MS = 7000;
+
+  // Config visual con defaults → se fusiona con datos del servidor
+  let CONFIG = {
+    theme:       params.get('theme')  || 'dark',        // dark | light
+    brand_color: params.get('brand')  || '#FF1B8D',     // color hex
+    logo_url:    params.get('logo')   || null,           // URL imagen logo
+    branch_name: params.get('name')   || 'Atención al cliente',
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────────
+  const bgVideo    = document.getElementById('bg-video');
+  const bgImage    = document.getElementById('bg-image');
+  const ltArea     = document.getElementById('lt-tickets-area');
+  const ltBrandName = document.getElementById('lt-brand-name');
+  const ltLogoImg  = document.getElementById('lt-logo-img');
+  const ltLogoText = document.getElementById('lt-logo-text');
+  const overlay    = document.getElementById('call-overlay');
+  const ovNumber   = document.getElementById('ov-number');
+  const ovService  = document.getElementById('ov-service');
+  const ovCounter  = document.getElementById('ov-counter');
+  const ovPriority = document.getElementById('ov-priority');
+
+  // ── Aplicar config visual ─────────────────────────────────────
+  function applyConfig(cfg) {
+    CONFIG = { ...CONFIG, ...cfg };
+
+    // Tema dark / light
+    document.body.className = CONFIG.theme === 'light' ? 'theme-light' : 'theme-dark';
+
+    // Color de marca como CSS variable global
+    document.documentElement.style.setProperty('--brand', CONFIG.brand_color || '#FF1B8D');
+
+    // Nombre en bloque izquierdo
+    ltBrandName.textContent = CONFIG.branch_name || 'Atención al cliente';
+
+    // Logo o nombre de marca
+    if (CONFIG.logo_url) {
+      ltLogoImg.src          = CONFIG.logo_url;
+      ltLogoImg.style.display = 'block';
+      ltLogoText.style.display = 'none';
+    } else {
+      ltLogoImg.style.display  = 'none';
+      ltLogoText.style.display = 'block';
+    }
+  }
+
+  // ── Cargar config de la sucursal desde API ────────────────────
+  // Endpoint público — sin JWT — para que el display en RPi pueda consultarlo
+  async function loadBranchConfig() {
+    if (!BRANCH_ID) return;
+    try {
+      const res = await fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/display-config`);
+      if (!res.ok) return;
+      const cfg = await res.json();
+      applyConfig(cfg);
+    } catch(e) {}
+  }
+
+  // ── Variables de estado ───────────────────────────────────────
+  let playlistItems = [];
+  let currentIdx    = 0;
+  let imageTimer    = null;
+  let overlayTimer  = null;
+  let lastTokenId   = null;
+
+  // ── Socket.io ─────────────────────────────────────────────────
+  const socket = io(API_URL, {
+    transports: ['websocket', 'polling'],
+    reconnectionDelayMax: 10000,
+  });
+
+  socket.on('connect', () => {
+    console.log('✅ Socket conectado');
+    if (BRANCH_ID) socket.emit('join_branch', BRANCH_ID);
+  });
+
+  socket.on('token_called', (data) => {
+    if (data.token_id === lastTokenId) return;
+    lastTokenId = data.token_id;
+    showCallOverlay(data);
+    refreshActiveTickets();
+  });
+
+  // Reload config si cambia en el dashboard (feature future)
+  socket.on('branch_config_updated', (data) => {
+    if (data.branch_id == BRANCH_ID) loadBranchConfig();
+  });
+
+  // ── Overlay fullscreen ─────────────────────────────────────────
+  function showCallOverlay(data) {
+    ovNumber.textContent  = data.token_number || '';
+    ovService.textContent = data.service_name  || '';
+    ovCounter.textContent = data.counter_name  || '';
+    ovPriority.classList.toggle('show', !!data.is_priority);
+
+    overlay.style.setProperty('--overlay-duration', `${OVERLAY_DURATION_MS / 1000}s`);
+    overlay.classList.remove('visible');
+    void overlay.offsetWidth;   // forzar reflow para reiniciar animación CSS
+    overlay.classList.add('visible');
+
+    if (overlayTimer) clearTimeout(overlayTimer);
+    overlayTimer = setTimeout(() => overlay.classList.remove('visible'), OVERLAY_DURATION_MS);
+  }
+
+  // ── Lower third — tickets activos ──────────────────────────────
+  async function refreshActiveTickets() {
+    if (!BRANCH_ID) return;
+    try {
+      const res = await fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/active`);
+      if (!res.ok) return;
+      renderLowerThird(await res.json());
+    } catch(e) {}
+  }
+
+  function renderLowerThird(tickets) {
+    if (!tickets || tickets.length === 0) {
+      ltArea.innerHTML = '<span id="lt-empty">Sin turnos activos</span>';
+      return;
+    }
+    ltArea.innerHTML = tickets.slice(0, 5).map(t => `
+      <div class="lt-ticket">
+        <span class="lt-num" style="color:${t.service_color || CONFIG.brand_color}">${t.token_number}</span>
+        <div class="lt-info">
+          <span class="lt-svc">${t.service_name}</span>
+          <span class="lt-ctr">${t.counter_name}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Playlist signage ──────────────────────────────────────────
+  async function loadPlaylist() {
+    if (!DEVICE_ID) {
+      console.warn('Sin DEVICE_ID — signage desactivado');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/devices/${DEVICE_ID}/manifest`);
+      if (!res.ok) { setTimeout(loadPlaylist, 15000); return; }
+      const data = await res.json();
+      playlistItems = data.assets || [];
+      if (playlistItems.length > 0) { currentIdx = 0; playNext(); }
+    } catch(e) { setTimeout(loadPlaylist, 15000); }
+  }
+
+  function playNext() {
+    if (!playlistItems.length) return;
+    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
+    const item    = playlistItems[currentIdx % playlistItems.length];
+    currentIdx++;
+    const fileUrl = `${API_URL}/uploads/${encodeURIComponent(item.filename)}`;
+    if (item.type === 'video') {
+      bgImage.style.display = 'none';
+      bgVideo.style.display = 'block';
+      bgVideo.src = fileUrl;
+      bgVideo.onended = playNext;
+      bgVideo.onerror = () => playNext();
+      bgVideo.play().catch(() => {});
+    } else {
+      bgVideo.style.display = 'none';
+      bgVideo.pause();
+      bgImage.style.display = 'block';
+      bgImage.src  = fileUrl;
+      bgImage.onerror = () => playNext();
+      imageTimer = setTimeout(playNext, item.duration || 10000);
+    }
+  }
+
+  // ── Re-sincronizar playlist cada 5 min ────────────────────────
+  async function syncPlaylistPeriodic() {
+    if (!DEVICE_ID) return;
+    try {
+      const res = await fetch(`${API_URL}/api/devices/${DEVICE_ID}/manifest`);
+      if (!res.ok) return;
+      const newItems = (await res.json()).assets || [];
+      const newKey   = newItems.map(i => i.filename).join(',');
+      const curKey   = playlistItems.map(i => i.filename).join(',');
+      if (newKey !== curKey) {
+        console.log('🔄 Playlist actualizada desde CMS');
+        playlistItems = newItems;
+        currentIdx    = currentIdx % (newItems.length || 1);
+      }
+    } catch(e) {}
+  }
+
+  // ── Init ──────────────────────────────────────────────────────
+  applyConfig(CONFIG);          // 1. Aplicar defaults + params URL
+  loadBranchConfig();           // 2. Sobreescribir con config de BD
+  loadPlaylist();
+  refreshActiveTickets();
+
+  setInterval(refreshActiveTickets,  10 * 1000);           // lower third
+  setInterval(syncPlaylistPeriodic,   5 * 60 * 1000);     // playlist
+  setInterval(loadBranchConfig,      60 * 1000);           // config (logo, tema, color)
+</script>
+</body>
+</html>

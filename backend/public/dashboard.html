@@ -2113,7 +2113,33 @@ async function loadDevices(silent = false) {
     container.innerHTML = devices.map(d => {
       const isOnline = isOnlineStatus(d);
       const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
-      const currentPlaylistId = d.hdmi0_playlist_id || d.hdmi1_playlist_id || '';
+      const hasDual  = !!(currentUser.features && currentUser.features.dual_hdmi);
+      const mode     = d.display_mode || 'mirror';
+      const isDual   = mode === 'dual' || mode === 'videowall';
+      const pl0      = d.hdmi0_playlist_id || '';
+      const pl1      = d.hdmi1_playlist_id || '';
+      const or0      = d.orientation_hdmi0 || 'horizontal';
+      const or1      = d.orientation_hdmi1 || 'horizontal';
+
+      const playlistOpts = (selId) => `
+        <option value="">-- Sin playlist --</option>
+        ${playlists.map(p => {
+          const badge = p.orientation === 'vertical' ? 'V' : 'H';
+          const pid   = p.orientation === 'vertical' ? pl1 : pl0;
+          const selected = (selId === 'hdmi0' ? pl0 : pl1) == p.id ? 'selected' : '';
+          return '<option value="' + p.id + '" ' + selected + '>' + p.name + ' \xB7 ' + badge + '</option>';
+        }).join('')}`;
+
+      const orientOpts = (cur) =>
+        '<option value="horizontal"' + (cur==='horizontal'?' selected':'') + '>Horizontal ↔</option>' +
+        '<option value="vertical"'  + (cur==='vertical'  ?' selected':'') + '>Vertical ↕</option>';
+
+      const modeOpts = ['single','mirror','dual','videowall'].map(m => {
+        const labels = {single:'Una pantalla',mirror:'Mirror (2 TVs, misma lista)',dual:'Dual — lista por pantalla ★',videowall:'Videowall — imagen extendida ★'};
+        const isPrem = (m === 'dual' || m === 'videowall') && !hasDual;
+        return '<option value="' + m + '"' + (mode===m?' selected':'') + (isPrem?' disabled':'') + '>' + labels[m] + (isPrem?' 🔒':'') + '</option>';
+      }).join('');
+
       return `
         <div class="device-card">
           <div class="device-header">
@@ -2126,7 +2152,7 @@ async function loadDevices(silent = false) {
           <div class="device-meta">
             <span>ID: ${d.device_id}</span>
             <span>IP: ${d.ip_address || 'N/A'}</span>
-<span>Último contacto: ${d.last_seen ? new Date(d.last_seen).toLocaleTimeString() : "nunca"}</span>
+            <span>Último contacto: ${d.last_seen ? new Date(d.last_seen).toLocaleTimeString() : "nunca"}</span>
           </div>
           <div class="device-controls">
             <div>
@@ -2134,17 +2160,72 @@ async function loadDevices(silent = false) {
               <input type="text" id="name_${d.device_id}" value="${d.name || ''}" placeholder="Nombre del dispositivo" style="margin:0;font-size:12px;padding:9px 10px;">
             </div>
             <div>
-              <label>Playlist</label>
-              <select id="playlist_${d.device_id}">
-                <option value="">-- Sin playlist --</option>
-                ${playlists.map(p => {
-                  const badge = p.orientation === 'vertical' ? 'V' : 'H';
-                  const sel = currentPlaylistId == p.id ? 'selected' : '';
-                  return `<option value="${p.id}" ${sel}>${p.name} · ${badge}</option>`;
-                }).join('')}
+              <label>Modo de pantalla</label>
+              <select id="mode_${d.device_id}" onchange="onModeChange('${d.device_id}')">
+                ${modeOpts}
               </select>
             </div>
+            <div>
+              <label>${isDual ? 'Playlist HDMI 1' : 'Playlist'}</label>
+              <select id="playlist0_${d.device_id}">${playlistOpts('hdmi0')}</select>
+            </div>
+            <div>
+              <label>${isDual ? 'Orientación HDMI 1' : 'Orientación'}</label>
+              <select id="orient0_${d.device_id}">${orientOpts(or0)}</select>
+            </div>
           </div>
+          <!-- Controles HDMI 1 (solo modo dual/videowall) -->
+          <div id="dual_controls_${d.device_id}" style="display:${isDual?'grid':'none'};grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);">Playlist HDMI 2</label>
+              <select id="playlist1_${d.device_id}" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${playlistOpts('hdmi1')}</select>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);">Orientación HDMI 2</label>
+              <select id="orient1_${d.device_id}" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${orientOpts(or1)}</select>
+            </div>
+          </div>
+          ${d.platform === 'windows' ? `
+          <div style="margin-top:14px;border:0.5px solid #1e3f6e;border-radius:8px;overflow:hidden;">
+            <div style="background:#0d2340;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid #1e3f6e;">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#7eb8f7"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+                <span style="font-size:11px;font-weight:600;color:#7eb8f7;text-transform:uppercase;letter-spacing:0.5px;">Windows Kiosk Player</span>
+              </div>
+              <span style="font-size:10px;color:#4a7aaa;background:#0a1929;padding:2px 7px;border-radius:4px;">v${d.player_version || '?'}</span>
+            </div>
+            <div style="padding:10px 12px;background:var(--surface3);">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div>
+                  <label style="font-size:11px;color:var(--text-muted);">Acción al tocar pantalla</label>
+                  <select id="wake_action_${d.device_id}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
+                    <option value="return"       ${(d.wake_action?.action||'return')==='return'       ?'selected':''}>Solo salir del screensaver</option>
+                    <option value="browser_url"  ${(d.wake_action?.action||'')==='browser_url'  ?'selected':''}>Abrir URL en navegador</option>
+                    <option value="queue_app"    ${(d.wake_action?.action||'')==='queue_app'    ?'selected':''}>Módulo de turnos SONORO</option>
+                    <option value="exe"          ${(d.wake_action?.action||'')==='exe'          ?'selected':''}>Lanzar app local</option>
+                    <option value="shell"        ${(d.wake_action?.action||'')==='shell'        ?'selected':''}>Mostrar escritorio</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text-muted);">URL / Ruta app</label>
+                  <input type="text" id="wake_target_${d.device_id}" value="${d.wake_action?.target||''}" placeholder="https://... o C:\\app.exe" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text-muted);">Apagado diario</label>
+                  <input type="time" id="shutdown_time_${d.device_id}" value="${d.power_policy?.shutdown_time||''}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
+                </div>
+                <div>
+                  <label style="font-size:11px;color:var(--text-muted);">Reinicio diario</label>
+                  <input type="time" id="restart_time_${d.device_id}" value="${d.power_policy?.restart_time||''}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button style="flex:1;padding:7px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a3a5c;color:#7eb8f7;" onclick="saveWinPolicy('${d.device_id}')">Aplicar política</button>
+                <button style="padding:7px 14px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#2d1a3a;color:#c9a8f0;" onclick="restartWinPlayer('${d.device_id}')">↺ Reiniciar player</button>
+              </div>
+            </div>
+          </div>
+          ` : `
           <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
@@ -2157,6 +2238,15 @@ async function loadDevices(silent = false) {
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControl('${d.device_id}', 'on')">Encender TV</button>
               <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControl('${d.device_id}', 'off')">Apagar TV</button>
+            </div>
+            <!-- Selector TV destino (TV1 / TV2 / Ambas) -->
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;">Pantalla CEC</div>
+              <select id="tv_target_${d.device_id}" style="padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;cursor:pointer;">
+                <option value="all">Ambas</option>
+                <option value="tv1">TV 1 (HDMI-A-1)</option>
+                <option value="tv2">TV 2 (HDMI-A-2)</option>
+              </select>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
               <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
@@ -2175,15 +2265,44 @@ async function loadDevices(silent = false) {
                 <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControl('${d.device_id}', 'unmute')">Unmute</button>
               </div>
             </div>
-          </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Cronograma TV</div>
+            <div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border);">
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cronograma TV</div>
+              <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+              </div>
+              <button style="margin-top:8px;width:100%;padding:6px 12px;font-size:12px;color:var(--orange);background:none;border:0.5px dashed var(--orange);border-radius:6px;cursor:pointer;opacity:0.8;" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
             </div>
-            <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
-              <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
-            </div>
-            <button style="margin-top:8px;width:100%;padding:6px 12px;font-size:12px;color:var(--orange);background:none;border:0.5px dashed var(--orange);border-radius:6px;cursor:pointer;opacity:0.8;" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
           </div>
+          `}
+
+          <!-- ── Configuración visual del display de turnos ── -->
+          ${(currentUser.features && currentUser.features.turnos) ? `
+          <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Display de Turnos</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div>
+                <label style="font-size:11px;color:var(--text-muted);">Tema</label>
+                <select id="disp_theme_${d.device_id}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
+                  <option value="dark">Oscuro</option>
+                  <option value="light">Claro</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--text-muted);">Color de marca</label>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input type="color" id="disp_brand_${d.device_id}" value="#FF1B8D" style="width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;background:var(--surface2);">
+                  <input type="text" id="disp_brand_hex_${d.device_id}" value="#FF1B8D" style="flex:1;padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;font-family:monospace;" oninput="document.getElementById('disp_brand_${d.device_id}').value=this.value">
+                </div>
+              </div>
+              <div style="grid-column:span 2;">
+                <label style="font-size:11px;color:var(--text-muted);">URL del logo (imagen subida al CMS)</label>
+                <input type="text" id="disp_logo_${d.device_id}" placeholder="/uploads/logo.png o URL completa" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
+              </div>
+            </div>
+            <button style="margin-top:10px;width:100%;padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1f00;color:#FAC775;" onclick="saveDisplayConfig('${d.device_id}')">Guardar configuración del display</button>
+          </div>
+          ` : ''}
+
           <div class="device-footer" style="display:flex;gap:10px;align-items:center;margin-top:10px;">
             <span id="lastseen_${d.device_id}" style="font-size:11px;color:var(--text-muted);margin-right:auto;">Verificado ${lastSeen}</span>
             <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar estado</button>
@@ -2193,10 +2312,60 @@ async function loadDevices(silent = false) {
           </div>
         </div>`;
     }).join('');
+    window._devicesCache = devices;   // cache para saveDisplayConfig
     devices.forEach(d => loadSchedules(d.device_id));
     if (!silent) showStatus('Dispositivos actualizados', 'success');
   } catch (err) { if (!silent) container.innerHTML = `<p style="color:var(--offline);">Error: ${err.message}</p>`; }
 }
+
+// ── WINDOWS KIOSK PLAYER ─────────────────────────────────────
+async function saveWinPolicy(deviceId) {
+  const action   = document.getElementById(`wake_action_${deviceId}`)?.value;
+  const target   = document.getElementById(`wake_target_${deviceId}`)?.value?.trim();
+  const shutTime = document.getElementById(`shutdown_time_${deviceId}`)?.value;
+  const restTime = document.getElementById(`restart_time_${deviceId}`)?.value;
+
+  const body = {
+    wake_action: {
+      action:     action || 'return',
+      target:     target || '',
+      timeout_ms: 120000,
+      browser:    'edge',
+    },
+    power_policy: {
+      shutdown_enabled: !!shutTime,
+      shutdown_time:    shutTime || null,
+      restart_enabled:  !!restTime,
+      restart_time:     restTime || null,
+    },
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/win-policy`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body:    JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    showStatus('Política Windows aplicada', 'success');
+  } catch (err) {
+    showStatus(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function restartWinPlayer(deviceId) {
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/win-restart`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    showStatus('Comando de reinicio enviado al player', 'success');
+  } catch (err) {
+    showStatus(`Error: ${err.message}`, 'error');
+  }
+}
+// ── FIN WINDOWS KIOSK PLAYER ─────────────────────────────────
 
 async function verifyDevice(deviceId) {
   const lastSeenEl = document.getElementById(`lastseen_${deviceId}`);
@@ -2219,28 +2388,69 @@ async function verifyDevice(deviceId) {
   }
 }
 
+// Mostrar/ocultar controles de HDMI 2 según el modo seleccionado
+function onModeChange(deviceId) {
+  const mode  = document.getElementById(`mode_${deviceId}`)?.value;
+  const panel = document.getElementById(`dual_controls_${deviceId}`);
+  const lbl0  = document.getElementById(`lbl_pl0_${deviceId}`);
+  if (!panel) return;
+  const isDual = mode === 'dual' || mode === 'videowall';
+  panel.style.display = isDual ? 'grid' : 'none';
+}
+
 async function saveDevice(deviceId) {
-  const name = document.getElementById(`name_${deviceId}`).value;
-  const playlistId = document.getElementById(`playlist_${deviceId}`).value;
-  const pid = playlistId ? parseInt(playlistId) : null;
+  const name  = document.getElementById(`name_${deviceId}`)?.value;
+  const mode  = document.getElementById(`mode_${deviceId}`)?.value  || 'mirror';
+  const pid0  = document.getElementById(`playlist0_${deviceId}`)?.value;
+  const pid1  = document.getElementById(`playlist1_${deviceId}`)?.value;
+  const or0   = document.getElementById(`orient0_${deviceId}`)?.value  || 'horizontal';
+  const or1   = document.getElementById(`orient1_${deviceId}`)?.value  || 'horizontal';
+  const isDual = mode === 'dual' || mode === 'videowall';
+
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify({
-        name: name || undefined,
-        display_mode: 'mirror',
-        hdmi0_playlist_id: pid,
-        hdmi1_playlist_id: pid
+        name:               name || undefined,
+        display_mode:       mode,
+        hdmi0_playlist_id:  pid0 ? parseInt(pid0) : null,
+        hdmi1_playlist_id:  isDual && pid1 ? parseInt(pid1) : (pid0 ? parseInt(pid0) : null),
+        orientation_hdmi0:  or0,
+        orientation_hdmi1:  isDual ? or1 : or0,
       })
     });
     const data = await res.json();
-    if (data.success) {
+    if (data.success || data.id) {
       await saveSchedules(deviceId);
+      showStatus('Dispositivo guardado correctamente', 'success');
     } else {
       showStatus('Error: ' + (data.error || 'desconocido'), 'error');
     }
   } catch (err) { showStatus('Error: ' + err.message, 'error'); }
+}
+
+async function saveDisplayConfig(deviceId) {
+  // Obtener branch_id desde el config del dispositivo
+  const theme     = document.getElementById(`disp_theme_${deviceId}`)?.value || 'dark';
+  const brandHex  = document.getElementById(`disp_brand_hex_${deviceId}`)?.value || '#FF1B8D';
+  const logoUrl   = document.getElementById(`disp_logo_${deviceId}`)?.value?.trim() || null;
+
+  // Necesitamos el branch_id — lo buscamos en la lista cacheada de dispositivos
+  const dev = (window._devicesCache || []).find(d => d.device_id === deviceId);
+  const branchId = dev?.branch_id || dev?.hdmi0_branch_id;
+  if (!branchId) { showStatus('Este dispositivo no tiene una sucursal asignada', 'error'); return; }
+
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${branchId}/display-config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ theme, brand_color: brandHex, logo_url: logoUrl || null })
+    });
+    const data = await res.json();
+    if (data.ok) showStatus('Configuración del display guardada', 'success');
+    else showStatus('Error: ' + (data.error || 'desconocido'), 'error');
+  } catch(e) { showStatus('Error: ' + e.message, 'error'); }
 }
 
 
@@ -2350,14 +2560,15 @@ async function tvControlHdmi(deviceId) {
 }
 
 async function tvControl(deviceId, action) {
-  const labels = { on: "Encendiendo...", off: "Apagando...", status: "Consultando..." };
+  const target = document.getElementById(`tv_target_${deviceId}`)?.value || 'all';
   const btn = event.currentTarget;
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = "...";
   try {
-    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv/${action}`, {
+    const res = await fetch(`${API_URL}/api/admin/rpi/tv`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${authToken}`, "Content-Type": "application/json" }
+      headers: { "Authorization": `Bearer ${authToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ device_id: deviceId, action, target })
     });
     const data = await res.json();
     if (data.success) {

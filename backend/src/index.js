@@ -50,15 +50,16 @@ const screenshotCallbacks = new Map();
 const tvCallbacks = new Map();
 
 // Funcion TV control via Socket.io + HTTP result
-async function doTV(deviceId, action) {
-  console.log(`📺 TV ${action} -> ${deviceId} via Socket.io`);
+// target: 'tv1' (cec0) | 'tv2' (cec1) | 'all' (ambos, default)
+async function doTV(deviceId, action, target = 'all') {
+  console.log(`📺 TV ${action}:${target} -> ${deviceId} via Socket.io`);
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       tvCallbacks.delete(deviceId);
       reject(new Error(`TV timeout — RPi no respondio en 45s`));
     }, 45000);
     tvCallbacks.set(deviceId, { resolve, reject, timeout, action });
-    io.to(`device_${deviceId}`).emit('tv_request', { device_id: deviceId, action });
+    io.to(`device_${deviceId}`).emit('tv_request', { device_id: deviceId, action, target });
   });
 }
 
@@ -383,17 +384,19 @@ app.post('/api/auth/register', async (req, res) => {
     // Hash de contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insertar usuario
+    // Insertar usuario — features vacías por defecto (admin las asigna luego)
+    const defaultFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
     const result = await pool.query(
-      'INSERT INTO users (email, password, name) VALUES ($1, $2, $3) RETURNING id, email, name',
-      [email, hashedPassword, name || email]
+      `INSERT INTO users (email, password, name, features)
+       VALUES ($1, $2, $3, $4) RETURNING id, email, name, features`,
+      [email, hashedPassword, name || email, JSON.stringify(defaultFeatures)]
     );
 
     const user = result.rows[0];
 
     // Generar JWT
     const token = jwt.sign(
-      { id: user.id, email: user.email, features: user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) },
+      { id: user.id, email: user.email, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -404,7 +407,7 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, features: user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) }
+      user: { id: user.id, email: user.email, name: user.name, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) }
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -975,26 +978,40 @@ app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res
 // POST - Registrar o actualizar dispositivo (sin JWT - llamado desde RPi4)
 app.post('/api/devices/register', async (req, res) => {
   try {
-    const { device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id } = req.body;
+    const { device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, platform, player_version, auth_token } = req.body;
 
     if (!device_id) {
       return res.status(400).json({ error: 'device_id requerido' });
     }
 
+    // Extraer user_id del auth_token si viene (players Windows)
+    let userId = null;
+    if (auth_token) {
+      try {
+        const decoded = jwt.verify(auth_token, process.env.JWT_SECRET);
+        userId = decoded.id || null;
+      } catch (e) {
+        console.warn(`⚠️ auth_token inválido para registro de ${device_id}:`, e.message);
+      }
+    }
+
     const result = await pool.query(
-      `INSERT INTO devices (device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, status, last_seen)
-       VALUES ($1, $2, $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP)
+      `INSERT INTO devices (device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, status, last_seen, platform, player_version, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
        ON CONFLICT (device_id) DO UPDATE SET
          name = COALESCE($2, devices.name),
          ip_address = $3,
          status = 'online',
-         last_seen = CURRENT_TIMESTAMP
+         last_seen = CURRENT_TIMESTAMP,
+         platform = COALESCE($7, devices.platform),
+         player_version = COALESCE($8, devices.player_version),
+         user_id = COALESCE($9, devices.user_id)
        RETURNING *`,
-      [device_id, name || device_id, ip_address, display_mode || 'mirror', hdmi0_playlist_id || null, hdmi1_playlist_id || null]
+      [device_id, name || device_id, ip_address, display_mode || 'mirror', hdmi0_playlist_id || null, hdmi1_playlist_id || null, platform || 'rpi', player_version || null, userId]
     );
 
     res.json({ success: true, device: result.rows[0] });
-    console.log(`✅ Dispositivo registrado: ${device_id} (${ip_address})`);
+    console.log(`✅ Dispositivo registrado: ${device_id} (${ip_address}) [${platform || 'rpi'}] user_id=${userId}`);
   } catch (err) {
     console.error('❌ Error registrando dispositivo:', err);
     res.status(500).json({ error: err.message });
@@ -1031,6 +1048,161 @@ app.get('/api/devices/:device_id/config', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('❌ Error obteniendo config dispositivo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// WINDOWS KIOSK PLAYER — endpoints sin JWT (llamados desde el player)
+// ============================================================
+
+// GET - Manifiesto de contenido para el Windows Player (caché + sync)
+app.get('/api/devices/:device_id/manifest', async (req, res) => {
+  try {
+    const { device_id } = req.params;
+
+    const deviceResult = await pool.query(
+      `SELECT d.*, u.features
+       FROM devices d
+       LEFT JOIN users u ON d.user_id = u.id
+       WHERE d.device_id = $1`,
+      [device_id]
+    );
+
+    if (deviceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    }
+
+    const device = deviceResult.rows[0];
+
+    // Obtener playlist activa (hdmi0 para Windows player)
+    let playlist = null;
+    let assets   = [];
+    const playlistId = device.hdmi0_playlist_id;
+
+    if (playlistId) {
+      const plResult = await pool.query(
+        `SELECT id, name, created_at FROM playlists WHERE id = $1`,
+        [playlistId]
+      );
+      if (plResult.rows.length > 0) {
+        playlist = plResult.rows[0];
+
+        // Obtener items desde playlist_items JOIN content
+        const itemsResult = await pool.query(
+          `SELECT pi.display_order, pi.duration_override_ms,
+                  c.filename, c.type, c.duration_ms
+           FROM playlist_items pi
+           JOIN content c ON pi.content_id = c.id
+           WHERE pi.playlist_id = $1
+           ORDER BY pi.display_order ASC`,
+          [playlistId]
+        );
+
+        const baseUrl = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+        for (const item of itemsResult.rows) {
+          if (item.filename) {
+            const duration = item.duration_override_ms || item.duration_ms || 10000;
+            assets.push({
+              filename: item.filename,
+              type:     item.type || 'video',
+              duration,
+              url:      `${baseUrl}/uploads/${item.filename}`,
+              checksum: null,
+            });
+          }
+        }
+      }
+    }
+
+    // Versión: cambia cuando se agregan/quitan items de la playlist
+    const version = playlist
+      ? `${playlistId}-${assets.map(a => a.filename).join(',')}`
+      : 'no-playlist';
+
+    // Actualizar last_seen del dispositivo
+    await pool.query(
+      `UPDATE devices SET last_seen = CURRENT_TIMESTAMP, status = 'online' WHERE device_id = $1`,
+      [device_id]
+    );
+
+    const playlistItems = assets.map(a => ({ filename: a.filename, type: a.type, duration: a.duration }));
+
+    res.json({
+      version,
+      device_id,
+      playlist_id:   playlistId || null,
+      playlist_name: playlist?.name || null,
+      assets,
+      playlist_json: playlist ? { id: playlist.id, name: playlist.name, items: playlistItems } : null,
+      wake_action:   device.wake_action  || { action: 'return' },
+      power_policy:  device.power_policy || {},
+      features:      device.features     || {},
+      synced_at:     new Date().toISOString(),
+    });
+
+    console.log(`📦 Manifest enviado: ${device_id} — ${assets.length} assets`);
+
+  } catch (err) {
+    console.error('❌ Error generando manifest:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT - Actualizar wake_action y power_policy de un dispositivo Windows (desde dashboard)
+app.put('/api/devices/:device_id/win-policy', authenticateToken, async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    const { wake_action, power_policy } = req.body;
+
+    // Verificar que el dispositivo pertenece al usuario
+    const deviceResult = await pool.query(
+      `SELECT * FROM devices WHERE device_id = $1 AND user_id = $2`,
+      [device_id, req.user.id]
+    );
+
+    if (deviceResult.rows.length === 0 && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Sin permisos sobre este dispositivo' });
+    }
+
+    await pool.query(
+      `UPDATE devices
+       SET wake_action  = COALESCE($1::jsonb, wake_action),
+           power_policy = COALESCE($2::jsonb, power_policy)
+       WHERE device_id = $3`,
+      [
+        wake_action  ? JSON.stringify(wake_action)  : null,
+        power_policy ? JSON.stringify(power_policy) : null,
+        device_id,
+      ]
+    );
+
+    // Notificar al player vía Socket.io si está conectado
+    if (wake_action) {
+      io.to(`device_${device_id}`).emit('wake_action_update', wake_action);
+    }
+    if (power_policy) {
+      io.to(`device_${device_id}`).emit('power_policy_update', power_policy);
+    }
+
+    res.json({ success: true });
+    console.log(`✅ Win policy actualizada: ${device_id}`);
+
+  } catch (err) {
+    console.error('❌ Error actualizando win policy:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST - Reiniciar proceso del Windows Player remotamente (via Socket.io)
+app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    io.to(`device_${device_id}`).emit('restart_player', { device_id });
+    res.json({ success: true });
+    console.log(`🔄 Restart player enviado a: ${device_id}`);
+  } catch (err) {
+    console.error('❌ Error win-restart:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1142,16 +1314,20 @@ app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, re
 });
 
 // POST /api/admin/rpi/tv — via Socket.io (no SSH)
+// body: { device_id, action, target? }  target: tv1|tv2|all (default: all)
 app.post('/api/admin/rpi/tv', authenticateToken, async (req, res) => {
-  const { device_id, action } = req.body;
-  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
-  if (!valid.includes(action))
+  const { device_id, action, target = 'all' } = req.body;
+  const validActions  = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
+  const validTargets  = ['tv1','tv2','all'];
+  if (!validActions.includes(action))
     return res.status(400).json({ success: false, error: 'Accion invalida' });
+  if (!validTargets.includes(target))
+    return res.status(400).json({ success: false, error: 'Target invalido: tv1|tv2|all' });
   if (!device_id)
     return res.status(400).json({ success: false, error: 'device_id requerido' });
   try {
-    const output = await doTV(device_id, action);
-    res.json({ success: true, device_id, action, output });
+    const output = await doTV(device_id, action, target);
+    res.json({ success: true, device_id, action, target, output });
   } catch (err) {
     console.error('[Admin] TV control error:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -1335,6 +1511,13 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     const { name, display_mode, hdmi0_playlist_id, hdmi1_playlist_id,
             orientation_hdmi0, orientation_hdmi1,
             videowall_position, videowall_cols, videowall_rows } = req.body;
+
+    // Validar licencia para modos premium
+    if (['dual', 'videowall'].includes(display_mode) && !req.user.features?.dual_hdmi) {
+      return res.status(403).json({
+        error: 'El modo dual y videowall requieren licencia Premium. Contacta a SONORO AV.'
+      });
+    }
 
     const result = await pool.query(
       `UPDATE devices SET
@@ -1534,7 +1717,7 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
 // ── VALIDAR CÓDIGO (sin JWT — llamado desde RPi) ─────────────
 app.post('/api/activate', async (req, res) => {
   try {
-    const { code, device_id, ip_address, display_mode } = req.body;
+    const { code, device_id, ip_address, display_mode, platform, player_version } = req.body;
 
     if (!code || !device_id) {
       return res.status(400).json({ error: 'code y device_id son requeridos' });
@@ -1557,21 +1740,25 @@ app.post('/api/activate', async (req, res) => {
 
     // Registrar o actualizar el dispositivo con el user_id
     const deviceResult = await pool.query(
-      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen)
-       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP)
+      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen, platform, player_version)
+       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP, $6, $7)
        ON CONFLICT (device_id) DO UPDATE SET
-         name         = COALESCE($2, devices.name),
-         ip_address   = $3,
-         user_id      = $5,
-         status       = 'online',
-         last_seen    = CURRENT_TIMESTAMP
+         name           = COALESCE($2, devices.name),
+         ip_address     = $3,
+         user_id        = $5,
+         status         = 'online',
+         last_seen      = CURRENT_TIMESTAMP,
+         platform       = COALESCE($6, devices.platform),
+         player_version = COALESCE($7, devices.player_version)
        RETURNING *`,
       [
         device_id,
         activation.device_name || device_id,
         ip_address,
         display_mode || 'mirror',
-        activation.user_id
+        activation.user_id,
+        platform || null,
+        player_version || null,
       ]
     );
 
@@ -1915,6 +2102,29 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       );
     } catch(e) { console.warn('⚠️ Error enviando email de renovación:', e.message); }
 
+    // ── Auto-asignar features según tipo de licencia ──────────
+    // El admin puede sobreescribir después con los checkboxes.
+    // Se hace MERGE (||) para no borrar features que ya tenía.
+    const LICENSE_FEATURES = {
+      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
+      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
+      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
+      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
+      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+    };
+    const finalType = license_type || updateResult.rows[0].license_type;
+    if (finalType && LICENSE_FEATURES[finalType]) {
+      await pool.query(
+        `UPDATE users
+         SET features = COALESCE(features, '{}'::jsonb) || $1::jsonb
+         WHERE id = $2`,
+        [JSON.stringify(LICENSE_FEATURES[finalType]), userId]
+      );
+      console.log(`🔑 Features auto-asignados para ${user.email} (${finalType}):`, LICENSE_FEATURES[finalType]);
+      // Notificar al usuario para que refresque su JWT
+      io.to(`user_${userId}`).emit('features_updated', { features: LICENSE_FEATURES[finalType] });
+    }
+
     console.log(`✅ Licencia renovada: ${user.email} +${months} meses → ${newEnd.toLocaleDateString()}`);
     res.json({ success: true, user: updateResult.rows[0], new_end: newEnd });
   } catch (err) {
@@ -2047,7 +2257,7 @@ app.get('/api/devices/:device_id/license', async (req, res) => {
   try {
     const { device_id } = req.params;
     const result = await pool.query(`
-      SELECT u.license_status, u.license_end, u.license_type
+      SELECT u.license_status, u.license_end, u.license_type, u.features, u.role
       FROM devices d
       JOIN users u ON d.user_id = u.id
       WHERE d.device_id = $1
@@ -2057,17 +2267,23 @@ app.get('/api/devices/:device_id/license', async (req, res) => {
       return res.json({ status: 'unknown', needs_activation: true });
     }
 
-    const { license_status, license_end, license_type } = result.rows[0];
+    const { license_status, license_end, license_type, features, role } = result.rows[0];
     const now = new Date();
     const isExpired = license_end && new Date(license_end) < now;
     const daysLeft = license_end ? Math.ceil((new Date(license_end) - now) / (1000 * 60 * 60 * 24)) : null;
+
+    // Admin siempre tiene todos los features activos
+    const resolvedFeatures = role === 'admin'
+      ? { turnos: true, analytics: true, dual_hdmi: true, onpremise: true }
+      : (features || { turnos: false, analytics: false, dual_hdmi: false, onpremise: false });
 
     res.json({
       status: isExpired ? 'expired' : license_status,
       license_end,
       license_type,
       days_left: daysLeft,
-      active: !isExpired && license_status === 'active'
+      active: !isExpired && license_status === 'active',
+      features: resolvedFeatures
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2218,6 +2434,101 @@ app.delete('/api/queue/branches/:id', authenticateToken, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET — Tickets actualmente en atención (para lower third del queue display)
+// Público desde la RPi (sin JWT) para que queue-display.html pueda consultarlo
+app.get('/api/queue/branches/:id/active', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         t.display_number   AS token_number,
+         s.name             AS service_name,
+         s.color            AS service_color,
+         c.display_name     AS counter_name,
+         t.called_at
+       FROM tickets t
+       LEFT JOIN services  s ON t.service_id  = s.id
+       LEFT JOIN counters  c ON t.counter_id  = c.id
+       WHERE t.branch_id = $1
+         AND t.status    = 'serving'
+       ORDER BY t.called_at DESC
+       LIMIT 8`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error obteniendo tickets activos:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET — Config visual del display de turnos (público, sin JWT)
+// Devuelve theme, brand_color, logo_url, branch_name para queue-display.html
+app.get('/api/queue/branches/:id/display-config', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT name,
+              COALESCE((config->>'display_theme'),    'dark')     AS theme,
+              COALESCE((config->>'brand_color'),      '#FF1B8D')  AS brand_color,
+              (config->>'logo_url')                              AS logo_url
+       FROM branches WHERE id = $1`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    const row = result.rows[0];
+    res.json({
+      theme:       row.theme,
+      brand_color: row.brand_color,
+      logo_url:    row.logo_url  || null,
+      branch_name: row.name,
+    });
+  } catch (err) {
+    console.error('❌ Error display-config:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT — Actualizar config visual del display (requiere JWT del dueño)
+app.put('/api/queue/branches/:id/display-config', authenticateToken, async (req, res) => {
+  try {
+    const { theme, brand_color, logo_url } = req.body;
+
+    // Verificar que la sucursal pertenece al usuario
+    const own = await pool.query(
+      'SELECT id FROM branches WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (own.rows.length === 0) return res.status(403).json({ error: 'Sin acceso a esta sucursal' });
+
+    // Merge de los campos en la columna config JSONB
+    await pool.query(
+      `UPDATE branches
+       SET config = COALESCE(config, '{}'::jsonb)
+                   || jsonb_build_object(
+                        'display_theme', $1::text,
+                        'brand_color',  $2::text,
+                        'logo_url',     $3::text
+                      )
+       WHERE id = $4`,
+      [
+        theme      || 'dark',
+        brand_color || '#FF1B8D',
+        logo_url    || null,
+        req.params.id,
+      ]
+    );
+
+    // Notificar al display en tiempo real si está conectado
+    io.to(`branch_${req.params.id}`).emit('branch_config_updated', {
+      branch_id: req.params.id,
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ Error actualizando display-config:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════

@@ -1557,29 +1557,54 @@ async function loadUsers() {
           ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="renewLicense(${u.id})">Reactivar</button>`}
           <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
         </div>
-        <div style="padding:10px 14px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Modulos activos:</span>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-            <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
-              onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
-            Puntos de Atencion
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-            <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
-              onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
-            Reportes / Analytics
-          </label>
+        <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos activos</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
+                onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
+              🎟 Puntos de Atención
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
+                onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
+              📊 Reportes / Analytics
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="feat-dual-${u.id}" ${(u.features?.dual_hdmi) ? 'checked' : ''}
+                onchange="toggleFeature(${u.id}, 'dual_hdmi', this.checked)">
+              🖥 Dual HDMI Premium
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
+                onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
+              🏢 On-Premise / Red local
+            </label>
+          </div>
+          <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
+            Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
+          </div>
         </div>` : ''}
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
 }
 
+// Mapa de features por tipo de licencia (mirror del backend)
+const LICENSE_FEATURES_MAP = {
+  cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
+  cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
+  queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
+  rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
+  windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+};
+
 async function toggleFeature(userId, feature, enabled) {
   try {
     const users = await api('/api/admin/users');
     const user = users.find(u => u.id === userId);
-    const features = Object.assign({ turnos: false, analytics: false }, user?.features || {});
+    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
+    const features = Object.assign(defaults, user?.features || {});
     features[feature] = enabled;
     const data = await api(`/api/admin/users/${userId}/features`, {
       method: 'PUT',
