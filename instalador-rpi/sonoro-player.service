@@ -1,0 +1,23 @@
+[Unit]
+Description=SONORO AV Player
+After=network.target sonoro-x11.service
+Requires=sonoro-x11.service
+
+[Service]
+Type=simple
+User=sonoro
+WorkingDirectory=/home/sonoro/sonoro-player
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/sonoro/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=HOME=/home/sonoro
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=/bin/bash -c "until [ -f /tmp/sonoro-x11-ready ]; do sleep 1; done"
+ExecStart=/usr/bin/node /home/sonoro/sonoro-player/sync-app.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target

@@ -20,23 +20,33 @@ const MPV_PATH   = IS_WINDOWS
   : 'mpv';
 
 // ── CONFIG ───────────────────────────────────────────────────
-const CMS_URL       = process.env.CMS_URL    || 'https://cms.sonoro.com.co';
-const DEVICE_ID     = process.env.DEVICE_ID  || generateDeviceId();
-const DISPLAY_MODE  = process.env.DISPLAY_MODE || 'mirror';
+const CMS_URL        = process.env.CMS_URL    || 'https://cms.sonoro.com.co';
+const DEVICE_ID      = process.env.DEVICE_ID  || generateDeviceId();
 const IMAGE_DURATION = parseInt(process.env.IMAGE_DURATION) || 15000;
-const QUEUE_FILE      = process.platform === 'win32'
+const QUEUE_FILE     = process.platform === 'win32'
   ? path.join(os.tmpdir(), 'sonoro-queue.json')
   : '/tmp/sonoro-queue.json';
-const OVERLAY_PNG     = '/tmp/sonoro-overlay.png';
-const OVERLAY_SCRIPT  = process.platform === 'win32' ? null
+const OVERLAY_PNG    = '/tmp/sonoro-overlay.png';
+const OVERLAY_SCRIPT = process.platform === 'win32' ? null
   : '/home/sonoro/sonoro-player/generate-overlay.js';
-const LUA_SCRIPT    = process.platform === 'win32'
+const LUA_SCRIPT     = process.platform === 'win32'
   ? path.join(os.homedir(), 'AppData', 'Roaming', 'SonoroCMS', 'player', 'queue-display.lua')
   : '/home/sonoro/sonoro-player/queue-display.lua';
+const DISPLAY_ENV    = 'DISPLAY=:0 XAUTHORITY=/home/sonoro/.Xauthority';
+const HOTPLUG_FILE   = '/home/sonoro/.sonoro-hotplug';
 
-let hasQueueLicense = false;
-let currentConfig   = null;
-let stopPlayback0   = false;
+// ── TTS — Piper Neural (offline, ARM64) ──────────────────────
+const PIPER_BIN   = '/usr/local/bin/piper';
+const PIPER_MODEL = '/home/sonoro/piper/es_MX-claude-high.onnx';
+const ttsCache    = new Map();   // clave texto → ruta WAV en /tmp
+const TTS_MAX     = 60;          // entradas máximas en caché
+
+let hasQueueLicense   = false;
+let currentConfig     = null;
+let stopPlayback0     = false;
+let stopPlayback1     = false;    // segundo loop para modo dual/mirror
+let chromiumQueuePids = [];       // PIDs de instancias Chromium de turnos (una por output)
+let playerBusy        = false;    // mutex para evitar startPlayer() concurrente
 
 // ── ESTADO GLOBAL DEL PLAYER ─────────────────────────────────
 let currentState = {
@@ -102,23 +112,32 @@ function getHdmiInfo() {
   if (IS_WINDOWS) return Promise.resolve([]);
   return new Promise((resolve) => {
     exec(
-      'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr 2>/dev/null',
+      `${DISPLAY_ENV} xrandr --query 2>/dev/null`,
       { encoding: 'utf8', timeout: 5000 },
       (err, stdout) => {
         if (err || !stdout) return resolve([]);
         const ports = [];
-        const blocks = stdout.split('\n\n').filter(Boolean);
-        for (const block of blocks) {
-          const nameMatch  = block.match(/^(\S+)\s/m);
-          const resMatch   = block.match(/current\s+(\d+x\d+)/);
-          const enabledMatch = block.match(/Enabled:\s+(yes|no)/i);
-          const transformMatch = block.match(/Transform:\s+(\S+)/i);
-          if (nameMatch) {
+        // Cada línea de output conectado: "HDMI-A-1 connected 1920x1080+0+0 (normal ...) 710mm x 400mm"
+        // o "HDMI-A-1 connected (normal ...)" cuando no tiene modo activo
+        const lineRe = /^(\S+)\s+(connected|disconnected)(?:\s+(?:primary\s+)?(\d+)x(\d+)\+(\d+)\+(\d+))?/;
+        for (const line of stdout.split('\n')) {
+          const m = line.match(lineRe);
+          if (m && m[2] === 'connected') {
+            // Detectar transform (rotate) desde el descriptor de modo
+            const rotMatch = line.match(/\((\w+)\s+(\w+)/);
+            let transform = 'normal';
+            if (line.includes('left')) transform = 'left';
+            else if (line.includes('right')) transform = 'right';
+            else if (line.includes('inverted')) transform = 'inverted';
             ports.push({
-              port:      nameMatch[1],
-              connected: enabledMatch ? enabledMatch[1] === 'yes' : block.includes('current'),
-              resolution: resMatch ? resMatch[1] : null,
-              transform:  transformMatch ? transformMatch[1] : 'normal',
+              port:       m[1],
+              connected:  true,
+              resolution: m[3] ? `${m[3]}x${m[4]}` : null,
+              transform,
+              w:  m[3] ? parseInt(m[3]) : 0,
+              h:  m[4] ? parseInt(m[4]) : 0,
+              x:  m[5] ? parseInt(m[5]) : 0,
+              y:  m[6] ? parseInt(m[6]) : 0,
             });
           }
         }
@@ -126,6 +145,193 @@ function getHdmiInfo() {
       }
     );
   });
+}
+
+// ── ESPERAR PANTALLA CONECTADA ───────────────────────────────
+// Reintenta xrandr cada 2s hasta detectar al menos una pantalla.
+// Una vez encontrada la primera, sigue sondeando 8s más para captar
+// si hay una segunda pantalla que tarda más en registrarse en Wayland.
+async function waitForDisplay(maxWaitMs = 30000) {
+  if (IS_WINDOWS) return [];
+  const start = Date.now();
+  console.log('🖥️  Esperando pantalla conectada...');
+  while (Date.now() - start < maxWaitMs) {
+    const ports = await getHdmiInfo();
+    const connected = ports.filter(p => p.connected);
+    if (connected.length > 0) {
+      // Sondear 8s más para captar segundo puerto si aparece más tarde
+      let best = connected;
+      const stabilizeStart = Date.now();
+      while (Date.now() - stabilizeStart < 8000) {
+        await new Promise(r => setTimeout(r, 1500));
+        const ports2 = await getHdmiInfo();
+        const connected2 = ports2.filter(p => p.connected);
+        if (connected2.length > best.length) {
+          best = connected2;
+          console.log(`🔍 Pantalla adicional detectada: ${connected2.map(p => `${p.port}@${p.x},${p.y}`).join(', ')}`);
+        }
+      }
+      console.log(`✅ ${best.length} pantalla(s) detectada(s): ${best.map(p => `${p.port}@${p.x},${p.y}`).join(', ')}`);
+      return best;
+    }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  console.warn('⚠️ Sin pantalla en 30s — usando fallback HDMI-A-1');
+  return [{ port: 'HDMI-A-1', connected: true, resolution: '1920x1080', transform: 'normal', w: 1920, h: 1080, x: 0, y: 0 }];
+}
+
+// ── CONFIGURAR SALIDAS X11 ────────────────────────────────────
+// Aplica la topología de pantallas con xrandr según el modo y orientaciones.
+// Llamar antes de lanzar mpv o Chromium.
+// X11: rotaciones válidas: normal | left | right | inverted
+// Detecta la mejor resolución disponible para un output y la aplica.
+// Prioridad: 1920x1080 → 1280x720 → 1280x1024 → --auto (preferred del monitor)
+// Reintenta hasta 3 veces (1500ms entre intentos) si EDID aún no llegó — TVs antiguos
+// pueden tardar hasta 4-5s en entregar EDID tras reconexión HDMI en caliente.
+async function xrandrSetOutput(port, rotation, extraFlags = '') {
+  const preferred = ['1920x1080', '1280x720', '1280x1024'];
+  const maxRetries = 3;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let modesRaw = '';
+    try {
+      modesRaw = execSync(`${DISPLAY_ENV} xrandr --query 2>/dev/null`, { encoding: 'utf8' });
+    } catch(e) {}
+
+    // Extraer modos disponibles para este output específico
+    const lines = modesRaw.split('\n');
+    let inPort = false;
+    const available = [];
+    for (const line of lines) {
+      if (line.startsWith(port + ' ')) { inPort = true; continue; }
+      if (inPort) {
+        if (line.match(/^\S/)) break; // siguiente output — salir
+        const m = line.match(/^\s+(\d+x\d+)/);
+        if (m) available.push(m[1]);
+      }
+    }
+
+    // Verificar si hay algún modo preferido disponible
+    const found = preferred.find(res => available.includes(res));
+    if (found) {
+      try {
+        execSync(`${DISPLAY_ENV} xrandr --output ${port} --mode ${found} --rotate ${rotation} ${extraFlags}`, { stdio: 'ignore' });
+        console.log(`🖥️  ${port}: ${found} (${rotation})${attempt > 0 ? ` [EDID intento ${attempt + 1}]` : ''}`);
+        return;
+      } catch(e) {}
+    }
+
+    // Sin modos preferidos — si quedan reintentos, esperar EDID del TV
+    if (attempt < maxRetries) {
+      console.log(`🔍 ${port}: esperando EDID (intento ${attempt + 1}/${maxRetries})...`);
+      await new Promise(r => setTimeout(r, 1500));
+      // Forzar re-lectura del EDID
+      try { execSync(`${DISPLAY_ENV} xrandr --auto 2>/dev/null`, { stdio: 'ignore' }); } catch(e) {}
+    }
+  }
+
+  // Fallback final: dejar que el monitor elija su preferida
+  try {
+    execSync(`${DISPLAY_ENV} xrandr --output ${port} --auto --rotate ${rotation} ${extraFlags}`, { stdio: 'ignore' });
+  } catch(e) {}
+  console.log(`🖥️  ${port}: auto (${rotation}) [fallback tras ${maxRetries} intentos EDID]`);
+}
+
+async function configureOutputs(mode, ports, config) {
+  if (IS_WINDOWS) return;
+  const rotMap = { horizontal: 'normal', landscape: 'normal', vertical: 'left', portrait: 'left' };
+  const rot = (k) => rotMap[config[k] || 'horizontal'] || 'normal';
+
+  if (ports.length === 1) {
+    const r0 = rot('orientation_hdmi0');
+    try {
+      await xrandrSetOutput(ports[0].port, r0, '--pos 0x0');
+      console.log(`🖥️  X11: single — ${ports[0].port} (${r0})`);
+    } catch(e) { console.warn('⚠️ xrandr single:', e.message); }
+    return;
+  }
+
+  // 2 pantallas — port0 siempre en 0x0, port1 a la derecha
+  const p0 = ports[0].port, p1 = ports[1].port;
+  const r0 = rot('orientation_hdmi0'), r1 = rot('orientation_hdmi1');
+
+  if (mode === 'tile-h' || mode === 'videowall') {
+    const layout    = config.videowall_position || 'horizontal';
+    const hdmi0slot = parseInt(config.videowall_cols || '1') || 1;
+    const w0 = (r0 === 'left' || r0 === 'right') ? 1080 : 1920;
+    const h0 = (r0 === 'left' || r0 === 'right') ? 1920 : 1080;
+    const w1 = (r1 === 'left' || r1 === 'right') ? 1080 : 1920;
+    const h1 = (r1 === 'left' || r1 === 'right') ? 1920 : 1080;
+    let x0, y0, x1, y1, canvas;
+    if (layout === 'horizontal') {
+      x0 = hdmi0slot === 1 ? 0 : w1; y0 = 0;
+      x1 = hdmi0slot === 1 ? w0 : 0; y1 = 0;
+      canvas = `${w0 + w1}×${Math.max(h0, h1)}`;
+    } else {
+      x0 = 0; y0 = hdmi0slot === 1 ? 0 : h1;
+      x1 = 0; y1 = hdmi0slot === 1 ? h0 : 0;
+      canvas = `${Math.max(w0, w1)}×${h0 + h1}`;
+    }
+    try {
+      await xrandrSetOutput(p0, r0, `--pos ${x0}x${y0}`);
+      await xrandrSetOutput(p1, r1, `--pos ${x1}x${y1}`);
+      console.log(`🖥️  X11: tiling ${layout} — canvas ${canvas} | ${p0}@${x0},${y0} / ${p1}@${x1},${y1}`);
+    } catch(e) { console.warn('⚠️ xrandr tiling:', e.message); }
+
+  } else if (mode === 'tile-v') {
+    try {
+      await xrandrSetOutput(p0, r0, '--pos 0x0');
+      await xrandrSetOutput(p1, r1, `--below ${p0}`);
+      console.log(`🖥️  X11: tile-v — ${p0}@0,0 / ${p1} below`);
+    } catch(e) { console.warn('⚠️ xrandr tile-v:', e.message); }
+
+  } else {
+    // mirror / independent / queue — extendido lado a lado, port0 primario
+    try {
+      await xrandrSetOutput(p0, r0, '--pos 0x0 --primary');
+      await xrandrSetOutput(p1, r1, `--right-of ${p0}`);
+      console.log(`🖥️  X11: ${mode} — ${p0}(primario)@0,0 + ${p1}@right-of`);
+    } catch(e) { console.warn('⚠️ xrandr dual:', e.message); }
+  }
+}
+
+// ── OBSERVAR HOTPLUG HDMI ───────────────────────────────────
+// udev escribe /home/sonoro/.sonoro-hotplug cuando detecta cambio DRM.
+// Debounce de 4s para evitar el bucle de muerte: matar procesos genera
+// más eventos DRM que vuelven a disparar el watcher.
+function watchHdmiHotplug() {
+  if (IS_WINDOWS) return;
+  // Crear el archivo de señal si no existe — home del usuario, siempre accesible
+  try { if (!fs.existsSync(HOTPLUG_FILE)) fs.writeFileSync(HOTPLUG_FILE, '0'); }
+  catch(e) { console.error('❌ No se pudo crear HOTPLUG_FILE:', e.message); return; }
+
+  let debounceTimer = null;
+
+  fs.watchFile(HOTPLUG_FILE, { interval: 500 }, () => {
+    // Resetear el timer en cada evento — solo actuar tras 4s de silencio
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      debounceTimer = null;
+      try { fs.writeFileSync(HOTPLUG_FILE, '0'); } catch(e) {}
+      console.log('🔌 Hotplug HDMI detectado — redetectando pantallas...');
+      if (!currentConfig) return;
+      // Detener watcher temporalmente para no disparar con el kill de procesos
+      fs.unwatchFile(HOTPLUG_FILE);
+      // Activar outputs recién conectados — EDID completo llega después.
+      // xrandrSetOutput() reintenta hasta 3 veces si EDID no está listo aún.
+      try { execSync(`${DISPLAY_ENV} xrandr --auto 2>/dev/null`, { stdio: 'ignore' }); } catch(e) {}
+      await new Promise(r => setTimeout(r, 1000));
+      const ports = await getHdmiInfo();
+      const connected = ports.filter(p => p.connected);
+      if (connected.length > 0) {
+        console.log('🔄 Reiniciando player tras hotplug...');
+        await startPlayer(currentConfig);
+      }
+      // Reactivar watcher tras 5s (deja que el kernel se calme)
+      setTimeout(() => watchHdmiHotplug(), 5000);
+    }, 4000);
+  });
+  console.log('👁️  Hotplug watcher activo');
 }
 
 // ── OBTENER USO DE DISCO ─────────────────────────────────────
@@ -199,24 +405,26 @@ function getNetworkInfo() {
   });
 }
 
-// ── DETECTAR ORIENTACIÓN EN WINDOWS ─────────────────────────
+// ── DETECTAR ORIENTACIÓN ─────────────────────────────────────
+// Usa la orientación del primer puerto conectado (o config si está disponible)
 function detectOrientation() {
   try {
     if (IS_WINDOWS) {
-      // Consultar orientación via PowerShell
       const ps = `powershell -NoProfile -Command "(Get-CimInstance -ClassName Win32_DesktopMonitor | Select-Object -First 1).ScreenWidth -lt (Get-CimInstance -ClassName Win32_DesktopMonitor | Select-Object -First 1).ScreenHeight"`;
       const result = execSync(ps, { encoding: 'utf8', windowsHide: true }).trim();
       const isVertical = result === 'True';
       console.log(`🖥️  Orientación: ${isVertical ? 'VERTICAL' : 'HORIZONTAL'}`);
       return isVertical ? 'vertical' : 'horizontal';
     } else {
-      const output = execSync(
-        `WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr`,
-        { encoding: 'utf8' }
-      );
-      const match = output.match(/Transform:\s+(\S+)/);
-      const transform = match ? match[1] : 'normal';
-      return (transform === '90' || transform === '270') ? 'vertical' : 'horizontal';
+      const output = execSync(`${DISPLAY_ENV} xrandr --query 2>/dev/null`, { encoding: 'utf8' });
+      // La rotación ACTUAL aparece ANTES del paréntesis en la línea "connected".
+      // El texto "(normal left inverted right...)" lista rotaciones disponibles — ignorarlo.
+      for (const line of output.split('\n')) {
+        if (!line.includes(' connected ')) continue;
+        const beforeParen = line.split('(')[0];
+        if (beforeParen.includes(' left') || beforeParen.includes(' right')) return 'vertical';
+      }
+      return 'horizontal';
     }
   } catch(e) {
     console.warn('⚠️ No se pudo detectar orientación, usando horizontal');
@@ -227,6 +435,7 @@ function detectOrientation() {
 // ── MATAR REPRODUCTORES ──────────────────────────────────────
 function killPlayers() {
   stopPlayback0 = true;
+  stopPlayback1 = true;
   try {
     if (IS_WINDOWS) {
       execSync('taskkill /F /IM mpv.exe /T 2>nul', { stdio: 'ignore', windowsHide: true });
@@ -234,6 +443,13 @@ function killPlayers() {
       execSync('pkill -f mpv || true', { stdio: 'ignore' });
     }
   } catch(e) {}
+  // Matar todas las instancias Chromium de turnos
+  for (const pid of chromiumQueuePids) {
+    try { process.kill(pid, 'SIGTERM'); } catch(e) {}
+  }
+  chromiumQueuePids = [];
+  // Limpieza por nombre por si quedaron huérfanos
+  try { execSync('pkill -f "chromium.*sonoro-queue" || true', { stdio: 'ignore' }); } catch(e) {}
   console.log('🔴 Players detenidos');
 }
 
@@ -253,15 +469,16 @@ function hideCursor() {
       }, 5000);
     } catch(e) {}
   } else {
-    const cmd = `WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlrctl pointer move 1921 1081`;
-    exec(cmd);
-    setInterval(() => { exec(cmd); }, 5000);
+    // unclutter (lanzado en xinitrc.sh) oculta el cursor automáticamente tras 1s de inactividad.
+    // No se necesita acción adicional desde Node.js.
   }
   console.log('🖱️  Cursor ocultado');
 }
 
 // ── CONSTRUCCIÓN DEL COMANDO MPV ─────────────────────────────
-function buildMpvCmd(filePath, extraArgs = []) {
+// screenTarget: objeto de puerto { port, x, y, w, h } o null (canvas completo / pantalla única)
+// useLua: si true incluye el script Lua de overlay de turnos (modo legado)
+function buildMpvCmd(filePath, extraArgs = [], screenTarget = null, useLua = false) {
   const baseArgs = [
     '--fullscreen',
     '--no-border',
@@ -272,8 +489,8 @@ function buildMpvCmd(filePath, extraArgs = []) {
     '--really-quiet',
   ];
 
-  // Agregar script Lua de overlay de turnos si tiene licencia y el archivo existe
-  const luaArgs = (hasQueueLicense && fs.existsSync(LUA_SCRIPT))
+  // Script Lua solo en modo legado (sin Chromium queue display)
+  const luaArgs = (useLua && hasQueueLicense && fs.existsSync(LUA_SCRIPT))
     ? [`--script="${LUA_SCRIPT}"`, `--script-opts=queue_file=${QUEUE_FILE}`]
     : [];
 
@@ -289,17 +506,22 @@ function buildMpvCmd(filePath, extraArgs = []) {
     ].join(' ');
     return `"${MPV_PATH}" ${allArgs}`;
   } else {
+    // En X11, --geometry=+X+Y posiciona la ventana en las coordenadas absolutas del output.
+    // --fullscreen luego fullscreeniza en el monitor que contiene esa posición.
+    const geomArgs = (screenTarget && typeof screenTarget === 'object')
+      ? [`--geometry=+${screenTarget.x}+${screenTarget.y}`]
+      : [];
     const allArgs = [
       ...baseArgs,
       '--vo=gpu',
-      '--gpu-context=wayland',
-      `--fs-screen-name=${process.env.HDMI_SCREEN || 'HDMI-A-1'}`,
-      '--hwdec=v4l2m2m',
+      ...geomArgs,
+      '--hwdec=v4l2m2m-copy',
+      '--profile=fast',
       ...luaArgs,
       ...extraArgs,
       `"${filePath}"`
     ].join(' ');
-    return `WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 mpv ${allArgs}`;
+    return `${DISPLAY_ENV} mpv ${allArgs}`;
   }
 }
 
@@ -322,7 +544,9 @@ function showIdleSplash() {
 }
 
 // ── SPLASH DE ARRANQUE ───────────────────────────────────────
-function showSplash() {
+// ports: array de objetos de puerto para mostrar splash en cada output.
+// Si no se pasa, muestra en el output por defecto (sin geometría).
+function showSplash(ports = []) {
   return new Promise((resolve) => {
     const orientation = detectOrientation();
     const splashFile  = orientation === 'vertical'
@@ -331,35 +555,46 @@ function showSplash() {
 
     if (!fs.existsSync(splashFile)) return resolve();
 
-    console.log(`🎨 Splash de arranque ${orientation}...`);
-    const cmd = buildMpvCmd(splashFile, ['--image-display-duration=3']);
+    console.log(`🎨 Splash de arranque ${orientation} (${ports.length || 1} pantalla(s))...`);
+
+    // Lanzar un mpv por port para cubrir todos los outputs
+    const targets = ports.length > 0 ? ports : [null];
+    const children = targets.map(port => {
+      const cmd = buildMpvCmd(splashFile, ['--image-display-duration=3'], port);
+      return exec(cmd, { windowsHide: IS_WINDOWS });
+    });
 
     let resolved = false;
-    const done = () => { if (!resolved) { resolved = true; resolve(); } };
-    const child = exec(cmd, { windowsHide: IS_WINDOWS }, () => done());
-    const killTimer = setTimeout(() => {
-      try { child.kill(); } catch(e) {}
-      setTimeout(done, 200);
-    }, 4000);
-    child.on('exit', () => { clearTimeout(killTimer); done(); });
+    const done = () => {
+      if (!resolved) {
+        resolved = true;
+        children.forEach(c => { try { c.kill(); } catch(e) {} });
+        resolve();
+      }
+    };
+    // Resolver cuando el primer mpv termina (o tras 4s)
+    children[0]?.on('exit', done);
+    setTimeout(done, 4000);
   });
 }
 
 // ── REPRODUCIR VIDEO ─────────────────────────────────────────
-function playVideo(filePath) {
+function playVideo(filePath, screenTarget = null) {
   return new Promise((resolve) => {
-    console.log(`🎬 Video: ${path.basename(filePath)}`);
-    const cmd = buildMpvCmd(filePath);
+    const label = screenTarget ? ` [${screenTarget.port || screenTarget}]` : '';
+    console.log(`🎬 Video: ${path.basename(filePath)}${label}`);
+    const cmd = buildMpvCmd(filePath, [], screenTarget);
     exec(cmd, { windowsHide: IS_WINDOWS }, () => resolve());
   });
 }
 
 // ── MOSTRAR IMAGEN ───────────────────────────────────────────
-function showImage(filePath, durationMs) {
+function showImage(filePath, durationMs, screenTarget = null) {
   return new Promise((resolve) => {
     const seconds = Math.ceil(durationMs / 1000);
-    console.log(`🖼️  Imagen: ${path.basename(filePath)} (${seconds}s)`);
-    const cmd = buildMpvCmd(filePath, [`--image-display-duration=${seconds}`]);
+    const label = screenTarget ? ` [${screenTarget.port || screenTarget}]` : '';
+    console.log(`🖼️  Imagen: ${path.basename(filePath)} (${seconds}s)${label}`);
+    const cmd = buildMpvCmd(filePath, [`--image-display-duration=${seconds}`], screenTarget);
 
     let resolved = false;
     const done = () => { if (!resolved) { resolved = true; resolve(); } };
@@ -373,15 +608,19 @@ function showImage(filePath, durationMs) {
 }
 
 // ── LOOP DE REPRODUCCIÓN ─────────────────────────────────────
-async function playbackLoop(playlist, stopFlag) {
+// screenTarget: objeto de puerto { port, x, y } o null (canvas completo)
+// updateState: si true actualiza currentState (solo el loop primario debe hacerlo)
+async function playbackLoop(playlist, stopFlag, screenTarget = null, updateState = true) {
   let items = [...playlist.items];
-  console.log(`▶️  Loop iniciado: ${playlist.name} (${items.length} items)`);
+  const label = screenTarget ? (screenTarget.port || screenTarget) : 'all';
+  console.log(`▶️  Loop iniciado: ${playlist.name} (${items.length} items) [${label}]`);
 
-  // Actualizar estado global con info de la playlist
-  currentState.current_playlist = { id: playlist.id, name: playlist.name };
-  currentState.item_total = items.length;
-  currentState.status = 'playing';
-  reportState();
+  if (updateState) {
+    currentState.current_playlist = { id: playlist.id, name: playlist.name };
+    currentState.item_total = items.length;
+    currentState.status = 'playing';
+    reportState();
+  }
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -407,8 +646,8 @@ async function playbackLoop(playlist, stopFlag) {
       currentState.item_index = idx + 1;
       reportState();
 
-      if (item.type === 'video')      await playVideo(item.local_path);
-      else if (item.type === 'image') await showImage(item.local_path, item.duration_ms || IMAGE_DURATION);
+      if (item.type === 'video')      await playVideo(item.local_path, screenTarget);
+      else if (item.type === 'image') await showImage(item.local_path, item.duration_ms || IMAGE_DURATION, screenTarget);
       idx++;
     }
     if (!playlist.repeat_enabled) break;
@@ -488,7 +727,10 @@ async function checkQueueLicense() {
   try {
     const res = await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/license`, { timeout: 5000 });
     const data = res.data;
-    hasQueueLicense = data.active && (data.license_type === 'cms_queue' || data.license_type === 'queue');
+    // Verificar por features.turnos (nuevo) o por license_type (legacy)
+    const byFeature = data.features?.turnos === true;
+    const byLicense = data.active && (data.license_type === 'cms_queue' || data.license_type === 'queue' || data.license_type === 'windows');
+    hasQueueLicense = byFeature || byLicense;
     console.log(`🎟️  Licencia de turnos: ${hasQueueLicense ? 'ACTIVA' : 'no incluida'}`);
   } catch (err) {
     console.warn('⚠️ No se pudo verificar licencia de turnos:', err.message);
@@ -533,14 +775,79 @@ async function writeQueueToken(tokenData) {
   }
 }
 
+// ── TTS — PIPER NEURAL ────────────────────────────────────────
+// Construye el texto de la locución a partir del evento token_called.
+// Separa las letras del número con espacios para que el TTS las lea
+// individualmente (A-14 → "A - uno cuatro").
+function buildTtsText(data) {
+  const rawNum  = (data.token_number || '').toString();
+  // Insertar espacios entre cada carácter: "A-14" → "A - 1 4"
+  const spellNum = rawNum.split('').join(' ');
+  const svc = data.service_name  || '';
+  const ctr = data.counter_name  || '';
+  if (data.is_priority) {
+    return `Atención prioritaria. Turno ${spellNum}. ${svc}. Pase a ${ctr}.`;
+  }
+  return `Turno ${spellNum}. ${svc}. Pase a ${ctr}.`;
+}
+
+// Genera un archivo WAV con Piper (usa stdin para evitar inyección de shell).
+// Devuelve la ruta al archivo generado.
+function generatePiperAudio(text) {
+  return new Promise((resolve, reject) => {
+    const tmpFile = `/tmp/sonoro-tts-${Date.now()}.wav`;
+    const piper   = spawn(PIPER_BIN, [
+      '--model',       PIPER_MODEL,
+      '--output_file', tmpFile,
+    ]);
+    piper.stdin.write(text, 'utf8');
+    piper.stdin.end();
+    let errOut = '';
+    piper.stderr.on('data', d => { errOut += d; });
+    piper.on('close', code => {
+      if (code === 0) resolve(tmpFile);
+      else reject(new Error(`Piper exit ${code}: ${errOut.slice(0, 200)}`));
+    });
+    piper.on('error', err => reject(new Error(`Piper no disponible: ${err.message}`)));
+  });
+}
+
+// Punto de entrada: genera (o recupera del caché) el WAV y lo reproduce.
+// La reproducción es no bloqueante — el proceso principal continúa.
+async function speakTurno(data) {
+  if (IS_WINDOWS) return;   // TTS solo en RPi/Linux
+  const text = buildTtsText(data);
+  try {
+    let wavFile;
+    if (ttsCache.has(text)) {
+      wavFile = ttsCache.get(text);
+      console.log(`🔊 TTS (caché): ${data.token_number}`);
+    } else {
+      wavFile = await generatePiperAudio(text);
+      ttsCache.set(text, wavFile);
+      console.log(`🔊 TTS generado: ${data.token_number}`);
+      // Evitar crecimiento indefinido — eliminar la entrada más antigua
+      if (ttsCache.size > TTS_MAX) {
+        const oldKey  = ttsCache.keys().next().value;
+        const oldFile = ttsCache.get(oldKey);
+        ttsCache.delete(oldKey);
+        fs.unlink(oldFile, () => {});
+      }
+    }
+    // Reproducir con aplay sin invocar shell — no bloquea el event loop
+    spawn('aplay', ['-q', wavFile], { detached: true, stdio: 'ignore' }).unref();
+  } catch (e) {
+    console.warn('⚠️  TTS error:', e.message);
+  }
+}
+
 async function registerDevice() {
   try {
     const ip = getLocalIP();
     await axios.post(`${CMS_URL}/api/devices/register`, {
       device_id: DEVICE_ID,
       name: process.env.DEVICE_NAME || `SONORO Windows - ${DEVICE_ID}`,
-      ip_address: ip,
-      display_mode: DISPLAY_MODE
+      ip_address: ip
     });
     console.log(`✅ Dispositivo registrado: ${DEVICE_ID} (${ip})`);
   } catch(err) { console.error('❌ Error registrando:', err.message); }
@@ -649,8 +956,10 @@ function connectSocket() {
   listenLicenseUpdates(socket);
 
   // ── Turnos (módulo de atención) ──────────────────────────
+  // El visual lo maneja Chromium queue-display.html via su propio Socket.io.
+  // La RPi solo se encarga de la locución de voz.
   socket.on('token_called', (data) => {
-    if (hasQueueLicense) writeQueueToken(data);
+    if (hasQueueLicense) speakTurno(data);
   });
 
   // ── Actualización de config desde dashboard ──────────────
@@ -673,9 +982,9 @@ function connectSocket() {
     reportState(socket);
     killPlayers();
     if (currentConfig) {
-      // Limpiar cache para forzar descarga nueva
-      const playlistId = currentConfig.hdmi0_playlist_id || currentConfig.hdmi1_playlist_id;
-      if (playlistId) {
+      // Limpiar cache de ambas playlists para forzar descarga nueva
+      const ids = [currentConfig.hdmi0_playlist_id, currentConfig.hdmi1_playlist_id].filter(Boolean);
+      for (const playlistId of ids) {
         const cacheDir = path.join(MEDIA_DIR, `playlist_${playlistId}`);
         if (fs.existsSync(cacheDir)) {
           try { fs.rmSync(cacheDir, { recursive: true, force: true }); } catch(e) {}
@@ -808,6 +1117,25 @@ function connectSocket() {
     }
   });
 
+  // 11. Control CEC — TV1, TV2 o ambos
+  // target: 'tv1' (cec0) | 'tv2' (cec1) | 'all' (ambos, default)
+  socket.on('tv_request', ({ device_id, action, target }) => {
+    if (IS_WINDOWS) return;
+    const TV_SCRIPT   = '/home/sonoro/tv-ctl/tv-ctl.sh';
+    const VALID_ACT   = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
+    const VALID_TGT   = ['tv1','tv2','all'];
+    if (!VALID_ACT.includes(action)) return;
+    const t = VALID_TGT.includes(target) ? target : 'all';
+    console.log(`📺 TV ${action} → ${t}`);
+    exec(`${TV_SCRIPT} ${t} ${action}`, (err, stdout) => {
+      const output = (stdout || '').trim();
+      const error  = err ? err.message : null;
+      console.log(`📺 TV resultado (${t}):`, output || error);
+      axios.post(`${CMS_URL}/api/devices/${device_id}/tv-result`, { action, target: t, output, error })
+        .catch(e => console.error('📺 TV result error:', e.message));
+    });
+  });
+
   return socket;
 }
 
@@ -821,39 +1149,170 @@ function startHeartbeat() {
   }, 30000);
 }
 
+// ── LANZAR CHROMIUM QUEUE DISPLAY ───────────────────────────
+// En X11 se usa --window-position=X,Y para posicionar cada instancia
+// en las coordenadas absolutas del output objetivo. --kiosk fullscreeniza
+// en el monitor que contiene ese punto — comportamiento determinista.
+// Se lanza una instancia por cada output conectado con user-data-dir separado.
+function launchQueueDisplay(branchId, ports) {
+  if (IS_WINDOWS || !branchId || !ports?.length) return;
+  const url = `${CMS_URL}/queue-display.html?device=${DEVICE_ID}&branch=${branchId}`;
+  ports.forEach((port, idx) => {
+    const w = port.w || 1920;
+    const h = port.h || 1080;
+    const x = port.x || 0;
+    const y = port.y || 0;
+    const userDataDir = `/tmp/chromium-sonoro-queue-${idx}`;
+    // Escribir preferencias antes de lanzar para deshabilitar traducción y popups
+    try {
+      const prefDir = `${userDataDir}/Default`;
+      fs.mkdirSync(prefDir, { recursive: true });
+      fs.writeFileSync(`${prefDir}/Preferences`, JSON.stringify({
+        translate: { enabled: false },
+        browser: { show_home_button: false, translate_enabled: false },
+        translate_whitelists: {},
+        net: { network_prediction_options: 2 },
+      }));
+    } catch(e) {}
+    const proc = exec([
+      DISPLAY_ENV,
+      'chromium',
+      '--kiosk',
+      '--no-sandbox',
+      '--disable-infobars',
+      '--disable-session-crashed-bubble',
+      '--noerrdialogs',
+      '--disable-features=TranslateUI,Translate',
+      '--disable-translate',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-gpu-rasterization',
+      '--lang=es-CO',
+      '--no-first-run',
+      '--no-default-browser-check',
+      `--window-position=${x},${y}`,
+      `--window-size=${w},${h}`,
+      `--user-data-dir=${userDataDir}`,
+      `"${url}"`
+    ].join(' '));
+    if (proc.pid) {
+      chromiumQueuePids.push(proc.pid);
+      console.log(`🌐 Queue Display [${port.port}] PID ${proc.pid} → pos ${x},${y} ${w}x${h}`);
+    }
+  });
+}
+
 // ── INICIAR PLAYER ───────────────────────────────────────────
 async function startPlayer(config) {
-  killPlayers();
-  await new Promise(r => setTimeout(r, 500));
-  await showSplash();
+  if (playerBusy) { console.log('⏭️  startPlayer ignorado — ya en ejecución'); return; }
+  playerBusy = true;
+  try {
+    killPlayers();
+    await new Promise(r => setTimeout(r, 500));
 
-  const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
-  if (!playlistId) {
-    console.warn('⚠️ Sin playlist asignada');
-    currentState.status = 'idle';
-    currentState.current_playlist = null;
-    currentState.current_item = null;
-    reportState();
-    showIdleSplash();
-    return;
+    // ── 1. Detectar pantallas conectadas ──────────────────────
+    const connectedPorts = IS_WINDOWS ? [] : await waitForDisplay();
+    const mode = config.display_mode || 'single';
+    const hasDualPorts = connectedPorts.length >= 2;
+    const port0 = connectedPorts[0] || { port: 'HDMI-A-1', x: 0,    y: 0, w: 1920, h: 1080 };
+    const port1 = connectedPorts[1] || { port: 'HDMI-A-2', x: 1920, y: 0, w: 1920, h: 1080 };
+
+    // ── 2. Configurar outputs xrandr ──────────────────────────
+    if (!IS_WINDOWS) {
+      const effectiveMode = hasDualPorts ? mode : 'single';
+      await configureOutputs(effectiveMode, connectedPorts, config);
+      await new Promise(r => setTimeout(r, 800));
+      // Re-leer posiciones DESPUÉS de xrandr — configureOutputs() las modifica
+      const refreshed = await getHdmiInfo();
+      if (refreshed.length > 0) {
+        connectedPorts.length = 0;
+        refreshed.forEach(p => connectedPorts.push(p));
+      }
+    }
+    const p0 = connectedPorts[0] || port0;
+    const p1 = connectedPorts[1] || port1;
+
+    await showSplash(connectedPorts);
+
+    // ── 3. COLA: toma ambas salidas SIEMPRE ───────────────────
+    // Si hay licencia de turnos activa, Chromium de queue display se lanza
+    // en TODOS los outputs conectados. El display es responsive (queue-display.html
+    // adapta su layout según el aspect ratio del viewport de cada instancia).
+    const branchId = config.branch_id;
+    if (hasQueueLicense && branchId) {
+      console.log(`🎟️  Modo queue activo → lanzando Chromium en ${connectedPorts.length} output(s)`);
+      launchQueueDisplay(branchId, connectedPorts.length ? connectedPorts : [p0]);
+      return;
+    }
+
+    // ── 4. Modos de reproducción de video (sin queue) ─────────
+    const effectiveMode = hasDualPorts ? mode : 'single';
+
+    // tile-h / tile-v / videowall — mpv en canvas extendido, sin geometría fija
+    if (effectiveMode === 'tile-h' || effectiveMode === 'tile-v' || effectiveMode === 'videowall') {
+      const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
+      const playlist   = playlistId ? await syncPlaylist(playlistId) : null;
+      if (!playlist?.items.length) {
+        console.warn('⚠️ Sin contenido para modo tile/videowall');
+        currentState.status = 'idle'; reportState(); showIdleSplash(); return;
+      }
+      stopPlayback0 = false;
+      playbackLoop(playlist, () => stopPlayback0, null, true); // null → canvas completo
+      return;
+    }
+
+    // mirror — dos mpv independientes, misma playlist
+    if (effectiveMode === 'mirror' && hasDualPorts) {
+      const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
+      const playlist   = playlistId ? await syncPlaylist(playlistId) : null;
+      if (!playlist?.items.length) {
+        console.warn('⚠️ Sin contenido para modo mirror');
+        currentState.status = 'idle'; reportState(); showIdleSplash(); return;
+      }
+      stopPlayback0 = false;
+      stopPlayback1 = false;
+      playbackLoop(playlist, () => stopPlayback0, p0, true);   // primario: actualiza estado
+      playbackLoop(playlist, () => stopPlayback1, p1, false);  // espejo: silencioso
+      return;
+    }
+
+    // independent — playlist distinta por salida
+    if (effectiveMode === 'independent' && hasDualPorts) {
+      const [pl0, pl1] = await Promise.all([
+        config.hdmi0_playlist_id ? syncPlaylist(config.hdmi0_playlist_id) : Promise.resolve(null),
+        config.hdmi1_playlist_id ? syncPlaylist(config.hdmi1_playlist_id) : Promise.resolve(null),
+      ]);
+      if (!pl0 && !pl1) {
+        console.warn('⚠️ Sin playlists para modo independent');
+        currentState.status = 'idle'; reportState(); showIdleSplash(); return;
+      }
+      stopPlayback0 = false;
+      stopPlayback1 = false;
+      if (pl0) playbackLoop(pl0, () => stopPlayback0, p0, true);
+      else console.warn(`⚠️ Sin playlist para ${p0.port}`);
+      if (pl1) playbackLoop(pl1, () => stopPlayback1, p1, false);
+      else console.warn(`⚠️ Sin playlist para ${p1.port}`);
+      return;
+    }
+
+    // single (o fallback) — mpv en port0
+    const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
+    const playlist   = playlistId ? await syncPlaylist(playlistId) : null;
+    if (!playlist?.items.length) {
+      console.warn('⚠️ Sin contenido');
+      currentState.status = 'idle'; reportState(); showIdleSplash(); return;
+    }
+    stopPlayback0 = false;
+    playbackLoop(playlist, () => stopPlayback0, p0, true);
+
+  } finally {
+    playerBusy = false;
   }
-
-  const localPlaylist = await syncPlaylist(playlistId);
-  if (!localPlaylist || !localPlaylist.items.length) {
-    console.warn('⚠️ Sin contenido');
-    currentState.status = 'idle';
-    reportState();
-    showIdleSplash();
-    return;
-  }
-
-  stopPlayback0 = false;
-  playbackLoop(localPlaylist, () => stopPlayback0);
 }
 
 // ── MAIN ─────────────────────────────────────────────────────
 async function main() {
-  console.log('\n🎬 SONORO AV Player v3.2 — Windows Edition');
+  console.log('\n🎬 SONORO AV Player v4.1 — X11/Openbox Edition');
   console.log(`📡 CMS: ${CMS_URL}`);
   console.log(`🖥️  Device: ${DEVICE_ID}`);
   console.log(`💻 Plataforma: ${IS_WINDOWS ? 'Windows' : 'Linux'}\n`);
@@ -918,6 +1377,7 @@ async function main() {
 
   startHeartbeat();
   hideCursor();
+  watchHdmiHotplug();  // observar reconexiones HDMI en caliente
 
   if (currentConfig) {
     await startPlayer(currentConfig);
