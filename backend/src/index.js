@@ -182,6 +182,11 @@ pool.query('SELECT 1')
       ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
   `))
   .then(() => pool.query(`
+    ALTER TABLE devices
+      ADD COLUMN IF NOT EXISTS queue_enabled  BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS queue_output   VARCHAR(20) DEFAULT 'all'
+  `))
+  .then(() => pool.query(`
     ALTER TABLE branches
       ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
   `))
@@ -1517,7 +1522,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     const { name, display_mode, hdmi0_playlist_id, hdmi1_playlist_id,
             orientation_hdmi0, orientation_hdmi1,
             videowall_position, videowall_cols, videowall_rows,
-            branch_id } = req.body;
+            branch_id, queue_enabled, queue_output } = req.body;
 
     // Validar licencia para modos premium
     if (['dual', 'videowall'].includes(display_mode) && !req.user.features?.dual_hdmi) {
@@ -1539,12 +1544,16 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
          videowall_rows = $9,
          branch_id = COALESCE($10, branch_id),
          updated_at = CURRENT_TIMESTAMP
-       WHERE device_id = $11
+         queue_enabled = COALESCE($11, queue_enabled),
+         queue_output = COALESCE($12, queue_output)
+       WHERE device_id = $13
        RETURNING *`,
       [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
        orientation_hdmi0, orientation_hdmi1,
        videowall_position || null, videowall_cols || null, videowall_rows || null,
        branch_id || null,
+       queue_enabled !== undefined ? queue_enabled : null,
+       queue_output || null,
        device_id]
     );
 

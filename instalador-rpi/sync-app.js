@@ -1234,14 +1234,40 @@ async function startPlayer(config) {
 
     await showSplash(connectedPorts);
 
-    // ── 3. COLA: toma ambas salidas SIEMPRE ───────────────────
-    // Si hay licencia de turnos activa, Chromium de queue display se lanza
-    // en TODOS los outputs conectados. El display es responsive (queue-display.html
-    // adapta su layout según el aspect ratio del viewport de cada instancia).
-    const branchId = config.branch_id;
-    if (hasQueueLicense && branchId) {
-      console.log(`🎟️  Modo queue activo → lanzando Chromium en ${connectedPorts.length} output(s)`);
-      launchQueueDisplay(branchId, connectedPorts.length ? connectedPorts : [p0]);
+    // ── 3. COLA ────────────────────────────────────────────────
+    // queue_enabled: habilita/deshabilita por dispositivo (default true)
+    // queue_output:  'all' → todos los outputs | 'hdmi0' → solo port0 | 'hdmi1' → solo port1
+    const branchId    = config.branch_id;
+    const queueEnabled = config.queue_enabled !== false; // default true
+    const queueOutput  = config.queue_output || 'all';
+
+    if (hasQueueLicense && branchId && queueEnabled) {
+      // Seleccionar outputs según queue_output
+      let queuePorts = connectedPorts.length ? connectedPorts : [p0];
+      if (queueOutput === 'hdmi0') {
+        queuePorts = [p0];
+      } else if (queueOutput === 'hdmi1') {
+        queuePorts = hasDualPorts ? [p1] : [p0]; // si no hay p1, usar p0
+      }
+      console.log(`🎟️  Modo queue activo → lanzando Chromium en ${queuePorts.length} output(s) [queue_output=${queueOutput}]`);
+      launchQueueDisplay(branchId, queuePorts);
+
+      // Si queue solo en un output y hay otro disponible → playlist en el segundo
+      if (queueOutput === 'hdmi0' && hasDualPorts) {
+        const playlistId = config.hdmi1_playlist_id || config.hdmi0_playlist_id;
+        const playlist   = playlistId ? await syncPlaylist(playlistId) : null;
+        if (playlist?.items.length) {
+          stopPlayback1 = false;
+          playbackLoop(playlist, () => stopPlayback1, p1);
+        }
+      } else if (queueOutput === 'hdmi1' && hasDualPorts) {
+        const playlistId = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
+        const playlist   = playlistId ? await syncPlaylist(playlistId) : null;
+        if (playlist?.items.length) {
+          stopPlayback0 = false;
+          playbackLoop(playlist, () => stopPlayback0, p0);
+        }
+      }
       return;
     }
 
