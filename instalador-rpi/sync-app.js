@@ -1136,22 +1136,26 @@ function connectSocket() {
     });
   });
 
-  // 12. Screenshot — X11: usa scrot, sube via curl multipart
-  socket.on('screenshot_request', ({ device_id, filename }) => {
+  // 12. Screenshot — X11: scrot → base64 → screenshot_result socket event
+  socket.on('screenshot_request', ({ device_id }) => {
     if (IS_WINDOWS) return;
-    const tmpPath = `/tmp/${filename || `screenshot-${DEVICE_ID}-${Date.now()}.png`}`;
+    const tmpPath = `/tmp/screenshot-${DEVICE_ID}-${Date.now()}.png`;
     console.log(`📸 Screenshot solicitado → ${tmpPath}`);
     exec(`${DISPLAY_ENV} scrot ${tmpPath}`, (err) => {
       if (err) {
         console.error('❌ Screenshot error (scrot):', err.message);
+        socket.emit('screenshot_result', { device_id, success: false, error: err.message });
         return;
       }
-      const uploadUrl = `${CMS_URL}/api/devices/${device_id}/screenshot-upload`;
-      exec(`curl -s -X POST -F "screenshot=@${tmpPath}" "${uploadUrl}"`, (err2, stdout2) => {
-        if (err2) console.error('❌ Screenshot upload error:', err2.message);
-        else console.log('📸 Screenshot subido:', stdout2.trim());
+      try {
+        const image = fs.readFileSync(tmpPath).toString('base64');
+        socket.emit('screenshot_result', { device_id, success: true, image });
+        console.log(`📸 Screenshot enviado (${Math.round(image.length / 1024)}KB base64)`);
+      } catch(e) {
+        socket.emit('screenshot_result', { device_id, success: false, error: e.message });
+      } finally {
         try { fs.unlinkSync(tmpPath); } catch(e) {}
-      });
+      }
     });
   });
 
