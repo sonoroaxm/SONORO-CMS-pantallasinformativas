@@ -1136,6 +1136,25 @@ function connectSocket() {
     });
   });
 
+  // 12. Screenshot — X11: usa scrot, sube via curl multipart
+  socket.on('screenshot_request', ({ device_id, filename }) => {
+    if (IS_WINDOWS) return;
+    const tmpPath = `/tmp/${filename || `screenshot-${DEVICE_ID}-${Date.now()}.png`}`;
+    console.log(`📸 Screenshot solicitado → ${tmpPath}`);
+    exec(`${DISPLAY_ENV} scrot ${tmpPath}`, (err) => {
+      if (err) {
+        console.error('❌ Screenshot error (scrot):', err.message);
+        return;
+      }
+      const uploadUrl = `${CMS_URL}/api/devices/${device_id}/screenshot-upload`;
+      exec(`curl -s -X POST -F "screenshot=@${tmpPath}" "${uploadUrl}"`, (err2, stdout2) => {
+        if (err2) console.error('❌ Screenshot upload error:', err2.message);
+        else console.log('📸 Screenshot subido:', stdout2.trim());
+        try { fs.unlinkSync(tmpPath); } catch(e) {}
+      });
+    });
+  });
+
   return socket;
 }
 

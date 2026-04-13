@@ -821,7 +821,7 @@ app.put('/api/playlists/:playlistId', authenticateToken, async (req, res) => {
            shuffle_enabled = COALESCE($3, shuffle_enabled),
            repeat_enabled = COALESCE($4, repeat_enabled),
            orientation = COALESCE($5, orientation),
-           updated_at = CURRENT_TIMESTAMP
+           updated_at = CURRENT_TIMESTAMP,
        WHERE id = $6 AND user_id = $7
        RETURNING *`,
       [name, description, shuffle_enabled, repeat_enabled, orientation, playlistId, userId]
@@ -1543,7 +1543,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
          videowall_cols = $8,
          videowall_rows = $9,
          branch_id = COALESCE($10, branch_id),
-         updated_at = CURRENT_TIMESTAMP
+         updated_at = CURRENT_TIMESTAMP,
          queue_enabled = COALESCE($11, queue_enabled),
          queue_output = COALESCE($12, queue_output)
        WHERE device_id = $13
@@ -1568,6 +1568,25 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     console.log(`✅ Dispositivo actualizado: ${device_id}`);
   } catch (err) {
     console.error('❌ Error actualizando dispositivo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE - Eliminar dispositivo
+app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
+  try {
+    const { device_id } = req.params;
+    const result = await pool.query(
+      'DELETE FROM devices WHERE device_id = $1 AND user_id = $2 RETURNING device_id, name',
+      [device_id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Dispositivo no encontrado o sin permiso' });
+    }
+    console.log(`❌ Dispositivo eliminado: ${device_id} por user ${req.user.id}`);
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (err) {
+    console.error('❌ Error eliminando dispositivo:', err);
     res.status(500).json({ error: err.message });
   }
 });
