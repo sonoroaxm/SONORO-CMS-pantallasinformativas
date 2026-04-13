@@ -292,7 +292,8 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   console.log(`📐 Dimensiones: ${width}x${height} → modo ${isVertical ? 'VERTICAL' : 'HORIZONTAL'}`);
 
   return new Promise((resolve, reject) => {
-    const ffmpegCmd = `C:\\ffmpeg\\bin\\ffmpeg.exe -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
+    const ffmpegBin = process.platform === 'win32' ? 'C:\\ffmpeg\\bin\\ffmpeg.exe' : 'ffmpeg';
+    const ffmpegCmd = `${ffmpegBin} -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
 
     const child = exec(ffmpegCmd, { windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
