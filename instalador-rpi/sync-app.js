@@ -1217,6 +1217,8 @@ function launchQueueDisplay(branchId, ports) {
       `--window-position=${x},${y}`,
       `--window-size=${w},${h}`,
       `--user-data-dir=${userDataDir}`,
+      `--disk-cache-dir=/tmp/chromium-cache-${idx}`,  // cache en tmpfs, no escribe a SD
+      `--disk-cache-size=52428800`,                    // límite 50MB por instancia
       `"${url}"`
     ].join(' '));
     if (proc.pid) {
