@@ -514,6 +514,7 @@ function buildMpvCmd(filePath, extraArgs = [], screenTarget = null, useLua = fal
     const allArgs = [
       ...baseArgs,
       '--vo=gpu',
+      '--gpu-api=opengl',   // fuerza V3D (Broadcom) en RPi4, evita llvmpipe vía Vulkan/libplacebo
       ...geomArgs,
       '--hwdec=v4l2m2m-copy',
       '--profile=fast',
