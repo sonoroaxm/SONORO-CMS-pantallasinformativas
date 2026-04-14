@@ -35,6 +35,55 @@ const LUA_SCRIPT     = process.platform === 'win32'
 const DISPLAY_ENV    = 'DISPLAY=:0 XAUTHORITY=/home/sonoro/.Xauthority';
 const HOTPLUG_FILE   = '/home/sonoro/.sonoro-hotplug';
 
+// ── OVERLAYFS PERSISTENCE (B2) ───────────────────────────────
+// Cuando OverlayFS está activo, /home/sonoro/media/ vive en tmpfs (se borra al apagar).
+// Para persistir media entre reboots, copiamos al lower layer real del SD:
+//   /media/root-ro/home/sonoro/media/  ← físico, sobrevive reboots
+// Requiere wrapper scripts con sudo NOPASSWD en /usr/local/bin/sonoro-sd-{rw,ro}
+const SD_LOWER = '/media/root-ro';
+
+function isOverlayActive() {
+  if (IS_WINDOWS) return false;
+  try {
+    return fs.readFileSync('/proc/mounts', 'utf8').includes('/media/root-ro');
+  } catch { return false; }
+}
+
+function persistDirToSD(localDir) {
+  // localDir: ruta absoluta en overlay (ej. /home/sonoro/media/playlist_5)
+  // Copia archivos nuevos/modificados al lower layer del SD
+  if (!isOverlayActive()) return;
+  // path.join descarta el prefijo si localDir es absoluto → usar concatenación directa
+  const sdDir = SD_LOWER + localDir;
+  try {
+    execSync('sudo /usr/local/bin/sonoro-sd-rw', { stdio: 'pipe' });
+    execSync(`mkdir -p "${sdDir}"`, { stdio: 'pipe' });
+    execSync(`cp -u "${localDir}"/* "${sdDir}/" 2>/dev/null; true`, { shell: true, stdio: 'pipe' });
+    console.log(`💾 Persistido al SD: ${path.basename(localDir)}`);
+  } catch(e) {
+    console.error(`⚠️ persistDirToSD error: ${e.message}`);
+  } finally {
+    try { execSync('sudo /usr/local/bin/sonoro-sd-ro', { stdio: 'pipe' }); } catch {}
+  }
+}
+
+function persistFileToSD(localFile) {
+  // localFile: ruta absoluta en overlay (ej. /home/sonoro/media/last_config.json)
+  if (!isOverlayActive()) return;
+  const sdFile = SD_LOWER + localFile;  // concatenación directa: path.join descarta base con rutas absolutas
+  const sdDir  = path.dirname(sdFile);
+  try {
+    execSync('sudo /usr/local/bin/sonoro-sd-rw', { stdio: 'pipe' });
+    execSync(`mkdir -p "${sdDir}"`, { stdio: 'pipe' });
+    execSync(`cp "${localFile}" "${sdFile}"`, { stdio: 'pipe' });
+  } catch(e) {
+    console.error(`⚠️ persistFileToSD error: ${e.message}`);
+  } finally {
+    try { execSync('sudo /usr/local/bin/sonoro-sd-ro', { stdio: 'pipe' }); } catch {}
+  }
+}
+
+
 // ── TTS — Piper Neural (offline, ARM64) ──────────────────────
 const PIPER_BIN   = '/usr/local/bin/piper';
 const PIPER_MODEL = '/home/sonoro/piper/es_MX-claude-high.onnx';
@@ -678,7 +727,11 @@ function loadCachedConfig() {
 }
 
 function saveConfigCache(config) {
-  try { fs.writeFileSync(path.join(MEDIA_DIR, 'last_config.json'), JSON.stringify(config, null, 2)); } catch(e) {}
+  try {
+    const configPath = path.join(MEDIA_DIR, 'last_config.json');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    persistFileToSD(configPath);  // B2: persiste config al SD para offline boot
+  } catch(e) {}
 }
 
 // ── SINCRONIZAR PLAYLIST ─────────────────────────────────────
@@ -715,6 +768,7 @@ async function syncPlaylist(playlistId) {
     }
     const localPlaylist = { ...playlist, items: localItems, synced_at: new Date().toISOString() };
     fs.writeFileSync(path.join(playlistDir, 'playlist.json'), JSON.stringify(localPlaylist, null, 2));
+    persistDirToSD(playlistDir);  // B2: replica al lower layer del SD para sobrevivir reboots
     console.log(`✅ Playlist lista: ${playlist.name} (${localItems.length} items)`);
     return localPlaylist;
   } catch(err) {

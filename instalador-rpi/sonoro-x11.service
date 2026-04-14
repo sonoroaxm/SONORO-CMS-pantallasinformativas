@@ -1,7 +1,7 @@
 [Unit]
 Description=SONORO AV — X11 Display Session
-After=systemd-udev-settle.service
-Wants=systemd-udev-settle.service
+After=systemd-logind.service systemd-udev-settle.service
+Wants=systemd-logind.service
 
 [Service]
 # IMPORTANTE: User=root requerido — Xorg sin logind seat no puede acceder a /dev/tty* y /dev/dri/
@@ -14,7 +14,8 @@ Environment=USER=sonoro
 Environment=XDG_RUNTIME_DIR=/run/user/1000
 Environment=XDG_SESSION_TYPE=x11
 ExecStartPre=/bin/rm -f /tmp/sonoro-x11-ready
-ExecStart=/usr/bin/xinit /home/sonoro/sonoro-player/xinitrc.sh -- /usr/bin/X :0 vt1
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/xinit /home/sonoro/sonoro-player/xinitrc.sh -- /usr/bin/X :0 vt7
 ExecStopPost=/bin/rm -f /tmp/sonoro-x11-ready
 Restart=always
 RestartSec=5
