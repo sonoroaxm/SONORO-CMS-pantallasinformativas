@@ -79,6 +79,30 @@
       font-weight: 700; cursor: pointer; transition: opacity 0.2s;
     }
     .btn-filter:hover { opacity: 0.9; }
+    .btn-export {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text);
+      font-family: 'Montserrat', sans-serif; font-size: 12px;
+      font-weight: 700; cursor: pointer; transition: background 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-export:hover { background: var(--surface2); }
+    .export-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+    @media print {
+      .topbar, .filters-bar, .btn-export, .export-sep { display: none !important; }
+      body { background: #fff; }
+      .content { padding: 0; max-width: 100%; }
+      .kpi-card, .chart-card, .table-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+      .kpi-grid { grid-template-columns: repeat(5, 1fr); }
+      canvas { max-height: 200px !important; }
+      .print-header { display: block !important; }
+    }
+    .print-header {
+      display: none;
+      font-size: 14px; font-weight: 700; margin-bottom: 16px; padding: 12px 0;
+      border-bottom: 2px solid #000;
+    }
 
     /* ── CONTENIDO ── */
     .content { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
@@ -204,6 +228,15 @@
   <span style="font-size:12px;color:var(--muted);">hasta</span>
   <input type="date" class="filter-input" id="dateTo">
   <button class="btn-filter" onclick="loadReport()">Actualizar</button>
+  <div class="export-sep"></div>
+  <button class="btn-export" onclick="exportCSV()" title="Descargar Excel/CSV">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9,15 12,18 15,15"/></svg>
+    Excel
+  </button>
+  <button class="btn-export" onclick="exportPDF()" title="Descargar PDF">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    PDF
+  </button>
 </div>
 
 <!-- CONTENIDO -->
@@ -298,12 +331,15 @@ let hourlyChart   = null;
 let servicesChart = null;
 let ratingsChart  = null;
 
+// Datos en memoria para export
+let exportData = { agents: [], services: [], kpis: {}, from: '', to: '', branch: '' };
+
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
   if (!authToken) { window.location.href = '/dashboard.html'; return; }
 
   // Fechas por defecto: hoy
-  const today = new Date().toISOString().split('T')[0];
+  const d = new Date(); const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   document.getElementById('dateFrom').value = today;
   document.getElementById('dateTo').value   = today;
 
@@ -362,7 +398,7 @@ async function loadKPIs(branchId, from, to) {
     const services = await servicesRes.json();
 
     // Agregar totales
-    const totalAttended = agents.reduce((s, a) => s + parseInt(a.tokens_attended || 0), 0);
+    const totalAttended = services.reduce((s, sv) => s + parseInt(sv.attended || 0), 0);
     const totalNoShow   = agents.reduce((s, a) => s + parseInt(a.tokens_no_show   || 0), 0);
     const avgWait       = services.length ? services.reduce((s, sv) => s + parseFloat(sv.avg_wait || 0), 0) / services.filter(s => s.avg_wait).length : 0;
     const avgAttention  = agents.filter(a => a.avg_attention_min).length
@@ -476,6 +512,10 @@ async function loadAgentsTable(branchId, from, to) {
   try {
     const res    = await fetch(`${API_URL}/api/queue/reports/agents?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const agents = await res.json();
+    exportData.agents = agents;
+    exportData.from   = from;
+    exportData.to     = to;
+    exportData.branch = document.getElementById('branchFilter').selectedOptions[0]?.textContent || '';
 
     if (!agents.length) { container.innerHTML = '<div class="empty-state">Sin datos de agentes en este período</div>'; return; }
 
@@ -535,6 +575,7 @@ async function loadServicesTable(branchId, from, to) {
   try {
     const res      = await fetch(`${API_URL}/api/queue/reports/services?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const services = await res.json();
+    exportData.services = services;
 
     if (!services.length) { container.innerHTML = '<div class="empty-state">Sin datos de servicios en este período</div>'; return; }
 
@@ -589,7 +630,81 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// ── EXPORT CSV (Excel) ─────────────────────────────────────────
+function exportCSV() {
+  const { agents, services, from, to, branch } = exportData;
+  const period = from === to ? formatDate(from) : `${formatDate(from)} — ${formatDate(to)}`;
+  const rows   = [];
+
+  rows.push(['SONORO CMS — Reporte de Atención al Usuario']);
+  rows.push([`Sucursal: ${branch}`, `Período: ${period}`]);
+  rows.push([]);
+
+  // Agentes
+  rows.push(['DESEMPEÑO POR AGENTE']);
+  rows.push(['Agente','Atendidos','No presentados','Tiempo prom. (min)','Espera prom. (min)','Calificación','Horas trabajadas']);
+  agents.forEach(a => {
+    rows.push([
+      a.name,
+      a.tokens_attended  || 0,
+      a.tokens_no_show   || 0,
+      a.avg_attention_min ? Math.round(a.avg_attention_min) : '',
+      a.avg_wait_min      ? Math.round(a.avg_wait_min)      : '',
+      a.avg_rating        ? parseFloat(a.avg_rating).toFixed(1) : '',
+      a.total_hours       ? parseFloat(a.total_hours).toFixed(1) : '',
+    ]);
+  });
+  rows.push([]);
+
+  // Servicios
+  rows.push(['DETALLE POR SERVICIO']);
+  rows.push(['Servicio','Total turnos','Atendidos','No presentados','En espera ahora','Espera prom. (min)','Atención prom. (min)','Calificación']);
+  services.forEach(s => {
+    rows.push([
+      `${s.prefix} ${s.name}`,
+      s.total_tokens  || 0,
+      s.attended      || 0,
+      s.no_show       || 0,
+      s.still_waiting || 0,
+      s.avg_wait      ? Math.round(s.avg_wait)      : '',
+      s.avg_attention ? Math.round(s.avg_attention) : '',
+      s.avg_rating    ? parseFloat(s.avg_rating).toFixed(1) : '',
+    ]);
+  });
+
+  const csv    = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob   = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url    = URL.createObjectURL(blob);
+  const link   = document.createElement('a');
+  const fname  = `reporte_puntos_de_atencion_${from}_${to}.csv`;
+  link.href    = url;
+  link.download = fname;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── EXPORT PDF (print) ─────────────────────────────────────────
+function exportPDF() {
+  const { from, to, branch } = exportData;
+  const period = from === to ? formatDate(from) : `${formatDate(from)} — ${formatDate(to)}`;
+  // Insertar header de impresión temporal
+  const hdr = document.createElement('div');
+  hdr.className = 'print-header';
+  hdr.innerHTML = `SONORO CMS — Reporte de Atención al Usuario &nbsp;|&nbsp; ${branch} &nbsp;|&nbsp; ${period}`;
+  document.querySelector('.content').prepend(hdr);
+  window.print();
+  hdr.remove();
+}
+
 init();
+
+// Auto-refresh cada 30 segundos cuando la fecha es hoy
+setInterval(() => {
+  const d = new Date(); const today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const from  = document.getElementById('dateFrom').value;
+  const to    = document.getElementById('dateTo').value;
+  if (from === today && to === today) loadReport();
+}, 30000);
 </script>
 </body>
 </html>

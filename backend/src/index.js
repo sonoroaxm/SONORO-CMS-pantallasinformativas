@@ -74,7 +74,11 @@ app.use(fileUpload({
   abortOnLimit: true
 }));
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders: (res, fp) => {
+    if (fp.endsWith('.html')) res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+}));
 
 // ✅ Servir uploads con CORS correcto
 app.use('/uploads', express.static('uploads', {
@@ -2755,7 +2759,12 @@ app.get('/api/queue/public/branches/:branchId/counters', async (req, res) => {
       'SELECT id, name, display_name, rating_enabled FROM counters WHERE branch_id = $1 AND active = true ORDER BY name ASC',
       [req.params.branchId]
     );
-    res.json(result.rows);
+    const counters = result.rows;
+    for (const c of counters) {
+      const svcRes = await pool.query('SELECT service_id FROM counter_services WHERE counter_id = $1', [c.id]);
+      c.service_ids = svcRes.rows.map(r => r.service_id);
+    }
+    res.json(counters);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -3033,6 +3042,19 @@ app.post('/api/queue/agent/session/close', authenticateAgentOrUser, async (req, 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+
+
+
+
+// Verificar estado de sesión activa (restaurar sesión tras refresh)
+app.get('/api/queue/agent/session/:sessionId/status', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT active FROM agent_sessions WHERE id = $1', [req.params.sessionId]);
+    if (!result.rows.length) return res.json({ active: false });
+    res.json({ active: result.rows[0].active });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Iniciar / terminar pausa
 app.post('/api/queue/agent/break/start', authenticateAgentOrUser, async (req, res) => {
   try {
@@ -3124,11 +3146,14 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
        JOIN services s ON s.id = qt.service_id
        WHERE qt.branch_id = $1
          AND qt.status = 'waiting'
-         AND qt.service_id = ANY($2::uuid[])
          AND qt.date_key = CURRENT_DATE
+         AND (
+           (qt.service_id = ANY($2::uuid[]) AND (qt.counter_id IS NULL OR qt.counter_id = $3))
+           OR qt.counter_id = $3
+         )
        ORDER BY qt.is_priority DESC, qt.created_at ASC
        LIMIT 1`,
-      [branch_id, serviceIds]
+      [branch_id, serviceIds, counter_id]
     );
 
     if (!tokenResult.rows.length) return res.json({ success: true, token: null, message: 'No hay turnos en espera' });
@@ -3270,29 +3295,52 @@ app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (
     const { agent_id, session_id, branch_id, to_counter_id, to_service_id, note } = req.body;
     const current = await pool.query('SELECT * FROM queue_tokens WHERE id = $1', [req.params.tokenId]);
     if (!current.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
+    const orig = current.rows[0];
+    console.log('🔄 Transfer:', req.params.tokenId, '→ counter:', to_counter_id, 'service:', to_service_id);
 
+    // 1. Marcar ticket original como transferido (desaparece de todas las colas)
     await pool.query(
-      `UPDATE queue_tokens SET
-        status = 'waiting', counter_id = $1,
-        service_id = COALESCE($2, service_id),
-        agent_id = NULL, agent_session_id = NULL,
-        called_at = NULL, attended_at = NULL
-       WHERE id = $3`,
-      [to_counter_id || null, to_service_id || null, req.params.tokenId]
+      `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
+      [req.params.tokenId]
     );
+
+    // 2. Crear nuevo ticket para la ventanilla destino
+    const newToken = await pool.query(
+      `INSERT INTO queue_tokens
+         (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
+       VALUES ($1, $2, $3, $4, $5, 'waiting', $6, 'transfer', CURRENT_DATE)
+       RETURNING id`,
+      [orig.branch_id, to_service_id || orig.service_id, to_counter_id,
+       orig.token_number, orig.display_number, orig.is_priority || false]
+    );
+
+    // 3. Registrar evento
     await pool.query(
       `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
        VALUES ($1, 'transferred', $2, $3, $4, $5)`,
-      [req.params.tokenId, agent_id, current.rows[0].counter_id, to_counter_id, note]
+      [req.params.tokenId, agent_id, orig.counter_id, to_counter_id, note]
     );
+
+    // 4. Actualizar estadísticas de sesión
     await pool.query(
       `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
       [session_id]
     );
+
+    // 5. Emitir eventos — transferencia + nuevo turno en destino
     io.to(`branch_${branch_id}`).emit('token_transferred', {
       token_id: req.params.tokenId,
-      to_counter_id, to_service_id
+      new_token_id: newToken.rows[0].id,
+      from_counter_id: orig.counter_id,
+      to_counter_id,
+      to_service_id: to_service_id || orig.service_id
     });
+    io.to(`branch_${branch_id}`).emit('new_token', {
+      id: newToken.rows[0].id,
+      token_number: orig.token_number,
+      counter_id: to_counter_id
+    });
+
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -3681,6 +3729,13 @@ io.on('connection', (socket) => {
       socket.emit('stats-error', {
         error: error.message
       });
+    }
+  });
+
+  // Reenviar token_now_playing del RPi al display del branch
+  socket.on('token_now_playing', (data) => {
+    if (data && data.branch_id) {
+      io.to(`branch_${data.branch_id}`).emit('token_now_playing', data);
     }
   });
 

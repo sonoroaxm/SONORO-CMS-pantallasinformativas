@@ -489,16 +489,28 @@
 <script>
 const API_URL = window.location.origin;
 
-// ── JWT del agente (sessionStorage — se limpia al cerrar el tab)
-function getAgentToken() { return sessionStorage.getItem('agentToken'); }
-function setAgentToken(t) { sessionStorage.setItem('agentToken', t); }
-function clearAgentToken() { sessionStorage.removeItem('agentToken'); }
+// ── JWT + sesión del agente (localStorage — persiste en refresh)
+function getAgentToken()   { return localStorage.getItem('agentToken'); }
+function setAgentToken(t)  { localStorage.setItem('agentToken', t); }
+function clearAgentToken() { localStorage.removeItem('agentToken'); localStorage.removeItem('agentSession'); localStorage.removeItem('agentInfo'); }
 function agentHeaders() {
   return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getAgentToken()}` };
 }
+function saveSession(sess, agt, counterLabel) {
+  localStorage.setItem('agentSession', JSON.stringify(sess));
+  localStorage.setItem('agentInfo',    JSON.stringify({ ...agt, counterLabel }));
+}
+function loadStoredSession() {
+  try {
+    const sess = JSON.parse(localStorage.getItem('agentSession') || 'null');
+    const info = JSON.parse(localStorage.getItem('agentInfo')    || 'null');
+    return { sess, info };
+  } catch(e) { return { sess: null, info: null }; }
+}
+
 const socket  = io();
 
-let session   = null;  // { id, agent_id, counter_id, branch_id }
+let session   = null;  // { id, agent_id, counter_id, branch_id, service_ids }
 let agent     = null;  // { id, name }
 let currentToken = null;
 let breakRecord  = null;
@@ -532,7 +544,9 @@ async function loadCounters() {
     const cSel = document.getElementById('counterSelect');
     cSel.innerHTML = '<option value="">-- Selecciona ventanilla --</option>';
     counters.forEach(c => {
-      cSel.innerHTML += `<option value="${c.id}">${c.display_name || c.name}</option>`;
+      // Guardar service_ids en data attribute para filtrar la cola al iniciar sesión
+      const svcIds = JSON.stringify(c.service_ids || []);
+      cSel.innerHTML += `<option value="${c.id}" data-services='${svcIds}'>${c.display_name || c.name}</option>`;
     });
 
     const aSel = document.getElementById('agentSelect');
@@ -541,12 +555,7 @@ async function loadCounters() {
       aSel.innerHTML += `<option value="${a.id}" data-name="${a.name}">${a.name}</option>`;
     });
 
-    // Cargar ventanillas en modal de transferencia
-    const tSel = document.getElementById('transferCounterSelect');
-    tSel.innerHTML = '<option value="">-- Selecciona ventanilla --</option>';
-    counters.forEach(c => {
-      tSel.innerHTML += `<option value="${c.id}">${c.display_name || c.name}</option>`;
-    });
+    // transferCounterSelect se llena en enterMainScreen() → loadTransferCounters()
   } catch(e) { console.error(e); }
 }
 
@@ -582,27 +591,52 @@ async function doLogin() {
     const data = await res.json();
     if (!data.success) return showLoginError(data.error || 'Error al abrir sesión');
 
-    session = { id: data.session.id, agent_id: agentId, counter_id: counterId, branch_id: branchId };
+    // Leer service_ids asignados a esta ventanilla (vacío = atiende todos)
+    const counterOpt  = document.getElementById('counterSelect').selectedOptions[0];
+    const serviceIds  = JSON.parse(counterOpt?.dataset?.services || '[]');
+
+    const counterLabel = document.getElementById('counterSelect').selectedOptions[0]?.textContent || 'Ventanilla';
+    session = { id: data.session.id, agent_id: agentId, counter_id: counterId, branch_id: branchId, service_ids: serviceIds };
     agent   = { id: agentId, name: loginData.agent.name };
+    saveSession(session, agent, counterLabel);
 
-    document.getElementById('agentName').textContent    = loginData.agent.name;
-    document.getElementById('counterLabel').textContent = document.getElementById('counterSelect').selectedOptions[0]?.textContent || 'Ventanilla';
-
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainScreen').classList.add('active');
-
-    socket.emit('join_branch', branchId);
-    socket.emit('join_counter', counterId);
-
-    loadQueue();
-    loadStats();
-    refreshInterval = setInterval(() => { loadQueue(); loadStats(); }, 15000);
+    enterMainScreen(loginData.agent.name, counterLabel);
   } catch(e) { showLoginError('Error de conexión'); }
 }
 
 function showLoginError(msg) {
   const el = document.getElementById('loginError');
   el.textContent = msg; el.classList.add('show');
+}
+
+function enterMainScreen(agentName, counterLabel) {
+  document.getElementById('agentName').textContent    = agentName;
+  document.getElementById('counterLabel').textContent = counterLabel;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainScreen').classList.add('active');
+
+  socket.emit('join_branch', session.branch_id);
+  socket.emit('join_counter', session.counter_id);
+
+  loadTransferCounters();
+  loadQueue();
+  loadStats();
+  if (refreshInterval) clearInterval(refreshInterval);
+  refreshInterval = setInterval(() => { loadQueue(); loadStats(); }, 15000);
+}
+
+async function loadTransferCounters() {
+  if (!session?.branch_id) return;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/public/branches/${session.branch_id}/counters`);
+    const counters = await res.json();
+    const tSel = document.getElementById('transferCounterSelect');
+    tSel.innerHTML = '<option value="">-- Selecciona ventanilla --</option>';
+    counters.forEach(c => {
+      if (c.id === session.counter_id) return; // no transferir a sí misma
+      tSel.innerHTML += `<option value="${c.id}">${c.display_name || c.name}</option>`;
+    });
+  } catch(e) { console.error('loadTransferCounters:', e); }
 }
 
 // ── COLA ──────────────────────────────────────────────────────
@@ -613,7 +647,21 @@ async function loadQueue() {
       `${API_URL}/api/queue/branches/${session.branch_id}/queue?status=waiting`,
       { headers: { 'Authorization': `Bearer ${getAgentToken()}` } }
     );
-    const tokens = await res.json();
+    let tokens = await res.json();
+
+    // Tickets transferidos a esta ventanilla tienen counter_id = session.counter_id (nuevo registro).
+    // Tickets transferidos a otra ventanilla no aparecen (el backend los marca 'transferred' y quedan fuera del query).
+    // Tickets sin counter_id se filtran por servicio.
+    tokens = tokens.filter(t => {
+      const assignedHere = t.counter_id === session.counter_id;
+      const assignedElsewhere = t.counter_id && t.counter_id !== session.counter_id;
+      if (assignedElsewhere) return false;
+      if (assignedHere)      return true;
+      // Sin counter asignado: mostrar solo si el servicio le corresponde (o no hay filtro)
+      if (!session.service_ids || session.service_ids.length === 0) return true;
+      return session.service_ids.includes(t.service_id);
+    });
+
     renderQueue(tokens);
   } catch(e) {}
 }
@@ -657,6 +705,24 @@ async function loadStats() {
   } catch(e) {}
 }
 
+// ── REABRIR SESIÓN (si expiró en el backend) ─────────────────
+async function reopenSession() {
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/agent/session/open`, {
+      method: 'POST',
+      headers: agentHeaders(),
+      body: JSON.stringify({ agent_id: session.agent_id, counter_id: session.counter_id, branch_id: session.branch_id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      session.id = data.session.id;
+      saveSession(session, agent, document.getElementById('counterLabel').textContent);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
 // ── LLAMAR SIGUIENTE ──────────────────────────────────────────
 async function callNext() {
   if (!session) return;
@@ -666,12 +732,22 @@ async function callNext() {
       method: 'POST',
       headers: agentHeaders(),
       body: JSON.stringify({
-        session_id: session.id,
-        counter_id: session.counter_id,
-        branch_id:  session.branch_id
+        session_id:  session.id,
+        counter_id:  session.counter_id,
+        branch_id:   session.branch_id,
+        service_ids: session.service_ids || []
       })
     });
     const data = await res.json();
+
+    // Si la sesión expiró en el backend, reabrirla y reintentar una vez
+    if (!data.success && data.error && data.error.includes('Sesión no activa')) {
+      const reopened = await reopenSession();
+      if (reopened) { document.getElementById('btnCallNext').disabled = false; callNext(); return; }
+      document.getElementById('btnCallNext').disabled = false;
+      return;
+    }
+
     if (!data.success) { document.getElementById('btnCallNext').disabled = false; return; }
     if (!data.token)   { document.getElementById('btnCallNext').disabled = false; return; }
 
@@ -779,17 +855,23 @@ async function confirmTransfer() {
   const toCounterId = document.getElementById('transferCounterSelect').value;
   const note        = document.getElementById('transferNote').value;
   if (!toCounterId) return;
-  await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/transfer`, {
-    method: 'POST',
-    headers: agentHeaders(),
-    body: JSON.stringify({
-      agent_id: session.agent_id, session_id: session.id,
-      branch_id: session.branch_id, to_counter_id: toCounterId, note
-    })
-  });
-  closeTransferModal();
-  resetCurrentToken();
-  loadQueue();
+  try {
+    const res  = await fetch(`${API_URL}/api/queue/tokens/${currentToken.token_id}/transfer`, {
+      method: 'POST',
+      headers: agentHeaders(),
+      body: JSON.stringify({
+        agent_id: session.agent_id, session_id: session.id,
+        branch_id: session.branch_id, to_counter_id: toCounterId, note
+      })
+    });
+    const data = await res.json();
+    if (!data.success) { alert('Error al transferir: ' + (data.error || 'Error desconocido')); return; }
+    closeTransferModal();
+    resetCurrentToken();
+    loadQueue();
+  } catch(e) {
+    alert('Error de conexión al transferir el turno');
+  }
 }
 
 // ── PAUSA ─────────────────────────────────────────────────────
@@ -841,6 +923,7 @@ async function closeSession() {
   session = null; agent = null; currentToken = null;
   document.getElementById('mainScreen').classList.remove('active');
   document.getElementById('loginScreen').style.display = 'flex';
+  loadBranches();
 }
 
 // ── SOCKET.IO ─────────────────────────────────────────────────
@@ -848,15 +931,38 @@ socket.on('new_token', () => { loadQueue(); });
 socket.on('token_called', (data) => {
   if (data.counter_id !== session?.counter_id) loadQueue();
 });
-socket.on('token_finished', () => { loadQueue(); });
+socket.on('token_finished',     () => { loadQueue(); });
+socket.on('token_transferred',  (data) => {
+  // Refrescar si el turno llegó a nuestra ventanilla o salió de ella
+  if (data.to_counter_id === session?.counter_id || data.from_counter_id === session?.counter_id) {
+    loadQueue();
+  }
+});
 
 // ── INIT ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const token = getAgentToken();
-  if (!token) {
-    // Redirigir a login si no hay sesión CMS
-    // window.location.href = '/dashboard.html';
+  const { sess, info } = loadStoredSession();
+
+  if (token && sess && info) {
+    // Verificar que la sesión sigue activa en el backend
+    try {
+      const res  = await fetch(`${API_URL}/api/queue/agent/session/${sess.id}/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.active) {
+        // Restaurar estado sin re-login
+        session = sess;
+        agent   = info;
+        enterMainScreen(info.name, info.counterLabel);
+        return;
+      }
+    } catch(e) {}
+    // Sesión expirada o error → limpiar y mostrar login
+    clearAgentToken();
   }
+
   loadBranches();
 });
 </script>

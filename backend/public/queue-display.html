@@ -5,48 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SONORO — Display de Turnos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   /* ══════════════════════════════════════════════
      VARIABLES DE TEMA
-     brand_color y logo_url se inyectan desde JS
+     Valores aplicados por JS en applyConfig()
+     Las reglas CSS son fallback inicial.
   ══════════════════════════════════════════════ */
   :root {
     --brand: #FF1B8D;
   }
 
-  /* Tema oscuro — default */
   body.theme-dark {
-    --bg:           #080808;
-    --text:         #ffffff;
-    --text-muted:   #777777;
-    --card-bg:      rgba(255,255,255,0.07);
-    --card-border:  rgba(255,255,255,0.10);
-    --lt-body-bg:   rgba(8,8,8,0.94);
-    --lt-border:    rgba(255,255,255,0.07);
-    --ov-bg:        rgba(6,6,6,0.97);
-    --ov-text:      #ffffff;
-    --ov-muted:     #888888;
-    --ov-sep:       rgba(255,255,255,0.08);
-    --logo-col:     rgba(255,255,255,0.85);
+    --bg:          #080808;
+    --text:        #ffffff;
+    --text-muted:  #aaaaaa;
+    --card-bg:     #383838;
+    --card-border: rgba(255,255,255,0.14);
+    --card-shadow: 0 4px 20px rgba(0,0,0,0.60);
+    --lt-bg:       #0d0d0d;
+    --lt-border:   rgba(255,255,255,0.08);
+    --logo-bg:     #242424;
+    --logo-border: rgba(255,255,255,0.14);
+    --ov-bg:       rgba(6,6,6,0.97);
+    --ov-text:     #ffffff;
+    --ov-muted:    #888888;
+    --ov-sep:      rgba(255,255,255,0.12);
+    --logo-col:    rgba(255,255,255,0.90);
   }
 
-  /* Tema claro */
   body.theme-light {
-    --bg:           #f2f2f2;
-    --text:         #0d0d0d;
-    --text-muted:   #606060;
-    --card-bg:      rgba(0,0,0,0.055);
-    --card-border:  rgba(0,0,0,0.09);
-    --lt-body-bg:   rgba(242,242,242,0.96);
-    --lt-border:    rgba(0,0,0,0.07);
-    --ov-bg:        rgba(245,245,245,0.97);
-    --ov-text:      #0d0d0d;
-    --ov-muted:     #555555;
-    --ov-sep:       rgba(0,0,0,0.09);
-    --logo-col:     rgba(0,0,0,0.80);
+    --bg:          #f2f2f2;
+    --text:        #0d0d0d;
+    --text-muted:  #606060;
+    --card-bg:     #ffffff;
+    --card-border: rgba(0,0,0,0.07);
+    --card-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    --lt-bg:       #e0e0e0;
+    --lt-border:   rgba(0,0,0,0.08);
+    --logo-bg:     #d0d0d0;
+    --logo-border: rgba(0,0,0,0.10);
+    --ov-bg:       rgba(246,246,246,0.98);
+    --ov-text:     #0d0d0d;
+    --ov-muted:    #555555;
+    --ov-sep:      rgba(0,0,0,0.10);
+    --logo-col:    rgba(0,0,0,0.80);
   }
 
   body {
@@ -75,142 +80,159 @@
   #bg-image { display: none; }
 
   /* ══════════════════════════════════════════════
-     CAPA 2 — Lower third Bold Split (z: 10)
-     Siempre visible. Tickets en atención.
+     CAPA 2 — Lower third (z: 10)
+     Layout: [LOGO] [SLOT][SLOT][SLOT][SLOT]
+     Siempre visible. Muestra tickets en atención
+     y los próximos en espera.
   ══════════════════════════════════════════════ */
   #lower-third {
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    height: 110px;
+    height: 213px;
     z-index: 10;
     display: flex;
     align-items: stretch;
-    border-top: 1px solid var(--lt-border);
+    border-top: 3px solid var(--brand);
   }
 
-  /* ── Bloque izquierdo de color de marca ── */
-  #lt-brand-block {
-    width: 210px;
+  /* ── Bloque izquierdo: solo logo del cliente ── */
+  #lt-logo-block {
+    width: 246px;
     flex-shrink: 0;
-    background: var(--brand);
+    background: var(--logo-bg);
+    border-right: 1px solid var(--logo-border);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 14px 18px;
+    padding: 20px 22px;
   }
-  #lt-brand-label {
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 3.5px;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.65);
-    white-space: nowrap;
+  #lt-logo-img {
+    max-width: 88%;
+    max-height: 72%;
+    object-fit: contain;
+    display: none;
   }
-  #lt-brand-name {
-    font-size: 14px;
+  /* Fallback cuando no hay logo configurado */
+  #lt-logo-fallback {
+    font-size: 18px;
     font-weight: 900;
-    color: #ffffff;
+    letter-spacing: -0.5px;
+    color: var(--brand);
     text-align: center;
-    line-height: 1.2;
-    max-width: 185px;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.25;
+    opacity: 0.85;
   }
 
-  /* ── Área central de tickets ── */
+  /* ── Área de 4 slots de tickets ── */
   #lt-tickets-area {
     flex: 1;
-    background: var(--lt-body-bg);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    display: flex;
-    align-items: stretch;
-    padding: 0 14px;
-    gap: 10px;
+    background: var(--lt-bg);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px 14px;
     overflow: hidden;
+    align-items: stretch;
   }
 
-  .lt-ticket {
+  /* Cada slot: tarjeta redondeada con fondo propio */
+  .lt-slot {
     display: flex;
     align-items: center;
-    gap: 16px;
+    padding: 0 26px;
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 10px;
-    padding: 14px 22px;
-    margin: 14px 0;
-    flex-shrink: 0;
-    min-width: 170px;
-    animation: slideInUp 0.30s cubic-bezier(0.22,1,0.36,1);
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
   }
+
+  /* Acento de color en borde superior de cada slot activo */
+  .lt-slot.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    border-radius: 20px 20px 0 0;
+    background: var(--slot-color, var(--brand));
+  }
+
+  /* Slot vacío */
+  .lt-slot.empty {
+    justify-content: center;
+    background: var(--card-bg);
+    opacity: 0.45;
+  }
+  .lt-empty-dash {
+    font-size: 28px;
+    color: var(--text-muted);
+    font-weight: 300;
+  }
+
+  /* Slot en espera — levemente atenuado */
+  .lt-slot.waiting {
+    opacity: 0.70;
+    border-style: dashed;
+  }
+
+  /* Contenido del ticket dentro de cada slot */
+  .lt-ticket-inner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    animation: slideUp 0.28s cubic-bezier(0.22,1,0.36,1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .lt-num {
-    font-size: 38px;
+    font-size: 82px;
     font-weight: 900;
     line-height: 1;
     white-space: nowrap;
+    flex-shrink: 0;
   }
+
   .lt-info {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow: hidden;
+    min-width: 0;
   }
   .lt-svc {
-    font-size: 13px;
-    font-weight: 800;
+    font-size: 22px;
+    font-weight: 700;
     color: var(--text);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .lt-ctr {
-    font-size: 11px;
+    font-size: 17px;
     font-weight: 500;
     color: var(--text-muted);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-
-  #lt-empty {
-    display: flex;
-    align-items: center;
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 400;
-    padding: 0 8px;
-  }
-
-  /* ── Bloque derecho — logo del cliente ── */
-  #lt-logo-area {
-    width: 190px;
-    flex-shrink: 0;
-    background: var(--lt-body-bg);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-left: 1px solid var(--lt-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 22px;
-  }
-  #lt-logo-img {
-    max-height: 64px;
-    max-width: 150px;
-    object-fit: contain;
-    display: none;
-  }
-  #lt-logo-text {
-    font-size: 13px;
-    font-weight: 900;
-    letter-spacing: 1.5px;
-    color: var(--logo-col);
+  .lt-status {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.80;
+    white-space: nowrap;
+    margin-top: 2px;
   }
 
   /* ══════════════════════════════════════════════
-     CAPA 3 — Overlay fullscreen al llamar turno (z: 100)
-     Sin franjas de color. Número gigante con brand color.
-     Adapt a tema: oscuro/claro.
+     CAPA 3 — Overlay fullscreen al llamar turno
+     (z: 100). Número gigante + servicio legible.
   ══════════════════════════════════════════════ */
   #call-overlay {
     position: fixed;
@@ -221,9 +243,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 22px;
+    gap: 20px;
     pointer-events: none;
-
     opacity: 0;
     transform: scale(1.012);
     transition: opacity 0.32s ease, transform 0.32s ease;
@@ -234,40 +255,43 @@
   }
 
   .ov-eyebrow {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 800;
-    letter-spacing: 5px;
+    letter-spacing: 6px;
     text-transform: uppercase;
     color: var(--ov-muted);
   }
 
+  /* Número: calibrado para 403px en pantalla 1920px → ~21vw */
   .ov-number {
-    font-size: clamp(120px, 20vw, 260px);
+    font-size: clamp(200px, 22vw, 420px);
     font-weight: 900;
-    line-height: 0.88;
-    letter-spacing: -5px;
+    line-height: 0.85;
+    letter-spacing: -6px;
     color: var(--brand);
     animation: popIn 0.42s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
 
   .ov-sep {
-    width: 90px;
-    height: 1px;
+    width: 80px;
+    height: 2px;
     background: var(--ov-sep);
     border-radius: 1px;
   }
 
+  /* Servicio: máximo visible — llena buena parte del ancho */
   .ov-service {
-    font-size: clamp(24px, 3.5vw, 48px);
+    font-size: clamp(60px, 8vw, 160px);
     font-weight: 800;
     color: var(--ov-text);
     text-align: center;
-    max-width: 72vw;
-    line-height: 1.15;
+    max-width: 88vw;
+    line-height: 1.05;
   }
 
+  /* Ventanilla: grande y legible */
   .ov-counter {
-    font-size: clamp(17px, 2.2vw, 30px);
+    font-size: clamp(36px, 4.8vw, 92px);
     font-weight: 500;
     color: var(--ov-muted);
     text-align: center;
@@ -277,24 +301,24 @@
     display: none;
     background: var(--brand);
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
     letter-spacing: 3px;
     text-transform: uppercase;
-    padding: 7px 24px;
-    border-radius: 24px;
+    padding: 8px 28px;
+    border-radius: 28px;
+    margin-top: 4px;
   }
   .ov-priority.show { display: block; }
 
-  /* Barra de progreso — pie, sin gradiente multicolor */
+  /* Barra de progreso de duración */
   .ov-progress {
     position: absolute;
     bottom: 0; left: 0;
-    height: 4px;
+    height: 5px;
     background: var(--brand);
     width: 100%;
     transform-origin: left;
-    transform: scaleX(1);
     opacity: 0.55;
   }
   #call-overlay.visible .ov-progress {
@@ -304,10 +328,6 @@
   /* ══════════════════════════════════════════════
      ANIMACIONES
   ══════════════════════════════════════════════ */
-  @keyframes slideInUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
   @keyframes popIn {
     0%   { transform: scale(0.72); opacity: 0; }
     68%  { transform: scale(1.06); }
@@ -327,19 +347,23 @@
   <img   id="bg-image" alt="">
 </div>
 
-<!-- CAPA 2: Lower third Bold Split -->
+<!-- CAPA 2: Lower third -->
 <div id="lower-third">
-  <div id="lt-brand-block">
-    <span id="lt-brand-label">En atención</span>
-    <span id="lt-brand-name">Atención al cliente</span>
+
+  <!-- Bloque izquierdo: logo del cliente -->
+  <div id="lt-logo-block">
+    <img  id="lt-logo-img" alt="">
+    <div  id="lt-logo-fallback">SONORO.</div>
   </div>
+
+  <!-- 4 slots de tickets (grid) -->
   <div id="lt-tickets-area">
-    <span id="lt-empty">Sin turnos activos</span>
+    <div class="lt-slot empty" id="lt-slot-0"><span class="lt-empty-dash">—</span></div>
+    <div class="lt-slot empty" id="lt-slot-1"><span class="lt-empty-dash">—</span></div>
+    <div class="lt-slot empty" id="lt-slot-2"><span class="lt-empty-dash">—</span></div>
+    <div class="lt-slot empty" id="lt-slot-3"><span class="lt-empty-dash">—</span></div>
   </div>
-  <div id="lt-logo-area">
-    <img  id="lt-logo-img" alt="Logo">
-    <span id="lt-logo-text">SONORO.</span>
-  </div>
+
 </div>
 
 <!-- CAPA 3: Overlay al llamar turno -->
@@ -356,78 +380,109 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
   // ── Parámetros desde URL ─────────────────────────────────────
-  // El dashboard construye la URL con los params de configuración.
-  // Los params de URL tienen prioridad sobre la config por defecto
-  // pero la BD sobreescribe todo si existe.
   const params    = new URLSearchParams(location.search);
   const DEVICE_ID = params.get('device');
   const BRANCH_ID = params.get('branch');
   const API_URL   = window.location.origin;
-  const OVERLAY_DURATION_MS = 7000;
+  const OVERLAY_DURATION_MS = 17000;
 
-  // Config visual con defaults → se fusiona con datos del servidor
+  // Config visual — defaults sobrescritos por API
   let CONFIG = {
-    theme:       params.get('theme')  || 'dark',        // dark | light
-    brand_color: params.get('brand')  || '#FF1B8D',     // color hex
-    logo_url:    params.get('logo')   || null,           // URL imagen logo
-    branch_name: params.get('name')   || 'Atención al cliente',
+    theme:       params.get('theme') || 'dark',
+    brand_color: params.get('brand') || '#FF1B8D',
+    logo_url:    params.get('logo')  || null,
+    branch_name: params.get('name')  || '',
   };
 
   // ── DOM refs ─────────────────────────────────────────────────
   const bgVideo    = document.getElementById('bg-video');
   const bgImage    = document.getElementById('bg-image');
-  const ltArea     = document.getElementById('lt-tickets-area');
-  const ltBrandName = document.getElementById('lt-brand-name');
-  const ltLogoImg  = document.getElementById('lt-logo-img');
-  const ltLogoText = document.getElementById('lt-logo-text');
   const overlay    = document.getElementById('call-overlay');
   const ovNumber   = document.getElementById('ov-number');
   const ovService  = document.getElementById('ov-service');
   const ovCounter  = document.getElementById('ov-counter');
   const ovPriority = document.getElementById('ov-priority');
+  const ltLogoImg  = document.getElementById('lt-logo-img');
+  const ltLogoFb   = document.getElementById('lt-logo-fallback');
 
   // ── Aplicar config visual ─────────────────────────────────────
   function applyConfig(cfg) {
     CONFIG = { ...CONFIG, ...cfg };
+    const isLight = CONFIG.theme === 'light';
 
-    // Tema dark / light
-    document.body.className = CONFIG.theme === 'light' ? 'theme-light' : 'theme-dark';
+    // Clase de tema en body
+    document.body.className = isLight ? 'theme-light' : 'theme-dark';
 
-    // Color de marca como CSS variable global
-    document.documentElement.style.setProperty('--brand', CONFIG.brand_color || '#FF1B8D');
+    // Seteo explícito en :root — fuerza repaint en Chromium con backdrop-filter
+    const root = document.documentElement;
+    if (isLight) {
+      root.style.setProperty('--bg',          '#f2f2f2');
+      root.style.setProperty('--text',        '#0d0d0d');
+      root.style.setProperty('--text-muted',  '#606060');
+      root.style.setProperty('--card-bg',     '#ffffff');
+      root.style.setProperty('--card-border', 'rgba(0,0,0,0.07)');
+      root.style.setProperty('--card-shadow', '0 4px 16px rgba(0,0,0,0.10)');
+      root.style.setProperty('--lt-bg',       '#e0e0e0');
+      root.style.setProperty('--lt-border',   'rgba(0,0,0,0.08)');
+      root.style.setProperty('--logo-bg',     '#d0d0d0');
+      root.style.setProperty('--logo-border', 'rgba(0,0,0,0.10)');
+      root.style.setProperty('--ov-bg',       'rgba(246,246,246,0.98)');
+      root.style.setProperty('--ov-text',     '#0d0d0d');
+      root.style.setProperty('--ov-muted',    '#555555');
+      root.style.setProperty('--ov-sep',      'rgba(0,0,0,0.10)');
+      root.style.setProperty('--logo-col',    'rgba(0,0,0,0.80)');
+    } else {
+      root.style.setProperty('--bg',          '#080808');
+      root.style.setProperty('--text',        '#ffffff');
+      root.style.setProperty('--text-muted',  '#aaaaaa');
+      root.style.setProperty('--card-bg',     '#383838');
+      root.style.setProperty('--card-border', 'rgba(255,255,255,0.14)');
+      root.style.setProperty('--card-shadow', '0 4px 20px rgba(0,0,0,0.60)');
+      root.style.setProperty('--lt-bg',       '#0d0d0d');
+      root.style.setProperty('--lt-border',   'rgba(255,255,255,0.08)');
+      root.style.setProperty('--logo-bg',     '#242424');
+      root.style.setProperty('--logo-border', 'rgba(255,255,255,0.14)');
+      root.style.setProperty('--ov-bg',       'rgba(6,6,6,0.97)');
+      root.style.setProperty('--ov-text',     '#ffffff');
+      root.style.setProperty('--ov-muted',    '#888888');
+      root.style.setProperty('--ov-sep',      'rgba(255,255,255,0.12)');
+      root.style.setProperty('--logo-col',    'rgba(255,255,255,0.90)');
+    }
 
-    // Nombre en bloque izquierdo
-    ltBrandName.textContent = CONFIG.branch_name || 'Atención al cliente';
+    // Color de marca
+    root.style.setProperty('--brand', CONFIG.brand_color || '#FF1B8D');
 
-    // Logo o nombre de marca
+    // Logo del cliente
     if (CONFIG.logo_url) {
-      ltLogoImg.src          = CONFIG.logo_url;
-      ltLogoImg.style.display = 'block';
-      ltLogoText.style.display = 'none';
+      ltLogoImg.src            = CONFIG.logo_url;
+      ltLogoImg.style.display  = 'block';
+      ltLogoFb.style.display   = 'none';
     } else {
       ltLogoImg.style.display  = 'none';
-      ltLogoText.style.display = 'block';
+      ltLogoFb.style.display   = 'block';
+      // Si hay nombre de sucursal configurado úsarlo como fallback, si no SONORO.
+      ltLogoFb.textContent     = CONFIG.branch_name || 'SONORO.';
     }
   }
 
-  // ── Cargar config de la sucursal desde API ────────────────────
-  // Endpoint público — sin JWT — para que el display en RPi pueda consultarlo
+  // ── Cargar config de sucursal desde API ────────────────────
   async function loadBranchConfig() {
     if (!BRANCH_ID) return;
     try {
       const res = await fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/display-config`);
       if (!res.ok) return;
-      const cfg = await res.json();
-      applyConfig(cfg);
+      applyConfig(await res.json());
     } catch(e) {}
   }
 
-  // ── Variables de estado ───────────────────────────────────────
+  // ── Estado ───────────────────────────────────────────────────
   let playlistItems = [];
   let currentIdx    = 0;
   let imageTimer    = null;
   let overlayTimer  = null;
   let lastTokenId   = null;
+  // Cola de tickets mostrados en lower third: array de 4 posiciones
+  let ltSlots = [null, null, null, null];
 
   // ── Socket.io ─────────────────────────────────────────────────
   const socket = io(API_URL, {
@@ -436,23 +491,28 @@
   });
 
   socket.on('connect', () => {
-    console.log('✅ Socket conectado');
     if (BRANCH_ID) socket.emit('join_branch', BRANCH_ID);
   });
 
-  socket.on('token_called', (data) => {
-    if (data.token_id === lastTokenId) return;
+  // Display sincronizado con audio: el RPi emite token_now_playing
+  // exactamente cuando el audio va a sonar -> cero desfase.
+  socket.on('token_now_playing', (data) => {
     lastTokenId = data.token_id;
     showCallOverlay(data);
-    refreshActiveTickets();
+    refreshLowerThird();
   });
 
-  // Reload config si cambia en el dashboard (feature future)
+
+
+  socket.on('token_finished',    () => { refreshLowerThird(); });
+  socket.on('new_token',         () => { refreshLowerThird(); });
+  socket.on('token_transferred', () => { refreshLowerThird(); });
+
   socket.on('branch_config_updated', (data) => {
     if (data.branch_id == BRANCH_ID) loadBranchConfig();
   });
 
-  // ── Overlay fullscreen ─────────────────────────────────────────
+  // ── Overlay fullscreen ──────────────────────────────────────
   function showCallOverlay(data) {
     ovNumber.textContent  = data.token_number || '';
     ovService.textContent = data.service_name  || '';
@@ -461,51 +521,81 @@
 
     overlay.style.setProperty('--overlay-duration', `${OVERLAY_DURATION_MS / 1000}s`);
     overlay.classList.remove('visible');
-    void overlay.offsetWidth;   // forzar reflow para reiniciar animación CSS
+    void overlay.offsetWidth;
     overlay.classList.add('visible');
 
     if (overlayTimer) clearTimeout(overlayTimer);
     overlayTimer = setTimeout(() => overlay.classList.remove('visible'), OVERLAY_DURATION_MS);
+
+    // Audio manejado por el RPi via Piper TTS (sync-app.js)
   }
 
-  // ── Lower third — tickets activos ──────────────────────────────
-  async function refreshActiveTickets() {
+  // ── Lower third: fetch + render ─────────────────────────────
+  async function refreshLowerThird() {
     if (!BRANCH_ID) return;
     try {
-      const res = await fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/active`);
-      if (!res.ok) return;
-      renderLowerThird(await res.json());
+      const [activeRes, waitingRes] = await Promise.allSettled([
+        fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/active`),
+        fetch(`${API_URL}/api/queue/branches/${BRANCH_ID}/queue?status=waiting`)
+      ]);
+
+      const active  = (activeRes.status  === 'fulfilled' && activeRes.value.ok)
+        ? await activeRes.value.json()  : [];
+      const waiting = (waitingRes.status === 'fulfilled' && waitingRes.value.ok)
+        ? await waitingRes.value.json() : [];
+
+      renderSlots(active, waiting);
     } catch(e) {}
   }
 
-  function renderLowerThird(tickets) {
-    if (!tickets || tickets.length === 0) {
-      ltArea.innerHTML = '<span id="lt-empty">Sin turnos activos</span>';
-      return;
+  function renderSlots(active, waiting) {
+    // Llenar los 4 slots: primero activos, luego en espera, el resto vacío
+    const items = [
+      ...(active  || []).slice(0, 4).map(t => ({ ...t, _type: 'active'  })),
+      ...(waiting || []).slice(0, 4).map(t => ({ ...t, _type: 'waiting' })),
+    ].slice(0, 4);
+
+    for (let i = 0; i < 4; i++) {
+      const slot = document.getElementById('lt-slot-' + i);
+      const t    = items[i];
+
+      if (!t) {
+        slot.className = 'lt-slot empty';
+        slot.style.removeProperty('--slot-color');
+        slot.innerHTML = '<span class="lt-empty-dash">—</span>';
+        continue;
+      }
+
+      const color  = t.service_color || CONFIG.brand_color;
+      const num    = t.token_number || t.display_number || '';
+      const svc    = t.service_name  || '';
+      const ctr    = t.counter_name  || '';
+      const status = t._type === 'active' ? 'En atención' : 'En espera';
+
+      slot.className = `lt-slot ${t._type}`;
+      slot.style.setProperty('--slot-color', t._type === 'active' ? color : 'transparent');
+      slot.innerHTML = `
+        <div class="lt-ticket-inner">
+          <span class="lt-num" style="color:${color}">${num}</span>
+          <div class="lt-info">
+            <span class="lt-svc">${svc}</span>
+            ${ctr ? `<span class="lt-ctr">${ctr}</span>` : ''}
+            <span class="lt-status" style="color:${t._type === 'active' ? color : 'var(--text-muted)'}">
+              ${status}
+            </span>
+          </div>
+        </div>`;
     }
-    ltArea.innerHTML = tickets.slice(0, 5).map(t => `
-      <div class="lt-ticket">
-        <span class="lt-num" style="color:${t.service_color || CONFIG.brand_color}">${t.token_number}</span>
-        <div class="lt-info">
-          <span class="lt-svc">${t.service_name}</span>
-          <span class="lt-ctr">${t.counter_name}</span>
-        </div>
-      </div>
-    `).join('');
   }
 
-  // ── Playlist signage ──────────────────────────────────────────
+  // ── Playlist signage ─────────────────────────────────────────
   async function loadPlaylist() {
-    if (!DEVICE_ID) {
-      console.warn('Sin DEVICE_ID — signage desactivado');
-      return;
-    }
+    if (!DEVICE_ID) return;
     try {
       const res = await fetch(`${API_URL}/api/devices/${DEVICE_ID}/manifest`);
       if (!res.ok) { setTimeout(loadPlaylist, 15000); return; }
-      const data = await res.json();
-      playlistItems = data.assets || [];
-      if (playlistItems.length > 0) { currentIdx = 0; playNext(); }
+      playlistItems = (await res.json()).assets || [];
+      if (playlistItems.length) { currentIdx = 0; playNext(); }
     } catch(e) { setTimeout(loadPlaylist, 15000); }
   }
 
@@ -518,7 +608,7 @@
     if (item.type === 'video') {
       bgImage.style.display = 'none';
       bgVideo.style.display = 'block';
-      bgVideo.src = fileUrl;
+      bgVideo.src     = fileUrl;
       bgVideo.onended = playNext;
       bgVideo.onerror = () => playNext();
       bgVideo.play().catch(() => {});
@@ -526,38 +616,36 @@
       bgVideo.style.display = 'none';
       bgVideo.pause();
       bgImage.style.display = 'block';
-      bgImage.src  = fileUrl;
+      bgImage.src    = fileUrl;
       bgImage.onerror = () => playNext();
       imageTimer = setTimeout(playNext, item.duration || 10000);
     }
   }
 
-  // ── Re-sincronizar playlist cada 5 min ────────────────────────
-  async function syncPlaylistPeriodic() {
+  async function syncPlaylist() {
     if (!DEVICE_ID) return;
     try {
-      const res = await fetch(`${API_URL}/api/devices/${DEVICE_ID}/manifest`);
+      const res      = await fetch(`${API_URL}/api/devices/${DEVICE_ID}/manifest`);
       if (!res.ok) return;
       const newItems = (await res.json()).assets || [];
       const newKey   = newItems.map(i => i.filename).join(',');
       const curKey   = playlistItems.map(i => i.filename).join(',');
       if (newKey !== curKey) {
-        console.log('🔄 Playlist actualizada desde CMS');
         playlistItems = newItems;
         currentIdx    = currentIdx % (newItems.length || 1);
       }
     } catch(e) {}
   }
 
-  // ── Init ──────────────────────────────────────────────────────
-  applyConfig(CONFIG);          // 1. Aplicar defaults + params URL
-  loadBranchConfig();           // 2. Sobreescribir con config de BD
+  // ── Init ─────────────────────────────────────────────────────
+  applyConfig(CONFIG);
+  loadBranchConfig();
   loadPlaylist();
-  refreshActiveTickets();
+  refreshLowerThird();
 
-  setInterval(refreshActiveTickets,  10 * 1000);           // lower third
-  setInterval(syncPlaylistPeriodic,   5 * 60 * 1000);     // playlist
-  setInterval(loadBranchConfig,      60 * 1000);           // config (logo, tema, color)
+  setInterval(refreshLowerThird,  10 * 1000);
+  setInterval(syncPlaylist,        5 * 60 * 1000);
+  setInterval(loadBranchConfig,   60 * 1000);
 </script>
 </body>
 </html>
