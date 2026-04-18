@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
   port:   parseInt(process.env.SMTP_PORT) || 465,
   secure: true, // true para puerto 465
   auth: {
-    user: process.env.SMTP_USER || 'daniel@sonoro.com.co',
+    user: process.env.SMTP_USER || 'cms@sonoro.com.co',
     pass: process.env.SMTP_PASS
   },
   tls: {
@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const CMS_URL  = process.env.CMS_URL  || 'https://cms.sonoro.com.co';
-const FROM     = process.env.SMTP_FROM || 'SONORO CMS <daniel@sonoro.com.co>';
+const FROM     = process.env.SMTP_FROM || 'SONORO CMS <cms@sonoro.com.co>';
 
 // ── ESTILOS BASE DEL EMAIL ────────────────────────────────────
 function baseTemplate(content) {
@@ -67,7 +67,7 @@ function baseTemplate(content) {
             <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
                 Este correo fue enviado por <strong style="color:#666;">SONORO CMS</strong><br>
-                Si tienes dudas escríbenos a <a href="mailto:daniel@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">daniel@sonoro.com.co</a>
+                Si tienes dudas escríbenos a <a href="mailto:cms@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">cms@sonoro.com.co</a>
               </p>
             </td>
           </tr>

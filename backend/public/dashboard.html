@@ -22,53 +22,6 @@
       --grad: linear-gradient(135deg, var(--magenta) 0%, var(--orange) 55%, var(--yellow) 100%);
     }
 
-    /* ══ LIGHT THEME ══ */
-    body.light {
-      --black:    #f4f4f6;
-      --surface:  #ffffff;
-      --surface2: #f0f0f3;
-      --surface3: #e8e8ed;
-      --border:   #e0e0e8;
-      --text:     #111827;
-      --text-muted: #6b7280;
-      --online:   #16a34a;
-      --offline:  #dc2626;
-    }
-
-    /* Sombras en light */
-    body.light .card,
-    body.light .device-card,
-    body.light .playlist-card,
-    body.light .content-file {
-      box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.04);
-    }
-
-    /* Topbar accent bar */
-    body.light .topbar { position: relative; }
-    body.light .topbar::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0;
-      height: 3px; background: var(--grad); pointer-events: none;
-    }
-    body.light .grad-bar { display: none; }
-
-    /* Badges status en light */
-    body.light .status-badge.online  { background: #dcfce7; color: #15803d; }
-    body.light .status-badge.offline { background: #fee2e2; color: #b91c1c; }
-
-    /* Toast en light */
-    body.light #statusMessage.success { background: #f0fdf4; color: #15803d; border-color: #16a34a; }
-    body.light #statusMessage.error   { background: #fff1f2; color: #b91c1c; border-color: #dc2626; }
-    body.light #statusMessage.info    { background: rgba(255,27,141,.07); }
-
-    /* Toggle theme btn */
-    .theme-toggle-btn {
-      padding: 6px 12px; border-radius: 6px; cursor: pointer;
-      font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
-      border: 1.5px solid var(--border); color: var(--text-muted);
-      background: transparent; transition: all .15s; letter-spacing: .5px;
-    }
-    .theme-toggle-btn:hover { border-color: var(--magenta); color: var(--magenta); }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -736,38 +689,11 @@
     .device-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      margin-bottom: 16px;
-      overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+      border-radius: 12px; padding: 20px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
     }
-    .device-card:hover { border-color: var(--magenta); box-shadow: 0 4px 16px rgba(255,27,141,.12); }
-
-    /* OS header bar */
-    .device-os-bar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 18px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-    .device-os-bar svg { flex-shrink: 0; }
-    .device-os-label {
-      font-size: 10px; font-weight: 800; letter-spacing: 2px;
-      text-transform: uppercase; opacity: .7;
-    }
-    .device-os-bar.rpi  { background: #1a0a0a; }
-    .device-os-bar.win  { background: #081825; }
-
-    body.light .device-os-bar.rpi { background: #fdf0f0; }
-    body.light .device-os-bar.win { background: #eff6ff; }
-    body.light .device-card { box-shadow: 0 1px 4px rgba(0,0,0,.07), 0 4px 16px rgba(0,0,0,.05); }
-
-    /* OS accent left border */
-    .device-card.rpi { border-left: 3px solid #c1121f; }
-    .device-card.win { border-left: 3px solid #0078d4; }
-
-    /* Card body padding */
-    .device-card-body { padding: 18px 20px; }
+    .device-card:hover { border-color: var(--surface3); }
     .device-header {
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 12px;
@@ -1108,7 +1034,6 @@
       <div class="topbar-version">CMS v2.4</div>
       <div class="topbar-right">
         <div class="topbar-user">Sesión: <span id="userName"></span></div>
-        <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()">Modo claro</button>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
       </div>
     </div>
@@ -1165,9 +1090,7 @@
 
         <div class="card">
           <div class="card-title">Subir Archivo</div>
-          <input type="file" id="fileInput" accept="video/*,image/*" onchange="checkFileSize(this)">
-          <div id="fileSizeWarning" style="display:none;margin-top:6px;padding:7px 10px;background:rgba(239,68,68,.12);border:1px solid #ef4444;border-radius:8px;font-size:12px;color:#ef4444;">⚠ El archivo supera 500 MB — el servidor lo rechazará. Usa un video más comprimido.</div>
-          <div style="margin-top:5px;font-size:11px;color:var(--text-muted);">Máx. 500 MB · Videos: MP4, MOV, AVI, MKV · Imágenes: JPG, PNG, GIF</div>
+          <input type="file" id="fileInput" accept="video/*,image/*">
           <div style="margin-top: 10px;">
             <button class="btn btn-grad" onclick="uploadFile()">↑ Subir</button>
           </div>
@@ -1737,15 +1660,6 @@ function connectWebSocket() {
   });
 }
 
-function checkFileSize(input) {
-  const warn = document.getElementById("fileSizeWarning");
-  if (input.files[0] && input.files[0].size > 500 * 1024 * 1024) {
-    warn.style.display = "block";
-  } else {
-    warn.style.display = "none";
-  }
-}
-
 async function uploadFile() {
   const fileInput = document.getElementById('fileInput');
   const file = fileInput.files[0];
@@ -2229,30 +2143,16 @@ async function loadDevices(silent = false) {
         '<option value="horizontal"' + (cur==='horizontal'?' selected':'') + '>Horizontal ↔</option>' +
         '<option value="vertical"'  + (cur==='vertical'  ?' selected':'') + '>Vertical ↕</option>';
 
-      const modeOpts = ((!mode || mode === 'single' || mode === 'mirror') ? '<option value="" selected disabled>Por defecto</option>' : '') + ['dual','videowall'].map(m => {
-        const labels = {dual:'Lista distinta por pantalla ★',videowall:'Videowall — imagen extendida ★'};
-        const isPrem = !hasDual;
+      const modeOpts = ['single','mirror','dual','videowall'].map(m => {
+        const labels = {single:'Una pantalla',mirror:'Mirror (2 TVs, misma lista)',dual:'Dual — lista por pantalla ★',videowall:'Videowall — imagen extendida ★'};
+        const isPrem = (m === 'dual' || m === 'videowall') && !hasDual;
         return '<option value="' + m + '"' + (mode===m?' selected':'') + (isPrem?' disabled':'') + '>' + labels[m] + (isPrem?' 🔒':'') + '</option>';
       }).join('');
 
-      const isWin = d.platform === 'windows';
-      const osClass = isWin ? 'win' : 'rpi';
-      const osBar = isWin
-        ? `<div class="device-os-bar win">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#0078d4"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-            <span class="device-os-label" style="color:#4da6ff;">Windows Kiosk Player</span>
-           </div>`
-        : `<div class="device-os-bar rpi">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#c1121f"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2c5.523 0 10 4.477 10 10S17.523 22 12 22 2 17.523 2 12 6.477 2 12 2zm0 3a7 7 0 100 14A7 7 0 0012 5zm0 2a5 5 0 110 10A5 5 0 0112 7zm0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
-            <span class="device-os-label" style="color:#e85d5d;">Raspberry Pi Player</span>
-           </div>`;
-
       return `
-        <div class="device-card ${osClass}">
-          ${osBar}
-          <div class="device-card-body">
+        <div class="device-card">
           <div class="device-header">
-            <div class="device-name">${d.name}</div>
+            <div class="device-name" id="dname_${d.device_id}">${d.name}</div>
             <span id="status_${d.device_id}" class="status-badge ${isOnline ? 'online' : 'offline'}">
               <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
               ${isOnline ? 'Online' : 'Offline'}
@@ -2383,9 +2283,9 @@ async function loadDevices(silent = false) {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <div style="font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;">Pantalla CEC</div>
               <select id="tv_target_${d.device_id}" style="padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;cursor:pointer;">
-                <option value="all">Ambas pantallas</option>
-                <option value="tv1">TV 1</option>
-                <option value="tv2">TV 2</option>
+                <option value="all">Ambas</option>
+                <option value="tv1">TV 1 (HDMI-A-1)</option>
+                <option value="tv2">TV 2 (HDMI-A-2)</option>
               </select>
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2454,25 +2354,9 @@ async function loadDevices(silent = false) {
                 <input type="text" id="disp_logo_${d.device_id}" placeholder="/uploads/logo.png o URL completa" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
               </div>
             </div>
-            <button style="margin-top:10px;width:100%;padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1f00;color:#FAC775;" onclick="saveDisplayConfig('${d.device_id}')">Guardar configuración del display</button>
-          </div>
-          <div style="margin-top:10px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
-            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Cola de Atención — Configuración por dispositivo</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <div style="display:flex;align-items:center;gap:10px;grid-column:span 2;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);">
-                  <input type="checkbox" id="queue_enabled_${d.device_id}" ${d.queue_enabled !== false ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--magenta);cursor:pointer;">
-                  Activar display de turnos en este dispositivo
-                </label>
-              </div>
-              <div>
-                <label style="font-size:11px;color:var(--text-muted);">Output de turnos</label>
-                <select id="queue_output_${d.device_id}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-                  <option value="all"   ${(d.queue_output||'all')==='all'  ?'selected':''}>Ambas pantallas</option>
-                  <option value="hdmi0" ${(d.queue_output||'')==='hdmi0'?'selected':''}>Solo TV 1 (HDMI-A-1)</option>
-                  <option value="hdmi1" ${(d.queue_output||'')==='hdmi1'?'selected':''}>Solo TV 2 (HDMI-A-2)</option>
-                </select>
-              </div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+              <button style="flex:1;padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1f00;color:#FAC775;" onclick="saveDisplayConfig('${d.device_id}')">Guardar configuración del display</button>
+              <button style="padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a2d1a;color:#6fcf97;" title="Enviar turno de prueba al display" onclick="testQueueDisplay('${d.device_id}')">&#9654; Probar</button>
             </div>
           </div>
           ` : ''}
@@ -2482,9 +2366,7 @@ async function loadDevices(silent = false) {
             <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar estado</button>
             <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
             <button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">↺ Reiniciar</button>
-            <button class="btn btn-outline btn-sm" style="color:#ef4444;border-color:#ef4444;" onclick="confirmDeleteDevice('${d.device_id}', '${d.name}')">Eliminar</button>
             <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
-          </div>
           </div>
         </div>`;
     }).join('');
@@ -2622,8 +2504,6 @@ async function saveDevice(deviceId) {
       body: JSON.stringify({
         name:                name || undefined,
         display_mode:        mode,
-        queue_enabled:       document.getElementById('queue_enabled_'+deviceId)?.checked ?? true,
-        queue_output:        document.getElementById('queue_output_'+deviceId)?.value || 'all',
         hdmi0_playlist_id:   pid0 ? parseInt(pid0) : null,
         hdmi1_playlist_id:   isDual && pid1 ? parseInt(pid1) : (pid0 ? parseInt(pid0) : null),
         orientation_hdmi0:   or0,
@@ -2636,11 +2516,29 @@ async function saveDevice(deviceId) {
     const data = await res.json();
     if (data.success || data.id) {
       await saveSchedules(deviceId);
+      if (name) {
+        const nameEl = document.getElementById(`dname_${deviceId}`);
+        if (nameEl) nameEl.textContent = name;
+      }
       showStatus('Dispositivo guardado correctamente', 'success');
     } else {
       showStatus('Error: ' + (data.error || 'desconocido'), 'error');
     }
   } catch (err) { showStatus('Error: ' + err.message, 'error'); }
+}
+
+async function testQueueDisplay(deviceId) {
+  const branchId = document.getElementById(`branch_${deviceId}`)?.value;
+  if (!branchId) { showStatus('Primero asigna una sucursal al dispositivo.', 'error'); return; }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${branchId}/test-display`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.ok) showStatus('Turno de prueba enviado al display (A-99 / Prueba Display)', 'success');
+    else showStatus('Error: ' + (data.error || 'desconocido'), 'error');
+  } catch(e) { showStatus('Error: ' + e.message, 'error'); }
 }
 
 async function saveDisplayConfig(deviceId) {
@@ -3454,39 +3352,6 @@ async function toggleService(serviceId, active) {
 
 // ══ FIN ATENCIÓN AL USUARIO ══
 
-
-  // ── THEME TOGGLE ──────────────────────────────────────────────
-  async function confirmDeleteDevice(deviceId, name) {
-    const confirmed = confirm('Eliminar dispositivo "' + name + '"?\n\nEsta acción no se puede deshacer. El dispositivo perderá su registro en el CMS.');
-    if (!confirmed) return;
-    const confirmed2 = confirm('Confirmar eliminación de "' + name + '".');
-    if (!confirmed2) return;
-    try {
-      const res = await fetch(API_URL + '/api/devices/' + deviceId, {
-        method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + authToken }
-      });
-      if (!res.ok) throw new Error((await res.json()).error || 'Error al eliminar');
-      showStatus('Dispositivo eliminado', 'success');
-      loadDevices();
-    } catch(e) {
-      showStatus('Error: ' + e.message, 'error');
-    }
-  }
-
-  function toggleTheme() {
-    const isLight = document.body.classList.toggle('light');
-    localStorage.setItem('sonoro-theme', isLight ? 'light' : 'dark');
-    document.getElementById('themeToggleBtn').textContent = isLight ? 'Modo oscuro' : 'Modo claro';
-  }
-  (function applyTheme() {
-    const saved = localStorage.getItem('sonoro-theme');
-    if (saved === 'light') {
-      document.body.classList.add('light');
-      const btn = document.getElementById('themeToggleBtn');
-      if (btn) btn.textContent = 'Modo oscuro';
-    }
-  })();
 </script>
 <!-- ══ MODAL SCREENSHOT ══ -->
 <div id="screenshotModal" class="modal">

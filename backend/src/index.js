@@ -74,11 +74,7 @@ app.use(fileUpload({
   abortOnLimit: true
 }));
 
-app.use(express.static(path.join(__dirname, '..', 'public'), {
-  setHeaders: (res, fp) => {
-    if (fp.endsWith('.html')) res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-  }
-}));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // ✅ Servir uploads con CORS correcto
 app.use('/uploads', express.static('uploads', {
@@ -186,11 +182,6 @@ pool.query('SELECT 1')
       ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
   `))
   .then(() => pool.query(`
-    ALTER TABLE devices
-      ADD COLUMN IF NOT EXISTS queue_enabled  BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS queue_output   VARCHAR(20) DEFAULT 'all'
-  `))
-  .then(() => pool.query(`
     ALTER TABLE branches
       ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
   `))
@@ -296,8 +287,7 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   console.log(`📐 Dimensiones: ${width}x${height} → modo ${isVertical ? 'VERTICAL' : 'HORIZONTAL'}`);
 
   return new Promise((resolve, reject) => {
-    const ffmpegBin = process.platform === 'win32' ? 'C:\\ffmpeg\\bin\\ffmpeg.exe' : 'ffmpeg';
-    const ffmpegCmd = `${ffmpegBin} -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
+    const ffmpegCmd = `C:\\ffmpeg\\bin\\ffmpeg.exe -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
 
     const child = exec(ffmpegCmd, { windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
@@ -449,7 +439,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Verificar contraseña
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-    const result = await pool.query('SELECT id, email, password, name, role, features FROM users WHERE email = $1', [email]);
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
     // Generar JWT
@@ -826,7 +816,7 @@ app.put('/api/playlists/:playlistId', authenticateToken, async (req, res) => {
            shuffle_enabled = COALESCE($3, shuffle_enabled),
            repeat_enabled = COALESCE($4, repeat_enabled),
            orientation = COALESCE($5, orientation),
-           updated_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $6 AND user_id = $7
        RETURNING *`,
       [name, description, shuffle_enabled, repeat_enabled, orientation, playlistId, userId]
@@ -1503,15 +1493,30 @@ app.post('/api/devices/:device_id/screenshot-upload', async (req, res) => {
 // GET - Listar todos los dispositivos (protegido - para el dashboard)
 app.get('/api/devices', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT d.*,
-              p0.name as hdmi0_playlist_name,
-              p1.name as hdmi1_playlist_name
-       FROM devices d
-       LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
-       LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
-       ORDER BY d.created_at DESC`
-    );
+    let result;
+    if (req.user.role === 'admin') {
+      result = await pool.query(
+        `SELECT d.*,
+                p0.name as hdmi0_playlist_name,
+                p1.name as hdmi1_playlist_name
+         FROM devices d
+         LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
+         LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+         ORDER BY CASE WHEN d.platform = 'windows' THEN 1 ELSE 0 END ASC, d.created_at DESC`
+      );
+    } else {
+      result = await pool.query(
+        `SELECT d.*,
+                p0.name as hdmi0_playlist_name,
+                p1.name as hdmi1_playlist_name
+         FROM devices d
+         LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
+         LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+         WHERE d.user_id = $1
+         ORDER BY CASE WHEN d.platform = 'windows' THEN 1 ELSE 0 END ASC, d.created_at DESC`,
+        [req.user.id]
+      );
+    }
 
     res.json(result.rows);
   } catch (err) {
@@ -1527,7 +1532,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     const { name, display_mode, hdmi0_playlist_id, hdmi1_playlist_id,
             orientation_hdmi0, orientation_hdmi1,
             videowall_position, videowall_cols, videowall_rows,
-            branch_id, queue_enabled, queue_output } = req.body;
+            branch_id } = req.body;
 
     // Validar licencia para modos premium
     if (['dual', 'videowall'].includes(display_mode) && !req.user.features?.dual_hdmi) {
@@ -1535,6 +1540,14 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
         error: 'El modo dual y videowall requieren licencia Premium. Contacta a SONORO AV.'
       });
     }
+
+    const ownerFilter = req.user.role === 'admin' ? '' : 'AND user_id = $12';
+    const queryParams = [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
+       orientation_hdmi0, orientation_hdmi1,
+       videowall_position || null, videowall_cols || null, videowall_rows || null,
+       branch_id || null,
+       device_id];
+    if (req.user.role !== 'admin') queryParams.push(req.user.id);
 
     const result = await pool.query(
       `UPDATE devices SET
@@ -1548,18 +1561,10 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
          videowall_cols = $8,
          videowall_rows = $9,
          branch_id = COALESCE($10, branch_id),
-         updated_at = CURRENT_TIMESTAMP,
-         queue_enabled = COALESCE($11, queue_enabled),
-         queue_output = COALESCE($12, queue_output)
-       WHERE device_id = $13
+         updated_at = CURRENT_TIMESTAMP
+       WHERE device_id = $11 ${ownerFilter}
        RETURNING *`,
-      [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
-       orientation_hdmi0, orientation_hdmi1,
-       videowall_position || null, videowall_cols || null, videowall_rows || null,
-       branch_id || null,
-       queue_enabled !== undefined ? queue_enabled : null,
-       queue_output || null,
-       device_id]
+      queryParams
     );
 
     if (result.rows.length === 0) {
@@ -1573,25 +1578,6 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     console.log(`✅ Dispositivo actualizado: ${device_id}`);
   } catch (err) {
     console.error('❌ Error actualizando dispositivo:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE - Eliminar dispositivo
-app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
-  try {
-    const { device_id } = req.params;
-    const result = await pool.query(
-      'DELETE FROM devices WHERE device_id = $1 AND user_id = $2 RETURNING device_id, name',
-      [device_id, req.user.id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Dispositivo no encontrado o sin permiso' });
-    }
-    console.log(`❌ Dispositivo eliminado: ${device_id} por user ${req.user.id}`);
-    res.json({ success: true, deleted: result.rows[0] });
-  } catch (err) {
-    console.error('❌ Error eliminando dispositivo:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2505,6 +2491,21 @@ app.get('/api/queue/branches/:id/active', async (req, res) => {
   }
 });
 
+// POST — Prueba del display de turnos (admin) — emite token_called de prueba a la sala
+app.post('/api/queue/branches/:id/test-display', authenticateToken, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const testData = {
+    token_id:     'test-' + Date.now(),
+    token_number: 'A-99',
+    service_name: 'Prueba Display',
+    counter_name: 'Módulo 1',
+    is_priority:  false,
+  };
+  io.to(`branch_${id}`).emit('token_called', testData);
+  console.log(`🧪 Test display emitido a branch_${id}:`, testData);
+  res.json({ ok: true, emitted_to: `branch_${id}`, data: testData });
+});
+
 // GET — Config visual del display de turnos (público, sin JWT)
 // Devuelve theme, brand_color, logo_url, branch_name para queue-display.html
 app.get('/api/queue/branches/:id/display-config', async (req, res) => {
@@ -2759,12 +2760,7 @@ app.get('/api/queue/public/branches/:branchId/counters', async (req, res) => {
       'SELECT id, name, display_name, rating_enabled FROM counters WHERE branch_id = $1 AND active = true ORDER BY name ASC',
       [req.params.branchId]
     );
-    const counters = result.rows;
-    for (const c of counters) {
-      const svcRes = await pool.query('SELECT service_id FROM counter_services WHERE counter_id = $1', [c.id]);
-      c.service_ids = svcRes.rows.map(r => r.service_id);
-    }
-    res.json(counters);
+    res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -3042,19 +3038,6 @@ app.post('/api/queue/agent/session/close', authenticateAgentOrUser, async (req, 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-
-
-
-
-// Verificar estado de sesión activa (restaurar sesión tras refresh)
-app.get('/api/queue/agent/session/:sessionId/status', authenticateAgentOrUser, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT active FROM agent_sessions WHERE id = $1', [req.params.sessionId]);
-    if (!result.rows.length) return res.json({ active: false });
-    res.json({ active: result.rows[0].active });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
 // Iniciar / terminar pausa
 app.post('/api/queue/agent/break/start', authenticateAgentOrUser, async (req, res) => {
   try {
@@ -3295,52 +3278,30 @@ app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (
     const { agent_id, session_id, branch_id, to_counter_id, to_service_id, note } = req.body;
     const current = await pool.query('SELECT * FROM queue_tokens WHERE id = $1', [req.params.tokenId]);
     if (!current.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
-    const orig = current.rows[0];
-    console.log('🔄 Transfer:', req.params.tokenId, '→ counter:', to_counter_id, 'service:', to_service_id);
 
-    // 1. Marcar ticket original como transferido (desaparece de todas las colas)
+    const orig = current.rows[0];
     await pool.query(
       `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
       [req.params.tokenId]
     );
-
-    // 2. Crear nuevo ticket para la ventanilla destino
-    const newToken = await pool.query(
-      `INSERT INTO queue_tokens
-         (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
-       VALUES ($1, $2, $3, $4, $5, 'waiting', $6, 'transfer', CURRENT_DATE)
-       RETURNING id`,
-      [orig.branch_id, to_service_id || orig.service_id, to_counter_id,
-       orig.token_number, orig.display_number, orig.is_priority || false]
+    await pool.query(
+      `INSERT INTO queue_tokens (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
+       VALUES ($1, $2, $3, $4, $5, 'waiting', $6, 'transfer', CURRENT_DATE)`,
+      [orig.branch_id, to_service_id || orig.service_id, to_counter_id, orig.token_number, orig.display_number, orig.is_priority || false]
     );
-
-    // 3. Registrar evento
     await pool.query(
       `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
        VALUES ($1, 'transferred', $2, $3, $4, $5)`,
-      [req.params.tokenId, agent_id, orig.counter_id, to_counter_id, note]
+      [req.params.tokenId, agent_id, current.rows[0].counter_id, to_counter_id, note]
     );
-
-    // 4. Actualizar estadísticas de sesión
     await pool.query(
       `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
       [session_id]
     );
-
-    // 5. Emitir eventos — transferencia + nuevo turno en destino
     io.to(`branch_${branch_id}`).emit('token_transferred', {
       token_id: req.params.tokenId,
-      new_token_id: newToken.rows[0].id,
-      from_counter_id: orig.counter_id,
-      to_counter_id,
-      to_service_id: to_service_id || orig.service_id
+      to_counter_id, to_service_id
     });
-    io.to(`branch_${branch_id}`).emit('new_token', {
-      id: newToken.rows[0].id,
-      token_number: orig.token_number,
-      counter_id: to_counter_id
-    });
-
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

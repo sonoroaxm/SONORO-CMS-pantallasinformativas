@@ -63,15 +63,8 @@ async function getWifiNetworks() {
 async function startHotspot() {
   log(`Creando hotspot: ${HOTSPOT_NAME}`);
   try {
-    // Verificar si ya existe el hotspot
     try { await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {}
-    
-    // Crear hotspot con nmcli
-    await run(`sudo nmcli con add type wifi ifname wlan0 con-name "${HOTSPOT_NAME}" autoconnect no ssid "${HOTSPOT_NAME}"`);
-    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" 802-11-wireless.mode ap 802-11-wireless.band bg ipv4.method shared`);
-    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" ipv4.addresses ${HOTSPOT_IP}/24`);
-    await run(`sudo nmcli con modify "${HOTSPOT_NAME}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "sonorocms"`);
-    await run(`sudo nmcli con up "${HOTSPOT_NAME}"`);
+    await run(`sudo nmcli dev wifi hotspot ifname wlan0 ssid "${HOTSPOT_NAME}" password "sonorocms"`);
     hotspotActive = true;
     log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
     return true;
@@ -486,7 +479,7 @@ async function startServer() {
     res.end();
   });
 
-  const listenIP = hotspotActive ? HOTSPOT_IP : '0.0.0.0';
+  const listenIP = '0.0.0.0';
   server.listen(PORT, listenIP, () => {
     log(`Servidor portal en http://${listenIP}:${PORT}`);
     if (!RECONNECT_MODE) {

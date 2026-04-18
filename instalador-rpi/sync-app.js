@@ -14,7 +14,7 @@ const APP_DIR    = IS_WINDOWS
   ? path.join(process.env.APPDATA, 'SonoroCMS')
   : '/home/sonoro';
 const MEDIA_DIR  = path.join(APP_DIR, 'media');
-const PLAYER_DIR = path.join(APP_DIR, 'player');
+const PLAYER_DIR = IS_WINDOWS ? path.join(APP_DIR, "player") : __dirname;
 const MPV_PATH   = IS_WINDOWS
   ? path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'mpv', 'mpv.exe')
   : 'mpv';
@@ -739,10 +739,17 @@ function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destPath);
     const protocol = url.startsWith('https') ? require('https') : require('http');
-    protocol.get(url, (response) => {
+    const req = protocol.get(url, (response) => {
       response.pipe(file);
       file.on('finish', () => { file.close(); resolve(destPath); });
-    }).on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
+    });
+    req.setTimeout(90000, () => {
+      req.destroy();
+      file.destroy();
+      fs.unlink(destPath, () => {});
+      reject(new Error('Timeout descargando ' + path.basename(destPath)));
+    });
+    req.on('error', (err) => { file.destroy(); fs.unlink(destPath, () => {}); reject(err); });
   });
 }
 
@@ -1217,12 +1224,60 @@ function connectSocket() {
   return socket;
 }
 
+let _networkFailCount = 0;
+const NETWORK_FAIL_LIMIT = 4; // 2 min a 30s por ciclo
+let _reconnectPortalActive = false;
+
+function launchReconnectPortal() {
+  if (_reconnectPortalActive) return;
+  _reconnectPortalActive = true;
+  console.log('📱 Sin red — lanzando portal de reconexion silencioso...');
+  const portalPath = require('path').join(PLAYER_DIR, 'activation-portal.js');
+  const portal = spawn('node', [portalPath], {
+    detached: false,
+    stdio: 'inherit',
+    env: { ...process.env, RECONNECT_MODE: 'true' },
+  });
+  const scanInterval = setInterval(async () => {
+    if (!_reconnectPortalActive) { clearInterval(scanInterval); return; }
+    const ok = await hasNetwork();
+    if (ok) {
+      clearInterval(scanInterval);
+      console.log('🌐 Red detectada — cerrando portal y reanudando...');
+      portal.kill('SIGTERM');
+    }
+  }, 30000);
+  portal.on('close', async (code) => {
+    clearInterval(scanInterval);
+    _reconnectPortalActive = false;
+    _networkFailCount = 0;
+    const ok = await hasNetwork();
+    if (ok) {
+      console.log('📱 Portal cerrado — red disponible, reiniciando player...');
+      setTimeout(() => main().catch(console.error), 3000);
+    } else {
+      console.log('📱 Portal cerrado sin red — player continua en offline');
+    }
+  });
+  portal.on('error', (err) => {
+    clearInterval(scanInterval);
+    console.error('❌ Error portal reconexion:', err.message);
+    _reconnectPortalActive = false;
+  });
+}
+
 function startHeartbeat() {
   setInterval(async () => {
-    // Ping HTTP para mantener el device actualizado en BD
-    try { await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 }); }
-    catch(e) {}
-    // Reportar estado completo via socket
+    const ok = await hasNetwork();
+    if (ok) {
+      _networkFailCount = 0;
+      try { await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 }); } catch(e) {}
+    } else {
+      _networkFailCount++;
+      if (_networkFailCount % 2 === 0)
+        console.warn(`⚠️ Sin red [${_networkFailCount}/${NETWORK_FAIL_LIMIT}]`);
+      if (_networkFailCount >= NETWORK_FAIL_LIMIT) launchReconnectPortal();
+    }
     reportState();
   }, 30000);
 }
@@ -1438,11 +1493,15 @@ async function main() {
   // 1. Verificar red
   const network = await hasNetwork();
   if (!network) {
-    console.warn('⚠️ Sin conexión a internet');
-    // En Windows no hay AP — mostrar splash y esperar
+    console.warn('⚠️ Sin red al arrancar — portal inmediato + cache');
     showIdleSplash();
-    console.log('⏳ Esperando conexión...');
-    setTimeout(main, 30000);
+    launchReconnectPortal(); // no await — corre en segundo plano
+    const offlineConfig = loadCachedConfig();
+    if (offlineConfig) {
+      console.log('📂 Reproduciendo desde cache (offline)');
+      currentConfig = offlineConfig;
+      await startPlayer(offlineConfig);
+    }
     return;
   }
 
