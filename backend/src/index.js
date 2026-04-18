@@ -942,6 +942,36 @@ app.delete('/api/playlists/:playlistId/items/:contentId', authenticateToken, asy
   }
 });
 
+// PUT - Sync completo de items: borra todos y re-inserta en orden exacto
+app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) => {
+  try {
+    const { playlistId } = req.params;
+    const { items } = req.body;
+    const userId = req.user.id;
+
+    const check = await pool.query(
+      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      [playlistId, userId]
+    );
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Playlist no encontrada' });
+
+    await pool.query('DELETE FROM playlist_items WHERE playlist_id = $1', [playlistId]);
+
+    for (let i = 0; i < items.length; i++) {
+      await pool.query(
+        'INSERT INTO playlist_items (playlist_id, content_id, display_order, duration_override_ms) VALUES ($1, $2, $3, $4)',
+        [playlistId, items[i].content_id, i + 1, items[i].duration_override_ms || null]
+      );
+    }
+
+    res.json({ success: true, count: items.length });
+    console.log(`✅ Items playlist sincronizados: ${playlistId} (${items.length} items)`);
+  } catch (err) {
+    console.error('❌ Error sincronizando items playlist:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PUT - Reordenar items en una playlist
 app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res) => {
   try {

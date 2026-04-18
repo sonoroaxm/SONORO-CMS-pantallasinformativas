@@ -1827,12 +1827,14 @@ async function savePlaylist() {
         body: JSON.stringify({ name, description, orientation, shuffle_enabled, repeat_enabled })
       }).then(r => r.json());
     const playlistId = pData.playlist.id;
-    for (let item of playlistItems) {
-      await fetch(`${API_URL}/api/playlists/${playlistId}/items`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-        body: JSON.stringify({ content_id: item.content_id, duration_override_ms: item.type === 'image' ? (item.duration_ms || 15000) : null })
-      });
-    }
+    // Sync completo: reemplaza todos los items en orden exacto (maneja eliminaciones y reordenamiento)
+    await fetch(`${API_URL}/api/playlists/${playlistId}/items`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ items: playlistItems.map(item => ({
+        content_id: item.content_id,
+        duration_override_ms: item.type === 'image' ? (item.duration_ms || 15000) : null
+      })) })
+    });
     updateStatus('Lista guardada', 'success');
     closePlaylistModal(); loadPlaylists();
   } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
