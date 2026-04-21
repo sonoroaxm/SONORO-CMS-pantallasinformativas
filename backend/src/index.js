@@ -3576,35 +3576,50 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════
-// SOCKET.IO — Sala por sucursal
+// SOCKET.IO — Auth middleware + eventos en tiempo real
 // ══════════════════════════════════════════════════════════════
-// Agregar en el handler io.on('connection'):
-// socket.on('join_branch', (branchId) => { socket.join(`branch_${branchId}`); });
-// socket.on('join_counter', (counterId) => { socket.join(`counter_${counterId}`); });
 
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  const deviceId = socket.handshake.auth?.device_id;
 
-// SOCKET.IO - EVENTOS EN TIEMPO REAL
-// ========================================
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      socket.user = decoded;
+      socket.role = 'user';
+    } catch (e) {
+      return next(new Error('Token inválido'));
+    }
+  } else if (deviceId) {
+    socket.deviceId = deviceId;
+    socket.role = 'device';
+  } else {
+    socket.role = 'anonymous';
+  }
+  next();
+});
 
 io.on('connection', (socket) => {
-  console.log('🟢 Cliente conectado:', socket.id);
-  // DEBUG — capturar todos los eventos
-  const originalEmit = socket.onevent.bind(socket);
-  socket.onevent = function(packet) {
-    if (packet.data[0] === 'screenshot_result') {
-      console.log(`🔍 [DEBUG] Evento recibido: ${packet.data[0]} de socket ${socket.id}`);
-    }
-    originalEmit(packet);
-  };
-  // Auto-join: si el cliente envía su device_id al conectar, unirlo a su sala
+  console.log(`🟢 Cliente conectado: ${socket.id} (${socket.role})`);
+
+  function requireUser(handler) {
+    return (...args) => {
+      if (socket.role !== 'user') return socket.emit('auth_error', { error: 'No autorizado' });
+      handler(...args);
+    };
+  }
+
+  // ── Eventos de dispositivos ──────────────────────────────
+
   socket.on('device_register', ({ device_id }) => {
+    if (socket.role !== 'device' || socket.deviceId !== device_id) return;
     socket.join(`device_${device_id}`);
     console.log(`📱 ${device_id} unido a sala device_${device_id} (socket: ${socket.id})`);
   });
 
-
   socket.on('screenshot_result', ({ device_id, success, image, error }) => {
-    console.log(`📸 [RECV] screenshot_result — socket: ${socket.id} device: ${device_id} success: ${success} size: ${image?.length}`);
+    if (socket.role !== 'device') return;
     const cb = screenshotCallbacks.get(device_id);
     if (!cb) { console.warn(`📸 Sin callback para ${device_id}`); return; }
     clearTimeout(cb.timeout);
@@ -3621,17 +3636,8 @@ io.on('connection', (socket) => {
     } catch(e) { cb.reject(e); }
   });
 
-  socket.on('join_user_room', ({ user_id }) => {
-    socket.join(`user_${user_id}`);
-  });
-
-  socket.on('refresh_features', ({ user_id, features }) => {
-    console.log(`🔄 refresh_features recibido — user_id: ${user_id} features: ${JSON.stringify(features)}`);
-    io.to(`user_${user_id}`).emit('features_updated');
-    console.log(`🔄 features_updated emitido a user_${user_id}`);
-  });
-
   socket.on('device_heartbeat', async ({ device_id, status, temp }) => {
+    if (socket.role !== 'device') return;
     try {
       socket.join(`device_${device_id}`);
       if (temp !== undefined && temp !== null) {
@@ -3642,8 +3648,19 @@ io.on('connection', (socket) => {
     } catch(e) { console.warn('heartbeat error:', e.message); }
   });
 
-  // ⭐ EVENTO: Reinicio remoto de dispositivo RPi
-  socket.on('reboot_device', async ({ device_id }) => {
+  // ── Eventos de usuario autenticado ───────────────────────
+
+  socket.on('join_user_room', requireUser(({ user_id }) => {
+    if (socket.user.id !== user_id) return;
+    socket.join(`user_${user_id}`);
+  }));
+
+  socket.on('refresh_features', requireUser(({ user_id, features }) => {
+    console.log(`🔄 refresh_features recibido — user_id: ${user_id}`);
+    io.to(`user_${user_id}`).emit('features_updated');
+  }));
+
+  socket.on('reboot_device', requireUser(async ({ device_id }) => {
     try {
       const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
       if (!result.rows.length) return socket.emit('reboot_result', { success: false, error: 'Dispositivo no encontrado' });
@@ -3662,93 +3679,71 @@ io.on('connection', (socket) => {
     } catch (err) {
       socket.emit('reboot_result', { success: false, error: err.message });
     }
-  });
+  }));
 
-  // ⭐ EVENTO: Iniciar conversión via Socket.io
-  socket.on('start-video-conversion', async (data) => {
+  socket.on('start-video-conversion', requireUser(async (data) => {
     try {
       const { contentId, originalPath, outputPath, preset = 'balanced' } = data;
-
-      console.log(`\n📺 [${socket.id}] Solicitud de conversión`);
-      console.log(`   Contenido: ${contentId}`);
-      console.log(`   Archivo: ${originalPath}`);
-
-      // Validar datos
       if (!contentId || !originalPath || !outputPath) {
         return socket.emit('conversion-error', {
           error: 'Faltan parámetros requeridos (contentId, originalPath, outputPath)',
           received: { contentId, originalPath, outputPath }
         });
       }
-
-      // Encolar el trabajo de conversión
       const job = await addConversionJob({
-        contentId,
-        originalPath,
-        outputPath,
-        preset,
-        socketId: socket.id  // ⭐ IMPORTANTE: Pasamos el socket ID
+        contentId, originalPath, outputPath, preset,
+        socketId: socket.id
       });
-
-      // Responder al cliente
       socket.emit('conversion-queued', {
-        jobId: job.id,
-        contentId,
+        jobId: job.id, contentId,
         message: 'Video encolado para conversión',
         timestamp: new Date()
       });
-
     } catch (error) {
       console.error(`❌ Error iniciando conversión:`, error.message);
-      socket.emit('conversion-error', {
-        error: error.message,
-        timestamp: new Date()
-      });
+      socket.emit('conversion-error', { error: error.message, timestamp: new Date() });
     }
-  });
+  }));
 
-  // ⭐ EVENTO: Obtener estado de un job
-  socket.on('get-job-status', async (jobId) => {
+  socket.on('get-job-status', requireUser(async (jobId) => {
     try {
       const status = await getJobStatus(jobId);
       socket.emit('job-status', status);
     } catch (error) {
-      socket.emit('status-error', {
-        error: error.message
-      });
+      socket.emit('status-error', { error: error.message });
     }
-  });
+  }));
 
-  // ⭐ EVENTO: Obtener estadísticas de la cola
-  socket.on('get-queue-stats', async () => {
+  socket.on('get-queue-stats', requireUser(async () => {
     try {
       const stats = await getQueueStats();
       socket.emit('queue-stats', stats);
     } catch (error) {
-      socket.emit('stats-error', {
-        error: error.message
-      });
+      socket.emit('stats-error', { error: error.message });
     }
-  });
+  }));
 
-  // Reenviar token_now_playing del RPi al display del branch
+  // ── Eventos compartidos (dispositivos + usuarios) ────────
+
   socket.on('token_now_playing', (data) => {
     if (data && data.branch_id) {
       io.to(`branch_${data.branch_id}`).emit('token_now_playing', data);
     }
   });
 
-  // Queue — unirse a sala de sucursal
   socket.on('join_branch', (branchId) => {
+    if (socket.role === 'anonymous') return;
     socket.join(`branch_${branchId}`);
     console.log(`📺 Socket unido a sala branch_${branchId}`);
   });
+
   socket.on('join_counter', (counterId) => {
+    if (socket.role === 'anonymous') return;
     socket.join(`counter_${counterId}`);
   });
 
   socket.on('disconnect', () => {
-    console.log('🔴 Cliente desconectado:', socket.id);
+    console.log(`🔴 Cliente desconectado: ${socket.id} (${socket.role})`);
   });
 });
 
