@@ -39,10 +39,13 @@ const { videoConversionQueue, addConversionJob, getJobStatus, getQueueStats } = 
 
 
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+const corsOrigin = ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : '*';
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' },
+  cors: { origin: corsOrigin },
   maxHttpBufferSize: 10e6
 });
 
@@ -72,7 +75,7 @@ async function doTV(deviceId, action, target = 'all') {
 // ========================================
 // MIDDLEWARE
 // ========================================
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(fileUpload({
@@ -952,9 +955,12 @@ app.delete('/api/playlists/:playlistId/items/:contentId', authenticateToken, asy
     }
 
     await pool.query(
-      `UPDATE playlist_items
-       SET display_order = ROW_NUMBER() OVER (ORDER BY display_order)
-       WHERE playlist_id = $1`,
+      `WITH renumbered AS (
+         SELECT id, ROW_NUMBER() OVER (ORDER BY display_order) AS new_order
+         FROM playlist_items WHERE playlist_id = $1
+       )
+       UPDATE playlist_items pi SET display_order = r.new_order
+       FROM renumbered r WHERE pi.id = r.id`,
       [playlistId]
     );
 

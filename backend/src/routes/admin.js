@@ -266,9 +266,6 @@ router.get('/database/stats', auth, async (req, res) => {
     ]);
     res.json({
       database: {
-        host:    process.env.DB_HOST || 'localhost',
-        port:    process.env.DB_PORT || 5432,
-        name:    process.env.DB_NAME || 'cms_signage',
         size_mb: size.rows[0].db_size,
       },
       tables: {
