@@ -3757,13 +3757,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join_branch', (branchId) => {
-    if (socket.role === 'anonymous') return;
     socket.join(`branch_${branchId}`);
     console.log(`📺 Socket unido a sala branch_${branchId}`);
   });
 
   socket.on('join_counter', (counterId) => {
-    if (socket.role === 'anonymous') return;
     socket.join(`counter_${counterId}`);
   });
 

@@ -508,7 +508,7 @@ function loadStoredSession() {
   } catch(e) { return { sess: null, info: null }; }
 }
 
-const socket  = io();
+const socket  = io({ auth: { token: getAgentToken() } });
 
 let session   = null;  // { id, agent_id, counter_id, branch_id, service_ids }
 let agent     = null;  // { id, name }

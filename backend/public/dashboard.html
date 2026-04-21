@@ -1620,7 +1620,7 @@ function updateStatus(message, type = 'info') {
 function showStatus(msg, type) { updateStatus(msg, type); }
 
 function connectWebSocket() {
-  socket = io(API_URL, { extraHeaders: { 'Authorization': `Bearer ${authToken}` } });
+  socket = io(API_URL, { auth: { token: authToken } });
   socket.on('connect', () => {
     if (currentUser) {
       socket.emit('join_user_room', { user_id: currentUser.id });

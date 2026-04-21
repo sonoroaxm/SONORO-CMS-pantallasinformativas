@@ -991,7 +991,7 @@
 <script>
 const API_URL = window.location.origin;
 let authToken = localStorage.getItem('authToken');
-const socket = io();
+const socket = io({ auth: { token: authToken } });
 
 let liveLogsInterval = null;
 let currentLogProcess = null;
