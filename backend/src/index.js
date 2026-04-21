@@ -12,6 +12,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fileUpload = require('express-fileupload');
+const rateLimit = require('express-rate-limit');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const SAFE_IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
@@ -96,6 +97,20 @@ app.use('/uploads', express.static('uploads', {
     }
   }
 }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos, intenta en 15 minutos' },
+  standardHeaders: true,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiados registros, intenta en 1 hora' },
+  standardHeaders: true,
+});
 
 console.log('✅ Dashboard: http://localhost:5000/dashboard.html');
 console.log('✅ Uploads: http://localhost:5000/uploads/');
@@ -201,7 +216,11 @@ global.pool = pool;
 // ========================================
 // CONFIGURACIÓN JWT
 // ========================================
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET no definido en .env');
+  process.exit(1);
+}
 const JWT_EXPIRES_IN = '24h';
 
 // ========================================
@@ -376,7 +395,7 @@ app.get('/dashboard.html', (req, res) => {
 // AUTENTICACIÓN - LOGIN
 // ========================================
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', registerLimiter, async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
@@ -424,7 +443,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -2829,7 +2848,7 @@ app.get('/api/queue/public/branches/:branchId/agents', async (req, res) => {
 });
 
 // POST — Login del agente con PIN → devuelve JWT
-app.post('/api/queue/agent/login', async (req, res) => {
+app.post('/api/queue/agent/login', authLimiter, async (req, res) => {
   const { agent_id, pin } = req.body;
   if (!agent_id || !pin) return res.status(400).json({ error: 'agent_id y pin requeridos' });
   try {
