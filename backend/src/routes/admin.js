@@ -9,6 +9,11 @@ const express = require('express');
 const router = express.Router();
 const { exec, execFile } = require('child_process');
 const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+const SAFE_IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+function isValidIP(ip) {
+  if (!SAFE_IP_RE.test(ip)) return false;
+  return ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
+}
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
@@ -238,10 +243,18 @@ router.get('/system', auth, async (req, res) => {
 
 router.get('/system/port/:port', auth, (req, res) => {
   const port = parseInt(req.params.port);
-  exec(process.platform === 'win32' ? `netstat -ano | findstr :${port}` : `netstat -tuln 2>/dev/null | grep :${port} || ss -tuln | grep :${port}`, { windowsHide: true }, (err, stdout) => {
-    const open = !err && stdout.includes(':' + port);
-    res.json({ port, status: open ? 'open' : 'closed' });
-  });
+  if (!port || port < 1 || port > 65535) return res.status(400).json({ error: 'Puerto inválido' });
+  if (process.platform === 'win32') {
+    execFile('netstat', ['-ano'], { windowsHide: true }, (err, stdout) => {
+      const open = !err && stdout.includes(':' + port);
+      res.json({ port, status: open ? 'open' : 'closed' });
+    });
+  } else {
+    execFile('ss', ['-tuln'], { windowsHide: true }, (err, stdout) => {
+      const open = !err && stdout.includes(':' + port);
+      res.json({ port, status: open ? 'open' : 'closed' });
+    });
+  }
 });
 
 // ── DATABASE ──────────────────────────────────────────
@@ -309,30 +322,20 @@ router.post('/rpi/logs', auth, (req, res) => {
 
 router.post('/rpi/screenshot', auth, (req, res) => {
   const { device_id, ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
+  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
 
-  const screenshotFile = `/tmp/screenshot_${device_id}_${Date.now()}.png`;
   const remoteFile = `/tmp/cms_screenshot.png`;
   const publicDir = path.join(process.cwd(), 'uploads');
-
-  // Tomar screenshot en RPi via SSH usando grim (Wayland) o scrot (X11 fallback)
   const captureCmd = `WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 grim ${remoteFile} 2>/dev/null || DISPLAY=:0 scrot ${remoteFile} 2>/dev/null`;
-  const sshCapture = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip} "${captureCmd}"`;
 
-  exec(sshCapture, { timeout: 15000, windowsHide: true }, (err) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}`, captureCmd], { timeout: 15000, windowsHide: true }, (err) => {
     if (err) {
-      return res.json({ success: false, error: `No se pudo capturar pantalla en ${ip}. Verifica que grim esté instalado (sudo apt install grim).` });
+      return res.json({ success: false, error: `No se pudo capturar pantalla en ${ip}. Verifica que grim esté instalado.` });
     }
-
-    // Copiar el PNG de RPi al servidor via SCP
     const localFilename = `screenshot-${device_id}-${Date.now()}.png`;
     const localPath = path.join(publicDir, localFilename);
-    const scpCmd = `scp -o StrictHostKeyChecking=no -o ConnectTimeout=8 -o BatchMode=yes sonoro@${ip}:${remoteFile} "${localPath}"`;
-
-    exec(scpCmd, { timeout: 20000, windowsHide: true }, (scpErr) => {
-      if (scpErr) {
-        return res.json({ success: false, error: `Error copiando screenshot: ${scpErr.message}` });
-      }
+    execFile('scp', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}:${remoteFile}`, localPath], { timeout: 20000, windowsHide: true }, (scpErr) => {
+      if (scpErr) return res.json({ success: false, error: `Error copiando screenshot: ${scpErr.message}` });
       res.json({ success: true, screenshot_url: `/uploads/${localFilename}` });
     });
   });
@@ -341,12 +344,11 @@ router.post('/rpi/screenshot', auth, (req, res) => {
 // POST actualizar sync-app.js en RPi
 router.post('/rpi/update', auth, (req, res) => {
   const { device_id, ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
+  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
 
   const cmsUrl = process.env.CMS_URL_INTERNAL || `http://${process.env.HOST || '192.168.1.4'}:${process.env.PORT || 5000}`;
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} "wget -q -O /home/sonoro/sonoro-player/sync-app.js ${cmsUrl}/sync-app.js && sudo systemctl restart sonoro-player && echo OK"`;
-
-  exec(cmd, { timeout: 30000, windowsHide: true }, (err, stdout, stderr) => {
+  const remoteCmd = `wget -q -O /home/sonoro/sonoro-player/sync-app.js ${cmsUrl}/sync-app.js && sudo systemctl restart sonoro-player && echo OK`;
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 30000, windowsHide: true }, (err, stdout) => {
     if (err && !stdout.includes('OK')) {
       return res.json({ success: false, error: `Error actualizando ${ip}: ${err.message}` });
     }
@@ -358,11 +360,10 @@ router.post('/rpi/update', auth, (req, res) => {
 // ── RPi STATS (temperatura + ventilador) ─────────────
 router.post('/rpi/stats', auth, (req, res) => {
   const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
+  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
 
-  const cmd = `ssh -o StrictHostKeyChecking=no -o ConnectTimeout=6 -o BatchMode=yes sonoro@${ip} "vcgencmd measure_temp 2>/dev/null; cat /sys/class/thermal/cooling_device0/cur_state 2>/dev/null || echo 'fan:n/a'"`;
-
-  exec(cmd, { timeout: 10000, windowsHide: true }, (err, stdout) => {
+  const remoteCmd = `vcgencmd measure_temp 2>/dev/null; cat /sys/class/thermal/cooling_device0/cur_state 2>/dev/null || echo 'fan:n/a'`;
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=6', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 10000, windowsHide: true }, (err, stdout) => {
     if (err && !stdout) {
       return res.json({ success: false, error: 'No se pudo conectar' });
     }

@@ -12,8 +12,13 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fileUpload = require('express-fileupload');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
+const SAFE_IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+function isValidIP(ip) {
+  if (!SAFE_IP_RE.test(ip)) return false;
+  return ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
+}
 const emailService = require('./services/email');
 
 
@@ -1246,9 +1251,8 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 // POST - Reboot dispositivo via SSH
 app.post('/api/devices/reboot', authenticateToken, async (req, res) => {
   const { ip } = req.body;
-  if (!ip) return res.status(400).json({ error: 'IP requerida' });
-  const { exec } = require('child_process');
-  exec(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 sonoro@${ip} "sudo reboot"`, { windowsHide: true }, (error) => {
+  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
     if (error) {
       console.warn(`⚠️ Reboot enviado a ${ip} (puede ser normal si SSH cierra):`, error.message);
     }
@@ -1264,8 +1268,8 @@ app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) =
     const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
     const ip = result.rows[0].ip_address;
-    const { exec } = require('child_process');
-    exec(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} "sudo reboot"`, { windowsHide: true }, (error) => {
+    if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP del dispositivo inválida' });
+    execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
       if (error && !error.message.includes('closed') && !error.message.includes('exit')) {
         console.warn(`⚠️ SSH reboot ${ip}:`, error.message);
       }
@@ -1496,6 +1500,9 @@ app.post('/api/devices/:device_id/update-result', async (req, res) => {
 // POST /api/devices/:device_id/screenshot-upload — RPi sube screenshot via HTTP
 app.post('/api/devices/:device_id/screenshot-upload', async (req, res) => {
   const { device_id } = req.params;
+  if (!screenshotCallbacks.has(device_id)) {
+    return res.status(403).json({ success: false, error: 'No hay solicitud de screenshot pendiente' });
+  }
   if (!req.files || !req.files.screenshot) {
     return res.status(400).json({ success: false, error: 'No se recibio archivo' });
   }
@@ -3641,8 +3648,9 @@ io.on('connection', (socket) => {
       const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
       if (!result.rows.length) return socket.emit('reboot_result', { success: false, error: 'Dispositivo no encontrado' });
       const ip = result.rows[0].ip_address;
+      if (!ip || !isValidIP(ip)) return socket.emit('reboot_result', { success: false, error: 'IP del dispositivo inválida' });
       console.log(`🔄 Reiniciando dispositivo ${device_id} en ${ip}`);
-      exec(`ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes sonoro@${ip} "sudo reboot"`, { timeout: 15000, windowsHide: true }, (error) => {
+      execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
         if (error && error.code !== null && error.signal !== 'SIGTERM') {
           console.error('❌ Reboot error:', error.message);
           socket.emit('reboot_result', { success: false, error: error.message });
