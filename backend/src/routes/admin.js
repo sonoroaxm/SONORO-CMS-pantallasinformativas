@@ -7,7 +7,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
+const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
@@ -153,7 +154,8 @@ router.get('/processes', auth, async (req, res) => {
 
 router.post('/process/:name/restart', auth, (req, res) => {
   const { name } = req.params;
-  exec(`pm2 restart ${name}`, { windowsHide: true }, (err, stdout) => {
+  if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
+  execFile('pm2', ['restart', name], { windowsHide: true }, (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, message: `${name} reiniciado` });
   });
@@ -161,7 +163,8 @@ router.post('/process/:name/restart', auth, (req, res) => {
 
 router.post('/process/:name/stop', auth, (req, res) => {
   const { name } = req.params;
-  exec(`pm2 stop ${name}`, { windowsHide: true }, (err) => {
+  if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
+  execFile('pm2', ['stop', name], { windowsHide: true }, (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, message: `${name} detenido` });
   });
@@ -169,7 +172,8 @@ router.post('/process/:name/stop', auth, (req, res) => {
 
 router.post('/process/:name/start', auth, (req, res) => {
   const { name } = req.params;
-  exec(`pm2 start ${name}`, { windowsHide: true }, (err) => {
+  if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
+  execFile('pm2', ['start', name], { windowsHide: true }, (err) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ success: true, message: `${name} iniciado` });
   });
@@ -177,10 +181,10 @@ router.post('/process/:name/start', auth, (req, res) => {
 
 router.get('/process/:name/logs', auth, (req, res) => {
   const { name } = req.params;
-  const lines = parseInt(req.query.lines) || 100;
+  if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
+  const lines = Math.min(Math.max(parseInt(req.query.lines) || 100, 1), 5000);
   const logsDir = path.join(process.cwd(), 'logs');
 
-  // Intentar leer archivo de log de PM2
   const candidates = [
     path.join(logsDir, `${name}-out.log`),
     path.join(logsDir, `sonoro-${name}-out-0.log`),
@@ -188,17 +192,16 @@ router.get('/process/:name/logs', auth, (req, res) => {
   ];
 
   for (const logFile of candidates) {
+    if (!logFile.startsWith(logsDir)) continue;
     if (fs.existsSync(logFile)) {
-      exec(process.platform === 'win32' ? `powershell -Command "Get-Content \"${logFile}\" -Tail ${lines}"` : `tail -n ${lines} "${logFile}"`, { windowsHide: true }, (err, stdout) => {
-        if (err) return res.json({ logs: [`Error leyendo log: ${err.message}`] });
-        res.json({ logs: stdout.split('\n').filter(Boolean) });
-      });
+      const content = fs.readFileSync(logFile, 'utf-8');
+      const allLines = content.split('\n').filter(Boolean);
+      res.json({ logs: allLines.slice(-lines) });
       return;
     }
   }
 
-  // Fallback: pm2 logs
-  exec(`pm2 logs ${name} --lines ${lines} --nostream 2>&1`, { windowsHide: true }, (err, stdout) => {
+  execFile('pm2', ['logs', name, '--lines', String(lines), '--nostream'], { windowsHide: true }, (err, stdout) => {
     const raw = (stdout || '').split('\n').filter(l => l.trim());
     res.json({ logs: raw.length ? raw : [`No se encontraron logs para ${name}`] });
   });
