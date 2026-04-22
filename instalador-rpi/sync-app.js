@@ -1001,7 +1001,7 @@ function listenLicenseUpdates(socket) {
 
 function connectSocket() {
   console.log(`🔌 Conectando a ${CMS_URL}...`);
-  const socket = io(CMS_URL, { reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity });
+  const socket = io(CMS_URL, { auth: { device_id: DEVICE_ID }, reconnection: true, reconnectionDelay: 5000, reconnectionAttempts: Infinity });
 
   globalSocket = socket;
 
