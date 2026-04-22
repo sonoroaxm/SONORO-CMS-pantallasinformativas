@@ -22,6 +22,16 @@
       --grad: linear-gradient(135deg, var(--magenta) 0%, var(--orange) 55%, var(--yellow) 100%);
     }
 
+    body.light-mode {
+      --black: #e8e8e8;
+      --surface: #ffffff;
+      --surface2: #f4f4f4;
+      --surface3: #ececec;
+      --border: #d8d8d8;
+      --text: #111111;
+      --text-muted: #666666;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -30,6 +40,7 @@
       color: var(--text);
       min-height: 100vh;
       font-weight: 400;
+      transition: background .2s, color .2s;
     }
 
     /* ── FULLSCREEN PLAYER ── */
@@ -686,53 +697,133 @@
     .item-row.empty { border-left-color: var(--border); color: var(--text-muted); text-align: center; }
 
     /* Devices */
+    /* ══ DEVICE CARD ══ */
     .device-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px; padding: 20px;
+      border-radius: 14px;
       margin-bottom: 14px;
-      transition: border-color 0.2s;
+      overflow: hidden;
+      transition: border-color .2s;
     }
-    .device-card:hover { border-color: var(--surface3); }
-    .device-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 12px;
-    }
-    .device-name {
-      font-size: 15px; font-weight: 800; color: var(--text);
-    }
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 12px;
-      border-radius: 20px; font-size: 11px; font-weight: 700;
-      letter-spacing: 1px; text-transform: uppercase;
-    }
-    .status-badge.online { background: rgba(0,230,118,0.1); color: var(--online); }
-    .status-badge.offline { background: rgba(255,23,68,0.1); color: var(--offline); }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .status-dot.online { background: var(--online); box-shadow: 0 0 6px var(--online); }
-    .status-dot.offline { background: var(--offline); }
+    .device-card:hover { border-color: #3a3a3a; }
 
-    .device-meta {
-      font-size: 11px; color: var(--text-muted);
-      margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap;
+    .dc-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 20px; cursor: pointer; user-select: none;
     }
-    .device-meta span { font-weight: 600; }
-    .device-meta .highlight { color: var(--orange); }
+    .dc-header:hover { background: rgba(255,255,255,.015); }
 
-    .device-controls {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
-      align-items: end; margin-bottom: 14px;
+    .dc-status-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     }
-    .device-controls label {
+    .dc-status-dot.online  { background: var(--online); box-shadow: 0 0 8px var(--online); }
+    .dc-status-dot.offline { background: var(--offline); }
+
+    .dc-info { flex: 1; min-width: 0; }
+    .dc-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dc-name {
+      font-size: 14px; font-weight: 800; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .dc-sub {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 3px;
+    }
+    .dc-sub-item { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .dc-sub-item .val { color: var(--text); }
+
+    .dc-header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .dc-badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .dc-badge.online  { background: rgba(0,230,118,.1); color: var(--online); }
+    .dc-badge.offline { background: rgba(255,23,68,.1);  color: var(--offline); }
+
+    .dc-toggle {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; color: var(--text-muted);
+      transition: transform .25s; flex-shrink: 0;
+    }
+    .device-card.expanded .dc-toggle { transform: rotate(180deg); }
+
+    .dc-stats { display: flex; border-top: 1px solid var(--border); }
+    .dc-stat { flex: 1; padding: 9px 14px; border-right: 1px solid var(--border); }
+    .dc-stat:last-child { border-right: none; }
+    .dc-stat-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px;
+    }
+    .dc-stat-val {
+      font-size: 12px; font-weight: 700; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .dc-stat-val.accent { color: var(--magenta); }
+    .dc-stat-val.warn   { color: var(--orange); }
+    .dc-stat-val.muted  { color: var(--text-muted); }
+
+    .dc-body { display: none; }
+    .device-card.expanded .dc-body { display: block; }
+
+    .dc-section { border-top: 1px solid var(--border); }
+    .dc-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 20px; cursor: pointer; user-select: none;
+      background: var(--surface2); transition: background .15s;
+    }
+    .dc-section-header:hover { background: var(--surface3); }
+    .dc-section-label {
+      font-size: 10px; font-weight: 800;
+      letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted);
+    }
+    .dc-section-arrow { font-size: 10px; color: var(--text-muted); transition: transform .2s; }
+    .dc-section.open .dc-section-arrow { transform: rotate(90deg); }
+    .dc-section-body { padding: 16px 20px 20px; display: none; }
+    .dc-section.open .dc-section-body { display: block; }
+
+    .win-pill {
+      display: inline-block; padding: 2px 7px;
+      background: #0d2340; border: 1px solid #1e3f6e; border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: #7eb8f7;
+      letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
+    }
+
+    .dc-field-grid { display: grid; gap: 12px; }
+    .dc-fg-2 { grid-template-columns: 1fr 1fr; }
+    .dc-field-label {
+      display: block; margin-bottom: 6px;
       font-size: 10px; font-weight: 700;
-      letter-spacing: 1px; text-transform: uppercase;
-      color: var(--text-muted); display: block; margin-bottom: 6px;
+      letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
     }
-    .device-controls select {
-      margin: 0; font-size: 12px; padding: 9px 10px;
+
+    .dc-tv-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .dc-tv-btn {
+      padding: 7px 12px; border: none; border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity .2s;
     }
-    .device-footer { text-align: right; }
+    .dc-tv-btn:hover { opacity: .8; }
+    .dc-tv-btn.status { background: #0C447C; color: #B5D4F4; }
+    .dc-tv-btn.on     { background: #1a4a0a; color: #a8d87a; }
+    .dc-tv-btn.off    { background: #5a1515; color: #f0a0a0; }
+    .dc-tv-btn.mute   { background: #3a2800; color: #e8ba60; }
+    .dc-tv-btn.unmute { background: #5a3200; color: #e8ba60; }
+
+    .dc-footer {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+      flex-wrap: wrap;
+    }
+    .dc-footer-meta {
+      font-size: 11px; color: var(--text-muted);
+      margin-right: auto; font-weight: 600; white-space: nowrap;
+    }
+    .dc-footer-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
     .save-btn {
       padding: 9px 20px;
@@ -740,7 +831,7 @@
       color: white; border: none; border-radius: 8px;
       font-family: 'Montserrat', sans-serif;
       font-size: 12px; font-weight: 700;
-      cursor: pointer; transition: opacity 0.2s;
+      cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
     }
     .save-btn:hover { opacity: 0.85; }
 
@@ -866,99 +957,35 @@
         height: 62px;
         padding-bottom: env(safe-area-inset-bottom);
       }
+      /* Device cards — mobile */
+      .dc-stats { flex-wrap: wrap; }
+      .dc-stat { flex: 0 0 50%; border-right: none; border-bottom: 1px solid var(--border); }
+      .dc-stat:nth-child(odd) { border-right: 1px solid var(--border); }
+      .dc-stat:nth-last-child(-n+2) { border-bottom: none; }
+      .dc-header-right .dc-badge { display: none; }
+      .dc-header { padding: 13px 16px; }
+      .dc-section-body { padding: 14px 16px 16px; }
+      .dc-section-header { padding: 10px 16px; }
+      .dc-footer { padding: 10px 16px; gap: 6px; }
+      .dc-footer-meta { width: 100%; margin-right: 0; }
+      .dc-footer-actions { width: 100%; }
+      .dc-footer-actions .btn-outline { flex: 1; text-align: center; }
+      .save-btn { width: 100%; }
+      .dc-fg-2 { grid-template-columns: 1fr; }
     }
     @media (min-width: 769px) {
       .mobile-tabbar { display: none !important; }
     }
     .hidden-feature { display: none !important; }
-    .mobile-tabbar {
-      display: none;
-    }
+    .mobile-tabbar { display: none; }
     .mobile-tab-btn {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 10px;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 8px 4px;
-      transition: color 0.2s;
-      letter-spacing: 0.3px;
-    }
-    .mobile-tab-btn.active { color: var(--magenta); }
-    .mobile-tab-btn svg { width: 22px; height: 22px; }
-    .mobile-tab-btn.active svg path,
-    .mobile-tab-btn.active svg rect,
-    .mobile-tab-btn.active svg circle { stroke: var(--magenta); }
-
-    /* ── RESPONSIVE MOVIL ─────────────────────────────────── */
-    @media (max-width: 768px) {
-      .layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-      }
-      .sidebar {
-        display: none !important;
-      }
-      .main {
-        padding-bottom: 70px;
-      }
-      .topbar {
-        padding: 0 16px;
-        height: 52px;
-      }
-      .topbar-version { display: none; }
-      .topbar-divider { display: none; }
-      .topbar-user { font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .logout-btn { padding: 6px 10px; font-size: 11px; }
-      .container { padding: 12px; }
-      .device-card { margin-bottom: 16px; }
-      /* Tablas scrollables */
-      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      table { min-width: 500px; }
-      /* Menú inferior */
-      .mobile-tabbar {
-        display: flex !important;
-        position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        z-index: 1000;
-        height: 62px;
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-    }
-    @media (min-width: 769px) {
-      .mobile-tabbar { display: none !important; }
-    }
-    .hidden-feature { display: none !important; }
-    .mobile-tabbar {
-      display: none;
-    }
-    .mobile-tab-btn {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 10px;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 8px 4px;
-      transition: color 0.2s;
-      letter-spacing: 0.3px;
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; background: none; border: none;
+      color: var(--text-muted); font-size: 10px;
+      font-family: 'Montserrat', sans-serif; font-weight: 600;
+      cursor: pointer; padding: 8px 4px;
+      transition: color 0.2s; letter-spacing: 0.3px;
     }
     .mobile-tab-btn.active { color: var(--magenta); }
     .mobile-tab-btn svg { width: 22px; height: 22px; }
@@ -1033,6 +1060,7 @@
       <div class="topbar-divider"></div>
       <div class="topbar-version">CMS v2.4</div>
       <div class="topbar-right">
+        <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
         <div class="topbar-user">Sesión: <span id="userName"></span></div>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
       </div>
@@ -1397,6 +1425,12 @@ let shuffledOrder = [];
 let playbackTimer = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Restaurar tema guardado
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-mode');
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) btn.textContent = 'Oscuro';
+  }
   setupTabs();
   setupEvents();
   setupKeyboard();
@@ -1553,6 +1587,12 @@ async function register() {
 function toggleSidebarGroup(id) {
   const group = document.getElementById(id);
   if (group) group.classList.toggle('open');
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeToggleBtn').textContent = isLight ? 'Oscuro' : 'Claro';
 }
 
 function logout() {
@@ -1827,14 +1867,12 @@ async function savePlaylist() {
         body: JSON.stringify({ name, description, orientation, shuffle_enabled, repeat_enabled })
       }).then(r => r.json());
     const playlistId = pData.playlist.id;
-    // Sync completo: reemplaza todos los items en orden exacto (maneja eliminaciones y reordenamiento)
-    await fetch(`${API_URL}/api/playlists/${playlistId}/items`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ items: playlistItems.map(item => ({
-        content_id: item.content_id,
-        duration_override_ms: item.type === 'image' ? (item.duration_ms || 15000) : null
-      })) })
-    });
+    for (let item of playlistItems) {
+      await fetch(`${API_URL}/api/playlists/${playlistId}/items`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({ content_id: item.content_id, duration_override_ms: item.type === 'image' ? (item.duration_ms || 15000) : null })
+      });
+    }
     updateStatus('Lista guardada', 'success');
     closePlaylistModal(); loadPlaylists();
   } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
@@ -2075,8 +2113,10 @@ async function refreshDeviceStatuses() {
       if (!statusEl) return;
       const isOnline = isOnlineStatus(d);
       const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
-      statusEl.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
-      statusEl.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}`;
+      statusEl.className = `dc-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.textContent = isOnline ? 'Online' : 'Offline';
+      const dotEl = document.getElementById(`status_dot_${d.device_id}`);
+      if (dotEl) dotEl.className = `dc-status-dot ${isOnline ? 'online' : 'offline'}`;
       if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
     });
   } catch(e) {}
@@ -2099,6 +2139,13 @@ function isOnlineStatus(device) {
   return diffMs < 90000; // offline si no hay heartbeat en 90 segundos
 }
 
+function toggleDeviceCard(deviceId) {
+  document.getElementById(`dcard_${deviceId}`)?.classList.toggle('expanded');
+}
+function toggleDeviceSection(sectionId) {
+  document.getElementById(sectionId)?.classList.toggle('open');
+}
+
 async function loadDevices(silent = false) {
   const container = document.getElementById('devices-list');
   if (!container.innerHTML || container.innerHTML.includes('Cargando') || container.innerHTML.includes('No hay')) {
@@ -2116,263 +2163,309 @@ async function loadDevices(silent = false) {
     const brData   = await brRes.json().catch(() => []);
     const branches = Array.isArray(brData) ? brData : (brData.branches || []);
     if (!devices.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay dispositivos registrados.</p>'; return; }
+
+    const modeLabels = { single: 'Una pantalla', mirror: 'Mirror', dual: 'Dual', videowall: 'Videowall' };
+
     container.innerHTML = devices.map(d => {
-      const isOnline = isOnlineStatus(d);
-      const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
+      const isOnline    = isOnlineStatus(d);
+      const lastSeen    = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
       const hasDual     = !!(currentUser.features && currentUser.features.dual_hdmi);
       const hasTurnos   = !!(currentUser.features && currentUser.features.turnos);
       const mode        = d.display_mode || 'mirror';
       const isDual      = mode === 'dual' || mode === 'videowall';
       const isVideowall = mode === 'videowall';
+      const isWin       = d.platform === 'windows';
       const pl0         = d.hdmi0_playlist_id || '';
       const pl1         = d.hdmi1_playlist_id || '';
       const or0         = d.orientation_hdmi0 || 'horizontal';
       const or1         = d.orientation_hdmi1 || 'horizontal';
       const vwLayout    = d.videowall_position || 'horizontal';
-      const vwSlot      = d.videowall_cols     || '1';
-      const devBranch   = d.branch_id          || '';
+      const vwSlot      = d.videowall_cols || '1';
+      const devBranch   = d.branch_id || '';
 
-      const playlistOpts = (selId) => `
-        <option value="">-- Sin playlist --</option>
-        ${playlists.map(p => {
-          const badge = p.orientation === 'vertical' ? 'V' : 'H';
-          const pid   = p.orientation === 'vertical' ? pl1 : pl0;
+      // Stats bar
+      const playlistName = d.hdmi0_playlist_name || '';
+      const modeLabel    = modeLabels[mode] || mode;
+      const stat3Label   = isWin ? 'Version' : 'CPU';
+      const stat3Val     = isWin ? (d.player_version || '—') : (d.cpu_temp ? d.cpu_temp + ' C' : '—');
+      const stat3Cls     = (!isWin && d.cpu_temp > 70) ? 'warn' : '';
+      const stat4Label   = isWin ? 'Apagado' : 'TV';
+      const stat4Val     = isWin ? (d.power_policy?.shutdown_time || '—') : (d.tv_status && d.tv_status !== 'unknown' ? d.tv_status.toUpperCase() : '—');
+
+      const playlistOpts = (selId) =>
+        '<option value="">-- Sin playlist --</option>' +
+        playlists.map(p => {
+          const badge    = p.orientation === 'vertical' ? 'V' : 'H';
           const selected = (selId === 'hdmi0' ? pl0 : pl1) == p.id ? 'selected' : '';
-          return '<option value="' + p.id + '" ' + selected + '>' + p.name + ' \xB7 ' + badge + '</option>';
-        }).join('')}`;
+          return '<option value="' + p.id + '" ' + selected + '>' + p.name + ' · ' + badge + '</option>';
+        }).join('');
 
       const orientOpts = (cur) =>
-        '<option value="horizontal"' + (cur==='horizontal'?' selected':'') + '>Horizontal ↔</option>' +
-        '<option value="vertical"'  + (cur==='vertical'  ?' selected':'') + '>Vertical ↕</option>';
+        '<option value="horizontal"' + (cur === 'horizontal' ? ' selected' : '') + '>Horizontal</option>' +
+        '<option value="vertical"'   + (cur === 'vertical'   ? ' selected' : '') + '>Vertical</option>';
 
-      const modeOpts = ['single','mirror','dual','videowall'].map(m => {
-        const labels = {single:'Una pantalla',mirror:'Mirror (2 TVs, misma lista)',dual:'Dual — lista por pantalla ★',videowall:'Videowall — imagen extendida ★'};
+      const modeOpts = ['single', 'mirror', 'dual', 'videowall'].map(m => {
+        const labels = { single: 'Una pantalla', mirror: 'Mirror (2 TVs, misma lista)', dual: 'Dual — lista por pantalla', videowall: 'Videowall — imagen extendida' };
         const isPrem = (m === 'dual' || m === 'videowall') && !hasDual;
-        return '<option value="' + m + '"' + (mode===m?' selected':'') + (isPrem?' disabled':'') + '>' + labels[m] + (isPrem?' 🔒':'') + '</option>';
+        return '<option value="' + m + '"' + (mode === m ? ' selected' : '') + (isPrem ? ' disabled' : '') + '>' + labels[m] + (isPrem ? ' (Premium)' : '') + '</option>';
       }).join('');
 
+      // ── Sección Configuración ──
+      const secCfg = `
+        <div class="dc-field-grid dc-fg-2" style="margin-bottom:12px;">
+          <div>
+            <label class="dc-field-label">Nombre del dispositivo</label>
+            <input type="text" id="name_${d.device_id}" value="${d.name || ''}" placeholder="Nombre del dispositivo"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+          </div>
+          <div>
+            <label class="dc-field-label">Modo de pantalla</label>
+            <select id="mode_${d.device_id}" onchange="onModeChange('${d.device_id}')"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+              ${modeOpts}
+            </select>
+          </div>
+          <div>
+            <label class="dc-field-label">${isDual ? 'Playlist HDMI 1' : 'Playlist'}</label>
+            <select id="playlist0_${d.device_id}"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+              ${playlistOpts('hdmi0')}
+            </select>
+          </div>
+          <div>
+            <label class="dc-field-label">${isDual ? 'Orientacion HDMI 1' : 'Orientacion'}</label>
+            <select id="orient0_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+              ${orientOpts(or0)}
+            </select>
+          </div>
+        </div>
+        <div id="dual_controls_${d.device_id}" style="display:${isDual ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label class="dc-field-label">Playlist HDMI 2</label>
+            <select id="playlist1_${d.device_id}"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+              ${playlistOpts('hdmi1')}
+            </select>
+          </div>
+          <div>
+            <label class="dc-field-label">Orientacion HDMI 2</label>
+            <select id="orient1_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+              ${orientOpts(or1)}
+            </select>
+          </div>
+        </div>
+        <div id="vw_controls_${d.device_id}" style="display:${isVideowall ? 'block' : 'none'};margin-bottom:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Configuracion Videowall</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
+            <div>
+              <label class="dc-field-label">Disposicion</label>
+              <select id="vw_layout_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+                style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+                <option value="horizontal" ${vwLayout === 'horizontal' ? 'selected' : ''}>Horizontal</option>
+                <option value="vertical"   ${vwLayout === 'vertical'   ? 'selected' : ''}>Vertical</option>
+              </select>
+            </div>
+            <div>
+              <label class="dc-field-label">Posicion TV 1</label>
+              <select id="vw_slot_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
+                style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+                <option value="1" ${vwSlot === '1' || vwSlot === 1 ? 'selected' : ''}>Primera (izq / arriba)</option>
+                <option value="2" ${vwSlot === '2' || vwSlot === 2 ? 'selected' : ''}>Segunda (der / abajo)</option>
+              </select>
+            </div>
+          </div>
+          <div id="vw_canvas_${d.device_id}" style="padding:8px 10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text-muted);">
+            <span id="vw_canvas_txt_${d.device_id}">${vwLayout === 'vertical' ? 'Canvas: 1920x2160 px' : 'Canvas: 3840x1080 px'}</span>
+          </div>
+        </div>
+        ${hasTurnos ? `
+        <div style="margin-bottom:12px;">
+          <label class="dc-field-label">Sucursal de atencion asignada</label>
+          <select id="branch_${d.device_id}"
+            style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+            <option value="">— Sin sucursal —</option>
+            ${branches.map(b => '<option value="' + b.id + '"' + (devBranch === b.id ? ' selected' : '') + '>' + b.name + '</option>').join('')}
+          </select>
+        </div>` : ''}
+        ${(currentUser.features && currentUser.features.turnos) ? `
+        <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Display de Turnos</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <label class="dc-field-label">Tema</label>
+              <select id="disp_theme_${d.device_id}" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+                <option value="dark">Oscuro</option><option value="light">Claro</option>
+              </select>
+            </div>
+            <div>
+              <label class="dc-field-label">Color de marca</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="disp_brand_${d.device_id}" value="#FF1B8D" style="width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;background:var(--surface2);">
+                <input type="text" id="disp_brand_hex_${d.device_id}" value="#FF1B8D"
+                  style="flex:1;padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:monospace;"
+                  oninput="document.getElementById('disp_brand_${d.device_id}').value=this.value">
+              </div>
+            </div>
+            <div style="grid-column:span 2;">
+              <label class="dc-field-label">URL del logo</label>
+              <input type="text" id="disp_logo_${d.device_id}" placeholder="/uploads/logo.png o URL completa"
+                style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button style="flex:1;padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1f00;color:#FAC775;" onclick="saveDisplayConfig('${d.device_id}')">Guardar config display</button>
+            <button style="padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a2d1a;color:#6fcf97;" onclick="testQueueDisplay('${d.device_id}')">Probar</button>
+          </div>
+        </div>` : ''}`;
+
+      // ── Sección Control TV / Windows ──
+      const secCtrlLabel = isWin ? 'Windows Kiosk' : 'Control TV';
+      const secCtrl = isWin ? `
+        <div class="dc-field-grid dc-fg-2" style="margin-bottom:14px;">
+          <div>
+            <label class="dc-field-label">Accion al tocar pantalla</label>
+            <select id="wake_action_${d.device_id}"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+              <option value="return"      ${(d.wake_action?.action || 'return') === 'return'      ? 'selected' : ''}>Sin accion</option>
+              <option value="browser_url" ${(d.wake_action?.action || '')       === 'browser_url' ? 'selected' : ''}>Abrir URL en navegador</option>
+              <option value="exe"         ${(d.wake_action?.action || '')       === 'exe'         ? 'selected' : ''}>Lanzar app local</option>
+            </select>
+          </div>
+          <div>
+            <label class="dc-field-label">URL / Ruta app</label>
+            <input type="text" id="wake_target_${d.device_id}" value="${d.wake_action?.target || ''}" placeholder="https://... o C:\\app.exe"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+          </div>
+          <div>
+            <label class="dc-field-label">Apagado diario</label>
+            <input type="time" id="shutdown_time_${d.device_id}" value="${d.power_policy?.shutdown_time || ''}"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+          </div>
+          <div>
+            <label class="dc-field-label">Reinicio diario</label>
+            <input type="time" id="restart_time_${d.device_id}" value="${d.power_policy?.restart_time || ''}"
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a3a5c;color:#7eb8f7;" onclick="saveWinPolicy('${d.device_id}')">Aplicar politica</button>
+          <button style="padding:8px 14px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1a3a;color:#c9a8f0;" onclick="restartWinPlayer('${d.device_id}')">Reiniciar player</button>
+        </div>` : `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:11px;color:var(--text-muted);">
+            Estado:
+            <span id="tv_status_dot_${d.device_id}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#444;margin:0 3px;vertical-align:middle;"></span>
+            <strong id="tv_status_text_${d.device_id}">--</strong>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label class="dc-field-label" style="margin:0;">Pantalla CEC</label>
+            <select id="tv_target_${d.device_id}"
+              style="padding:6px 8px;font-size:11px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+              <option value="all">Ambas</option>
+              <option value="tv1">TV 1</option>
+              <option value="tv2">TV 2</option>
+            </select>
+          </div>
+        </div>
+        <div class="dc-tv-controls">
+          <button class="dc-tv-btn status" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
+          <button class="dc-tv-btn on"     onclick="tvControl('${d.device_id}', 'on')">Encender</button>
+          <button class="dc-tv-btn off"    onclick="tvControl('${d.device_id}', 'off')">Apagar</button>
+          <button class="dc-tv-btn mute"   onclick="tvControl('${d.device_id}', 'mute')">Mute</button>
+          <button class="dc-tv-btn unmute" onclick="tvControl('${d.device_id}', 'unmute')">Unmute</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          <label class="dc-field-label" style="margin:0;white-space:nowrap;">Entrada HDMI</label>
+          <select id="hdmi_sel_${d.device_id}"
+            style="flex:1;min-width:120px;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;">
+            <option value="">-- Seleccionar --</option>
+            <option value="hdmi1" ${d.tv_status === 'hdmi1' ? 'selected' : ''}>HDMI 1${d.tv_status === 'hdmi1' ? ' — activo' : ''}</option>
+            <option value="hdmi2" ${d.tv_status === 'hdmi2' ? 'selected' : ''}>HDMI 2${d.tv_status === 'hdmi2' ? ' — activo' : ''}</option>
+            <option value="hdmi3" ${d.tv_status === 'hdmi3' ? 'selected' : ''}>HDMI 3${d.tv_status === 'hdmi3' ? ' — activo' : ''}</option>
+            <option value="hdmi4" ${d.tv_status === 'hdmi4' ? 'selected' : ''}>HDMI 4${d.tv_status === 'hdmi4' ? ' — activo' : ''}</option>
+          </select>
+          <button class="btn btn-sm btn-outline" style="white-space:nowrap;" onclick="tvControlHdmi('${d.device_id}')">Cambiar</button>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div class="dc-section-label" style="display:block;margin-bottom:8px;">Cronograma TV</div>
+          <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
+            <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+          </div>
+          <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;border-style:dashed;color:var(--orange);border-color:var(--orange);" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
+        </div>`;
+
       return `
-        <div class="device-card">
-          <div class="device-header">
-            <div class="device-name" id="dname_${d.device_id}">${d.name}</div>
-            <span id="status_${d.device_id}" class="status-badge ${isOnline ? 'online' : 'offline'}">
-              <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
-              ${isOnline ? 'Online' : 'Offline'}
-            </span>
-          </div>
-          <div class="device-meta">
-            <span>ID: ${d.device_id}</span>
-            <span>IP: ${d.ip_address || 'N/A'}</span>
-            <span>Último contacto: ${d.last_seen ? new Date(d.last_seen).toLocaleTimeString() : "nunca"}</span>
-          </div>
-          <div class="device-controls">
-            <div>
-              <label>Nombre</label>
-              <input type="text" id="name_${d.device_id}" value="${d.name || ''}" placeholder="Nombre del dispositivo" style="margin:0;font-size:12px;padding:9px 10px;">
+        <div class="device-card" id="dcard_${d.device_id}">
+          <div class="dc-header" onclick="toggleDeviceCard('${d.device_id}')">
+            <div id="status_dot_${d.device_id}" class="dc-status-dot ${isOnline ? 'online' : 'offline'}"></div>
+            <div class="dc-info">
+              <div class="dc-name-row">
+                <div class="dc-name" id="dname_${d.device_id}">${d.name}</div>
+                ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+              </div>
+              <div class="dc-sub">
+                <span class="dc-sub-item">ID: <span class="val">${d.device_id}</span></span>
+                <span class="dc-sub-item">IP: <span class="val">${d.ip_address || '—'}</span></span>
+              </div>
             </div>
-            <div>
-              <label>Modo de pantalla</label>
-              <select id="mode_${d.device_id}" onchange="onModeChange('${d.device_id}')">
-                ${modeOpts}
-              </select>
-            </div>
-            <div>
-              <label>${isDual ? 'Playlist HDMI 1' : 'Playlist'}</label>
-              <select id="playlist0_${d.device_id}">${playlistOpts('hdmi0')}</select>
-            </div>
-            <div>
-              <label>${isDual ? 'Orientación HDMI 1' : 'Orientación'}</label>
-              <select id="orient0_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')">${orientOpts(or0)}</select>
+            <div class="dc-header-right">
+              <span id="status_${d.device_id}" class="dc-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+              <div class="dc-toggle">&#9660;</div>
             </div>
           </div>
-          <!-- Controles HDMI 2 (solo modo dual/videowall) -->
-          <div id="dual_controls_${d.device_id}" style="display:${isDual?'grid':'none'};grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;">
-            <div>
-              <label style="font-size:11px;color:var(--text-muted);">Playlist HDMI 2</label>
-              <select id="playlist1_${d.device_id}" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${playlistOpts('hdmi1')}</select>
-            </div>
-            <div>
-              <label style="font-size:11px;color:var(--text-muted);">Orientación HDMI 2</label>
-              <select id="orient1_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')" style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">${orientOpts(or1)}</select>
-            </div>
-          </div>
-          <!-- Config Videowall (solo modo videowall) -->
-          <div id="vw_controls_${d.device_id}" style="display:${isVideowall?'block':'none'};margin-top:12px;padding:12px;background:var(--surface2);border:0.5px solid var(--accent);border-radius:8px;">
-            <div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Configuración Videowall</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <div>
-                <label style="font-size:11px;color:var(--text-muted);">Disposición</label>
-                <select id="vw_layout_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
-                  style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-                  <option value="horizontal" ${vwLayout==='horizontal'?'selected':''}>Horizontal — lado a lado ↔</option>
-                  <option value="vertical"   ${vwLayout==='vertical'  ?'selected':''}>Vertical — arriba/abajo ↕</option>
-                </select>
-              </div>
-              <div>
-                <label style="font-size:11px;color:var(--text-muted);">Posición HDMI-A-1 (TV 1)</label>
-                <select id="vw_slot_${d.device_id}" onchange="updateCanvasInfo('${d.device_id}')"
-                  style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-                  <option value="1" ${vwSlot==='1'||vwSlot===1?'selected':''}>Primera posición (izq / arriba)</option>
-                  <option value="2" ${vwSlot==='2'||vwSlot===2?'selected':''}>Segunda posición (der / abajo)</option>
-                </select>
-              </div>
-            </div>
-            <!-- Info canvas resultante -->
-            <div id="vw_canvas_${d.device_id}" style="margin-top:10px;padding:8px 10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:8px;">
-              <span style="font-size:16px;">🖥</span>
-              <span id="vw_canvas_txt_${d.device_id}">${vwLayout==='vertical'?'Canvas: 1920×2160 px — contenido recomendado 1920×2160':'Canvas: 3840×1080 px — contenido recomendado 3840×1080'}</span>
-            </div>
-            <div style="margin-top:8px;font-size:10px;color:var(--text-muted);line-height:1.5;">
-              ⚠️ El contenido debe tener la resolución exacta del canvas para verse correctamente.<br>
-              Sube el video/imagen con esa resolución desde <strong>Contenido</strong>.
-            </div>
-          </div>
-          ${d.platform === 'windows' ? `
-          <div style="margin-top:14px;border:0.5px solid #1e3f6e;border-radius:8px;overflow:hidden;">
-            <div style="background:#0d2340;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid #1e3f6e;">
-              <div style="display:flex;align-items:center;gap:7px;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="#7eb8f7"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-                <span style="font-size:11px;font-weight:600;color:#7eb8f7;text-transform:uppercase;letter-spacing:0.5px;">Windows Kiosk Player</span>
-              </div>
-              <span style="font-size:10px;color:#4a7aaa;background:#0a1929;padding:2px 7px;border-radius:4px;">v${d.player_version || '?'}</span>
-            </div>
-            <div style="padding:10px 12px;background:var(--surface3);">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                <div>
-                  <label style="font-size:11px;color:var(--text-muted);">Acción al tocar pantalla</label>
-                  <select id="wake_action_${d.device_id}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
-                    <option value="return"       ${(d.wake_action?.action||'return')==='return'       ?'selected':''}>Solo salir del screensaver</option>
-                    <option value="browser_url"  ${(d.wake_action?.action||'')==='browser_url'  ?'selected':''}>Abrir URL en navegador</option>
-                    <option value="queue_app"    ${(d.wake_action?.action||'')==='queue_app'    ?'selected':''}>Módulo de turnos SONORO</option>
-                    <option value="exe"          ${(d.wake_action?.action||'')==='exe'          ?'selected':''}>Lanzar app local</option>
-                    <option value="shell"        ${(d.wake_action?.action||'')==='shell'        ?'selected':''}>Mostrar escritorio</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:11px;color:var(--text-muted);">URL / Ruta app</label>
-                  <input type="text" id="wake_target_${d.device_id}" value="${d.wake_action?.target||''}" placeholder="https://... o C:\\app.exe" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
-                </div>
-                <div>
-                  <label style="font-size:11px;color:var(--text-muted);">Apagado diario</label>
-                  <input type="time" id="shutdown_time_${d.device_id}" value="${d.power_policy?.shutdown_time||''}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
-                </div>
-                <div>
-                  <label style="font-size:11px;color:var(--text-muted);">Reinicio diario</label>
-                  <input type="time" id="restart_time_${d.device_id}" value="${d.power_policy?.restart_time||''}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid #1e3f6e;border-radius:6px;">
-                </div>
-              </div>
-              <div style="display:flex;gap:8px;">
-                <button style="flex:1;padding:7px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a3a5c;color:#7eb8f7;" onclick="saveWinPolicy('${d.device_id}')">Aplicar política</button>
-                <button style="padding:7px 14px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#2d1a3a;color:#c9a8f0;" onclick="restartWinPlayer('${d.device_id}')">↺ Reiniciar player</button>
-              </div>
-            </div>
-          </div>
-          ` : `
-          <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
-              <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px;">
-                <span id="tv_status_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;"></span>
-                <span id="tv_status_text_${d.device_id}">--</span>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
-              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControl('${d.device_id}', 'on')">Encender TV</button>
-              <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControl('${d.device_id}', 'off')">Apagar TV</button>
-            </div>
-            <!-- Selector TV destino (TV1 / TV2 / Ambas) -->
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <div style="font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;">Pantalla CEC</div>
-              <select id="tv_target_${d.device_id}" style="padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;cursor:pointer;">
-                <option value="all">Ambas</option>
-                <option value="tv1">TV 1 (HDMI-A-1)</option>
-                <option value="tv2">TV 2 (HDMI-A-2)</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-              <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
-                <div style="font-size:11px;font-weight:500;color:var(--text-muted);white-space:nowrap;">Entrada HDMI</div>
-                <select id="hdmi_sel_${d.device_id}" style="flex:1;padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid ${d.tv_status && d.tv_status.startsWith('hdmi') ? '#185FA5' : 'var(--border)'};border-radius:6px;cursor:pointer;">
-                  <option value="">-- Seleccionar --</option>
-                  <option value="hdmi1" ${d.tv_status === 'hdmi1' ? 'selected' : ''}>HDMI 1${d.tv_status === 'hdmi1' ? ' — activo' : ''}</option>
-                  <option value="hdmi2" ${d.tv_status === 'hdmi2' ? 'selected' : ''}>HDMI 2${d.tv_status === 'hdmi2' ? ' — activo' : ''}</option>
-                  <option value="hdmi3" ${d.tv_status === 'hdmi3' ? 'selected' : ''}>HDMI 3${d.tv_status === 'hdmi3' ? ' — activo' : ''}</option>
-                  <option value="hdmi4" ${d.tv_status === 'hdmi4' ? 'selected' : ''}>HDMI 4${d.tv_status === 'hdmi4' ? ' — activo' : ''}</option>
-                </select>
-                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#1A3A5C;color:#B5D4F4;white-space:nowrap;" onclick="tvControlHdmi('${d.device_id}')">Cambiar</button>
-              </div>
-              <div style="display:flex;gap:6px;">
-                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#3D2B00;color:#FAC775;" onclick="tvControl('${d.device_id}', 'mute')">Mute</button>
-                <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControl('${d.device_id}', 'unmute')">Unmute</button>
-              </div>
-            </div>
-            <div style="margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border);">
-              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cronograma TV</div>
-              <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
-                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
-              </div>
-              <button style="margin-top:8px;width:100%;padding:6px 12px;font-size:12px;color:var(--orange);background:none;border:0.5px dashed var(--orange);border-radius:6px;cursor:pointer;opacity:0.8;" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
-            </div>
-          </div>
-          `}
 
-          <!-- ── Sucursal asignada (solo si tiene turnos) ── -->
-          ${hasTurnos ? `
-          <div style="margin-top:12px;display:grid;grid-template-columns:1fr;gap:8px;">
-            <div>
-              <label style="font-size:11px;color:var(--text-muted);">Sucursal de atención asignada</label>
-              <select id="branch_${d.device_id}"
-                style="width:100%;padding:7px 10px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-                <option value="">— Sin sucursal —</option>
-                ${branches.map(b =>
-                  '<option value="' + b.id + '"' + (devBranch === b.id ? ' selected' : '') + '>' + b.name + '</option>'
-                ).join('')}
-              </select>
+          <div class="dc-stats">
+            <div class="dc-stat">
+              <div class="dc-stat-label">Playlist activa</div>
+              <div class="dc-stat-val ${playlistName ? 'accent' : 'muted'}">${playlistName || 'Sin playlist'}</div>
             </div>
-          </div>` : ''}
-
-          <!-- ── Configuración visual del display de turnos ── -->
-          ${(currentUser.features && currentUser.features.turnos) ? `
-          <div style="margin-top:14px;background:var(--surface3);border:0.5px solid var(--border);border-radius:8px;padding:10px 12px;">
-            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Display de Turnos</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <div>
-                <label style="font-size:11px;color:var(--text-muted);">Tema</label>
-                <select id="disp_theme_${d.device_id}" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-                  <option value="dark">Oscuro</option>
-                  <option value="light">Claro</option>
-                </select>
-              </div>
-              <div>
-                <label style="font-size:11px;color:var(--text-muted);">Color de marca</label>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <input type="color" id="disp_brand_${d.device_id}" value="#FF1B8D" style="width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;background:var(--surface2);">
-                  <input type="text" id="disp_brand_hex_${d.device_id}" value="#FF1B8D" style="flex:1;padding:5px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;font-family:monospace;" oninput="document.getElementById('disp_brand_${d.device_id}').value=this.value">
-                </div>
-              </div>
-              <div style="grid-column:span 2;">
-                <label style="font-size:11px;color:var(--text-muted);">URL del logo (imagen subida al CMS)</label>
-                <input type="text" id="disp_logo_${d.device_id}" placeholder="/uploads/logo.png o URL completa" style="width:100%;padding:6px 8px;font-size:12px;background:var(--surface2);color:var(--text);border:0.5px solid var(--border);border-radius:6px;">
-              </div>
+            <div class="dc-stat">
+              <div class="dc-stat-label">Modo</div>
+              <div class="dc-stat-val">${modeLabel}</div>
             </div>
-            <div style="margin-top:10px;display:flex;gap:8px;">
-              <button style="flex:1;padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1f00;color:#FAC775;" onclick="saveDisplayConfig('${d.device_id}')">Guardar configuración del display</button>
-              <button style="padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1a2d1a;color:#6fcf97;" title="Enviar turno de prueba al display" onclick="testQueueDisplay('${d.device_id}')">&#9654; Probar</button>
+            <div class="dc-stat">
+              <div class="dc-stat-label">${stat3Label}</div>
+              <div class="dc-stat-val ${stat3Cls}">${stat3Val}</div>
+            </div>
+            <div class="dc-stat">
+              <div class="dc-stat-label">${stat4Label}</div>
+              <div class="dc-stat-val">${stat4Val}</div>
             </div>
           </div>
-          ` : ''}
 
-          <div class="device-footer" style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-            <span id="lastseen_${d.device_id}" style="font-size:11px;color:var(--text-muted);margin-right:auto;">Verificado ${lastSeen}</span>
-            <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar estado</button>
-            <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
-            <button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">↺ Reiniciar</button>
-            <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
+          <div class="dc-body">
+            <div class="dc-section open" id="dcsec_cfg_${d.device_id}">
+              <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_cfg_${d.device_id}')">
+                <span class="dc-section-label">Configuracion</span>
+                <span class="dc-section-arrow">&#9658;</span>
+              </div>
+              <div class="dc-section-body">${secCfg}</div>
+            </div>
+
+            <div class="dc-section" id="dcsec_ctrl_${d.device_id}">
+              <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_ctrl_${d.device_id}')">
+                <span class="dc-section-label">${secCtrlLabel}</span>
+                <span class="dc-section-arrow">&#9658;</span>
+              </div>
+              <div class="dc-section-body">${secCtrl}</div>
+            </div>
+
+            <div class="dc-footer">
+              <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
+              <div class="dc-footer-actions">
+                <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
+                <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
+                <button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>
+                <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
+              </div>
+            </div>
           </div>
         </div>`;
     }).join('');
-    window._devicesCache = devices;   // cache para saveDisplayConfig
+
+    window._devicesCache = devices;
     devices.forEach(d => loadSchedules(d.device_id));
     if (!silent) showStatus('Dispositivos actualizados', 'success');
   } catch (err) { if (!silent) container.innerHTML = `<p style="color:var(--offline);">Error: ${err.message}</p>`; }
@@ -2439,8 +2532,10 @@ async function verifyDevice(deviceId) {
     const isOnline = isOnlineStatus(d);
     const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : 'nunca';
     if (statusEl) {
-      statusEl.className = `status-badge ${isOnline ? 'online' : 'offline'}`;
-      statusEl.innerHTML = `<span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${isOnline ? 'Online' : 'Offline'}`;
+      statusEl.className = `dc-badge ${isOnline ? 'online' : 'offline'}`;
+      statusEl.textContent = isOnline ? 'Online' : 'Offline';
+      const dotEl = document.getElementById(`status_dot_${deviceId}`);
+      if (dotEl) dotEl.className = `dc-status-dot ${isOnline ? 'online' : 'offline'}`;
     }
     if (lastSeenEl) lastSeenEl.textContent = `Verificado ${lastSeen}`;
   } catch(e) {
