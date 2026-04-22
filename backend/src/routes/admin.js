@@ -141,7 +141,7 @@ router.get('/overview', auth, async (req, res) => {
     });
   } catch(err) {
     console.error('❌ Admin overview error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -151,7 +151,7 @@ router.get('/processes', auth, async (req, res) => {
     const processes = await getPM2Processes();
     res.json({ processes });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -159,7 +159,7 @@ router.post('/process/:name/restart', auth, (req, res) => {
   const { name } = req.params;
   if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
   execFile('pm2', ['restart', name], { windowsHide: true }, (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(500).json({ error: 'Error interno del servidor' });
     res.json({ success: true, message: `${name} reiniciado` });
   });
 });
@@ -168,7 +168,7 @@ router.post('/process/:name/stop', auth, (req, res) => {
   const { name } = req.params;
   if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
   execFile('pm2', ['stop', name], { windowsHide: true }, (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(500).json({ error: 'Error interno del servidor' });
     res.json({ success: true, message: `${name} detenido` });
   });
 });
@@ -177,7 +177,7 @@ router.post('/process/:name/start', auth, (req, res) => {
   const { name } = req.params;
   if (!SAFE_NAME_RE.test(name)) return res.status(400).json({ error: 'Nombre de proceso inválido' });
   execFile('pm2', ['start', name], { windowsHide: true }, (err) => {
-    if (err) return res.status(500).json({ error: err.message });
+    if (err) return res.status(500).json({ error: 'Error interno del servidor' });
     res.json({ success: true, message: `${name} iniciado` });
   });
 });
@@ -235,7 +235,7 @@ router.get('/system', auth, async (req, res) => {
       }
     });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -277,7 +277,7 @@ router.get('/database/stats', auth, async (req, res) => {
       connections: { active: parseInt(conn.rows[0].active), max: 20 }
     });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -294,7 +294,7 @@ router.get('/database/tables', auth, async (req, res) => {
     `);
     res.json({ tables: result.rows });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

@@ -448,7 +448,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Register error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -491,7 +491,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Login error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -552,7 +552,7 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
   } catch (err) {
     console.error('❌ Upload error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -671,7 +671,7 @@ app.get('/api/content', authenticateToken, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Get content error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -718,7 +718,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     res.json({ success: true, message: 'Archivo eliminado' });
   } catch (err) {
     console.error('❌ Delete error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -746,7 +746,7 @@ app.post('/api/playlists', authenticateToken, async (req, res) => {
     console.log(`✅ Playlist creada: ${result.rows[0].id} - ${name} (${orientation || 'horizontal'})`);
   } catch (err) {
     console.error('❌ Error creando playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -768,7 +768,7 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Error obteniendo playlists:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -832,7 +832,7 @@ app.get('/api/playlists/:playlistId', authenticateToken, async (req, res) => {
     res.json(playlist);
   } catch (err) {
     console.error('❌ Error obteniendo playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 // PUT - Actualizar información de playlist
@@ -863,7 +863,7 @@ app.put('/api/playlists/:playlistId', authenticateToken, async (req, res) => {
     console.log(`✅ Playlist actualizada: ${playlistId} (${result.rows[0].orientation})`);
   } catch (err) {
     console.error('❌ Error actualizando playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 // DELETE - Eliminar playlist
@@ -885,7 +885,7 @@ app.delete('/api/playlists/:playlistId', authenticateToken, async (req, res) => 
     console.log(`✅ Playlist eliminada: ${playlistId}`);
   } catch (err) {
     console.error('❌ Error eliminando playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -932,7 +932,7 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
     console.log(`✅ Contenido agregado a playlist: ${playlistId}`);
   } catch (err) {
     console.error('❌ Error agregando contenido a playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -974,7 +974,7 @@ app.delete('/api/playlists/:playlistId/items/:contentId', authenticateToken, asy
     console.log(`✅ Contenido eliminado de playlist: ${playlistId}`);
   } catch (err) {
     console.error('❌ Error eliminando contenido de playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1035,7 +1035,7 @@ app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res
     console.log(`✅ Playlist reordenada: ${playlistId}`);
   } catch (err) {
     console.error('❌ Error reordenando playlist:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1084,7 +1084,7 @@ app.post('/api/devices/register', async (req, res) => {
     console.log(`✅ Dispositivo registrado: ${device_id} (${ip_address}) [${platform || 'rpi'}] user_id=${userId}`);
   } catch (err) {
     console.error('❌ Error registrando dispositivo:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1120,7 +1120,7 @@ app.get('/api/devices/:device_id/config', async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error('❌ Error obteniendo config dispositivo:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1217,7 +1217,7 @@ app.get('/api/devices/:device_id/manifest', async (req, res) => {
 
   } catch (err) {
     console.error('❌ Error generando manifest:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1262,7 +1262,7 @@ app.put('/api/devices/:device_id/win-policy', authenticateToken, async (req, res
 
   } catch (err) {
     console.error('❌ Error actualizando win policy:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1275,7 +1275,7 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
     console.log(`🔄 Restart player enviado a: ${device_id}`);
   } catch (err) {
     console.error('❌ Error win-restart:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1309,7 +1309,7 @@ app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) =
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Reboot error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1592,7 +1592,7 @@ app.get('/api/devices', authenticateToken, async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Error listando dispositivos:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1649,7 +1649,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     console.log(`✅ Dispositivo actualizado: ${device_id}`);
   } catch (err) {
     console.error('❌ Error actualizando dispositivo:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1695,7 +1695,7 @@ app.get('/api/player/playlist/:playlistId', async (req, res) => {
     res.json(playlist);
   } catch (err) {
     console.error('❌ Error obteniendo playlist para player:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 const adminRoutes = require('./routes/admin');
@@ -1739,7 +1739,7 @@ app.post('/api/queue/print', async (req, res) => {
     console.log(`🖨️  Imprimir tiquete: ${token_number} — ${service_name}`);
     res.json({ success: true, printed: false, message: 'Sin impresora configurada' });
   } catch(err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1780,7 +1780,7 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     res.json({ success: true, ...result.rows[0] });
   } catch (err) {
     console.error('❌ Error generando código:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1796,7 +1796,7 @@ app.get('/api/activation-codes', authenticateToken, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1809,7 +1809,7 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1878,7 +1878,7 @@ app.post('/api/activate', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error en activación:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1917,7 +1917,7 @@ app.get('/api/devices/:device_id/config/v2', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1938,7 +1938,7 @@ app.get('/api/my-devices', authenticateToken, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -1998,7 +1998,7 @@ async function requireAdmin(req, res, next) {
     }
     next();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
 
@@ -2024,7 +2024,7 @@ app.get('/api/license/status', authenticateToken, async (req, res) => {
       is_active: user.license_status === 'active' && (!end || end >= now)
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2056,7 +2056,7 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
 
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2117,7 +2117,7 @@ app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, asy
     `, [userId]);
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2138,7 +2138,7 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
     `);
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2228,7 +2228,7 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
     res.json({ success: true, user: updateResult.rows[0], new_end: newEnd });
   } catch (err) {
     console.error('❌ Error renovando licencia:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2258,7 +2258,7 @@ app.post('/api/admin/users/:userId/license/suspend', authenticateToken, requireA
     console.log(`⚠️ Licencia suspendida: ${user.email}`);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2274,7 +2274,7 @@ app.get('/api/admin/users/:userId/license/history', authenticateToken, requireAd
     `, [req.params.userId]);
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2306,7 +2306,7 @@ app.delete('/api/admin/users/:userId', authenticateToken, requireAdmin, async (r
     res.json({ success: true, message: `Usuario ${user.email} eliminado` });
   } catch (err) {
     console.error('❌ Error eliminando usuario:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2319,7 +2319,7 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Subir logo del cliente
@@ -2346,7 +2346,7 @@ app.post('/api/user/logo', authenticateToken, async (req, res) => {
     res.json({ success: true, logo_url: logoUrl });
   } catch (err) {
     console.error('❌ Error subiendo logo:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2385,7 +2385,7 @@ app.get('/api/devices/:device_id/license', async (req, res) => {
       features: resolvedFeatures
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2474,7 +2474,7 @@ app.get('/api/queue/branches', authenticateToken, async (req, res) => {
       [req.user.id]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Crear sucursal
@@ -2494,7 +2494,7 @@ app.post('/api/queue/branches', authenticateToken, async (req, res) => {
     );
     res.json({ success: true, branch: result.rows[0] });
     console.log(`✅ Sucursal creada: ${name}`);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // PUT — Actualizar sucursal
@@ -2520,7 +2520,7 @@ app.put('/api/queue/branches/:id', authenticateToken, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
     res.json({ success: true, branch: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // DELETE — Eliminar sucursal
@@ -2532,7 +2532,7 @@ app.delete('/api/queue/branches/:id', authenticateToken, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // GET — Tickets actualmente en atención (para lower third del queue display)
@@ -2558,7 +2558,7 @@ app.get('/api/queue/branches/:id/active', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Error obteniendo tickets activos:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2599,7 +2599,7 @@ app.get('/api/queue/branches/:id/display-config', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error display-config:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2641,7 +2641,7 @@ app.put('/api/queue/branches/:id/display-config', authenticateToken, async (req,
     res.json({ ok: true });
   } catch (err) {
     console.error('❌ Error actualizando display-config:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -2660,7 +2660,7 @@ app.get('/api/queue/branches/:branchId/services', authenticateToken, async (req,
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.post('/api/queue/branches/:branchId/services', authenticateToken, async (req, res) => {
@@ -2675,7 +2675,7 @@ app.post('/api/queue/branches/:branchId/services', authenticateToken, async (req
        priority_level || 0, avg_attention_min || 10, max_queue_size || 999]
     );
     res.json({ success: true, service: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.put('/api/queue/services/:id', authenticateToken, async (req, res) => {
@@ -2694,14 +2694,14 @@ app.put('/api/queue/services/:id', authenticateToken, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Servicio no encontrado' });
     res.json({ success: true, service: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.delete('/api/queue/services/:id', authenticateToken, async (req, res) => {
   try {
     await pool.query('UPDATE services SET active = false WHERE id = $1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -2725,7 +2725,7 @@ app.get('/api/queue/branches/:branchId/counters', authenticateToken, async (req,
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.post('/api/queue/branches/:branchId/counters', authenticateToken, async (req, res) => {
@@ -2747,7 +2747,7 @@ app.post('/api/queue/branches/:branchId/counters', authenticateToken, async (req
       }
     }
     res.json({ success: true, counter });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.put('/api/queue/counters/:id', authenticateToken, async (req, res) => {
@@ -2772,7 +2772,7 @@ app.put('/api/queue/counters/:id', authenticateToken, async (req, res) => {
       }
     }
     res.json({ success: true, counter: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // DELETE — Eliminar ventanilla
@@ -2781,7 +2781,7 @@ app.delete('/api/queue/counters/:id', authenticateToken, async (req, res) => {
     await pool.query('DELETE FROM counter_services WHERE counter_id = $1', [req.params.id]);
     await pool.query('DELETE FROM counters WHERE id = $1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // DELETE — Eliminar agente
@@ -2789,7 +2789,7 @@ app.delete('/api/queue/agents/:id', authenticateToken, async (req, res) => {
   try {
     await pool.query('DELETE FROM agents WHERE id = $1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -2821,7 +2821,7 @@ app.get('/api/queue/public/branches', async (req, res) => {
        ORDER BY b.name ASC`
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // GET — Ventanillas activas de una sucursal (público)
@@ -2832,7 +2832,7 @@ app.get('/api/queue/public/branches/:branchId/counters', async (req, res) => {
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // GET — Servicios activos de una sucursal (público — usado por kiosco y pantalla)
@@ -2848,7 +2848,7 @@ app.get('/api/queue/public/branches/:branchId/services', async (req, res) => {
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // GET — Agentes activos de una sucursal (público, solo nombre e id)
@@ -2859,7 +2859,7 @@ app.get('/api/queue/public/branches/:branchId/agents', async (req, res) => {
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Login del agente con PIN → devuelve JWT
@@ -2891,7 +2891,7 @@ app.post('/api/queue/agent/login', authLimiter, async (req, res) => {
       success: true, token,
       agent: { id: agent.id, name: agent.name, avatar_color: agent.avatar_color, branch_id: agent.branch_id, branch_name: agent.branch_name }
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -2912,7 +2912,7 @@ app.get('/api/queue/branches/:branchId/agents', authenticateToken, async (req, r
       [req.params.branchId]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.post('/api/queue/branches/:branchId/agents', authenticateToken, async (req, res) => {
@@ -2952,7 +2952,7 @@ app.post('/api/queue/branches/:branchId/agents', authenticateToken, async (req, 
 
     console.log(`✅ Agente creado: ${name} (${email})`);
     res.json({ success: true, agent: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.put('/api/queue/agents/:id', authenticateToken, async (req, res) => {
@@ -2969,7 +2969,7 @@ app.put('/api/queue/agents/:id', authenticateToken, async (req, res) => {
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Agente no encontrado' });
     res.json({ success: true, agent: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3061,7 +3061,7 @@ app.post('/api/queue/token', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error generando turno:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -3090,7 +3090,7 @@ app.post('/api/queue/agent/session/open', authenticateAgentOrUser, async (req, r
     io.to(`branch_${branch_id}`).emit('agent_online', { agent_id, counter_id });
     res.json({ success: true, session: result.rows[0] });
     console.log(`✅ Sesión abierta: agente ${agent_id} en ventanilla ${counter_id}`);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Cerrar sesión
@@ -3108,7 +3108,7 @@ app.post('/api/queue/agent/session/close', authenticateAgentOrUser, async (req, 
       counter_id: result.rows[0].counter_id
     });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Iniciar / terminar pausa
@@ -3120,7 +3120,7 @@ app.post('/api/queue/agent/break/start', authenticateAgentOrUser, async (req, re
       [session_id, reason || 'otro']
     );
     res.json({ success: true, break: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 app.post('/api/queue/agent/break/end', authenticateAgentOrUser, async (req, res) => {
@@ -3134,7 +3134,7 @@ app.post('/api/queue/agent/break/end', authenticateAgentOrUser, async (req, res)
       [break_id]
     );
     res.json({ success: true, break: result.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3164,7 +3164,7 @@ app.get('/api/queue/branches/:branchId/queue', async (req, res) => {
 
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Llamar siguiente turno
@@ -3256,7 +3256,7 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
     res.json({ success: true, token: callData });
   } catch (err) {
     console.error('❌ Error llamando turno:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -3273,7 +3273,7 @@ app.post('/api/queue/tokens/:tokenId/attend', authenticateAgentOrUser, async (re
       [req.params.tokenId, req.body.agent_id]
     );
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Finalizar turno
@@ -3321,7 +3321,7 @@ app.post('/api/queue/tokens/:tokenId/finish', authenticateAgentOrUser, async (re
     }
 
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Marcar como no presentado
@@ -3342,7 +3342,7 @@ app.post('/api/queue/tokens/:tokenId/no-show', authenticateAgentOrUser, async (r
     );
     io.to(`branch_${branch_id}`).emit('token_no_show', { token_id: req.params.tokenId });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // POST — Transferir turno a otra ventanilla/servicio
@@ -3376,7 +3376,7 @@ app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (
       to_counter_id, to_service_id
     });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3420,7 +3420,7 @@ app.post('/api/queue/ratings', async (req, res) => {
 
     io.to(`branch_${branch_id}`).emit('new_rating', { token_id, score });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3473,7 +3473,7 @@ app.get('/api/queue/display/:branchId', async (req, res) => {
       stats: stats.rows[0],
       branch: branch.rows[0] || null
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -3515,7 +3515,7 @@ app.get('/api/queue/reports/agents', authenticateAgentOrUser, async (req, res) =
 
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Reporte por horas — para detectar horas pico
@@ -3540,7 +3540,7 @@ app.get('/api/queue/reports/hourly', authenticateToken, async (req, res) => {
       service_id ? [branch_id, from, to, service_id] : [branch_id, from, to]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Reporte por servicio
@@ -3568,7 +3568,7 @@ app.get('/api/queue/reports/services', authenticateToken, async (req, res) => {
       [branch_id, from, to]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // Historial completo de turnos del día / rango
@@ -3608,7 +3608,7 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
     );
 
     res.json({ tokens: result.rows, total: parseInt(total.rows[0].count), limit: lim, offset: off });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
 // ══════════════════════════════════════════════════════════════
