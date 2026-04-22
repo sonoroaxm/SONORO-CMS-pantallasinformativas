@@ -108,7 +108,7 @@ router.get('/overview', auth, async (req, res) => {
       dbStats.users_count     = parseInt(cnt.rows[0].u);
       dbStats.size_mb         = sz.rows[0].size;
       dbStats.connections     = { active: parseInt(conn.rows[0].active), max: 20 };
-    } catch(e) {}
+    } catch(e) { console.warn('⚠️ Error obteniendo DB stats:', e.message); }
 
     const running = processes.filter(p => p.isRunning).length;
     const stopped = processes.length - running;
@@ -306,11 +306,14 @@ router.post('/rpi/logs', auth, (req, res) => {
   if (!device_id) return res.status(400).json({ error: 'device_id requerido' });
   const io = req.app.get('io');
   if (!io) return res.status(500).json({ error: 'Socket.io no disponible' });
+  if (!global.logsCallbacks) global.logsCallbacks = new Map();
+  if (global.logsCallbacks.has(device_id)) {
+    return res.status(409).json({ success: false, error: 'Ya hay una solicitud de logs pendiente para este dispositivo' });
+  }
   const timeout = setTimeout(() => {
-    global.logsCallbacks && global.logsCallbacks.delete(device_id);
+    global.logsCallbacks.delete(device_id);
     res.json({ success: false, error: 'Timeout — RPi no respondio en 15s' });
   }, 15000);
-  if (!global.logsCallbacks) global.logsCallbacks = new Map();
   global.logsCallbacks.set(device_id, { res, timeout });
   io.to(`device_${device_id}`).emit('logs_request', { device_id, lines: parseInt(lines) });
 });

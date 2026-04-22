@@ -63,6 +63,9 @@ const tvCallbacks = new Map();
 async function doTV(deviceId, action, target = 'all') {
   console.log(`📺 TV ${action}:${target} -> ${deviceId} via Socket.io`);
   return new Promise((resolve, reject) => {
+    if (tvCallbacks.has(deviceId)) {
+      return reject(new Error('Ya hay una operación TV pendiente para este dispositivo'));
+    }
     const timeout = setTimeout(() => {
       tvCallbacks.delete(deviceId);
       reject(new Error(`TV timeout — RPi no respondio en 45s`));
@@ -1317,6 +1320,9 @@ async function doScreenshot(ip, deviceId) {
   const expectedPath = path.join(screenshotsDir, filename);
 
   return new Promise((resolve, reject) => {
+    if (screenshotCallbacks.has(deviceId)) {
+      return reject(new Error('Ya hay un screenshot pendiente para este dispositivo'));
+    }
     const timeout = setTimeout(() => {
       screenshotCallbacks.delete(deviceId);
       reject(new Error('Screenshot timeout — RPi no respondio en 60s'));
@@ -1976,7 +1982,7 @@ async function checkLicense(req, res, next) {
 
     next();
   } catch (err) {
-    next(); // Si falla la verificación, no bloquear
+    res.status(503).json({ error: 'No se pudo verificar la licencia' });
   }
 }
 
@@ -2867,7 +2873,8 @@ app.post('/api/queue/agent/login', authLimiter, async (req, res) => {
     if (!result.rows.length) return res.status(401).json({ error: 'Agente no encontrado' });
     const agent = result.rows[0];
 
-    if (String(agent.pin) !== String(pin)) {
+    const pinMatch = await bcrypt.compare(String(pin), agent.pin);
+    if (!pinMatch) {
       return res.status(401).json({ error: 'PIN incorrecto' });
     }
 
@@ -2923,7 +2930,7 @@ app.post('/api/queue/branches/:branchId/agents', authenticateToken, async (req, 
     const result = await pool.query(
       `INSERT INTO agents (user_id, branch_id, name, pin, avatar_color)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [userResult.rows[0].id, req.params.branchId, name, pin, avatar_color || '#FF1B8D']
+      [userResult.rows[0].id, req.params.branchId, name, hashedPin, avatar_color || '#FF1B8D']
     );
 
     // Obtener datos de la sucursal para el email
@@ -2948,13 +2955,14 @@ app.post('/api/queue/branches/:branchId/agents', authenticateToken, async (req, 
 app.put('/api/queue/agents/:id', authenticateToken, async (req, res) => {
   try {
     const { name, pin, avatar_color, active } = req.body;
+    const hashedPin = pin ? await bcrypt.hash(String(pin), 10) : null;
     const result = await pool.query(
       `UPDATE agents SET
         name = COALESCE($1, name), pin = COALESCE($2, pin),
         avatar_color = COALESCE($3, avatar_color), active = COALESCE($4, active),
         updated_at = CURRENT_TIMESTAMP
        WHERE id = $5 RETURNING *`,
-      [name, pin, avatar_color, active, req.params.id]
+      [name, hashedPin, avatar_color, active, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Agente no encontrado' });
     res.json({ success: true, agent: result.rows[0] });
