@@ -105,7 +105,7 @@ async function migrate() {
         user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         branch_id   UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
         name        VARCHAR(255) NOT NULL,
-        pin         VARCHAR(10),
+        pin         VARCHAR(72),
         avatar_color VARCHAR(7) DEFAULT '#00f5d4',
         active      BOOLEAN DEFAULT true,
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -211,7 +211,10 @@ pool.query('SELECT 1')
     ALTER TABLE branches
       ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches)'))
+  .then(() => pool.query(`
+    ALTER TABLE agents ALTER COLUMN pin TYPE VARCHAR(72)
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
