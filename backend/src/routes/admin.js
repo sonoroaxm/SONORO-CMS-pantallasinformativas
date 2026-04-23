@@ -345,10 +345,19 @@ router.post('/rpi/update', auth, (req, res) => {
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
 
   const cmsUrl = process.env.CMS_URL_INTERNAL || `http://${process.env.HOST || '192.168.1.4'}:${process.env.PORT || 5000}`;
-  const remoteCmd = `wget -q -O /home/sonoro/sonoro-player/sync-app.js ${cmsUrl}/sync-app.js && sudo systemctl restart sonoro-player && echo OK`;
+  // Persiste a SD lower (OverlayFS) para sobrevivir reboot. Si no hay OverlayFS, los cp al lower fallan silenciosamente y queda solo en el FS normal.
+  const remoteCmd = [
+    `wget -q -O /tmp/sync-app.js.new ${cmsUrl}/sync-app.js`,
+    `test -s /tmp/sync-app.js.new`,
+    `sudo cp -a /tmp/sync-app.js.new /home/sonoro/sonoro-player/sync-app.js`,
+    `if mountpoint -q /media/root-ro; then sudo /usr/local/bin/sonoro-sd-rw && sudo cp -a /tmp/sync-app.js.new /media/root-ro/home/sonoro/sonoro-player/sync-app.js && sudo sync && sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' && sudo /usr/local/bin/sonoro-sd-ro; fi`,
+    `rm -f /tmp/sync-app.js.new`,
+    `sudo systemctl restart sonoro-player`,
+    `echo OK`,
+  ].join(' && ');
   execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 30000, windowsHide: true }, (err, stdout) => {
     if (err && !stdout.includes('OK')) {
-      return res.json({ success: false, error: `Error actualizando ${ip}: ${err.message}` });
+      return res.json({ success: false, error: `Error actualizando ${ip}` });
     }
     console.log(`✅ sync-app.js actualizado en ${device_id} (${ip})`);
     res.json({ success: true, message: `sync-app.js actualizado en ${device_id}` });

@@ -13,6 +13,9 @@ const path    = require('path');
 const CMS_URL        = process.env.CMS_URL   || 'https://cms.sonoro.com.co';
 const DEVICE_ID      = process.env.DEVICE_ID || 'rpi4-sonoro-01';
 const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
+// IS_DEMO=true: el RPi olvida perfiles WiFi al reboot (cómodo para demos moviéndose entre redes).
+// IS_DEMO=false (default, producción): persiste perfiles WiFi al SD lower para sobrevivir reboot.
+const IS_DEMO        = process.env.IS_DEMO === 'true';
 const HOTSPOT_IP = '192.168.4.1';
 const PORT       = 8080;
 const _devSuffix = DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
@@ -120,13 +123,34 @@ async function applyProxy(proxy) {
   log('Proxy configurado');
 }
 
+// Persiste el directorio de perfiles NetworkManager al SD lower (OverlayFS).
+// No-op si IS_DEMO=true, o si no hay OverlayFS activo.
+async function persistWifiToSD(ssid) {
+  if (IS_DEMO) {
+    log(`IS_DEMO=true — WiFi "${ssid}" vive solo en RAM (se olvida al reboot)`);
+    return;
+  }
+  try { await run('mountpoint -q /media/root-ro'); }
+  catch(e) { return; }
+  try {
+    await run('sudo /usr/local/bin/sonoro-sd-rw');
+    await run('sudo cp -a /etc/NetworkManager/system-connections/. /media/root-ro/etc/NetworkManager/system-connections/');
+    await run('sudo sync && sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"');
+    await run('sudo /usr/local/bin/sonoro-sd-ro');
+    log(`WiFi persistida a SD lower: ${ssid}`);
+  } catch(e) {
+    log(`Error persistiendo WiFi a SD: ${e.message}`);
+    try { await run('sudo /usr/local/bin/sonoro-sd-ro'); } catch(e2) {}
+  }
+}
+
 async function connectToWifi(ssid, password) {
   log(`Conectando a WiFi: ${ssid}`);
   try {
     // Detener hotspot primero
     await stopHotspot();
     await new Promise(r => setTimeout(r, 2000));
-    
+
     // Intentar conectar
     try { await run('sudo nmcli dev wifi rescan ifname wlan0 2>/dev/null'); } catch(e) {}
     await new Promise(r => setTimeout(r, 2000));
@@ -134,6 +158,7 @@ async function connectToWifi(ssid, password) {
     const currentSSID = await run("nmcli -t -f active,ssid dev wifi | grep '^yes' | cut -d: -f2").catch(() => '');
     if (currentSSID.trim() === ssid) {
       log(`Ya conectado a ${ssid} — continuando`);
+      await persistWifiToSD(ssid);
       return true;
     }
     // Eliminar perfil anterior si existe
@@ -143,12 +168,13 @@ async function connectToWifi(ssid, password) {
     } else {
       await run(`sudo nmcli dev wifi connect "${ssid}" ifname wlan0`);
     }
-    
+
     // Esperar conexion
     await new Promise(r => setTimeout(r, 5000));
     const connected = await hasInternet();
     if (connected) {
       log(`Conectado a ${ssid} con internet`);
+      await persistWifiToSD(ssid);
       return true;
     }
     log(`Conectado a ${ssid} pero sin internet`);
