@@ -906,11 +906,11 @@ async function speakTurno(data) {
 async function registerDevice() {
   try {
     const ip = getLocalIP();
-    await axios.post(`${CMS_URL}/api/devices/register`, {
-      device_id: DEVICE_ID,
-      name: process.env.DEVICE_NAME || `SONORO Windows - ${DEVICE_ID}`,
-      ip_address: ip
-    });
+    // Solo enviar name si DEVICE_NAME está explícitamente seteado; si no, omitir el campo
+    // para que el backend preserve el nombre actual (COALESCE sobre null).
+    const body = { device_id: DEVICE_ID, ip_address: ip };
+    if (process.env.DEVICE_NAME) body.name = process.env.DEVICE_NAME;
+    await axios.post(`${CMS_URL}/api/devices/register`, body);
     console.log(`✅ Dispositivo registrado: ${DEVICE_ID} (${ip})`);
   } catch(err) { console.error('❌ Error registrando:', err.message); }
 }

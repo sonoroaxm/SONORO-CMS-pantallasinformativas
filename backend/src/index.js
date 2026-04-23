@@ -1067,7 +1067,7 @@ app.post('/api/devices/register', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO devices (device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, status, last_seen, platform, player_version, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
+       VALUES ($1, COALESCE($2, $1), $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
        ON CONFLICT (device_id) DO UPDATE SET
          name = COALESCE($2, devices.name),
          ip_address = $3,
@@ -1077,7 +1077,7 @@ app.post('/api/devices/register', async (req, res) => {
          player_version = COALESCE($8, devices.player_version),
          user_id = COALESCE($9, devices.user_id)
        RETURNING *`,
-      [device_id, name || device_id, ip_address, display_mode || 'mirror', hdmi0_playlist_id || null, hdmi1_playlist_id || null, platform || 'rpi', player_version || null, userId]
+      [device_id, name || null, ip_address, display_mode || 'mirror', hdmi0_playlist_id || null, hdmi1_playlist_id || null, platform || 'rpi', player_version || null, userId]
     );
 
     res.json({ success: true, device: result.rows[0] });
