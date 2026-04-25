@@ -791,6 +791,13 @@
       letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
     }
 
+    .unhealthy-pill {
+      display: inline-block; padding: 2px 7px;
+      background: #3a1212; border: 1px solid #6b1f1f; border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: #f68585;
+      letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
+    }
+
     .dc-field-grid { display: grid; gap: 12px; }
     .dc-fg-2 { grid-template-columns: 1fr 1fr; }
     .dc-field-label {
@@ -2218,13 +2225,14 @@ async function loadDevices(silent = false) {
             <input type="text" id="name_${d.device_id}" value="${d.name || ''}" placeholder="Nombre del dispositivo"
               style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
           </div>
+          ${!isWin ? `
           <div>
             <label class="dc-field-label">Modo de pantalla</label>
             <select id="mode_${d.device_id}" onchange="onModeChange('${d.device_id}')"
               style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
               ${modeOpts}
             </select>
-          </div>
+          </div>` : ''}
           <div>
             <label class="dc-field-label">${isDual ? 'Playlist HDMI 1' : 'Playlist'}</label>
             <select id="playlist0_${d.device_id}"
@@ -2240,6 +2248,7 @@ async function loadDevices(silent = false) {
             </select>
           </div>
         </div>
+        ${!isWin ? `
         <div id="dual_controls_${d.device_id}" style="display:${isDual ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
           <div>
             <label class="dc-field-label">Playlist HDMI 2</label>
@@ -2279,8 +2288,8 @@ async function loadDevices(silent = false) {
           <div id="vw_canvas_${d.device_id}" style="padding:8px 10px;background:var(--surface);border-radius:6px;font-size:11px;color:var(--text-muted);">
             <span id="vw_canvas_txt_${d.device_id}">${vwLayout === 'vertical' ? 'Canvas: 1920x2160 px' : 'Canvas: 3840x1080 px'}</span>
           </div>
-        </div>
-        ${hasTurnos ? `
+        </div>` : ''}
+        ${!isWin && hasTurnos ? `
         <div style="margin-bottom:12px;">
           <label class="dc-field-label">Sucursal de atencion asignada</label>
           <select id="branch_${d.device_id}"
@@ -2289,7 +2298,7 @@ async function loadDevices(silent = false) {
             ${branches.map(b => '<option value="' + b.id + '"' + (devBranch === b.id ? ' selected' : '') + '>' + b.name + '</option>').join('')}
           </select>
         </div>` : ''}
-        ${(currentUser.features && currentUser.features.turnos) ? `
+        ${(!isWin && currentUser.features && currentUser.features.turnos) ? `
         <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
           <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Display de Turnos</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -2404,6 +2413,7 @@ async function loadDevices(silent = false) {
               <div class="dc-name-row">
                 <div class="dc-name" id="dname_${d.device_id}">${d.name}</div>
                 ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+                ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog reportó ${d.unhealthy_reload_count || '?'} reloads consecutivos sin recuperar el renderer">Unhealthy</span>` : ''}
               </div>
               <div class="dc-sub">
                 <span class="dc-sub-item">ID: <span class="val">${d.device_id}</span></span>
@@ -2457,7 +2467,9 @@ async function loadDevices(silent = false) {
               <div class="dc-footer-actions">
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
                 <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
-                <button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>
+                ${isWin
+                  ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${d.name}')">Detener player</button>`
+                  : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`}
                 <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
               </div>
             </div>
@@ -2582,8 +2594,11 @@ function updateCanvasInfo(deviceId) {
 }
 
 async function saveDevice(deviceId) {
+  const dev         = (window._devicesCache || []).find(d => d.device_id === deviceId);
+  const isWin       = dev && dev.platform === 'windows';
   const name        = document.getElementById(`name_${deviceId}`)?.value;
-  const mode        = document.getElementById(`mode_${deviceId}`)?.value  || 'mirror';
+  // Windows: forzamos single (sin selector). Para RPi se respeta el select del usuario.
+  const mode        = isWin ? 'single' : (document.getElementById(`mode_${deviceId}`)?.value || 'mirror');
   const pid0        = document.getElementById(`playlist0_${deviceId}`)?.value;
   const pid1        = document.getElementById(`playlist1_${deviceId}`)?.value;
   const or0         = document.getElementById(`orient0_${deviceId}`)?.value  || 'horizontal';
@@ -2815,6 +2830,25 @@ async function rebootDevice(deviceId) {
     socket.emit('reboot_device', { device_id: deviceId });
     showStatus('Reiniciando... vuelve en ~40 segundos', 'success');
   } catch (err) { showStatus('Error: ' + err.message, 'error'); }
+}
+
+async function killWinPlayer(deviceId, deviceName) {
+  const msg = `¿Detener el player de "${deviceName}"?\n\n`
+    + `El proceso de Electron se cerrará inmediatamente.\n`
+    + `Si el auto-arranque al login está activo, el player se reiniciará en el próximo inicio de sesión del usuario Windows.`;
+  if (!confirm(msg)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/kill-player`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus(`Player detenido en ${data.device_name || deviceName}`, 'success');
+    } else {
+      showStatus('Error: ' + (data.error || 'no se pudo detener el player'), 'error');
+    }
+  } catch (err) { showStatus('Error de conexión: ' + err.message, 'error'); }
 }
 
 async function takeScreenshot(deviceId, ip, deviceName) {
