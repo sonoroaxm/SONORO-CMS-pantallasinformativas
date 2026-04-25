@@ -1364,6 +1364,30 @@ app.post('/api/devices/:device_id/screenshot', authenticateToken, async (req, re
   }
 });
 
+// POST - Matar player remotamente (Windows kiosk).
+// Emite a la sala device_${id}; el player escucha 'kill-player' y hace app.quit().
+// Si auto-start al login está activo, el player resucita en el siguiente login.
+app.post('/api/devices/:device_id/kill-player', authenticateToken, async (req, res) => {
+  const { device_id } = req.params;
+  try {
+    const result = await pool.query('SELECT user_id, name FROM devices WHERE device_id = $1', [device_id]);
+    if (!result.rows.length) return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
+    if (req.user.role !== 'admin' && result.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'No autorizado para este dispositivo' });
+    }
+    io.to(`device_${device_id}`).emit('kill-player', {
+      reason: 'manual',
+      issued_by: req.user.id,
+      timestamp: new Date().toISOString(),
+    });
+    console.log(`🔴 kill-player emitido a ${device_id} por user ${req.user.id} (${result.rows[0].name})`);
+    res.json({ success: true, device_id, device_name: result.rows[0].name });
+  } catch (err) {
+    console.error('❌ kill-player error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 
 // ── CONTROL TV CEC ────────────────────────────────────────────
 // POST /api/devices/:device_id/tv/:action — via Socket.io (no SSH)
@@ -3682,6 +3706,20 @@ io.on('connection', (socket) => {
         await pool.query(`UPDATE devices SET status = $1, last_seen = NOW() WHERE device_id = $2`, [status || 'online', device_id]);
       }
     } catch(e) { console.warn('heartbeat error:', e.message); }
+  });
+
+  // device-unhealthy — el watchdog del player Windows lo emite tras 5 reloads
+  // consecutivos sin recuperar el renderer. Persistimos el flag; el operador
+  // ve el indicador en el dashboard y decide si reinstalar o intervenir.
+  socket.on('device-unhealthy', async ({ device_id, total_reloads, timestamp }) => {
+    if (socket.role !== 'device') return;
+    try {
+      await pool.query(
+        'UPDATE devices SET unhealthy_at = NOW(), unhealthy_reload_count = $2 WHERE device_id = $1',
+        [device_id, total_reloads || null]
+      );
+      console.warn(`🚨 device-unhealthy: ${device_id} con ${total_reloads} reloads consecutivos`);
+    } catch (e) { console.warn('device-unhealthy error:', e.message); }
   });
 
   // ── Eventos de usuario autenticado ───────────────────────
