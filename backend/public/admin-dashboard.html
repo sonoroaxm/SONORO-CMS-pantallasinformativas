@@ -686,6 +686,108 @@
       font-family: 'Montserrat', sans-serif; padding: 6px 10px; cursor: pointer;
     }
 
+    /* ── SIDEBAR CONTENIDO GROUP ── */
+    .sidebar-group.contenido .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.contenido .sidebar-group-header:hover { background: rgba(0,245,212,0.06); }
+    .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(0,245,212,0.2); }
+    .sidebar-group.contenido .sidebar-btn.active { background: rgba(0,245,212,0.08); color: var(--magenta); border-left-color: var(--magenta); }
+    .sidebar-group.contenido .sidebar-btn:hover { color: var(--magenta); }
+
+    /* ── HDMI PORT PILLS ── */
+    .hdmi-ports { display: flex; gap: 4px; align-items: center; }
+    .hdmi-pill-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      padding: 3px 7px; border-radius: 5px; border: 1px solid var(--border);
+      background: var(--surface2); min-width: 52px;
+    }
+    .hdmi-pill-wrap.active {
+      border-color: rgba(0,245,212,0.35); background: rgba(0,245,212,0.07);
+    }
+    .hdmi-pill-wrap.inactive { opacity: 0.35; }
+    .hdmi-pill-label { font-size: 8px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+    .hdmi-pill-wrap.active .hdmi-pill-label { color: var(--magenta); }
+    .hdmi-pill-name { font-size: 9px; font-weight: 600; color: var(--text); max-width: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+    .hdmi-pill-wrap.inactive .hdmi-pill-name { color: var(--muted); }
+
+    /* ── ORIENTATION BADGE ── */
+    .orient-badge {
+      padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 800;
+      letter-spacing: 0.5px; text-transform: uppercase; border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .orient-badge.horizontal { border-color: rgba(123,97,255,0.4); color: #a78bfa; background: rgba(123,97,255,0.08); }
+    .orient-badge.vertical   { border-color: rgba(255,140,0,0.4);  color: var(--warning); background: rgba(255,140,0,0.08); }
+
+    /* ── BULK PUSH PANEL ── */
+    .bulk-step-bar { display: flex; gap: 0; margin-bottom: 22px; }
+    .bulk-step {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+      position: relative;
+    }
+    .bulk-step:not(:last-child)::after {
+      content: ''; position: absolute; top: 12px; left: 58%;
+      width: 84%; height: 1px; background: var(--border);
+    }
+    .bulk-step.done::after { background: var(--magenta); }
+    .bulk-step-num {
+      width: 24px; height: 24px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      position: relative; z-index: 1;
+    }
+    .bulk-step.done .bulk-step-num { background: var(--magenta); color: #000; border-color: var(--magenta); }
+    .bulk-step.active .bulk-step-num { border-color: var(--magenta); color: var(--magenta); }
+    .bulk-step-label { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); text-align: center; }
+    .bulk-step.done .bulk-step-label, .bulk-step.active .bulk-step-label { color: var(--magenta); }
+
+    .geo-level { display: flex; flex-direction: column; gap: 6px; }
+    .geo-row { display: flex; align-items: center; gap: 10px; }
+    .geo-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; width: 60px; flex-shrink: 0; }
+    .geo-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .geo-chip {
+      padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .geo-chip:hover { border-color: var(--magenta); color: var(--text); }
+    .geo-chip.selected { border-color: var(--magenta); background: rgba(0,245,212,0.1); color: var(--magenta); font-weight: 700; }
+    .geo-chip.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+
+    .format-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .format-card {
+      padding: 12px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); cursor: pointer; text-align: center;
+      transition: all 0.15s;
+    }
+    .format-card:hover { border-color: var(--magenta); }
+    .format-card.selected { border-color: var(--magenta); background: rgba(0,245,212,0.07); }
+    .format-card-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .format-card-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    .bulk-preview-box {
+      border: 1px solid rgba(0,245,212,0.2); background: rgba(0,245,212,0.04);
+      border-radius: 8px; overflow: hidden;
+    }
+    .bulk-preview-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; border-bottom: 1px solid rgba(0,245,212,0.15);
+    }
+    .bulk-preview-title { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--magenta); }
+    .bulk-preview-count { font-size: 20px; font-weight: 900; color: var(--magenta); }
+    .bulk-preview-count span { font-size: 11px; font-weight: 400; color: var(--muted); }
+    .bulk-preview-table { width: 100%; }
+    .bulk-preview-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); padding: 6px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    .bulk-preview-table td { font-size: 11px; padding: 7px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .bulk-preview-table tr:last-child td { border-bottom: none; }
+    .action-new { color: var(--online); font-weight: 700; font-size: 10px; }
+    .action-replace { color: var(--warning); font-weight: 700; font-size: 10px; }
+
+    .warn-bar {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+      background: rgba(255,140,0,0.07); border: 1px solid rgba(255,140,0,0.25);
+      border-radius: 8px; font-size: 12px; color: var(--warning); line-height: 1.5;
+    }
+
     /* ── COLLAPSIBLE CARDS ── */
     .rpi-card-header,
     .user-card-header { cursor: pointer; user-select: none; }
@@ -767,20 +869,21 @@
         <div class="sidebar-children-inner">
           <button class="sidebar-btn" onclick="showTab('users', this)">Usuarios y Licencias</button>
           <button class="sidebar-btn" onclick="showTab('alldevices', this)">Todos los Dispositivos</button>
+          <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
         </div>
       </div>
     </div>
 
     <div class="sidebar-divider"></div>
 
-    <div class="sidebar-group servidor open" id="sg-servidor">
-      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-servidor')">
-        <div class="sidebar-group-label">Servidor</div>
+    <div class="sidebar-group contenido open" id="sg-contenido">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-contenido')">
+        <div class="sidebar-group-label">Contenido</div>
         <div class="sidebar-group-arrow">▶</div>
       </div>
       <div class="sidebar-children">
         <div class="sidebar-children-inner">
-          <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
+          <button class="sidebar-btn" onclick="showTab('bulkpush', this)">Bulk Push</button>
         </div>
       </div>
     </div>
@@ -979,6 +1082,115 @@
       </div>
     </div>
 
+    <!-- ═══════════════ BULK PUSH ═══════════════ -->
+    <div id="tab-bulkpush" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Bulk Push</div>
+          <div class="section-sub">Envío masivo de playlist a múltiples dispositivos</div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:820px;">
+        <!-- Steps -->
+        <div class="bulk-step-bar" id="bulk-steps">
+          <div class="bulk-step done"><div class="bulk-step-num">1</div><div class="bulk-step-label">Playlist</div></div>
+          <div class="bulk-step active"><div class="bulk-step-num">2</div><div class="bulk-step-label">Destino</div></div>
+          <div class="bulk-step"><div class="bulk-step-num">3</div><div class="bulk-step-label">Formato</div></div>
+          <div class="bulk-step"><div class="bulk-step-num">4</div><div class="bulk-step-label">Confirmar</div></div>
+        </div>
+
+        <!-- Step 1: Playlist -->
+        <div style="margin-bottom:18px;">
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">1 — Playlist a enviar</div>
+          <select id="bulk-playlist" class="renew-select" style="width:100%;padding:10px 12px;font-size:13px;" onchange="updateBulkSteps()">
+            <option value="">— Seleccionar playlist —</option>
+          </select>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin-bottom:18px;"></div>
+
+        <!-- Step 2: Destino geográfico -->
+        <div style="margin-bottom:18px;">
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">2 — Nivel geográfico de destino</div>
+          <div class="geo-level">
+            <div class="geo-row">
+              <div class="geo-label">País</div>
+              <div class="geo-chips">
+                <span class="geo-chip selected" data-level="country" data-val="all" onclick="selectGeo(this,'country')">Colombia</span>
+              </div>
+            </div>
+            <div class="geo-row">
+              <div class="geo-label">Ciudad</div>
+              <div class="geo-chips" id="bulk-cities">
+                <span class="geo-chip selected" data-level="city" data-val="" onclick="selectGeo(this,'city')">Todas</span>
+              </div>
+            </div>
+            <div class="geo-row">
+              <div class="geo-label">Sede</div>
+              <div class="geo-chips" id="bulk-branches">
+                <span class="geo-chip selected disabled" data-level="branch" data-val="" onclick="selectGeo(this,'branch')">Todas</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted);">Ruta: <span id="bulk-path" style="color:var(--magenta);font-weight:600;">Colombia</span></div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin-bottom:18px;"></div>
+
+        <!-- Step 3: Formato -->
+        <div style="margin-bottom:18px;">
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">3 — Formato de pantalla</div>
+          <div class="format-cards">
+            <div class="format-card selected" onclick="selectFormat(this,'')">
+              <div class="format-card-title">Todas</div>
+              <div class="format-card-sub">Sin filtrar por orientación</div>
+            </div>
+            <div class="format-card" onclick="selectFormat(this,'horizontal')">
+              <div class="format-card-title">Horizontal</div>
+              <div class="format-card-sub">Pantallas apaisadas</div>
+            </div>
+            <div class="format-card" onclick="selectFormat(this,'vertical')">
+              <div class="format-card-title">Vertical</div>
+              <div class="format-card-sub">Pantallas de pie</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin-bottom:18px;"></div>
+
+        <!-- Step 4: Preview + Confirmar -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">4 — Previsualizar y confirmar</div>
+            <button class="btn btn-outline btn-sm" onclick="previewBulkPush()">Previsualizar</button>
+          </div>
+          <div id="bulk-preview-wrap" style="display:none;">
+            <div class="bulk-preview-box" style="margin-bottom:12px;">
+              <div class="bulk-preview-header">
+                <span class="bulk-preview-title">Dispositivos que recibirán la playlist</span>
+                <span class="bulk-preview-count"><span id="bulk-count">0</span> <span>dispositivos</span></span>
+              </div>
+              <table class="bulk-preview-table" id="bulk-preview-table">
+                <thead><tr>
+                  <th>Dispositivo</th><th>Ciudad / Sede</th><th>Puertos</th><th>Playlist actual</th><th>Acción</th>
+                </tr></thead>
+                <tbody id="bulk-preview-body"></tbody>
+              </table>
+            </div>
+            <div class="warn-bar" id="bulk-warn" style="display:none;margin-bottom:14px;">
+              <strong id="bulk-warn-text"></strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">
+              <span style="margin-right:auto;font-size:12px;color:var(--magenta);font-weight:600;" id="bulk-summary-pill"></span>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulk-preview-wrap').style.display='none'">Cancelar</button>
+              <button class="btn btn-primary" onclick="applyBulkPush()" id="bulk-apply-btn">Enviar a todos</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1122,6 +1334,7 @@ function showTab(name, btn) {
     case 'users':      loadUsers(); break;
     case 'alldevices': loadAllDevices(); autoRefreshInterval = setInterval(loadAllDevices, 30000); break;
     case 'rpis':      loadRPis(); autoRefreshInterval = setInterval(refreshRpiStatuses, 30000); break;
+    case 'bulkpush':  loadBulkPushData(); break;
   }
 }
 
@@ -1596,6 +1809,183 @@ async function killWinPlayerAdmin(deviceId, deviceName) {
   } catch(e) { toast('Error de conexión: ' + e.message, 'error'); }
 }
 
+// ── ORIENTACIÓN DISPOSITIVO ──────────────────────────────────
+async function updateOrientation(deviceId, value) {
+  try {
+    const data = await api(`/api/admin/devices/${deviceId}/orientation`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orientation: value })
+    });
+    if (data.success) toast(`Orientación actualizada: ${value}`, 'success');
+    else toast('Error: ' + (data.error || 'no se pudo actualizar'), 'error');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── CORREOS DE NOTIFICACIÓN ───────────────────────────────────
+async function saveNotifEmails(userId) {
+  const e1 = (document.getElementById(`notif-email1-${userId}`)?.value || '').trim();
+  const e2 = (document.getElementById(`notif-email2-${userId}`)?.value || '').trim();
+  const emails = [e1, e2].filter(Boolean);
+  try {
+    const data = await api(`/api/admin/users/${userId}/notification-emails`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails })
+    });
+    if (data.success) toast('Correos de notificación guardados', 'success');
+    else toast('Error: ' + (data.error || 'no se pudo guardar'), 'error');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── BULK PUSH ─────────────────────────────────────────────────
+let bulkSelectedCity = '';
+let bulkSelectedBranch = '';
+let bulkSelectedOrientation = '';
+let bulkAllBranches = [];
+
+async function loadBulkPushData() {
+  // Cargar playlists
+  const playlists = await api('/api/playlists');
+  const sel = document.getElementById('bulk-playlist');
+  if (sel && playlists?.length) {
+    sel.innerHTML = '<option value="">— Seleccionar playlist —</option>' +
+      playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+  // Cargar ciudades y sedes desde dispositivos con branch
+  const devices = await api('/api/admin/all-devices');
+  const branches = await api('/api/admin/all-branches').catch(() => []);
+  bulkAllBranches = branches || [];
+
+  const cities = [...new Set((branches || []).map(b => b.city).filter(Boolean))].sort();
+  const citiesEl = document.getElementById('bulk-cities');
+  if (citiesEl) {
+    citiesEl.innerHTML = `<span class="geo-chip selected" data-level="city" data-val="" onclick="selectGeo(this,'city')">Todas</span>` +
+      cities.map(c => `<span class="geo-chip" data-level="city" data-val="${c}" onclick="selectGeo(this,'city')">${c}</span>`).join('');
+  }
+  bulkSelectedCity = '';
+  bulkSelectedBranch = '';
+  renderBulkBranches();
+}
+
+function renderBulkBranches() {
+  const el = document.getElementById('bulk-branches');
+  if (!el) return;
+  const filtered = bulkSelectedCity
+    ? bulkAllBranches.filter(b => b.city === bulkSelectedCity)
+    : [];
+  el.innerHTML = `<span class="geo-chip selected ${!bulkSelectedCity ? 'disabled' : ''}" data-level="branch" data-val="" onclick="selectGeo(this,'branch')">Todas</span>` +
+    filtered.map(b => `<span class="geo-chip" data-level="branch" data-val="${b.id}" onclick="selectGeo(this,'branch')">${b.name}</span>`).join('');
+}
+
+function selectGeo(el, level) {
+  if (el.classList.contains('disabled')) return;
+  el.closest('.geo-chips').querySelectorAll('.geo-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (level === 'city') {
+    bulkSelectedCity = el.dataset.val;
+    bulkSelectedBranch = '';
+    renderBulkBranches();
+  } else if (level === 'branch') {
+    bulkSelectedBranch = el.dataset.val;
+  }
+  updateBulkPath();
+  document.getElementById('bulk-preview-wrap').style.display = 'none';
+}
+
+function selectFormat(el, val) {
+  document.querySelectorAll('.format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  bulkSelectedOrientation = val;
+  document.getElementById('bulk-preview-wrap').style.display = 'none';
+}
+
+function updateBulkPath() {
+  const cityChip = document.querySelector('#bulk-cities .geo-chip.selected');
+  const branchChip = document.querySelector('#bulk-branches .geo-chip.selected');
+  const city = cityChip?.dataset.val || '';
+  const branch = branchChip?.textContent || '';
+  let path = 'Colombia';
+  if (city) path += ' › ' + city;
+  if (bulkSelectedBranch) path += ' › ' + branch;
+  document.getElementById('bulk-path').textContent = path;
+}
+
+function updateBulkSteps() {
+  document.getElementById('bulk-preview-wrap').style.display = 'none';
+}
+
+async function previewBulkPush() {
+  const playlistId = document.getElementById('bulk-playlist')?.value;
+  if (!playlistId) { toast('Selecciona una playlist primero', 'error'); return; }
+  try {
+    const body = { playlist_id: parseInt(playlistId) };
+    if (bulkSelectedCity)   body.city      = bulkSelectedCity;
+    if (bulkSelectedBranch) body.branch_id = bulkSelectedBranch;
+    if (bulkSelectedOrientation) body.orientation = bulkSelectedOrientation;
+    const data = await api('/api/admin/bulk-push/preview', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!data.success) { toast('Error: ' + data.error, 'error'); return; }
+
+    const devices = data.devices || [];
+    document.getElementById('bulk-count').textContent = devices.length;
+    document.getElementById('bulk-preview-wrap').style.display = 'block';
+
+    const withPlaylist = devices.filter(d => d.hdmi0_playlist_id || d.hdmi1_playlist_id).length;
+    const warnEl = document.getElementById('bulk-warn');
+    if (withPlaylist > 0) {
+      warnEl.style.display = 'flex';
+      document.getElementById('bulk-warn-text').textContent =
+        `${withPlaylist} dispositivo${withPlaylist > 1 ? 's tienen' : ' tiene'} playlist activa y será sobreescrita. Los dispositivos offline aplicarán el cambio al reconectarse.`;
+    } else {
+      warnEl.style.display = 'none';
+    }
+
+    document.getElementById('bulk-summary-pill').textContent = `${devices.length} dispositivos seleccionados`;
+    const tbody = document.getElementById('bulk-preview-body');
+    tbody.innerHTML = devices.map(d => {
+      const isDual = d.display_mode === 'extended';
+      const ports  = isDual ? 'HDMI 0 + HDMI 1' : 'HDMI 0';
+      const current = d.current_playlist_hdmi0 || '—';
+      const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+      const hasPlaylist = !!(d.hdmi0_playlist_id || d.hdmi1_playlist_id);
+      const action = hasPlaylist ? '<span class="action-replace">Reemplazar</span>' : '<span class="action-new">Nuevo</span>';
+      const offline = !isOnline ? ' <span style="color:var(--offline);font-size:10px;">(offline)</span>' : '';
+      return `<tr>
+        <td><span class="status-dot ${isOnline ? 'online' : 'offline'}" style="margin-right:6px;"></span>${d.name || d.device_id}${offline}</td>
+        <td style="color:var(--muted);">${d.city || '—'} · ${d.branch_name || 'Sin sede'}</td>
+        <td style="color:var(--magenta);font-weight:700;font-size:10px;">${ports}</td>
+        <td style="color:var(--muted);">${current}</td>
+        <td>${action}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function applyBulkPush() {
+  const playlistId = document.getElementById('bulk-playlist')?.value;
+  if (!playlistId) return;
+  const btn = document.getElementById('bulk-apply-btn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    const body = { playlist_id: parseInt(playlistId), user_id: adminUserId };
+    if (bulkSelectedCity)        body.city      = bulkSelectedCity;
+    if (bulkSelectedBranch)      body.branch_id = bulkSelectedBranch;
+    if (bulkSelectedOrientation) body.orientation = bulkSelectedOrientation;
+    const data = await api('/api/admin/bulk-push/apply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (data.success) {
+      toast(`Bulk Push completado: ${data.updated}/${data.total} dispositivos actualizados`, 'success');
+      document.getElementById('bulk-preview-wrap').style.display = 'none';
+    } else {
+      toast('Error: ' + (data.error || 'no se pudo aplicar'), 'error');
+    }
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Enviar a todos'; }
+}
+
 // ── USUARIOS Y LICENCIAS ─────────────────────────────────────
 
 const USER_COLORS = [
@@ -1691,6 +2081,21 @@ async function loadUsers() {
             <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
               Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
             </div>
+          </div>
+          <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Correos de notificación (máx. 2)</div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              <input type="email" id="notif-email1-${u.id}" placeholder="correo1@empresa.com"
+                value="${(u.notification_emails?.[0] || '')}"
+                style="flex:1;min-width:180px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;"
+                onclick="event.stopPropagation()">
+              <input type="email" id="notif-email2-${u.id}" placeholder="correo2@empresa.com"
+                value="${(u.notification_emails?.[1] || '')}"
+                style="flex:1;min-width:180px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;"
+                onclick="event.stopPropagation()">
+              <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();saveNotifEmails(${u.id})">Guardar</button>
+            </div>
+            <div style="margin-top:5px;font-size:10px;color:var(--muted);opacity:0.7;">Reciben resumen tras cada Bulk Push y alertas de pantallas.</div>
           </div>` : ''}
         </div>
       </div>`;
@@ -1911,6 +2316,10 @@ function renderRpis(devices) {
     const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
     const isWin    = d.platform === 'windows';
     const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+    const isDual   = d.display_mode === 'extended';
+    const h0active = !!d.hdmi0_playlist_id;
+    const h1active = isDual && !!d.hdmi1_playlist_id;
+    const orient   = d.orientation || 'horizontal';
     return `
     <div class="rpi-card card-collapsed" id="rpi-${d.device_id}">
       <div class="rpi-card-header" onclick="toggleCard(this.closest('.rpi-card'))">
@@ -1923,7 +2332,18 @@ function renderRpis(devices) {
           </div>
           <div class="rpi-ip">${d.device_id} · ${d.ip_address || '—'}${d.user_name ? ' · ' + d.user_name : ''}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="hdmi-ports">
+            <div class="hdmi-pill-wrap ${h0active ? 'active' : 'inactive'}" title="HDMI 0${h0active ? ' — ' + (d.hdmi0_playlist_name || 'playlist') : ' — sin asignar'}">
+              <div class="hdmi-pill-label">HDMI 0</div>
+              <div class="hdmi-pill-name">${h0active ? (d.hdmi0_playlist_name || '—') : 'Sin asignar'}</div>
+            </div>
+            ${isDual ? `<div class="hdmi-pill-wrap ${h1active ? 'active' : 'inactive'}" title="HDMI 1${h1active ? ' — ' + (d.hdmi1_playlist_name || 'playlist') : ' — sin asignar'}">
+              <div class="hdmi-pill-label">HDMI 1</div>
+              <div class="hdmi-pill-name">${h1active ? (d.hdmi1_playlist_name || '—') : 'Sin asignar'}</div>
+            </div>` : ''}
+          </div>
+          <span class="orient-badge ${orient}">${orient === 'horizontal' ? 'H' : 'V'}</span>
           <span id="rpistatus_${d.device_id}" class="rpi-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
           <span class="card-chevron">▶</span>
         </div>
@@ -1957,6 +2377,16 @@ function renderRpis(devices) {
             <span class="rpi-info-label">Versión player</span>
             <span class="rpi-info-val">${d.player_version}</span>
           </div>` : ''}
+          <div class="rpi-info-row">
+            <span class="rpi-info-label">Orientación pantalla</span>
+            <span class="rpi-info-val">
+              <select onchange="updateOrientation('${d.device_id}', this.value)" onclick="event.stopPropagation()"
+                style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;padding:3px 8px;font-family:inherit;cursor:pointer;">
+                <option value="horizontal" ${orient === 'horizontal' ? 'selected' : ''}>Horizontal</option>
+                <option value="vertical"   ${orient === 'vertical'   ? 'selected' : ''}>Vertical</option>
+              </select>
+            </span>
+          </div>
         </div>
         <div class="rpi-actions">
           <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>

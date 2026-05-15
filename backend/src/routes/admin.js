@@ -608,3 +608,13 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ── ALL BRANCHES ──────────────────────────────────────────────
+router.get("/all-branches", auth, async (req, res) => {
+  try {
+    const result = await req.app.get("db").query(
+      "SELECT id, name, city, address, user_id FROM branches ORDER BY city, name"
+    );
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
