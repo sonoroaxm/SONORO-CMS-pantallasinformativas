@@ -686,6 +686,18 @@
       font-family: 'Montserrat', sans-serif; padding: 6px 10px; cursor: pointer;
     }
 
+    /* ── COLLAPSIBLE CARDS ── */
+    .rpi-card-header,
+    .user-card-header { cursor: pointer; user-select: none; }
+    .card-chevron {
+      font-size: 10px; color: var(--muted);
+      transition: transform 0.2s; flex-shrink: 0;
+      margin-left: 4px;
+    }
+    .card-collapsed .card-chevron { transform: rotate(-90deg); }
+    .card-body-wrap { display: block; }
+    .card-collapsed .card-body-wrap { display: none; }
+
     .win-pill {
       display: inline-block; padding: 2px 7px;
       background: #0d2340; border: 1px solid #1e3f6e; border-radius: 4px;
@@ -1078,6 +1090,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOverview();
   autoRefreshInterval = setInterval(loadOverview, 15000);
 });
+
+function toggleCard(card) {
+  card.classList.toggle('card-collapsed');
+}
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
@@ -1610,8 +1626,8 @@ async function loadUsers() {
       const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS';
       const isAdmin   = u.role === 'admin';
       return `
-      <div class="user-card" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
-        <div class="user-card-header">
+      <div class="user-card card-collapsed" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
+        <div class="user-card-header" onclick="toggleCard(this.closest('.user-card'))">
           <div>
             <div class="user-name">${u.name || u.email}${isAdmin ? ' <span style="font-size:10px;color:var(--magenta);font-weight:700;margin-left:6px;">ADMIN</span>' : ''}</div>
             <div class="user-email">${u.email}</div>
@@ -1619,61 +1635,64 @@ async function loadUsers() {
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:11px;color:var(--muted);">${typeLabel}</span>
             <span class="license-badge ${licStatus}">${licLabel}</span>
+            <span class="card-chevron">▶</span>
           </div>
         </div>
-        <div class="user-body">
-          <div class="stat-row"><span class="stat-row-label">Vencimiento</span><span class="stat-row-val ${isExpired ? 'err' : daysLeft <= 7 ? 'warn' : 'ok'}">${licEnd}${daysLeft !== null ? ` (${daysLeft > 0 ? daysLeft + ' días' : 'Vencida'})` : ''}</span></div>
-          <div class="stat-row"><span class="stat-row-label">Reproductores</span><span class="stat-row-val">${u.device_count}</span></div>
-          <div class="stat-row"><span class="stat-row-label">Contenido / Playlists</span><span class="stat-row-val">${u.content_count} archivos · ${u.playlist_count} listas</span></div>
-          <div class="stat-row"><span class="stat-row-label">Registrado</span><span class="stat-row-val">${new Date(u.created_at).toLocaleDateString('es-CO')}</span></div>
-        </div>
-        ${!isAdmin ? `
-        <div class="user-actions">
-          <select class="renew-select" id="renew-months-${u.id}">
-            <option value="3">3 meses</option>
-            <option value="6">6 meses</option>
-            <option value="12" selected>12 meses</option>
-          </select>
-          <select class="renew-select" id="renew-type-${u.id}">
-            <option value="cms"       ${u.license_type === 'cms'       ? 'selected' : ''}>CMS</option>
-            <option value="cms_queue" ${u.license_type === 'cms_queue' ? 'selected' : ''}>CMS + Atención</option>
-            <option value="queue"     ${u.license_type === 'queue'     ? 'selected' : ''}>Solo Atención</option>
-            <option value="rpi"       ${u.license_type === 'rpi'       ? 'selected' : ''}>RPi</option>
-            <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
-          </select>
-          <button class="btn btn-primary" onclick="renewLicense(${u.id})">Renovar</button>
-          <button class="btn btn-outline btn-sm" onclick="viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
-          ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="renewLicense(${u.id})">Reactivar</button>`}
-          <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
-        </div>
-        <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos activos</div>
-          <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
-                onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
-              🎟 Puntos de Atención
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
-                onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
-              📊 Reportes / Analytics
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="feat-dual-${u.id}" ${(u.features?.dual_hdmi) ? 'checked' : ''}
-                onchange="toggleFeature(${u.id}, 'dual_hdmi', this.checked)">
-              🖥 Dual HDMI Premium
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
-                onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
-              🏢 On-Premise / Red local
-            </label>
+        <div class="card-body-wrap">
+          <div class="user-body">
+            <div class="stat-row"><span class="stat-row-label">Vencimiento</span><span class="stat-row-val ${isExpired ? 'err' : daysLeft <= 7 ? 'warn' : 'ok'}">${licEnd}${daysLeft !== null ? ` (${daysLeft > 0 ? daysLeft + ' días' : 'Vencida'})` : ''}</span></div>
+            <div class="stat-row"><span class="stat-row-label">Reproductores</span><span class="stat-row-val">${u.device_count}</span></div>
+            <div class="stat-row"><span class="stat-row-label">Contenido / Playlists</span><span class="stat-row-val">${u.content_count} archivos · ${u.playlist_count} listas</span></div>
+            <div class="stat-row"><span class="stat-row-label">Registrado</span><span class="stat-row-val">${new Date(u.created_at).toLocaleDateString('es-CO')}</span></div>
           </div>
-          <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
-            Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
+          ${!isAdmin ? `
+          <div class="user-actions">
+            <select class="renew-select" id="renew-months-${u.id}">
+              <option value="3">3 meses</option>
+              <option value="6">6 meses</option>
+              <option value="12" selected>12 meses</option>
+            </select>
+            <select class="renew-select" id="renew-type-${u.id}">
+              <option value="cms"       ${u.license_type === 'cms'       ? 'selected' : ''}>CMS</option>
+              <option value="cms_queue" ${u.license_type === 'cms_queue' ? 'selected' : ''}>CMS + Atención</option>
+              <option value="queue"     ${u.license_type === 'queue'     ? 'selected' : ''}>Solo Atención</option>
+              <option value="rpi"       ${u.license_type === 'rpi'       ? 'selected' : ''}>RPi</option>
+              <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
+            </select>
+            <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id})">Renovar</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
+            ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();renewLicense(${u.id})">Reactivar</button>`}
+            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
           </div>
-        </div>` : ''}
+          <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos activos</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
+                🎟 Puntos de Atención
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
+                📊 Reportes / Analytics
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-dual-${u.id}" ${(u.features?.dual_hdmi) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'dual_hdmi', this.checked)">
+                🖥 Dual HDMI Premium
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
+                🏢 On-Premise / Red local
+              </label>
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
+              Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
+            </div>
+          </div>` : ''}
+        </div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
@@ -1893,8 +1912,8 @@ function renderRpis(devices) {
     const isWin    = d.platform === 'windows';
     const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
     return `
-    <div class="rpi-card" id="rpi-${d.device_id}">
-      <div class="rpi-card-header">
+    <div class="rpi-card card-collapsed" id="rpi-${d.device_id}">
+      <div class="rpi-card-header" onclick="toggleCard(this.closest('.rpi-card'))">
         <div>
           <div class="rpi-name">
             <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
@@ -1904,95 +1923,100 @@ function renderRpis(devices) {
           </div>
           <div class="rpi-ip">${d.device_id} · ${d.ip_address || '—'}${d.user_name ? ' · ' + d.user_name : ''}</div>
         </div>
-        <span id="rpistatus_${d.device_id}" class="rpi-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
-      </div>
-      <div class="rpi-body">
-        ${!isWin ? `
-        <div class="rpi-info-row">
-          <span class="rpi-info-label">Modo</span>
-          <span class="rpi-info-val">${d.display_mode || 'mirror'}</span>
-        </div>` : ''}
-        <div class="rpi-info-row">
-          <span class="rpi-info-label">Playlist activa</span>
-          <span class="rpi-info-val">${d.hdmi0_playlist_name || '—'}</span>
-        </div>
-        <div class="rpi-info-row">
-          <span class="rpi-info-label">Último contacto</span>
-          <span id="lastseen_${d.device_id}" class="rpi-info-val ${isOnline ? 'ok' : 'err'}">${lastSeen}</span>
-        </div>
-        ${!isWin ? `
-        <div class="rpi-info-row" id="stat-temp-${d.device_id}">
-          <span class="rpi-info-label">Temperatura CPU</span>
-          <span class="rpi-info-val" style="color:var(--muted)">—</span>
-        </div>
-        <div class="rpi-info-row" id="stat-fan-${d.device_id}">
-          <span class="rpi-info-label">Ventilador</span>
-          <span class="rpi-info-val" style="color:var(--muted)">—</span>
-        </div>` : ''}
-        ${isWin && d.player_version ? `
-        <div class="rpi-info-row">
-          <span class="rpi-info-label">Versión player</span>
-          <span class="rpi-info-val">${d.player_version}</span>
-        </div>` : ''}
-      </div>
-      <div class="rpi-actions">
-        <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>
-        <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-        <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Screenshot</button>
-        ${!isWin ? `
-        <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
-        <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
-        ` : `
-        <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener player</button>
-        `}
-      </div>
-      ${!isWin ? `
-      <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
-        <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Acceso SSH remoto via tunnel</div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <code style="flex:1;font-size:11px;font-family:monospace;color:#60a5fa;background:rgba(0,0,0,0.3);padding:5px 8px;border-radius:4px;overflow-x:auto;white-space:nowrap;">ssh -p 2222 sonoro@45.181.156.171</code>
-          <button onclick="navigator.clipboard.writeText('ssh -p 2222 sonoro@45.181.156.171').then(()=>toast('Copiado','success'))" style="padding:4px 10px;font-size:11px;background:#1A3A5C;color:#B5D4F4;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">Copiar</button>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Requiere tunnel activo en el RPi (sonoro-tunnel.service)</div>
-      </div>
-      <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
-          <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;">
-            <span id="atv_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;"></span>
-            <span id="atv_txt_${d.device_id}">--</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','status')">Estado TV</button>
-          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','on')">Encender TV</button>
-          <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','off')">Apagar TV</button>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
-            <div style="font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;">Entrada HDMI</div>
-            <select id="ahdmi_sel_${d.device_id}" style="width:120px;padding:5px 8px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text);border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;">
-              <option value="">-- HDMI --</option>
-              <option value="hdmi1">HDMI 1</option>
-              <option value="hdmi2">HDMI 2</option>
-              <option value="hdmi3">HDMI 3</option>
-              <option value="hdmi4">HDMI 4</option>
-            </select>
-            <button style="padding:5px 10px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#1A3A5C;color:#B5D4F4;white-space:nowrap;" onclick="tvControlAdminHdmi('${d.device_id}','${d.ip_address}')">Cambiar</button>
-          </div>
-          <div style="display:flex;gap:6px;">
-            <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#3D2B00;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','mute')">Mute</button>
-            <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','unmute')">Unmute</button>
-          </div>
+          <span id="rpistatus_${d.device_id}" class="rpi-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
+          <span class="card-chevron">▶</span>
         </div>
       </div>
-      <div style="margin-top:8px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Cronograma TV</div>
-        <div id="schedules_admin_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
-          <div style="font-size:12px;color:var(--muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+      <div class="card-body-wrap">
+        <div class="rpi-body">
+          ${!isWin ? `
+          <div class="rpi-info-row">
+            <span class="rpi-info-label">Modo</span>
+            <span class="rpi-info-val">${d.display_mode || 'mirror'}</span>
+          </div>` : ''}
+          <div class="rpi-info-row">
+            <span class="rpi-info-label">Playlist activa</span>
+            <span class="rpi-info-val">${d.hdmi0_playlist_name || '—'}</span>
+          </div>
+          <div class="rpi-info-row">
+            <span class="rpi-info-label">Último contacto</span>
+            <span id="lastseen_${d.device_id}" class="rpi-info-val ${isOnline ? 'ok' : 'err'}">${lastSeen}</span>
+          </div>
+          ${!isWin ? `
+          <div class="rpi-info-row" id="stat-temp-${d.device_id}">
+            <span class="rpi-info-label">Temperatura CPU</span>
+            <span class="rpi-info-val" style="color:var(--muted)">—</span>
+          </div>
+          <div class="rpi-info-row" id="stat-fan-${d.device_id}">
+            <span class="rpi-info-label">Ventilador</span>
+            <span class="rpi-info-val" style="color:var(--muted)">—</span>
+          </div>` : ''}
+          ${isWin && d.player_version ? `
+          <div class="rpi-info-row">
+            <span class="rpi-info-label">Versión player</span>
+            <span class="rpi-info-val">${d.player_version}</span>
+          </div>` : ''}
         </div>
+        <div class="rpi-actions">
+          <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>
+          <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
+          <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Screenshot</button>
+          ${!isWin ? `
+          <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
+          <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+          ` : `
+          <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener player</button>
+          `}
+        </div>
+        ${!isWin ? `
+        <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
+          <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Acceso SSH remoto via tunnel</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <code style="flex:1;font-size:11px;font-family:monospace;color:#60a5fa;background:rgba(0,0,0,0.3);padding:5px 8px;border-radius:4px;overflow-x:auto;white-space:nowrap;">ssh -p 2222 sonoro@45.181.156.171</code>
+            <button onclick="navigator.clipboard.writeText('ssh -p 2222 sonoro@45.181.156.171').then(()=>toast('Copiado','success'))" style="padding:4px 10px;font-size:11px;background:#1A3A5C;color:#B5D4F4;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">Copiar</button>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">Requiere tunnel activo en el RPi (sonoro-tunnel.service)</div>
+        </div>
+        <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
+            <div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;">
+              <span id="atv_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;"></span>
+              <span id="atv_txt_${d.device_id}">--</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#0C447C;color:#B5D4F4;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','status')">Estado TV</button>
+            <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#27500A;color:#C0DD97;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','on')">Encender TV</button>
+            <button style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#791F1F;color:#F7C1C1;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','off')">Apagar TV</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:160px;">
+              <div style="font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;">Entrada HDMI</div>
+              <select id="ahdmi_sel_${d.device_id}" style="width:120px;padding:5px 8px;font-size:12px;background:rgba(255,255,255,0.06);color:var(--text);border:0.5px solid rgba(255,255,255,0.1);border-radius:6px;cursor:pointer;">
+                <option value="">-- HDMI --</option>
+                <option value="hdmi1">HDMI 1</option>
+                <option value="hdmi2">HDMI 2</option>
+                <option value="hdmi3">HDMI 3</option>
+                <option value="hdmi4">HDMI 4</option>
+              </select>
+              <button style="padding:5px 10px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#1A3A5C;color:#B5D4F4;white-space:nowrap;" onclick="tvControlAdminHdmi('${d.device_id}','${d.ip_address}')">Cambiar</button>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#3D2B00;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','mute')">Mute</button>
+              <button style="padding:5px 12px;font-size:12px;font-weight:500;border-radius:6px;border:none;cursor:pointer;background:#633806;color:#FAC775;" onclick="tvControlAdmin('${d.device_id}','${d.ip_address}','unmute')">Unmute</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:8px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Cronograma TV</div>
+          <div id="schedules_admin_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
+            <div style="font-size:12px;color:var(--muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
+          </div>
+        </div>
+        ` : ''}
       </div>
-      ` : ''}
     </div>`;
   }).join('');
   devices.forEach(d => { if (d.platform !== 'windows') loadSchedulesAdmin(d.device_id); });
