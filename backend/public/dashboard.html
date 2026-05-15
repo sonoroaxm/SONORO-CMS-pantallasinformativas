@@ -1562,7 +1562,11 @@ async function login() {
     localStorage.setItem('authToken', authToken);
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     showAuthStatus('Acceso correcto', 'success');
-    setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
+    if (data.user && data.user.features && data.user.features.multisede === true) {
+      setTimeout(() => { window.location.href = '/admin-dashboard.html'; }, 600);
+    } else {
+      setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
+    }
   } catch (err) {
     showAuthStatus(`Error: ${err.message}`, 'error');
   }

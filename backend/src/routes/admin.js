@@ -496,10 +496,14 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
     const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
 
+    const userRow = await db.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
+    const isAdmin = userRow.rows[0]?.role === 'admin';
+
     let conditions = ['1=1'];
     let params = [];
     let pi = 1;
 
+    if (!isAdmin) { conditions.push(`d.user_id = $${pi++}`); params.push(req.user.id); }
     if (city) { conditions.push(`b.city = $${pi++}`); params.push(city); }
     if (branch_id) { conditions.push(`d.branch_id = $${pi++}`); params.push(branch_id); }
     if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
@@ -539,9 +543,14 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
 
+    const userRow = await db.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
+    const isAdmin = userRow.rows[0]?.role === 'admin';
+    const notifUserId = isAdmin ? user_id : req.user.id;
+
     let conditions = ['1=1'];
     let params = [];
     let pi = 1;
+    if (!isAdmin) { conditions.push(`d.user_id = $${pi++}`); params.push(req.user.id); }
     if (city)        { conditions.push(`b.city = $${pi++}`);         params.push(city); }
     if (branch_id)   { conditions.push(`d.branch_id = $${pi++}`);    params.push(branch_id); }
     if (orientation) { conditions.push(`d.orientation = $${pi++}`);  params.push(orientation); }
@@ -586,8 +595,8 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     }
 
     // Email resumen a correos configurados del usuario
-    if (user_id) {
-      const userQ = await db.query('SELECT notification_emails FROM users WHERE id = $1', [user_id]);
+    if (notifUserId) {
+      const userQ = await db.query('SELECT notification_emails FROM users WHERE id = $1', [notifUserId]);
       const notifEmails = userQ.rows[0]?.notification_emails || [];
       if (notifEmails.length) {
         await emailService.sendBulkPushReport(notifEmails, {
@@ -612,9 +621,12 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
 // ── ALL BRANCHES ──────────────────────────────────────────────
 router.get("/all-branches", auth, async (req, res) => {
   try {
-    const result = await req.app.get("db").query(
-      "SELECT id, name, city, address, user_id FROM branches ORDER BY city, name"
-    );
+    const db = req.app.get("db");
+    const userRow = await db.query("SELECT role FROM users WHERE id = $1", [req.user.id]);
+    const isAdmin = userRow.rows[0]?.role === "admin";
+    const result = isAdmin
+      ? await db.query("SELECT id, name, city, address, user_id FROM branches ORDER BY city, name")
+      : await db.query("SELECT id, name, city, address, user_id FROM branches WHERE user_id = $1 ORDER BY city, name", [req.user.id]);
     res.json(result.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

@@ -686,6 +686,53 @@
       font-family: 'Montserrat', sans-serif; padding: 6px 10px; cursor: pointer;
     }
 
+    /* ── CLIENT ADMIN VISIBILITY ── */
+    body.client-admin .admin-only { display: none !important; }
+    body:not(.client-admin) .client-only { display: none !important; }
+
+    .sidebar-group.mi-cuenta .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.mi-cuenta .sidebar-group-header:hover { background: rgba(0,245,212,0.06); }
+    .sidebar-group.mi-cuenta .sidebar-children-inner { border-color: rgba(0,245,212,0.2); }
+    .sidebar-group.mi-cuenta .sidebar-btn.active { background: rgba(0,245,212,0.08); color: var(--magenta); border-left-color: var(--magenta); }
+    .sidebar-group.mi-cuenta .sidebar-btn:hover { color: var(--magenta); }
+
+    .sidebar-group.mis-sedes .sidebar-group-label { color: #ff8c00; }
+    .sidebar-group.mis-sedes .sidebar-group-header:hover { background: rgba(255,140,0,0.06); }
+    .sidebar-group.mis-sedes .sidebar-children-inner { border-color: rgba(255,140,0,0.25); }
+    .sidebar-group.mis-sedes .sidebar-btn.active { background: rgba(255,140,0,0.1); color: #ff8c00; border-left-color: #ff8c00; }
+    .sidebar-group.mis-sedes .sidebar-btn:hover { color: #ff8c00; }
+
+    /* ── SERVER STATUS BAR ── */
+    .server-status-bar {
+      display: flex; align-items: center; gap: 0;
+      padding: 10px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 11px;
+      background: rgba(0,200,255,0.05); border: 1px solid rgba(0,200,255,0.2);
+      border-left: 3px solid #00c8ff;
+    }
+    .ssb-label { text-transform: uppercase; letter-spacing: 0.08em; color: #00c8ff; font-weight: 800; padding-right: 14px; margin-right: 14px; border-right: 1px solid rgba(0,200,255,0.2); }
+    .ssb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--online); margin-right: 5px; flex-shrink: 0; }
+    .ssb-operative { font-weight: 700; color: var(--online); margin-right: 14px; }
+    .ssb-meta { color: var(--muted); padding-left: 14px; margin-left: 14px; border-left: 1px solid var(--border); font-size: 11px; }
+
+    /* ── SEDE CARDS ── */
+    .sedes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; margin-bottom: 24px; }
+    .sede-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .sede-card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .sede-card-name { font-size: 13px; font-weight: 800; }
+    .sede-card-city { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .sede-status-pill { padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+    .sede-status-pill.all-online { background: rgba(0,230,118,0.1); color: var(--online); border: 1px solid rgba(0,230,118,0.25); }
+    .sede-status-pill.partial { background: rgba(255,140,0,0.1); color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    .sede-status-pill.all-offline { background: rgba(255,23,68,0.1); color: var(--offline); border: 1px solid rgba(255,23,68,0.25); }
+    .sede-devices { padding: 8px 0; }
+    .sede-device-row { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .sede-device-row:last-child { border-bottom: none; }
+    .sede-device-name { flex: 1; font-weight: 600; }
+    .sede-device-meta { font-size: 10px; color: var(--muted); }
+    .sede-card-footer { padding: 8px 14px; border-top: 1px solid var(--border); display: flex; gap: 12px; }
+    .sede-link { font-size: 11px; color: var(--magenta); font-weight: 600; cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+    .sede-link:hover { text-decoration: underline; }
+
     /* ── SIDEBAR CONTENIDO GROUP ── */
     .sidebar-group.contenido .sidebar-group-label { color: var(--magenta); }
     .sidebar-group.contenido .sidebar-group-header:hover { background: rgba(0,245,212,0.06); }
@@ -829,7 +876,8 @@
   <div class="topbar-logo">SONORO.</div>
   <div class="topbar-divider"></div>
   <div class="topbar-subtitle">Admin</div>
-  <span class="topbar-badge">Sistema</span>
+  <span class="topbar-badge admin-only">Sistema</span>
+  <span class="topbar-badge client-only" id="topbar-client-badge" style="background:rgba(255,140,0,0.12);border-color:rgba(255,140,0,0.3);color:#ff8c00;"></span>
   <div class="topbar-right">
     <span class="topbar-user" id="topbar-user"></span>
     <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
@@ -843,7 +891,34 @@
   <!-- SIDEBAR -->
   <nav class="sidebar">
 
-    <div class="sidebar-group monitor open" id="sg-monitor">
+    <!-- CLIENT ADMIN sidebar (hidden for super admin) -->
+    <div class="sidebar-group mi-cuenta open client-only" id="sg-mi-cuenta">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-mi-cuenta')">
+        <div class="sidebar-group-label">Mi Cuenta</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn active" onclick="showTab('client-overview', this)">Resumen</button>
+          <button class="sidebar-btn" onclick="showTab('mis-dispositivos', this)">Mis Dispositivos</button>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-group mis-sedes open client-only" id="sg-mis-sedes">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-mis-sedes')">
+        <div class="sidebar-group-label">Mis Sedes</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('mis-sedes', this)">Ver Sedes</button>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-divider client-only"></div>
+
+    <!-- SUPER ADMIN sidebar -->
+    <div class="sidebar-group monitor open admin-only" id="sg-monitor">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-monitor')">
         <div class="sidebar-group-label">Monitor</div>
         <div class="sidebar-group-arrow">▶</div>
@@ -860,7 +935,7 @@
 
     <div class="sidebar-divider"></div>
 
-    <div class="sidebar-group clientes open" id="sg-clientes">
+    <div class="sidebar-group clientes open admin-only" id="sg-clientes">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-clientes')">
         <div class="sidebar-group-label">Clientes</div>
         <div class="sidebar-group-arrow">▶</div>
@@ -1082,6 +1157,51 @@
       </div>
     </div>
 
+    <!-- ═══════════════ CLIENT OVERVIEW ═══════════════ -->
+    <div id="tab-client-overview" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title" id="client-overview-title">Resumen</div>
+          <div class="section-sub" id="client-overview-sub">Cargando...</div>
+        </div>
+        <button class="btn btn-outline btn-sm" id="client-refresh-btn" onclick="loadClientOverview()">Actualizar</button>
+      </div>
+      <!-- Server status bar -->
+      <div class="server-status-bar" id="client-server-bar">
+        <span class="ssb-label">Servidor CMS</span>
+        <span class="ssb-dot"></span>
+        <span class="ssb-operative">Operativo</span>
+        <span class="ssb-meta" id="ssb-uptime">Uptime: —</span>
+        <span class="ssb-meta" id="ssb-latency">Latencia: —ms</span>
+      </div>
+      <!-- Stats -->
+      <div class="stats-grid" id="client-stats-grid">
+        <div class="stat-card"><div class="stat-label">Dispositivos</div><div class="stat-value" id="cs-devices">—</div><div class="stat-sub" id="cs-devices-sub">—</div></div>
+        <div class="stat-card"><div class="stat-label">Sedes</div><div class="stat-value" id="cs-sedes">—</div><div class="stat-sub" id="cs-sedes-sub">—</div></div>
+        <div class="stat-card"><div class="stat-label">Playlists activas</div><div class="stat-value" id="cs-playlists">—</div><div class="stat-sub">en reproducción ahora</div></div>
+        <div class="stat-card"><div class="stat-label">Contenido</div><div class="stat-value" id="cs-content">—</div><div class="stat-sub" id="cs-content-sub">archivos</div></div>
+      </div>
+      <!-- Sedes summary -->
+      <div class="section-sub" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Estado por sede</div>
+      <div class="sedes-grid" id="client-sedes-grid"><div class="loading">Cargando sedes...</div></div>
+    </div>
+
+    <!-- ═══════════════ MIS DISPOSITIVOS ═══════════════ -->
+    <div id="tab-mis-dispositivos" class="tab-content">
+      <div class="section-header">
+        <div><div class="section-title">Mis Dispositivos</div><div class="section-sub">Dispositivos asignados a tu cuenta</div></div>
+      </div>
+      <div id="mis-dispositivos-grid" class="rpi-grid"><div class="loading">Cargando...</div></div>
+    </div>
+
+    <!-- ═══════════════ MIS SEDES ═══════════════ -->
+    <div id="tab-mis-sedes" class="tab-content">
+      <div class="section-header">
+        <div><div class="section-title">Mis Sedes</div><div class="section-sub">Gestión de ubicaciones y dispositivos</div></div>
+      </div>
+      <div class="sedes-grid" id="mis-sedes-grid"><div class="loading">Cargando sedes...</div></div>
+    </div>
+
     <!-- ═══════════════ BULK PUSH ═══════════════ -->
     <div id="tab-bulkpush" class="tab-content">
       <div class="section-header">
@@ -1241,6 +1361,7 @@
 <script>
 const API_URL = window.location.origin;
 let authToken = localStorage.getItem('authToken');
+let isClientAdmin = false;
 let socket = null;
 let adminUserId = null;
 
@@ -1292,15 +1413,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Verificar que sea admin, luego inicializar socket con user_id real
   fetch(`${API_URL}/api/license/status`, { headers: { 'Authorization': `Bearer ${authToken}` } })
     .then(r => r.json()).then(data => {
-      if (data.role !== 'admin') { localStorage.removeItem('authToken'); window.location.href = '/admin-login.html'; return; }
+      const isAdmin    = data.role === 'admin';
+      const isMultisede = data.role === 'user' && data.features?.multisede === true;
+      if (!isAdmin && !isMultisede) {
+        localStorage.removeItem('authToken');
+        window.location.href = '/admin-login.html';
+        return;
+      }
       adminUserId = data.id;
+      isClientAdmin = isMultisede;
       document.getElementById('topbar-user').textContent = data.email || '';
-      initSocket();
+      if (isClientAdmin) {
+        document.body.classList.add('client-admin');
+        const badge = document.getElementById('topbar-client-badge');
+        if (badge) badge.textContent = data.name || data.email || 'Cliente';
+        initSocket();
+        loadClientOverview();
+        autoRefreshInterval = setInterval(loadClientOverview, 30000);
+      } else {
+        initSocket();
+        loadOverview();
+        autoRefreshInterval = setInterval(loadOverview, 15000);
+      }
     }).catch(() => { window.location.href = '/admin-login.html'; });
-  // Renovar token cada 20 min (sin credenciales hardcodeadas)
   setInterval(refreshToken, 20 * 60 * 1000);
-  loadOverview();
-  autoRefreshInterval = setInterval(loadOverview, 15000);
 });
 
 function toggleCard(card) {
@@ -1334,7 +1470,10 @@ function showTab(name, btn) {
     case 'users':      loadUsers(); break;
     case 'alldevices': loadAllDevices(); autoRefreshInterval = setInterval(loadAllDevices, 30000); break;
     case 'rpis':      loadRPis(); autoRefreshInterval = setInterval(refreshRpiStatuses, 30000); break;
-    case 'bulkpush':  loadBulkPushData(); break;
+    case 'bulkpush':        loadBulkPushData(); break;
+    case 'client-overview': loadClientOverview(); autoRefreshInterval = setInterval(loadClientOverview, 30000); break;
+    case 'mis-dispositivos': loadMisDispositivos(); autoRefreshInterval = setInterval(loadMisDispositivos, 30000); break;
+    case 'mis-sedes':        loadMisSedes(); break;
   }
 }
 
@@ -1809,6 +1948,113 @@ async function killWinPlayerAdmin(deviceId, deviceName) {
   } catch(e) { toast('Error de conexión: ' + e.message, 'error'); }
 }
 
+// ── CLIENT ADMIN FUNCTIONS ───────────────────────────────────
+async function loadClientOverview() {
+  try {
+    const [devices, branches, playlists, content] = await Promise.all([
+      api('/api/devices'),
+      api('/api/queue/branches'),
+      api('/api/playlists'),
+      api('/api/content'),
+    ]);
+    const online = (devices || []).filter(d => d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000).length;
+    const total  = (devices || []).length;
+    const withPlaylist = (devices || []).filter(d => d.hdmi0_playlist_id).length;
+
+    document.getElementById('cs-devices').textContent = total;
+    document.getElementById('cs-devices-sub').textContent = `${online} online · ${total - online} offline`;
+    document.getElementById('cs-sedes').textContent = (branches || []).length;
+    const cities = [...new Set((branches || []).map(b => b.city).filter(Boolean))];
+    document.getElementById('cs-sedes-sub').textContent = cities.join(', ') || '—';
+    document.getElementById('cs-playlists').textContent = withPlaylist;
+    document.getElementById('cs-content').textContent = (content || []).length;
+
+    // Server uptime via health endpoint
+    const t0 = Date.now();
+    fetch(`${API_URL}/api/health`).then(r => r.json()).then(h => {
+      const latency = Date.now() - t0;
+      if (h.uptime) {
+        const s = Math.floor(h.uptime);
+        const d = Math.floor(s/86400), hr = Math.floor((s%86400)/3600), mn = Math.floor((s%3600)/60);
+        document.getElementById('ssb-uptime').textContent = `Uptime: ${d}d ${hr}h ${mn}m`;
+      }
+      document.getElementById('ssb-latency').textContent = `Latencia: ${latency}ms`;
+    }).catch(() => {});
+
+    // Render sede cards
+    renderClientSedes(branches || [], devices || []);
+  } catch(e) { console.error('loadClientOverview:', e); }
+}
+
+function renderClientSedes(branches, devices) {
+  const grid = document.getElementById('client-sedes-grid');
+  if (!grid) return;
+  if (!branches.length) { grid.innerHTML = '<div class="empty">Sin sedes configuradas</div>'; return; }
+
+  grid.innerHTML = branches.map(b => {
+    const bDevices = devices.filter(d => d.branch_id === b.id);
+    const onlineCount = bDevices.filter(d => d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000).length;
+    const pillClass = onlineCount === bDevices.length ? 'all-online' : onlineCount === 0 ? 'all-offline' : 'partial';
+    const pillText  = `${onlineCount}/${bDevices.length} online`;
+
+    const deviceRows = bDevices.map(d => {
+      const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+      const h0 = d.hdmi0_playlist_id;
+      const h1 = d.hdmi1_playlist_id;
+      const ports = [h0 ? '<span class="hdmi-pill-wrap active" style="display:inline-flex;padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid rgba(0,245,212,0.35);background:rgba(0,245,212,0.07);color:var(--magenta);font-weight:700;">H0</span>' : '',
+                     h1 ? '<span class="hdmi-pill-wrap active" style="display:inline-flex;padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid rgba(0,245,212,0.35);background:rgba(0,245,212,0.07);color:var(--magenta);font-weight:700;">H1</span>' : ''].filter(Boolean).join(' ') || '<span style="color:var(--muted);font-size:10px;">—</span>';
+      const orient = d.orientation || 'H';
+      const orientBadge = `<span style="padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;border:1px solid ${orient==='vertical'?'rgba(255,140,0,0.4)':'rgba(123,97,255,0.4)'};color:${orient==='vertical'?'var(--warning)':'#a78bfa'};background:${orient==='vertical'?'rgba(255,140,0,0.07)':'rgba(123,97,255,0.07)'};">${orient==='vertical'?'V':'H'}</span>`;
+      const ls = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
+      return `<div class="sede-device-row">
+        <span class="status-dot ${isOnline?'online':'offline'}"></span>
+        <span class="sede-device-name">${d.name || d.device_id}</span>
+        <span style="display:flex;gap:3px;">${ports}</span>
+        ${orientBadge}
+        <span class="sede-device-meta">${ls}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="sede-card">
+      <div class="sede-card-header">
+        <div><div class="sede-card-name">${b.name}</div><div class="sede-card-city">${b.city || '—'}</div></div>
+        <span class="sede-status-pill ${pillClass}">${pillText}</span>
+      </div>
+      <div class="sede-devices">${deviceRows || '<div style="padding:10px 14px;font-size:11px;color:var(--muted);">Sin dispositivos asignados</div>'}</div>
+      <div class="sede-card-footer">
+        <button class="sede-link" onclick="showTab('mis-dispositivos', null)">Ver dispositivos</button>
+        <button class="sede-link" onclick="showTab('bulkpush', null)">Bulk Push</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadMisDispositivos() {
+  const grid = document.getElementById('mis-dispositivos-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const devices = await api('/api/devices');
+    if (!devices?.length) { grid.innerHTML = '<div class="empty">Sin dispositivos</div>'; return; }
+    renderRpis(devices);
+    // Override grid target
+    const rendered = document.getElementById('rpi-grid');
+    if (rendered) grid.innerHTML = rendered.innerHTML;
+  } catch(e) { grid.innerHTML = '<div class="empty">Error cargando dispositivos</div>'; }
+}
+
+async function loadMisSedes() {
+  const grid = document.getElementById('mis-sedes-grid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="loading">Cargando...</div>';
+  try {
+    const [branches, devices] = await Promise.all([api('/api/queue/branches'), api('/api/devices')]);
+    renderClientSedes(branches || [], devices || []);
+    const rendered = document.getElementById('client-sedes-grid');
+    if (rendered) grid.innerHTML = rendered.innerHTML;
+  } catch(e) { grid.innerHTML = '<div class="empty">Error cargando sedes</div>'; }
+}
+
 // ── ORIENTACIÓN DISPOSITIVO ──────────────────────────────────
 async function updateOrientation(deviceId, value) {
   try {
@@ -2075,7 +2321,12 @@ async function loadUsers() {
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
                 <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
                   onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
-                🏢 On-Premise / Red local
+                On-Premise / Red local
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-multisede-${u.id}" ${(u.features?.multisede) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'multisede', this.checked)">
+                Multi-sede / Panel cliente
               </label>
             </div>
             <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
