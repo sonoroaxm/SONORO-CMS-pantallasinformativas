@@ -24,6 +24,16 @@
       --grad: linear-gradient(135deg, var(--orange) 0%, var(--magenta) 100%);
     }
 
+    body.light-mode {
+      --black:   #e8e8e8;
+      --surface: #ffffff;
+      --surface2:#f4f4f4;
+      --surface3:#ececec;
+      --border:  #d8d8d8;
+      --text:    #111111;
+      --muted:   #666666;
+    }
+
     * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
@@ -32,6 +42,7 @@
       color: var(--text);
       min-height: 100vh;
       font-weight: 400;
+      transition: background .2s, color .2s;
     }
 
     /* ── GRAD BAR ── */
@@ -675,6 +686,20 @@
       font-family: 'Montserrat', sans-serif; padding: 6px 10px; cursor: pointer;
     }
 
+    .win-pill {
+      display: inline-block; padding: 2px 7px;
+      background: #0d2340; border: 1px solid #1e3f6e; border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: #7eb8f7;
+      letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
+    }
+
+    .unhealthy-pill {
+      display: inline-block; padding: 2px 7px;
+      background: #3a1212; border: 1px solid #6b1f1f; border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: #f68585;
+      letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; cursor: help;
+    }
+
     @media (max-width: 900px) {
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .sidebar { display: none; }
@@ -693,6 +718,7 @@
   <span class="topbar-badge">Sistema</span>
   <div class="topbar-right">
     <span class="topbar-user" id="topbar-user"></span>
+    <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
     <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
   </div>
 </div>
@@ -991,24 +1017,73 @@
 <script>
 const API_URL = window.location.origin;
 let authToken = localStorage.getItem('authToken');
-const socket = io({ auth: { token: authToken } });
+let socket = null;
+let adminUserId = null;
 
 let liveLogsInterval = null;
 let currentLogProcess = null;
 let autoRefreshInterval = null;
 
+// ── SOCKET ───────────────────────────────────────────
+function initSocket() {
+  if (socket) socket.disconnect();
+  socket = io(API_URL, { auth: { token: authToken } });
+
+  socket.on('connect', () => {
+    if (adminUserId) socket.emit('join_user_room', { user_id: adminUserId });
+  });
+
+  socket.on('connect_error', (err) => {
+    console.warn('Socket connect_error:', err.message);
+  });
+
+  socket.on('reboot_result', (data) => {
+    toast(data.success ? 'Reboot exitoso' : 'Error en reboot: ' + data.error, data.success ? 'success' : 'error');
+  });
+}
+
+// ── TOKEN REFRESH ─────────────────────────────────────
+async function refreshToken() {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success && data.token) {
+      authToken = data.token;
+      localStorage.setItem('authToken', authToken);
+    }
+  } catch(e) { console.warn('Token refresh error:', e); }
+}
+
 // ── INIT ────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-mode');
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) btn.textContent = 'Oscuro';
+  }
   if (!authToken) { window.location.href = '/admin-login.html'; return; }
-  // Verificar que sea admin
+  // Verificar que sea admin, luego inicializar socket con user_id real
   fetch(`${API_URL}/api/license/status`, { headers: { 'Authorization': `Bearer ${authToken}` } })
     .then(r => r.json()).then(data => {
-      if (data.role !== 'admin') { localStorage.removeItem('authToken'); window.location.href = '/admin-login.html'; }
+      if (data.role !== 'admin') { localStorage.removeItem('authToken'); window.location.href = '/admin-login.html'; return; }
+      adminUserId = data.id;
       document.getElementById('topbar-user').textContent = data.email || '';
+      initSocket();
     }).catch(() => { window.location.href = '/admin-login.html'; });
+  // Renovar token cada 20 min (sin credenciales hardcodeadas)
+  setInterval(refreshToken, 20 * 60 * 1000);
   loadOverview();
   autoRefreshInterval = setInterval(loadOverview, 15000);
 });
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('themeToggleBtn').textContent = isLight ? 'Oscuro' : 'Claro';
+}
 
 function logout() {
   localStorage.removeItem('authToken');
@@ -1486,10 +1561,24 @@ async function rebootRpi(deviceId) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
-// ── SOCKET ───────────────────────────────────────────
-socket.on('reboot_result', (data) => {
-  toast(data.success ? 'Reboot exitoso' : 'Error en reboot: ' + data.error, data.success ? 'success' : 'error');
-});
+async function killWinPlayerAdmin(deviceId, deviceName) {
+  const msg = `¿Detener el player de "${deviceName}"?\n\n`
+    + `El proceso de Electron se cerrará inmediatamente.\n`
+    + `Si el auto-arranque al login está activo, el player se reiniciará en el próximo inicio de sesión del usuario Windows.`;
+  if (!confirm(msg)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/kill-player`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`Player detenido en ${data.device_name || deviceName}`, 'success');
+    } else {
+      toast('Error: ' + (data.error || 'no se pudo detener el player'), 'error');
+    }
+  } catch(e) { toast('Error de conexión: ' + e.message, 'error'); }
+}
 
 // ── USUARIOS Y LICENCIAS ─────────────────────────────────────
 
@@ -1711,20 +1800,25 @@ function renderAllDevices(devices) {
       </div>
       ${u.devices.map(d => {
         const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+        const isWin    = d.platform === 'windows';
         const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
         return `
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
           <div style="flex:1;">
-            <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;">
+            <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
+              ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+              ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">
-              ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${d.display_mode || 'mirror'} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
+              ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${isWin ? 'single' : (d.display_mode || 'mirror')} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-            <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+            ${!isWin
+              ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
+              : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
           </div>
         </div>`;
       }).join('')}
@@ -1795,7 +1889,8 @@ function renderRpis(devices) {
   const grid = document.getElementById('rpi-grid');
   if (!devices.length) { grid.innerHTML = '<div class="empty">Sin resultados</div>'; return; }
   grid.innerHTML = devices.map(d => {
-    const isOnline = d.status === 'online';
+    const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+    const isWin    = d.platform === 'windows';
     const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
     return `
     <div class="rpi-card" id="rpi-${d.device_id}">
@@ -1804,16 +1899,19 @@ function renderRpis(devices) {
           <div class="rpi-name">
             <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
             ${d.name || d.device_id}
+            ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+            ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog reportó ${d.unhealthy_reload_count || '?'} reloads consecutivos sin recuperar el renderer">Unhealthy</span>` : ''}
           </div>
           <div class="rpi-ip">${d.device_id} · ${d.ip_address || '—'}${d.user_name ? ' · ' + d.user_name : ''}</div>
         </div>
         <span id="rpistatus_${d.device_id}" class="rpi-status-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? 'Online' : 'Offline'}</span>
       </div>
       <div class="rpi-body">
+        ${!isWin ? `
         <div class="rpi-info-row">
           <span class="rpi-info-label">Modo</span>
           <span class="rpi-info-val">${d.display_mode || 'mirror'}</span>
-        </div>
+        </div>` : ''}
         <div class="rpi-info-row">
           <span class="rpi-info-label">Playlist activa</span>
           <span class="rpi-info-val">${d.hdmi0_playlist_name || '—'}</span>
@@ -1822,6 +1920,7 @@ function renderRpis(devices) {
           <span class="rpi-info-label">Último contacto</span>
           <span id="lastseen_${d.device_id}" class="rpi-info-val ${isOnline ? 'ok' : 'err'}">${lastSeen}</span>
         </div>
+        ${!isWin ? `
         <div class="rpi-info-row" id="stat-temp-${d.device_id}">
           <span class="rpi-info-label">Temperatura CPU</span>
           <span class="rpi-info-val" style="color:var(--muted)">—</span>
@@ -1829,15 +1928,25 @@ function renderRpis(devices) {
         <div class="rpi-info-row" id="stat-fan-${d.device_id}">
           <span class="rpi-info-label">Ventilador</span>
           <span class="rpi-info-val" style="color:var(--muted)">—</span>
-        </div>
+        </div>` : ''}
+        ${isWin && d.player_version ? `
+        <div class="rpi-info-row">
+          <span class="rpi-info-label">Versión player</span>
+          <span class="rpi-info-val">${d.player_version}</span>
+        </div>` : ''}
       </div>
       <div class="rpi-actions">
-        <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar estado</button>
+        <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>
         <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-        <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${d.name||d.device_id}')">Screenshot</button>
+        <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Screenshot</button>
+        ${!isWin ? `
         <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
         <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+        ` : `
+        <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener player</button>
+        `}
       </div>
+      ${!isWin ? `
       <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
         <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Acceso SSH remoto via tunnel</div>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -1883,9 +1992,10 @@ function renderRpis(devices) {
           <div style="font-size:12px;color:var(--muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
         </div>
       </div>
+      ` : ''}
     </div>`;
   }).join('');
-  devices.forEach(d => loadSchedulesAdmin(d.device_id));
+  devices.forEach(d => { if (d.platform !== 'windows') loadSchedulesAdmin(d.device_id); });
 }
 
 // ── HELPER: poblar select de usuarios ─────────────────────────
@@ -1930,20 +2040,25 @@ async function loadAllDevices() {
         </div>
         ${u.devices.map(d => {
           const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+          const isWin    = d.platform === 'windows';
           const lastSeen = d.last_seen ? timeAgo(new Date(d.last_seen)) : '—';
           return `
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
             <div style="flex:1;">
-              <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;">
+              <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
+                ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+                ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:4px;">
-                ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${d.display_mode || 'mirror'} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
+                ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${isWin ? 'single' : (d.display_mode || 'mirror')} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0;">
               <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-              <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
+              ${!isWin
+                ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
+                : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
             </div>
           </div>`;
         }).join('')}
