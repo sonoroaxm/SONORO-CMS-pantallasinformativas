@@ -447,3 +447,164 @@ router.get('/users/:id/features', auth, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ── ORIENTACIÓN DE DISPOSITIVO ────────────────────────────────
+router.put('/devices/:deviceId/orientation', auth, async (req, res) => {
+  const { deviceId } = req.params;
+  const { orientation } = req.body;
+  if (!['horizontal', 'vertical'].includes(orientation))
+    return res.status(400).json({ error: 'orientation debe ser horizontal o vertical' });
+  try {
+    const result = await req.app.get('db').query(
+      'UPDATE devices SET orientation = $1 WHERE device_id = $2 RETURNING device_id, name, orientation',
+      [orientation, deviceId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    res.json({ success: true, device: result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── EMAILS DE NOTIFICACIÓN POR USUARIO ────────────────────────
+router.put('/users/:id/notification-emails', auth, async (req, res) => {
+  const { id } = req.params;
+  const { emails } = req.body;
+  if (!Array.isArray(emails) || emails.length > 2)
+    return res.status(400).json({ error: 'emails debe ser un array de máximo 2 direcciones' });
+  const valid = emails.every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+  if (!valid) return res.status(400).json({ error: 'Una o más direcciones de email no son válidas' });
+  try {
+    const result = await req.app.get('db').query(
+      'UPDATE users SET notification_emails = $1 WHERE id = $2 RETURNING id, email, notification_emails',
+      [JSON.stringify(emails), id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, user: result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── BULK PUSH — PREVIEW ───────────────────────────────────────
+router.post('/bulk-push/preview', auth, async (req, res) => {
+  const { playlist_id, city, branch_id, orientation } = req.body;
+  if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
+  try {
+    const db = req.app.get('db');
+    // Verificar que la playlist existe
+    const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
+    if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
+
+    let conditions = ['1=1'];
+    let params = [];
+    let pi = 1;
+
+    if (city) { conditions.push(`b.city = $${pi++}`); params.push(city); }
+    if (branch_id) { conditions.push(`d.branch_id = $${pi++}`); params.push(branch_id); }
+    if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
+
+    const query = `
+      SELECT d.device_id, d.name, d.display_mode, d.orientation,
+             d.hdmi0_playlist_id, d.hdmi1_playlist_id,
+             d.status, d.last_seen,
+             p0.name AS current_playlist_hdmi0,
+             p1.name AS current_playlist_hdmi1,
+             b.name AS branch_name, b.city,
+             u.name AS user_name
+      FROM devices d
+      LEFT JOIN branches b ON d.branch_id = b.id
+      LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
+      LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+      LEFT JOIN users u ON d.user_id = u.id
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY b.city, b.name, d.name
+    `;
+    const devices = await db.query(query, params);
+    res.json({ success: true, playlist: pl.rows[0], devices: devices.rows });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── BULK PUSH — APPLY ─────────────────────────────────────────
+router.post('/bulk-push/apply', auth, async (req, res) => {
+  const { playlist_id, city, branch_id, orientation, user_id } = req.body;
+  if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
+  try {
+    const db = req.app.get('db');
+    const io = req.app.get('io');
+    const emailService = require('../services/email');
+
+    const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
+    if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
+
+    let conditions = ['1=1'];
+    let params = [];
+    let pi = 1;
+    if (city)        { conditions.push(`b.city = $${pi++}`);         params.push(city); }
+    if (branch_id)   { conditions.push(`d.branch_id = $${pi++}`);    params.push(branch_id); }
+    if (orientation) { conditions.push(`d.orientation = $${pi++}`);  params.push(orientation); }
+
+    const selectQ = `
+      SELECT d.device_id, d.display_mode, d.status, d.last_seen,
+             d.hdmi0_playlist_id, d.hdmi1_playlist_id,
+             d.name, b.name AS branch_name, b.city
+      FROM devices d
+      LEFT JOIN branches b ON d.branch_id = b.id
+      WHERE ${conditions.join(' AND ')}
+    `;
+    const { rows: devices } = await db.query(selectQ, params);
+
+    let updated = 0, notified = 0, errors = [];
+
+    for (const d of devices) {
+      try {
+        const isDual = d.display_mode === 'extended';
+        await db.query(
+          `UPDATE devices SET hdmi0_playlist_id = $1 ${isDual ? ', hdmi1_playlist_id = $1' : ''} WHERE device_id = $2`,
+          [playlist_id, d.device_id]
+        );
+        updated++;
+        // Notificar en tiempo real si está online
+        const isOnline = d.status === 'online' && d.last_seen &&
+          (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+        if (isOnline) {
+          const cfg = await db.query(
+            `SELECT d.*, p0.name AS hdmi0_playlist_name, p1.name AS hdmi1_playlist_name
+             FROM devices d
+             LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
+             LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+             WHERE d.device_id = $1`, [d.device_id]
+          );
+          io.emit(`device-config-update-${d.device_id}`, cfg.rows[0]);
+          notified++;
+        }
+      } catch(err) {
+        errors.push({ device_id: d.device_id, error: err.message });
+      }
+    }
+
+    // Email resumen a correos configurados del usuario
+    if (user_id) {
+      const userQ = await db.query('SELECT notification_emails FROM users WHERE id = $1', [user_id]);
+      const notifEmails = userQ.rows[0]?.notification_emails || [];
+      if (notifEmails.length) {
+        await emailService.sendBulkPushReport(notifEmails, {
+          playlist_name: pl.rows[0].name,
+          total: devices.length,
+          updated,
+          notified,
+          errors,
+          filters: { city, branch_id, orientation },
+          timestamp: new Date().toISOString()
+        }).catch(e => console.error('❌ Email bulk push:', e.message));
+      }
+    }
+
+    console.log(`📡 Bulk Push: playlist "${pl.rows[0].name}" → ${updated} dispositivos (${notified} notificados en tiempo real)`);
+    res.json({ success: true, playlist: pl.rows[0].name, total: devices.length, updated, notified, errors });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});

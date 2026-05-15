@@ -345,3 +345,66 @@ async function sendAgentCredentialsEmail(agent, branch, cmsUrl) {
 
 module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, verifyConnection };
 
+// ── EMAIL BULK PUSH REPORT ────────────────────────────────────
+async function sendBulkPushReport(emails, summary) {
+  const { playlist_name, total, updated, notified, errors, filters, timestamp } = summary;
+  const date = new Date(timestamp).toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const filterDesc = [
+    filters.city        ? `Ciudad: <strong>${filters.city}</strong>` : null,
+    filters.branch_id   ? `Sede específica` : null,
+    filters.orientation ? `Formato: <strong>${filters.orientation === 'horizontal' ? 'Horizontal' : 'Vertical'}</strong>` : null,
+  ].filter(Boolean).join(' · ') || 'Todos los dispositivos';
+
+  const errorsHtml = errors.length
+    ? `<div style="margin-top:16px;padding:12px 16px;background:#fff3f3;border-left:3px solid #ff1744;border-radius:4px;">
+        <div style="font-size:12px;font-weight:700;color:#ff1744;margin-bottom:6px;">Errores (${errors.length})</div>
+        ${errors.map(e => `<div style="font-size:12px;color:#666;">${e.device_id}: ${e.error}</div>`).join('')}
+       </div>` : '';
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 6px;font-size:20px;font-weight:800;color:#0f0f0f;">Bulk Push completado</h2>
+    <p style="margin:0 0 24px;font-size:13px;color:#888;">${date}</p>
+
+    <div style="background:#f9f9f9;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Playlist enviada</div>
+      <div style="font-size:16px;font-weight:800;color:#0f0f0f;">${playlist_name}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">Filtro aplicado: ${filterDesc}</div>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        <td style="padding:12px 16px;background:#f4f4f4;border-radius:8px;text-align:center;width:33%;">
+          <div style="font-size:24px;font-weight:900;color:#0f0f0f;">${total}</div>
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Dispositivos</div>
+        </td>
+        <td width="10"></td>
+        <td style="padding:12px 16px;background:#f0fff8;border-radius:8px;text-align:center;width:33%;">
+          <div style="font-size:24px;font-weight:900;color:#00c853;">${updated}</div>
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Actualizados</div>
+        </td>
+        <td width="10"></td>
+        <td style="padding:12px 16px;background:#f0f8ff;border-radius:8px;text-align:center;width:33%;">
+          <div style="font-size:24px;font-weight:900;color:#2196f3;">${notified}</div>
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Notificados</div>
+        </td>
+      </tr>
+    </table>
+
+    <p style="font-size:12px;color:#999;margin:0 0 4px;">
+      Los dispositivos offline aplicarán el cambio automáticamente al reconectarse.
+    </p>
+    ${errorsHtml}
+  `);
+
+  for (const email of emails) {
+    await transporter.sendMail({
+      from: FROM,
+      to: email,
+      subject: `Bulk Push completado — ${playlist_name} · ${updated}/${total} dispositivos`,
+      html
+    });
+    console.log(`✅ Reporte Bulk Push enviado a ${email}`);
+  }
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, verifyConnection };
