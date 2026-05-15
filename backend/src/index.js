@@ -2090,8 +2090,21 @@ async function checkLicense(req, res, next) {
 async function requireAdmin(req, res, next) {
   try {
     const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
-    if (!result.rows.length || result.rows[0].role !== 'admin') {
+    const role = result.rows[0]?.role;
+    if (role !== 'admin' && role !== 'staff') {
       return res.status(403).json({ error: 'Acceso restringido a administradores' });
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
+async function requireSuperAdmin(req, res, next) {
+  try {
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
+    if (!result.rows.length || result.rows[0].role !== 'admin') {
+      return res.status(403).json({ error: 'Acceso restringido al super administrador' });
     }
     next();
   } catch (err) {
@@ -2376,7 +2389,27 @@ app.get('/api/admin/users/:userId/license/history', authenticateToken, requireAd
 });
 
 // ── ADMIN: Eliminar usuario ──────────────────────────────────
-app.delete('/api/admin/users/:userId', authenticateToken, requireAdmin, async (req, res) => {
+app.put('/api/admin/users/:userId/role', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['staff', 'user'].includes(role)) {
+      return res.status(400).json({ error: 'Rol invalido. Valores permitidos: staff, user' });
+    }
+    const check = await pool.query('SELECT role FROM users WHERE id = $1', [req.params.userId]);
+    if (!check.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    if (check.rows[0].role === 'admin') {
+      return res.status(403).json({ error: 'No se puede cambiar el rol de un super administrador' });
+    }
+    await pool.query('UPDATE users SET role = $1 WHERE id = $2', [role, req.params.userId]);
+    console.log(`✅ Rol actualizado: user_id=${req.params.userId} → ${role}`);
+    res.json({ success: true, role });
+  } catch (err) {
+    console.error('❌ Error cambiando rol:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.delete('/api/admin/users/:userId', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
 
