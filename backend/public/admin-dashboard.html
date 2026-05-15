@@ -1427,10 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
       isClientAdmin = isMultisede;
       document.getElementById('topbar-user').textContent = data.email || '';
       if (isAdmin) document.body.classList.add('super-admin');
-      if (isStaff) {
-        const staffBadge = document.getElementById('topbar-staff-badge');
-        if (staffBadge) staffBadge.style.display = '';
-      }
+      if (isStaff) { const sb = document.getElementById('topbar-staff-badge'); if (sb) sb.style.display = ''; }
       if (isClientAdmin) {
         document.body.classList.add('client-admin');
         const badge = document.getElementById('topbar-client-badge');
@@ -2273,7 +2270,14 @@ async function loadUsers() {
       const _safeName = (u.name || u.email).replace(/'/g, '');
       const promoteBtn = isAdmin ? '' : isStaffUser
         ? `<button class="btn btn-outline btn-sm super-only" style="color:var(--warning);border-color:rgba(255,140,0,0.4);" onclick="event.stopPropagation();changeUserRole(${u.id}, 'user', '${_safeName}')">Bajar a usuario</button>`
-            
+        : `<button class="btn btn-outline btn-sm super-only" onclick="event.stopPropagation();changeUserRole(${u.id}, 'staff', '${_safeName}')">Subir a admin</button>`;
+      return `
+      <div class="user-card card-collapsed" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
+        <div class="user-card-header" onclick="toggleCard(this.closest('.user-card'))">
+          <div>
+            <div class="user-name">${u.name || u.email}${isAdmin ? ' <span style="font-size:10px;color:var(--magenta);font-weight:700;margin-left:6px;">SUPER ADMIN</span>' : isStaffUser ? ' <span style="font-size:10px;color:#a78bfa;font-weight:700;margin-left:6px;">ADMIN</span>' : ''}</div>
+            <div class="user-email">${u.email}</div>
+          </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:11px;color:var(--muted);">${typeLabel}</span>
             <span class="license-badge ${licStatus}">${licLabel}</span>
