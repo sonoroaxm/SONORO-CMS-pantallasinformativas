@@ -100,6 +100,21 @@ SVC
 systemctl daemon-reload && systemctl enable sonoro-player
 log "Servicio habilitado"
 
+
+step "6b/8 Deshabilitando WiFi power management"
+mkdir -p /etc/NetworkManager/dispatcher.d
+cat > /etc/NetworkManager/dispatcher.d/99-disable-wifi-pm << 'PM'
+#!/bin/bash
+IFACE=$1
+ACTION=$2
+if [ "$IFACE" = "wlan0" ] && [ "$ACTION" = "up" ]; then
+    /usr/sbin/iw dev wlan0 set power_save off
+fi
+PM
+chmod +x /etc/NetworkManager/dispatcher.d/99-disable-wifi-pm
+/usr/sbin/iw dev wlan0 set power_save off 2>/dev/null || true
+log "WiFi power management deshabilitado (evita desconexiones periodicas)"
+
 step "7/8 Configurando tunnel SSH"
 TUNNEL_KEY="/home/${SONORO_USER}/.ssh/vps_tunnel"
 mkdir -p "/home/${SONORO_USER}/.ssh"
