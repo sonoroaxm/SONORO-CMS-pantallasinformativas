@@ -407,4 +407,33 @@ async function sendBulkPushReport(emails, summary) {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, verifyConnection };
+
+async function sendPasswordResetEmail(user, resetLink) {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 6px;font-size:20px;font-weight:800;color:#0f0f0f;">Restablecer contraseña</h2>
+    <p style="margin:0 0 24px;font-size:13px;color:#888;">Hola ${user.name || user.email}, recibimos una solicitud para restablecer tu contraseña.</p>
+
+    <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin-bottom:24px;text-align:center;">
+      <p style="margin:0 0 16px;font-size:14px;color:#555;">Haz clic en el botón para crear una nueva contraseña. Este enlace es válido por <strong>1 hora</strong>.</p>
+      <a href="${resetLink}"
+         style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#fff;font-weight:800;font-size:14px;text-decoration:none;border-radius:8px;letter-spacing:0.5px;">
+        Restablecer contraseña
+      </a>
+    </div>
+
+    <p style="font-size:12px;color:#999;margin:0 0 8px;">Si no solicitaste este cambio, ignora este correo. Tu contraseña no será modificada.</p>
+    <p style="font-size:11px;color:#bbb;margin:0;">
+      Si el botón no funciona, copia este enlace en tu navegador:<br>
+      <span style="color:#7b61ff;word-break:break-all;">${resetLink}</span>
+    </p>
+  `);
+  await transporter.sendMail({
+    from: FROM,
+    to: user.email,
+    subject: 'Restablecer contraseña — SONORO CMS',
+    html
+  });
+  console.log(`✅ Email reset password enviado a ${user.email}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, verifyConnection };

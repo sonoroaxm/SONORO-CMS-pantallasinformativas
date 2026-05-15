@@ -15,6 +15,7 @@ const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const SAFE_IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
 function isValidIP(ip) {
   if (!SAFE_IP_RE.test(ip)) return false;
@@ -118,6 +119,13 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
 });
 
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiados intentos, intenta en 1 hora' },
+  standardHeaders: true,
+});
+
 console.log('✅ Dashboard: http://localhost:5000/dashboard.html');
 console.log('✅ Uploads: http://localhost:5000/uploads/');
 
@@ -214,7 +222,17 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     ALTER TABLE agents ALTER COLUMN pin TYPE VARCHAR(72)
   `).catch(() => {}))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents)'))
+  .then(() => pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      token      VARCHAR(128) NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used       BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -491,6 +509,61 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Login error:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ========================================
+// RECUPERACIÓN DE CONTRASEÑA
+// ========================================
+
+app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requerido' });
+    const result = await pool.query(
+      'SELECT id, email, name FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await pool.query(
+        'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+        [user.id, token, expiresAt]
+      );
+      const resetLink = `${process.env.CMS_URL}/reset-password.html?token=${token}`;
+      await emailService.sendPasswordResetEmail(user, resetLink);
+      console.log(`🔐 Reset password solicitado: ${email}`);
+    }
+    res.json({ message: 'Si el email está registrado, recibirás las instrucciones en tu correo' });
+  } catch (err) {
+    console.error('❌ Error forgot-password:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
+    if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener mínimo 8 caracteres' });
+    const result = await pool.query(
+      'SELECT id, user_id, expires_at, used FROM password_reset_tokens WHERE token = $1',
+      [token]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Enlace inválido o expirado' });
+    const row = result.rows[0];
+    if (row.used) return res.status(400).json({ error: 'Este enlace ya fue utilizado' });
+    if (new Date() > new Date(row.expires_at)) return res.status(400).json({ error: 'El enlace ha expirado, solicita uno nuevo' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, row.user_id]);
+    await pool.query('UPDATE password_reset_tokens SET used = true WHERE id = $1', [row.id]);
+    console.log(`✅ Contraseña restablecida user_id=${row.user_id}`);
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('❌ Error reset-password:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
