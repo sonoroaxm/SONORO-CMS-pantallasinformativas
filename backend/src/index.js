@@ -2262,13 +2262,18 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
   }
 });
 
-// ── ADMIN: Estado CEC de todos los dispositivos con cronograma TV ──────────
-app.get('/api/admin/cec-monitor', authenticateToken, requireAdmin, async (req, res) => {
+// ── CEC Monitor — disponible para cualquier usuario autenticado ─────────────
+// Admin ve todos los dispositivos; otros usuarios solo ven los suyos
+app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
   try {
     const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const now   = new Date();
     const today = DAYS[now.getDay()];
     const timeNow = now.toTimeString().slice(0, 5);
+
+    const isAdmin = req.user.role === 'admin';
+    const userFilter = isAdmin ? '' : 'AND d.user_id = $3';
+    const params = isAdmin ? [today, timeNow] : [today, timeNow, req.user.id];
 
     const { rows } = await pool.query(`
       SELECT DISTINCT ON (d.device_id)
@@ -2280,8 +2285,9 @@ app.get('/api/admin/cec-monitor', authenticateToken, requireAdmin, async (req, r
       JOIN tv_schedules s ON s.device_id = d.device_id
       JOIN users u ON u.id = d.user_id
       WHERE (d.platform IS NULL OR d.platform != 'windows')
+      ${userFilter}
       ORDER BY d.device_id, s.active DESC, s.time_on
-    `, [today, timeNow]);
+    `, params);
 
     res.json(rows);
   } catch (err) {
