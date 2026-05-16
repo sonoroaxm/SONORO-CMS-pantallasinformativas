@@ -343,7 +343,53 @@ async function sendAgentCredentialsEmail(agent, branch, cmsUrl) {
   console.log(`✅ Credenciales enviadas a ${agent.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, verifyConnection };
+// ── ALERTA CEC — TV apagada en ventana programada ────────────
+async function sendCecAlertEmail(user, device, schedule) {
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f0f0f;">
+      ⚠️ TV apagada en horario programado
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${user.name || user.email}</strong>, uno de tus reproductores
+      tiene la TV <strong style="color:#cc0000;">apagada</strong> durante una ventana programada.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f8;border:1px solid #ffcccc;border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Dispositivo</p>
+          <p style="margin:0 0 16px;font-size:16px;color:#0f0f0f;font-weight:700;">${device.name || device.device_id}</p>
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Ventana programada</p>
+          <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${schedule.time_on} – ${schedule.time_off}</p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">
+      Verifica que la TV esté encendida o usa el panel de control para enviarle el comando de encendido.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center">
+          <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;font-weight:700;font-size:14px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+            Ir al dashboard
+          </a>
+        </td>
+      </tr>
+    </table>
+  `);
+
+  await transporter.sendMail({
+    from: FROM,
+    to: user.email,
+    subject: `⚠️ TV apagada — ${device.name || device.device_id}`,
+    html
+  });
+  console.log(`✅ CEC alert email enviado a ${user.email} — device: ${device.name}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendCecAlertEmail, verifyConnection };
 
 // ── EMAIL BULK PUSH REPORT ────────────────────────────────────
 async function sendBulkPushReport(emails, summary) {

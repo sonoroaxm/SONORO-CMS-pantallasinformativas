@@ -216,6 +216,10 @@ pool.query('SELECT 1')
       ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
   `))
   .then(() => pool.query(`
+    ALTER TABLE devices
+      ADD COLUMN IF NOT EXISTS alerted_at TIMESTAMPTZ
+  `))
+  .then(() => pool.query(`
     ALTER TABLE branches
       ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
   `))
@@ -1572,9 +1576,15 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
   const { device_id } = req.params;
   const { action, output, error } = req.body;
   console.log(`📺 TV result recibido — device: ${device_id} action: ${action} output: ${output}`);
-  // Guardar estado HDMI activo en BD
-  if (action && action.startsWith('hdmi') && !error) {
-    pool.query('UPDATE devices SET tv_status = $1 WHERE device_id = $2', [action, device_id]).catch(() => {});
+  if (action && !error) {
+    // Guardar estado TV (hdmi* = entrada activa, off = apagada)
+    if (action.startsWith('hdmi') || action === 'off') {
+      pool.query('UPDATE devices SET tv_status = $1 WHERE device_id = $2', [action, device_id]).catch(() => {});
+    }
+    // TV volvió a estar activa → limpiar alerted_at para la próxima ventana
+    if (action.startsWith('hdmi') || action === 'on') {
+      pool.query('UPDATE devices SET alerted_at = NULL WHERE device_id = $1', [device_id]).catch(() => {});
+    }
   }
   const cb = tvCallbacks.get(device_id);
   if (cb) {
@@ -2252,6 +2262,33 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
   }
 });
 
+// ── ADMIN: Estado CEC de todos los dispositivos con cronograma TV ──────────
+app.get('/api/admin/cec-monitor', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const now   = new Date();
+    const today = DAYS[now.getDay()];
+    const timeNow = now.toTimeString().slice(0, 5);
+
+    const { rows } = await pool.query(`
+      SELECT DISTINCT ON (d.device_id)
+        d.device_id, d.name, d.tv_status, d.alerted_at, d.last_seen, d.status AS device_status,
+        u.email AS owner_email, u.name AS owner_name,
+        s.time_on::text AS time_on, s.time_off::text AS time_off, s.active AS sched_active,
+        ($1 = ANY(s.days) AND $2::time >= s.time_on AND $2::time <= s.time_off) AS in_window
+      FROM devices d
+      JOIN tv_schedules s ON s.device_id = d.device_id
+      JOIN users u ON u.id = d.user_id
+      WHERE (d.platform IS NULL OR d.platform != 'windows')
+      ORDER BY d.device_id, s.active DESC, s.time_on
+    `, [today, timeNow]);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── ADMIN: Renovar licencia ──────────────────────────────────
 app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -2581,6 +2618,55 @@ setInterval(async () => {
   }
 }, 24 * 60 * 60 * 1000); // Cada 24 horas
 
+// ── CRON: Monitor CEC — alerta cuando TV está apagada en ventana programada ──
+async function cecMonitor() {
+  try {
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const now  = new Date();
+    const today   = DAYS[now.getDay()];
+    const timeNow = now.toTimeString().slice(0, 5); // HH:MM
+
+    const { rows } = await pool.query(`
+      SELECT DISTINCT ON (d.device_id)
+        d.device_id, d.name, d.tv_status, d.alerted_at,
+        u.email AS owner_email, u.name AS owner_name,
+        s.time_on::text AS time_on, s.time_off::text AS time_off
+      FROM devices d
+      JOIN tv_schedules s ON s.device_id = d.device_id
+      JOIN users u ON u.id = d.user_id
+      WHERE s.active = true
+        AND $1 = ANY(s.days)
+        AND $2::time >= s.time_on
+        AND $2::time <= s.time_off
+        AND (d.platform IS NULL OR d.platform != 'windows')
+      ORDER BY d.device_id, s.time_on
+    `, [today, timeNow]);
+
+    for (const d of rows) {
+      if (d.tv_status !== 'off') continue;
+
+      // 1 alerta por ventana: no re-alertar si alerted_at >= inicio de esta ventana
+      if (d.alerted_at) {
+        const windowStart = new Date(now);
+        const [h, m] = d.time_on.split(':');
+        windowStart.setHours(parseInt(h), parseInt(m), 0, 0);
+        if (new Date(d.alerted_at) >= windowStart) continue;
+      }
+
+      if (!d.owner_email) continue;
+      await emailService.sendCecAlertEmail(
+        { email: d.owner_email, name: d.owner_name },
+        { device_id: d.device_id, name: d.name },
+        { time_on: d.time_on, time_off: d.time_off }
+      );
+      await pool.query('UPDATE devices SET alerted_at = NOW() WHERE device_id = $1', [d.device_id]);
+      console.log(`📺 CEC alert → ${d.owner_email} | ${d.name} (${d.device_id})`);
+    }
+  } catch (err) {
+    console.error('❌ cecMonitor error:', err.message);
+  }
+}
+setInterval(cecMonitor, 5 * 60 * 1000);
 
 // ============================================================
 // SONORO QUEUE — API completa
