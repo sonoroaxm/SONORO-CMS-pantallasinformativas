@@ -2126,7 +2126,7 @@ async function requireSuperAdmin(req, res, next) {
 app.get('/api/license/status', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, name, role, license_type, license_status, license_start, license_end
+      `SELECT id, email, name, role, features, license_type, license_status, license_start, license_end
        FROM users WHERE id = $1`,
       [req.user.id]
     );
