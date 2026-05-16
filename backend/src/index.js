@@ -2204,6 +2204,73 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
   }
 });
 
+// ── LOCATIONS (Sedes signage) ─────────────────────────────────
+// Admin ve todas; cliente ve solo las suyas
+
+app.get('/api/admin/all-locations', authenticateToken, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'SELECT l.*, u.name AS owner_name, u.email AS owner_email FROM locations l LEFT JOIN users u ON u.id = l.user_id ORDER BY l.created_at DESC'
+      : 'SELECT * FROM locations WHERE user_id = $1 ORDER BY created_at DESC';
+    const params = isAdmin ? [] : [req.user.id];
+    const { rows } = await pool.query(q, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM locations WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const { name, city, country = 'Colombia', user_id } = req.body;
+    if (!name || !city) return res.status(400).json({ error: 'name y city requeridos' });
+    const ownerId = req.user.role === 'admin' && user_id ? user_id : req.user.id;
+    const { rows } = await pool.query(
+      'INSERT INTO locations (user_id, name, city, country) VALUES ($1,$2,$3,$4) RETURNING *',
+      [ownerId, name, city, country]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'DELETE FROM locations WHERE id = $1 RETURNING id'
+      : 'DELETE FROM locations WHERE id = $1 AND user_id = $2 RETURNING id';
+    const params = isAdmin ? [id] : [id, req.user.id];
+    const { rows } = await pool.query(q, params);
+    if (!rows.length) return res.status(404).json({ error: 'Sede no encontrada' });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const { location_id } = req.body;
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'UPDATE devices SET location_id = $1 WHERE device_id = $2 RETURNING device_id, location_id'
+      : 'UPDATE devices SET location_id = $1 WHERE device_id = $2 AND user_id = $3 RETURNING device_id, location_id';
+    const params = isAdmin ? [location_id || null, deviceId] : [location_id || null, deviceId, req.user.id];
+    const { rows } = await pool.query(q, params);
+    if (!rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── ADMIN: Actualizar features de un usuario ─────────────────
 app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
