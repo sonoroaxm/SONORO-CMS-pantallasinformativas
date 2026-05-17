@@ -70,6 +70,7 @@ async function startHotspot() {
     await run(`sudo nmcli dev wifi hotspot ifname wlan0 ssid "${HOTSPOT_NAME}" password "sonorocms"`);
     hotspotActive = true;
     log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
+    await setupCaptivePortal();
     return true;
   } catch(e) {
     log(`Error creando hotspot: ${e.message}`);
@@ -80,10 +81,38 @@ async function startHotspot() {
 async function stopHotspot() {
   if (!hotspotActive) return;
   try {
+    await teardownCaptivePortal();
     await run(`sudo nmcli con down "${HOTSPOT_NAME}" 2>/dev/null`);
     await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`);
     hotspotActive = false;
     log('Hotspot detenido');
+  } catch(e) {}
+}
+
+// Configura DNS spoofing + redireccion de puerto para el portal cautivo.
+// Con esto, cualquier peticion HTTP que haga el dispositivo conectado al
+// hotspot llega a nuestro servidor sin que el usuario tenga que teclear nada.
+async function setupCaptivePortal() {
+  log('Configurando portal cautivo (DNS + iptables)...');
+  try {
+    // DNS spoofing: dnsmasq resuelve TODOS los dominios al IP del hotspot
+    await run('sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d');
+    await run(`echo "address=/#/${HOTSPOT_IP}" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf > /dev/null`);
+    await run('sudo pkill -HUP dnsmasq 2>/dev/null || true');
+    // Redirigir puerto 80 → 8080: el browser del portal cautivo usa puerto 80
+    await run(`sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port ${PORT}`);
+    log('Portal cautivo listo — todos los dominios resuelven a ' + HOTSPOT_IP);
+  } catch(e) {
+    log(`Advertencia — portal cautivo parcial: ${e.message}`);
+  }
+}
+
+async function teardownCaptivePortal() {
+  try {
+    await run(`sudo iptables -t nat -D PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port ${PORT} 2>/dev/null || true`);
+    await run('sudo rm -f /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf 2>/dev/null || true');
+    await run('sudo pkill -HUP dnsmasq 2>/dev/null || true');
+    log('Portal cautivo limpiado');
   } catch(e) {}
 }
 
@@ -383,9 +412,31 @@ async function startServer() {
     const url = new URL(req.url, `http://${req.headers.host}`);
     log(`${req.method} ${url.pathname}`);
 
-    // Redirect captive portal (Android/iOS auto-detect)
-    if (req.method === 'GET' && !['/', '/wifi', '/activate', '/status'].includes(url.pathname)) {
-      res.writeHead(302, { Location: `http://${HOTSPOT_IP}:${PORT}/` });
+    // Captive portal detection — iOS, Android, Windows, macOS hacen peticiones a
+    // URLs conocidas para detectar portales cautivos. Devolver 302 le indica al OS
+    // que hay un portal y abre el mini-browser automaticamente.
+    // El destino usa puerto 80 (sin puerto explicito) para que iptables lo redirija
+    // a nuestro servidor en 8080 — asi la URL se ve limpia en el browser del OS.
+    const captivePatterns = [
+      '/hotspot-detect.html',       // iOS / macOS (captive.apple.com)
+      '/library/test/success.html', // iOS legacy
+      '/generate_204',              // Android (connectivitycheck.gstatic.com)
+      '/gen_204',                   // Android alternativo
+      '/connecttest.txt',           // Windows 10/11 (www.msftconnecttest.com)
+      '/ncsi.txt',                  // Windows 8 (www.msftncsi.com)
+      '/redirect',                  // Windows Network Location Awareness
+      '/success.txt',               // Firefox OS / varios
+    ];
+    const isCaptiveProbe = req.method === 'GET' && captivePatterns.some(p => url.pathname.startsWith(p));
+    if (isCaptiveProbe) {
+      res.writeHead(302, { Location: `http://${HOTSPOT_IP}/` });
+      res.end();
+      return;
+    }
+
+    // Cualquier otra ruta desconocida → redirigir al portal
+    if (req.method === 'GET' && !['/', '/wifi', '/activate', '/activate-form', '/status'].includes(url.pathname)) {
+      res.writeHead(302, { Location: `http://${HOTSPOT_IP}/` });
       res.end();
       return;
     }
@@ -510,7 +561,8 @@ async function startServer() {
     log(`Servidor portal en http://${listenIP}:${PORT}`);
     if (!RECONNECT_MODE) {
       if (hotspotActive) {
-        showQRonTV(`http://${HOTSPOT_IP}:${PORT}`);
+        // Sin puerto: iptables redirige :80 → :8080, URL queda limpia para el usuario
+        showQRonTV(`http://${HOTSPOT_IP}`);
       } else {
         const localIP = getLocalIP();
         if (localIP) showQRonTV(`http://${localIP}:${PORT}`);
@@ -573,8 +625,8 @@ async function main() {
     await new Promise(r => setTimeout(r, 3000));
     // En modo reconexion NO mostrar QR en TV — hotspot silencioso
     if (!RECONNECT_MODE) {
-      const localIP = getLocalIP() || HOTSPOT_IP;
-      showQRonTV(`http://${localIP}:${PORT}`);
+      // Sin puerto: iptables redirige :80 → :8080 cuando hotspot esta activo
+      showQRonTV(`http://${HOTSPOT_IP}`);
     } else {
       log('Modo reconexion — hotspot silencioso activo: ' + HOTSPOT_NAME + ' / sonorocms');
     }
