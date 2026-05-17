@@ -496,11 +496,10 @@ router.put('/users/:id/notification-emails', auth, requireAdminRole, async (req,
 
 // ── BULK PUSH — PREVIEW ───────────────────────────────────────
 router.post('/bulk-push/preview', auth, async (req, res) => {
-  const { playlist_id, city, branch_id, orientation } = req.body;
+  const { playlist_id, city, location_id, orientation } = req.body;
   if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
   try {
     const db = req.app.get('db');
-    // Verificar que la playlist existe
     const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
 
@@ -511,9 +510,9 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
     let params = [];
     let pi = 1;
 
-    if (!isAdmin) { conditions.push(`d.user_id = $${pi++}`); params.push(req.user.id); }
-    if (city) { conditions.push(`b.city = $${pi++}`); params.push(city); }
-    if (branch_id) { conditions.push(`d.branch_id = $${pi++}`); params.push(branch_id); }
+    if (!isAdmin)    { conditions.push(`d.user_id = $${pi++}`);     params.push(req.user.id); }
+    if (city)        { conditions.push(`l.city = $${pi++}`);        params.push(city); }
+    if (location_id) { conditions.push(`d.location_id = $${pi++}`); params.push(location_id); }
     if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
 
     const query = `
@@ -522,15 +521,15 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
              d.status, d.last_seen,
              p0.name AS current_playlist_hdmi0,
              p1.name AS current_playlist_hdmi1,
-             b.name AS branch_name, b.city,
+             l.name AS location_name, l.city,
              u.name AS user_name
       FROM devices d
-      LEFT JOIN branches b ON d.branch_id = b.id
+      LEFT JOIN locations l ON d.location_id = l.id
       LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
       LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
       LEFT JOIN users u ON d.user_id = u.id
       WHERE ${conditions.join(' AND ')}
-      ORDER BY b.city, b.name, d.name
+      ORDER BY l.city, l.name, d.name
     `;
     const devices = await db.query(query, params);
     res.json({ success: true, playlist: pl.rows[0], devices: devices.rows });
@@ -542,7 +541,7 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
 
 // ── BULK PUSH — APPLY ─────────────────────────────────────────
 router.post('/bulk-push/apply', auth, async (req, res) => {
-  const { playlist_id, city, branch_id, orientation, user_id } = req.body;
+  const { playlist_id, city, location_id, orientation, user_id } = req.body;
   if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
   try {
     const db = req.app.get('db');
@@ -559,17 +558,17 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     let conditions = ['1=1'];
     let params = [];
     let pi = 1;
-    if (!isAdmin) { conditions.push(`d.user_id = $${pi++}`); params.push(req.user.id); }
-    if (city)        { conditions.push(`b.city = $${pi++}`);         params.push(city); }
-    if (branch_id)   { conditions.push(`d.branch_id = $${pi++}`);    params.push(branch_id); }
-    if (orientation) { conditions.push(`d.orientation = $${pi++}`);  params.push(orientation); }
+    if (!isAdmin)    { conditions.push(`d.user_id = $${pi++}`);     params.push(req.user.id); }
+    if (city)        { conditions.push(`l.city = $${pi++}`);        params.push(city); }
+    if (location_id) { conditions.push(`d.location_id = $${pi++}`); params.push(location_id); }
+    if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
 
     const selectQ = `
       SELECT d.device_id, d.display_mode, d.status, d.last_seen,
              d.hdmi0_playlist_id, d.hdmi1_playlist_id,
-             d.name, b.name AS branch_name, b.city
+             d.name, l.name AS location_name, l.city
       FROM devices d
-      LEFT JOIN branches b ON d.branch_id = b.id
+      LEFT JOIN locations l ON d.location_id = l.id
       WHERE ${conditions.join(' AND ')}
     `;
     const { rows: devices } = await db.query(selectQ, params);
@@ -614,7 +613,7 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
           updated,
           notified,
           errors,
-          filters: { city, branch_id, orientation },
+          filters: { city, location_id, orientation },
           timestamp: new Date().toISOString()
         }).catch(e => console.error('❌ Email bulk push:', e.message));
       }

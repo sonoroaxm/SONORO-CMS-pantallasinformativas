@@ -41,6 +41,9 @@ const { videoConversionQueue, addConversionJob, getJobStatus, getQueueStats } = 
 
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+if (!ALLOWED_ORIGINS.length && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  ALLOWED_ORIGINS no configurado en producción — CORS abierto a todos los orígenes');
+}
 const corsOrigin = ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : '*';
 
 const app = express();
@@ -130,6 +133,22 @@ const activateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { error: 'Demasiados intentos de activación, intenta en 15 minutos' },
+  standardHeaders: true,
+});
+
+// Limiter para endpoints públicos del player (sin JWT) — generoso para sync legítimo,
+// restrictivo para enumeración de IDs
+const playerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Demasiadas solicitudes, intenta en un momento' },
+  standardHeaders: true,
+});
+
+const registerDeviceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados registros de dispositivo, intenta en 15 minutos' },
   standardHeaders: true,
 });
 
@@ -1143,7 +1162,7 @@ app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res
 // ========================================
 
 // POST - Registrar o actualizar dispositivo (sin JWT - llamado desde RPi4)
-app.post('/api/devices/register', async (req, res) => {
+app.post('/api/devices/register', registerDeviceLimiter, async (req, res) => {
   try {
     const { device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, platform, player_version, auth_token } = req.body;
 
@@ -1186,7 +1205,7 @@ app.post('/api/devices/register', async (req, res) => {
 });
 
 // GET - Obtener configuración de un dispositivo (sin JWT - llamado desde RPi4)
-app.get('/api/devices/:device_id/config', async (req, res) => {
+app.get('/api/devices/:device_id/config', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -1226,7 +1245,7 @@ app.get('/api/devices/:device_id/config', async (req, res) => {
 // ============================================================
 
 // GET - Manifiesto de contenido para el Windows Player (caché + sync)
-app.get('/api/devices/:device_id/manifest', async (req, res) => {
+app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -1792,7 +1811,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
 });
 
 // GET - Endpoint público para obtener playlist completa (sin JWT - para RPi4 player)
-app.get('/api/player/playlist/:playlistId', async (req, res) => {
+app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
   try {
     const { playlistId } = req.params;
 
@@ -1870,9 +1889,13 @@ app.get('/atencion/reportes', (req, res) => {
 });
 
 // Impresión térmica ESC/POS (stub — se activa si hay impresora configurada)
-app.post('/api/queue/print', async (req, res) => {
+// Kiosco público: sin JWT, pero valida que branch_id existe y aplica rate limiting
+app.post('/api/queue/print', playerLimiter, async (req, res) => {
   try {
     const { branch_id, token_number, service_name, wait_minutes, position, token_id } = req.body;
+    if (!branch_id) return res.status(400).json({ error: 'branch_id requerido' });
+    const branchCheck = await pool.query('SELECT id FROM branches WHERE id = $1', [branch_id]);
+    if (!branchCheck.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
     // TODO: implementar con librería escpos cuando haya impresora configurada
     console.log(`🖨️  Imprimir tiquete: ${token_number} — ${service_name}`);
     res.json({ success: true, printed: false, message: 'Sin impresora configurada' });
@@ -2023,7 +2046,7 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
 // ── OBTENER CONFIG (proteger por user_id) ────────────────────
 // Reemplaza el GET /api/devices/:device_id/config existente
 // para que solo devuelva config si el dispositivo está activado
-app.get('/api/devices/:device_id/config/v2', async (req, res) => {
+app.get('/api/devices/:device_id/config/v2', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
