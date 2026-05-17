@@ -2303,6 +2303,27 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
   }
 });
 
+// ── ADMIN: Toggle individual de un feature ───────────────────
+app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+  const { feature, enabled } = req.body;
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede'];
+  if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
+  try {
+    const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const features = Object.assign({ turnos: false, analytics: false, dual_hdmi: false, onpremise: false, multisede: false }, rows[0].features || {});
+    features[feature] = !!enabled;
+    const result = await pool.query(
+      'UPDATE users SET features = $1 WHERE id = $2 RETURNING id, email, name, features',
+      [JSON.stringify(features), userId]
+    );
+    res.json({ success: true, features: result.rows[0].features });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── ADMIN: Ver dispositivos de un usuario específico ─────────
 app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, async (req, res) => {
   try {
