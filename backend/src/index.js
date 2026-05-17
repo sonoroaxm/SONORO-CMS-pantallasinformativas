@@ -2271,6 +2271,20 @@ app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── DELETE dispositivo ───────────────────────────────────────
+app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const { rows } = await pool.query('DELETE FROM devices WHERE device_id = $1 RETURNING device_id, name', [deviceId]);
+    if (!rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    console.log(`🗑️ Dispositivo eliminado: ${rows[0].name || deviceId}`);
+    res.json({ success: true, device_id: rows[0].device_id });
+  } catch (err) {
+    console.error('❌ Error eliminando dispositivo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── ADMIN: Actualizar features de un usuario ─────────────────
 app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
