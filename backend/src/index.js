@@ -126,6 +126,13 @@ const forgotPasswordLimiter = rateLimit({
   standardHeaders: true,
 });
 
+const activateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de activación, intenta en 15 minutos' },
+  standardHeaders: true,
+});
+
 console.log('✅ Dashboard: http://localhost:5000/dashboard.html');
 console.log('✅ Uploads: http://localhost:5000/uploads/');
 
@@ -282,51 +289,44 @@ function authenticateToken(req, res, next) {
 
 async function getVideoCodec(filepath) {
   return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error('No se pudo detectar codec'));
-          return;
-        }
-        resolve(stdout.trim().toLowerCase());
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=codec_name',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { reject(new Error('No se pudo detectar codec')); return; }
+      resolve(stdout.trim().toLowerCase());
+    });
   });
 }
 
 async function getVideoDimensions(filepath) {
   return new Promise((resolve) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout) => {
-        if (error) {
-          resolve({ width: 1920, height: 1080 });
-          return;
-        }
-        const parts = stdout.trim().split('x');
-        resolve({ width: parseInt(parts[0]) || 1920, height: parseInt(parts[1]) || 1080 });
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'csv=s=x:p=0',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { resolve({ width: 1920, height: 1080 }); return; }
+      const parts = stdout.trim().split('x');
+      resolve({ width: parseInt(parts[0]) || 1920, height: parseInt(parts[1]) || 1080 });
+    });
   });
 }
 
 async function getVideoDuration(filepath) {
   return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error('No se pudo obtener duración'));
-          return;
-        }
-        const duration = parseFloat(stdout) * 1000;
-        resolve(Math.round(duration));
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { reject(new Error('No se pudo obtener duración')); return; }
+      resolve(Math.round(parseFloat(stdout) * 1000));
+    });
   });
 }
 
@@ -342,9 +342,15 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   console.log(`📐 Dimensiones: ${width}x${height} → modo ${isVertical ? 'VERTICAL' : 'HORIZONTAL'}`);
 
   return new Promise((resolve, reject) => {
-    const ffmpegCmd = `C:\\ffmpeg\\bin\\ffmpeg.exe -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
-
-    const child = exec(ffmpegCmd, { windowsHide: true }, (error, stdout, stderr) => {
+    const ffmpegBin = process.platform === 'win32' ? 'C:\\ffmpeg\\bin\\ffmpeg.exe' : 'ffmpeg';
+    const child = execFile(ffmpegBin, [
+      '-i', inputPath,
+      '-c:v', 'libx264', '-preset', 'fast', '-profile:v', 'baseline', '-level', '4.1',
+      '-vf', scaleFilter,
+      '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-movflags', '+faststart', '-y', outputPath
+    ], { windowsHide: true }, (error) => {
       if (error) {
         console.error('❌ Error conversión:', error);
         reject(new Error('Error convertiendo video'));
@@ -366,16 +372,16 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   });
 }
 function generateThumbnail(videoPath, thumbnailPath) {
-  return new Promise((resolve, reject) => {
-    const ffmpegCmd = `ffmpeg -i "${videoPath}" -ss 1 -vframes 1 -vf "scale=320:180" -q:v 5 -y "${thumbnailPath}"`;
-
-    exec(ffmpegCmd, { windowsHide: true }, (error) => {
+  return new Promise((resolve) => {
+    execFile('ffmpeg', [
+      '-i', videoPath, '-ss', '1', '-vframes', '1',
+      '-vf', 'scale=320:180', '-q:v', '5', '-y', thumbnailPath
+    ], { windowsHide: true }, (error) => {
       if (error) {
         console.warn('⚠️ No se pudo generar thumbnail:', error.message);
         resolve(null);
         return;
       }
-
       console.log('📸 Thumbnail generado:', thumbnailPath);
       resolve(thumbnailPath);
     });
@@ -455,8 +461,9 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     const user = result.rows[0];
 
     // Generar JWT
+    const regFeatures = user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) },
+      { id: user.id, email: user.email, role: user.role, features: regFeatures },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -467,7 +474,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: regFeatures }
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -499,8 +506,9 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     // Generar JWT
+    const loginFeatures = user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) },
+      { id: user.id, email: user.email, role: user.role, features: loginFeatures },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -510,7 +518,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures }
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -774,6 +782,11 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const filename = result.rows[0].filename;
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const filepath = path.join(uploadsDir, filename);
+
+    // Verificar que la ruta resultante siga dentro de uploads (previene path traversal)
+    if (!filepath.startsWith(uploadsDir + path.sep) && filepath !== uploadsDir) {
+      return res.status(400).json({ error: 'Nombre de archivo inválido' });
+    }
 
     // Eliminar archivo
     if (fs.existsSync(filepath)) {
@@ -1072,6 +1085,12 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
     await pool.query('DELETE FROM playlist_items WHERE playlist_id = $1', [playlistId]);
 
     for (let i = 0; i < items.length; i++) {
+      // Verificar que el content_id pertenece al usuario antes de insertar
+      const contentOwner = await pool.query(
+        'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+        [items[i].content_id, userId]
+      );
+      if (!contentOwner.rows.length) continue;
       await pool.query(
         'INSERT INTO playlist_items (playlist_id, content_id, display_order, duration_override_ms) VALUES ($1, $2, $3, $4)',
         [playlistId, items[i].content_id, i + 1, items[i].duration_override_ms || null]
@@ -1348,6 +1367,11 @@ app.put('/api/devices/:device_id/win-policy', authenticateToken, async (req, res
 app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, res) => {
   try {
     const { device_id } = req.params;
+    const ownerCheck = await pool.query('SELECT user_id FROM devices WHERE device_id = $1', [device_id]);
+    if (!ownerCheck.rows.length) return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
+    if (req.user.role !== 'admin' && ownerCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'No autorizado para este dispositivo' });
+    }
     io.to(`device_${device_id}`).emit('restart_player', { device_id });
     res.json({ success: true });
     console.log(`🔄 Restart player enviado a: ${device_id}`);
@@ -1358,7 +1382,7 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 });
 
 // POST - Reboot dispositivo via SSH
-app.post('/api/devices/reboot', authenticateToken, async (req, res) => {
+app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
   const { ip } = req.body;
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
   execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
@@ -1491,7 +1515,7 @@ app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, re
 
 // POST /api/admin/rpi/tv — via Socket.io (no SSH)
 // body: { device_id, action, target? }  target: tv1|tv2|all (default: all)
-app.post('/api/admin/rpi/tv', authenticateToken, async (req, res) => {
+app.post('/api/admin/rpi/tv', authenticateToken, requireAdmin, async (req, res) => {
   const { device_id, action, target = 'all' } = req.body;
   const validActions  = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
   const validTargets  = ['tv1','tv2','all'];
@@ -1576,6 +1600,9 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
 app.post('/api/devices/:device_id/tv-result', async (req, res) => {
   const { device_id } = req.params;
   const { action, output, error } = req.body;
+  if (!tvCallbacks.has(device_id)) {
+    return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
+  }
   console.log(`📺 TV result recibido — device: ${device_id} action: ${action} output: ${output}`);
   if (action && !error) {
     // Guardar estado TV (hdmi* = entrada activa, off = apagada)
@@ -1602,6 +1629,7 @@ app.post('/api/devices/:device_id/logs-result', async (req, res) => {
   const { device_id } = req.params;
   const { logs, error } = req.body;
   const cb = global.logsCallbacks && global.logsCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.logsCallbacks.delete(device_id);
@@ -1616,6 +1644,7 @@ app.post('/api/devices/:device_id/stats-result', async (req, res) => {
   const { device_id } = req.params;
   const { temp, fan_state, fan_label, temp_status, error } = req.body;
   const cb = global.statsCallbacks && global.statsCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.statsCallbacks.delete(device_id);
@@ -1630,6 +1659,7 @@ app.post('/api/devices/:device_id/update-result', async (req, res) => {
   const { device_id } = req.params;
   const { success: ok, message, error } = req.body;
   const cb = global.updateCallbacks && global.updateCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.updateCallbacks.delete(device_id);
@@ -1922,7 +1952,7 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
 });
 
 // ── VALIDAR CÓDIGO (sin JWT — llamado desde RPi) ─────────────
-app.post('/api/activate', async (req, res) => {
+app.post('/api/activate', activateLimiter, async (req, res) => {
   try {
     const { code, device_id, ip_address, display_mode, platform, player_version } = req.body;
 
@@ -2102,7 +2132,7 @@ async function requireAdmin(req, res, next) {
   try {
     const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
     const role = result.rows[0]?.role;
-    if (role !== 'admin' && role !== 'staff') {
+    if (role !== 'admin') {
       return res.status(403).json({ error: 'Acceso restringido a administradores' });
     }
     next();
@@ -2195,7 +2225,7 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
       ? { turnos: true, analytics: true }
       : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features },
+      { id: user.id, email: user.email, role: user.role, features },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );

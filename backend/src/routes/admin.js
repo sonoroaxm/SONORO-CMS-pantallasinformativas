@@ -418,7 +418,12 @@ router.get('/redis/queue', auth, (req, res) => {
 
 module.exports = router;
 // ── FEATURES POR USUARIO ─────────────────────────────────────
-router.put('/users/:id/features', auth, async (req, res) => {
+function requireAdminRole(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  next();
+}
+
+router.put('/users/:id/features', auth, requireAdminRole, async (req, res) => {
   const { id } = req.params;
   const { features } = req.body;
   if (!features) return res.status(400).json({ error: 'features requerido' });
@@ -430,11 +435,11 @@ router.put('/users/:id/features', auth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ success: true, user: result.rows[0] });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-router.get('/users/:id/features', auth, async (req, res) => {
+router.get('/users/:id/features', auth, requireAdminRole, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await req.app.get('db').query(
@@ -444,7 +449,7 @@ router.get('/users/:id/features', auth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ success: true, ...result.rows[0] });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -455,19 +460,22 @@ router.put('/devices/:deviceId/orientation', auth, async (req, res) => {
   if (!['horizontal', 'vertical'].includes(orientation))
     return res.status(400).json({ error: 'orientation debe ser horizontal o vertical' });
   try {
-    const result = await req.app.get('db').query(
-      'UPDATE devices SET orientation = $1 WHERE device_id = $2 RETURNING device_id, name, orientation',
-      [orientation, deviceId]
-    );
+    const db = req.app.get('db');
+    const isAdmin = req.user?.role === 'admin';
+    const q = isAdmin
+      ? 'UPDATE devices SET orientation = $1 WHERE device_id = $2 RETURNING device_id, name, orientation'
+      : 'UPDATE devices SET orientation = $1 WHERE device_id = $2 AND user_id = $3 RETURNING device_id, name, orientation';
+    const params = isAdmin ? [orientation, deviceId] : [orientation, deviceId, req.user.id];
+    const result = await db.query(q, params);
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
     res.json({ success: true, device: result.rows[0] });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 // ── EMAILS DE NOTIFICACIÓN POR USUARIO ────────────────────────
-router.put('/users/:id/notification-emails', auth, async (req, res) => {
+router.put('/users/:id/notification-emails', auth, requireAdminRole, async (req, res) => {
   const { id } = req.params;
   const { emails } = req.body;
   if (!Array.isArray(emails) || emails.length > 2)
@@ -482,7 +490,7 @@ router.put('/users/:id/notification-emails', auth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ success: true, user: result.rows[0] });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -527,7 +535,8 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
     const devices = await db.query(query, params);
     res.json({ success: true, playlist: pl.rows[0], devices: devices.rows });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    console.error('❌ Bulk push preview error:', e);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -614,7 +623,8 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     console.log(`📡 Bulk Push: playlist "${pl.rows[0].name}" → ${updated} dispositivos (${notified} notificados en tiempo real)`);
     res.json({ success: true, playlist: pl.rows[0].name, total: devices.length, updated, notified, errors });
   } catch(e) {
-    res.status(500).json({ error: e.message });
+    console.error('❌ Bulk push apply error:', e);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
