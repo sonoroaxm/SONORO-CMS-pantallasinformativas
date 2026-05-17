@@ -411,6 +411,7 @@ app.get('/api/health', async (req, res) => {
     res.json({
       status: 'OK',
       database: 'cms_signage',
+      uptime: process.uptime(),
       timestamp: new Date().toISOString()
     });
   } catch (err) {
