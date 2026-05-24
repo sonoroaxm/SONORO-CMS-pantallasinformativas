@@ -2478,11 +2478,6 @@ async function loadDevices(silent = false) {
             <option value="hdmi4" ${d.tv_status === 'hdmi4' ? 'selected' : ''}>HDMI 4${d.tv_status === 'hdmi4' ? ' — activo' : ''}</option>
           </select>
           <button class="btn btn-sm btn-outline" style="white-space:nowrap;" onclick="tvControlHdmi('${d.device_id}')">Cambiar</button>
-        </div>
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-          <div class="dc-section-label" style="display:block;margin-bottom:8px;">Horarios automáticos</div>
-          <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;"></div>
-          <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;border-style:dashed;color:var(--orange);border-color:var(--orange);" onclick="addCustomSchedule('${d.device_id}')">+ Días específicos</button>
         </div>`;
 
       return `
@@ -2534,13 +2529,25 @@ async function loadDevices(silent = false) {
               <div class="dc-section-body">${secCfg}</div>
             </div>
 
-            <div class="dc-section open" id="dcsec_ctrl_${d.device_id}">
+            <div class="dc-section" id="dcsec_ctrl_${d.device_id}">
               <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_ctrl_${d.device_id}')">
                 <span class="dc-section-label">${secCtrlLabel}</span>
                 <span class="dc-section-arrow">&#9658;</span>
               </div>
               <div class="dc-section-body">${secCtrl}</div>
             </div>
+
+            ${!isWin ? `
+            <div class="dc-section open" id="dcsec_sched_${d.device_id}">
+              <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_sched_${d.device_id}')">
+                <span class="dc-section-label">Cronograma TV</span>
+                <span class="dc-section-arrow">&#9658;</span>
+              </div>
+              <div class="dc-section-body">
+                <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;"></div>
+                <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;border-style:dashed;color:var(--orange);border-color:var(--orange);" onclick="addCustomSchedule('${d.device_id}')">+ Días específicos</button>
+              </div>
+            </div>` : ''}
 
             <div class="dc-footer">
               <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
