@@ -813,11 +813,11 @@
       font-size: 11px; font-weight: 600; cursor: pointer; transition: opacity .2s;
     }
     .dc-tv-btn:hover { opacity: .8; }
-    .dc-tv-btn.status { background: #0C447C; color: #B5D4F4; }
-    .dc-tv-btn.on     { background: #1a4a0a; color: #a8d87a; }
-    .dc-tv-btn.off    { background: #5a1515; color: #f0a0a0; }
-    .dc-tv-btn.mute   { background: #3a2800; color: #e8ba60; }
-    .dc-tv-btn.unmute { background: #5a3200; color: #e8ba60; }
+    .dc-tv-btn.on              { background: #1a4a0a; color: #a8d87a; }
+    .dc-tv-btn.off             { background: #5a1515; color: #f0a0a0; }
+    .dc-tv-btn.mute-toggle     { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+    .dc-tv-btn.mute-toggle.muted { background: #3a2800; color: #e8ba60; border-color: #7a5500; }
+    .dc-tv-btn.inactive        { opacity: .28; pointer-events: none; cursor: default; }
 
     .dc-footer {
       display: flex; align-items: center; gap: 10px;
@@ -2410,27 +2410,22 @@ async function loadDevices(silent = false) {
           <button style="padding:8px 14px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#2d1a3a;color:#c9a8f0;" onclick="restartWinPlayer('${d.device_id}')">Reiniciar player</button>
         </div>` : `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-          <div style="font-size:11px;color:var(--text-muted);">
-            Estado:
-            <span id="tv_status_dot_${d.device_id}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#444;margin:0 3px;vertical-align:middle;"></span>
-            <strong id="tv_status_text_${d.device_id}">--</strong>
+          <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;">
+            <label class="dc-field-label" style="margin:0;">Control TV</label>
+            <span id="tv_status_dot_${d.device_id}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${d.tv_status && d.tv_status.startsWith('hdmi') ? '#00e676' : d.tv_status === 'off' ? '#ff1744' : '#444'};margin:0 3px;vertical-align:middle;transition:background .3s;"></span>
+            <strong id="tv_status_text_${d.device_id}">${d.tv_status && d.tv_status.startsWith('hdmi') ? d.tv_status.toUpperCase() + ' — encendido' : d.tv_status === 'off' ? 'apagado' : '--'}</strong>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <label class="dc-field-label" style="margin:0;">Pantalla CEC</label>
-            <select id="tv_target_${d.device_id}"
-              style="padding:6px 8px;font-size:11px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
-              <option value="all">Ambas</option>
-              <option value="tv1">TV 1</option>
-              <option value="tv2">TV 2</option>
-            </select>
-          </div>
+          <select id="tv_target_${d.device_id}"
+            style="padding:6px 8px;font-size:11px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;">
+            <option value="all">Ambas</option>
+            <option value="tv1">TV 1</option>
+            <option value="tv2">TV 2</option>
+          </select>
         </div>
         <div class="dc-tv-controls">
-          <button class="dc-tv-btn status" onclick="tvControl('${d.device_id}', 'status')">Estado TV</button>
-          <button class="dc-tv-btn on"     onclick="tvControl('${d.device_id}', 'on')">Encender</button>
-          <button class="dc-tv-btn off"    onclick="tvControl('${d.device_id}', 'off')">Apagar</button>
-          <button class="dc-tv-btn mute"   onclick="tvControl('${d.device_id}', 'mute')">Mute</button>
-          <button class="dc-tv-btn unmute" onclick="tvControl('${d.device_id}', 'unmute')">Unmute</button>
+          <button class="dc-tv-btn on ${d.tv_status && d.tv_status.startsWith('hdmi') ? 'inactive' : ''}" id="btn_on_${d.device_id}" onclick="tvControl('${d.device_id}', 'on')">Encender</button>
+          <button class="dc-tv-btn off ${d.tv_status === 'off' ? 'inactive' : ''}" id="btn_off_${d.device_id}" onclick="tvControl('${d.device_id}', 'off')">Apagar</button>
+          <button class="dc-tv-btn mute-toggle" id="mute_btn_${d.device_id}" onclick="tvMute('${d.device_id}')">Silenciar</button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
           <label class="dc-field-label" style="margin:0;white-space:nowrap;">Entrada HDMI</label>
@@ -2445,11 +2440,9 @@ async function loadDevices(silent = false) {
           <button class="btn btn-sm btn-outline" style="white-space:nowrap;" onclick="tvControlHdmi('${d.device_id}')">Cambiar</button>
         </div>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-          <div class="dc-section-label" style="display:block;margin-bottom:8px;">Cronograma TV</div>
-          <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;">
-            <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>
-          </div>
-          <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;border-style:dashed;color:var(--orange);border-color:var(--orange);" onclick="addSchedule('${d.device_id}')">+ Agregar horario</button>
+          <div class="dc-section-label" style="display:block;margin-bottom:8px;">Horarios automáticos</div>
+          <div id="schedules_${d.device_id}" style="display:flex;flex-direction:column;gap:0;"></div>
+          <button class="btn btn-sm btn-outline" style="width:100%;margin-top:8px;border-style:dashed;color:var(--orange);border-color:var(--orange);" onclick="addCustomSchedule('${d.device_id}')">+ Días específicos</button>
         </div>`;
 
       return `
@@ -2728,36 +2721,30 @@ async function saveDisplayConfig(deviceId) {
 const DAYS_LABELS = ['L','M','X','J','V','S','D'];
 const DAYS_KEYS   = ['mon','tue','wed','thu','fri','sat','sun'];
 
+const PRESET_TODOS = { preset: 'all',     days: ['mon','tue','wed','thu','fri','sat','sun'], time_on: '08:00', time_off: '22:00', active: false };
+const PRESET_LV    = { preset: 'weekday', days: ['mon','tue','wed','thu','fri'],              time_on: '08:00', time_off: '22:00', active: false };
+
 function renderSchedules(deviceId, schedules) {
   const container = document.getElementById(`schedules_${deviceId}`);
   if (!container) return;
-  if (!schedules || !schedules.length) {
-    container.innerHTML = '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Sin horarios configurados</div>';
-    return;
-  }
   container.innerHTML = schedules.map((s, idx) => {
+    const toggleBg  = s.active ? '#27500A' : '#2e2e2e';
+    const toggleBdr = s.active ? '#3B6D11' : '#444';
+    const dotColor  = s.active ? '#C0DD97' : '#888';
+    const dotPos    = s.active ? 'right:2px' : 'left:2px';
+    const rowOpacity = s.active ? '1' : '0.4';
+    const toggleHtml = `<div onclick="toggleScheduleActive('${deviceId}',${idx})" style="width:32px;height:18px;background:${toggleBg};border-radius:9px;position:relative;flex-shrink:0;cursor:pointer;border:0.5px solid ${toggleBdr};"><div style="width:14px;height:14px;background:${dotColor};border-radius:50%;position:absolute;top:2px;${dotPos};"></div></div>`;
+    const timesHtml = `<div style="display:flex;gap:6px;align-items:center;margin-left:auto;opacity:${rowOpacity};pointer-events:${s.active ? 'auto' : 'none'};"><span style="color:#00e676;font-size:11px;">ON</span><input type="time" value="${s.time_on}" onchange="updateScheduleField('${deviceId}',${idx},'time_on',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;"><span style="color:#FF1B8D;font-size:11px;">OFF</span><input type="time" value="${s.time_off}" onchange="updateScheduleField('${deviceId}',${idx},'time_off',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;"></div>`;
+    if (s.preset === 'all' || s.preset === 'weekday') {
+      const label = s.preset === 'all' ? 'Todos los días' : 'Lunes a viernes';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid #2e2e2e;" id="sched_${deviceId}_${idx}">${toggleHtml}<span style="font-size:12px;font-weight:700;flex:1;opacity:${rowOpacity};">${label}</span>${timesHtml}</div>`;
+    }
     const daysHtml = DAYS_KEYS.map((k, i) => {
       const active = s.days.includes(k);
-      return `<div onclick="toggleDay('${deviceId}',${idx},'${k}')" style="width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0.5px solid ${active ? '#185FA5' : '#2e2e2e'};background:${active ? '#0C447C' : '#1e1e1e'};color:${active ? '#B5D4F4' : '#888'};">${DAYS_LABELS[i]}</div>`;
+      return `<div onclick="toggleDay('${deviceId}',${idx},'${k}')" style="width:32px;height:32px;border-radius:50%;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;border:0.5px solid ${active ? '#185FA5' : '#2e2e2e'};background:${active ? '#0C447C' : '#1e1e1e'};color:${active ? '#B5D4F4' : '#888'};">${DAYS_LABELS[i]}</div>`;
     }).join('');
-    const toggleBg   = s.active ? '#27500A' : '#2e2e2e';
-    const toggleBdr  = s.active ? '#3B6D11' : '#444';
-    const dotColor   = s.active ? '#C0DD97' : '#888';
-    const dotPos     = s.active ? 'right:2px' : 'left:2px';
-    return `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid #2e2e2e;" id="sched_${deviceId}_${idx}">
-      <div onclick="toggleScheduleActive('${deviceId}',${idx})" style="width:32px;height:18px;background:${toggleBg};border-radius:9px;position:relative;flex-shrink:0;cursor:pointer;border:0.5px solid ${toggleBdr};">
-        <div style="width:14px;height:14px;background:${dotColor};border-radius:50%;position:absolute;top:2px;${dotPos};"></div>
-      </div>
-      <div style="display:flex;gap:4px;">${daysHtml}</div>
-      <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
-        <span style="color:#00e676;font-size:11px;">ON</span>
-        <input type="time" value="${s.time_on}" onchange="updateScheduleField('${deviceId}',${idx},'time_on',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;">
-        <span style="color:#FF1B8D;font-size:11px;">OFF</span>
-        <input type="time" value="${s.time_off}" onchange="updateScheduleField('${deviceId}',${idx},'time_off',this.value)" style="font-size:12px;padding:3px 6px;background:#1e1e1e;color:#f0f0f0;border:0.5px solid #2e2e2e;border-radius:4px;width:80px;">
-        <button onclick="deleteSchedule('${deviceId}',${idx})" style="background:none;border:none;color:#444;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;">✕</button>
-      </div>
-    </div>`;
+    const trashSvg = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 4h11M6 4V3h4v1M3.5 4l.7 9h7.6l.7-9"/></svg>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid #2e2e2e;flex-wrap:wrap;row-gap:4px;" id="sched_${deviceId}_${idx}">${toggleHtml}<div style="display:flex;gap:4px;opacity:${rowOpacity};pointer-events:${s.active ? 'auto' : 'none'};">${daysHtml}</div><div style="margin-left:auto;display:flex;align-items:center;gap:6px;">${timesHtml}<button onclick="deleteSchedule('${deviceId}',${idx})" style="width:32px;height:32px;border-radius:7px;border:1px solid rgba(255,23,68,.3);background:none;color:#ff1744;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">${trashSvg}</button></div></div>`;
   }).join('');
 }
 
@@ -2767,9 +2754,9 @@ function getSchedules(deviceId) {
   return deviceSchedules[deviceId] || [];
 }
 
-function addSchedule(deviceId) {
+function addCustomSchedule(deviceId) {
   if (!deviceSchedules[deviceId]) deviceSchedules[deviceId] = [];
-  deviceSchedules[deviceId].push({ days: ['mon','tue','wed','thu','fri'], time_on: '08:00', time_off: '22:00', active: true });
+  deviceSchedules[deviceId].push({ days: [], time_on: '08:00', time_off: '22:00', active: true });
   renderSchedules(deviceId, deviceSchedules[deviceId]);
 }
 
@@ -2779,8 +2766,15 @@ function deleteSchedule(deviceId, idx) {
 }
 
 function toggleScheduleActive(deviceId, idx) {
-  deviceSchedules[deviceId][idx].active = !deviceSchedules[deviceId][idx].active;
-  renderSchedules(deviceId, deviceSchedules[deviceId]);
+  const schedules = deviceSchedules[deviceId];
+  const s = schedules[idx];
+  const activating = !s.active;
+  s.active = activating;
+  if (activating && (s.preset === 'all' || s.preset === 'weekday')) {
+    const sibPreset = s.preset === 'all' ? 'weekday' : 'all';
+    schedules.forEach(r => { if (r.preset === sibPreset) r.active = false; });
+  }
+  renderSchedules(deviceId, schedules);
 }
 
 function toggleDay(deviceId, idx, key) {
@@ -2801,10 +2795,15 @@ async function loadSchedules(deviceId) {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     const data = await res.json();
-    if (data.schedules) {
+    if (data.schedules && data.schedules.length) {
       deviceSchedules[deviceId] = data.schedules;
-      renderSchedules(deviceId, data.schedules);
+    } else {
+      deviceSchedules[deviceId] = [
+        { ...PRESET_TODOS },
+        { ...PRESET_LV }
+      ];
     }
+    renderSchedules(deviceId, deviceSchedules[deviceId]);
   } catch (e) { console.warn('No se pudieron cargar schedules:', e.message); }
 }
 
@@ -2842,7 +2841,27 @@ async function tvControl(deviceId, action) {
     const data = await res.json();
     if (data.success) {
       const labels = { on: "encendido", off: "apagado", status: "estado", hdmi1: "HDMI 1", hdmi2: "HDMI 2", hdmi3: "HDMI 3", hdmi4: "HDMI 4", mute: "silenciado", unmute: "activado" };
-      if (action === "status") {
+      if (action === "on") {
+        const dot = document.getElementById(`tv_status_dot_${deviceId}`);
+        const txt = document.getElementById(`tv_status_text_${deviceId}`);
+        if (dot) dot.style.background = '#00e676';
+        if (txt) txt.textContent = 'encendido';
+        const btnOn  = document.getElementById(`btn_on_${deviceId}`);
+        const btnOff = document.getElementById(`btn_off_${deviceId}`);
+        if (btnOn)  btnOn.classList.add('inactive');
+        if (btnOff) btnOff.classList.remove('inactive');
+        showStatus('TV encendido correctamente', 'success');
+      } else if (action === "off") {
+        const dot = document.getElementById(`tv_status_dot_${deviceId}`);
+        const txt = document.getElementById(`tv_status_text_${deviceId}`);
+        if (dot) dot.style.background = '#ff1744';
+        if (txt) txt.textContent = 'apagado';
+        const btnOn  = document.getElementById(`btn_on_${deviceId}`);
+        const btnOff = document.getElementById(`btn_off_${deviceId}`);
+        if (btnOn)  btnOn.classList.remove('inactive');
+        if (btnOff) btnOff.classList.add('inactive');
+        showStatus('TV apagado correctamente', 'success');
+      } else if (action === "status") {
         const pwr = (data.output||"").includes("on") ? "ON" : (data.output||"").includes("standby") ? "STANDBY" : data.output || "OK";
         const dot  = document.getElementById(`tv_status_dot_${deviceId}`);
         const txt  = document.getElementById(`tv_status_text_${deviceId}`);
@@ -2868,6 +2887,39 @@ async function tvControl(deviceId, action) {
     showStatus("Error: " + e.message, "error");
   } finally {
     btn.disabled = false; btn.textContent = original;
+  }
+}
+
+const muteStates = {};
+async function tvMute(deviceId) {
+  const isMuted = muteStates[deviceId] || false;
+  const action  = isMuted ? 'unmute' : 'mute';
+  const target  = document.getElementById(`tv_target_${deviceId}`)?.value || 'all';
+  const btn     = document.getElementById(`mute_btn_${deviceId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const res = await fetch(`${API_URL}/api/admin/rpi/tv`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device_id: deviceId, action, target })
+    });
+    const data = await res.json();
+    if (data.success) {
+      muteStates[deviceId] = !isMuted;
+      if (btn) {
+        btn.classList.toggle('muted', muteStates[deviceId]);
+        btn.textContent = muteStates[deviceId] ? 'Activar audio' : 'Silenciar';
+      }
+      showStatus(muteStates[deviceId] ? 'TV silenciado' : 'Audio activado', 'success');
+    } else {
+      showStatus('Error TV: ' + (data.error || 'Sin respuesta'), 'error');
+      if (btn) btn.textContent = isMuted ? 'Activar audio' : 'Silenciar';
+    }
+  } catch (e) {
+    showStatus('Error: ' + e.message, 'error');
+    if (btn) btn.textContent = isMuted ? 'Activar audio' : 'Silenciar';
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
