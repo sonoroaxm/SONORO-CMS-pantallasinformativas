@@ -209,10 +209,7 @@
     .topbar-logo {
       font-size: 22px; font-weight: 900;
       letter-spacing: -1px;
-      background: var(--grad);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--magenta);
     }
 
     .topbar-divider {
@@ -819,6 +816,20 @@
     .dc-tv-btn.mute-toggle.muted { background: #3a2800; color: #e8ba60; border-color: #7a5500; }
     .dc-tv-btn.inactive        { opacity: .28; pointer-events: none; cursor: default; }
 
+    #undo-toast {
+      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px; font-size: 13px;
+      display: flex; align-items: center; gap: 12px; z-index: 9999;
+      box-shadow: 0 4px 24px rgba(0,0,0,.5); white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity .18s;
+    }
+    #undo-toast.visible { opacity: 1; pointer-events: auto; }
+    #undo-toast button {
+      background: none; border: 1px solid var(--magenta); color: var(--magenta);
+      border-radius: 6px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
     .dc-footer {
       display: flex; align-items: center; gap: 10px;
       padding: 12px 20px;
@@ -1170,7 +1181,7 @@
       <div id="devices-tab" class="container hidden">
         <div class="section-header">
           <div class="section-title">Gestión de Dispositivos</div>
-          <button class="btn btn-grad" onclick="openActivationModal()">+ Generar Código</button>
+          <button class="btn btn-grad" onclick="openActivationModal()">+ Conectar</button>
         </div>
         <div id="devices-list"></div>
       </div>
@@ -1359,7 +1370,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
       </svg>
-      Mas
+      Más
     </button>
   </nav>
 </div>
@@ -1801,7 +1812,7 @@ function displayFiles(files) {
   const fileList = document.getElementById('fileList');
   if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
   fileList.innerHTML = files.map(file => `
-    <div class="file-item">
+    <div class="file-item" data-file-id="${file.id}">
       <div class="file-info">
         <strong>${file.title}</strong>
         <span class="file-type-badge ${file.type === 'image' ? 'badge-image' : 'badge-video'}">${file.type}</span>
@@ -1844,14 +1855,40 @@ function playFile(path, title, type) {
   }
 }
 
+let _undoCancelled = false;
+let _undoTimeout = null;
+
+function showUndoToast(label) {
+  return new Promise(resolve => {
+    _undoCancelled = false;
+    clearTimeout(_undoTimeout);
+    document.getElementById('undo-toast-label').textContent = `${label} eliminado`;
+    document.getElementById('undo-toast').classList.add('visible');
+    _undoTimeout = setTimeout(() => {
+      document.getElementById('undo-toast').classList.remove('visible');
+      resolve(false);
+    }, 4000);
+    window._undoResolve = resolve;
+  });
+}
+
+function undoLastDelete() {
+  clearTimeout(_undoTimeout);
+  document.getElementById('undo-toast').classList.remove('visible');
+  if (window._undoResolve) { window._undoResolve(true); window._undoResolve = null; }
+}
+
 async function deleteFile(id) {
-  if (!confirm('¿Eliminar archivo?')) return;
+  const el = document.querySelector(`.file-item[data-file-id="${id}"]`);
+  if (el) el.style.opacity = '0.3';
+  const cancelled = await showUndoToast('Archivo');
+  if (cancelled) { if (el) el.style.opacity = ''; return; }
+  if (el) el.style.display = 'none';
   try {
     const response = await fetch(`${API_URL}/api/content/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!response.ok) throw new Error('Error');
-    updateStatus('Archivo eliminado', 'success');
-    loadContent();
-  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+    loadContent(true);
+  } catch (err) { if (el) el.style.display = ''; updateStatus(`Error: ${err.message}`, 'error'); }
 }
 
 function openCreatePlaylistModal() {
@@ -1940,7 +1977,7 @@ async function loadPlaylists() {
     const container = document.getElementById('playlistsList');
     if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
     container.innerHTML = playlists.map(pl => `
-      <div class="file-item">
+      <div class="file-item" data-playlist-id="${pl.id}">
         <div class="file-info">
           <strong>${pl.name}</strong>
           <small>${pl.description || ''}</small>
@@ -1976,12 +2013,15 @@ async function editPlaylist(playlistId) {
 }
 
 async function deletePlaylist(playlistId) {
-  if (!confirm('¿Eliminar lista?')) return;
+  const el = document.querySelector(`.file-item[data-playlist-id="${playlistId}"]`);
+  if (el) el.style.opacity = '0.3';
+  const cancelled = await showUndoToast('Lista');
+  if (cancelled) { if (el) el.style.opacity = ''; return; }
+  if (el) el.style.display = 'none';
   try {
     await fetch(`${API_URL}/api/playlists/${playlistId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
-    updateStatus('Lista eliminada', 'success');
     loadPlaylists();
-  } catch (err) { updateStatus(`Error: ${err.message}`, 'error'); }
+  } catch (err) { if (el) el.style.display = ''; updateStatus(`Error: ${err.message}`, 'error'); }
 }
 
 async function loadPlaylistsForPlayer() {
@@ -2790,6 +2830,8 @@ function updateScheduleField(deviceId, idx, field, value) {
 }
 
 async function loadSchedules(deviceId) {
+  deviceSchedules[deviceId] = [{ ...PRESET_TODOS }, { ...PRESET_LV }];
+  renderSchedules(deviceId, deviceSchedules[deviceId]);
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv-schedule`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
@@ -2797,13 +2839,8 @@ async function loadSchedules(deviceId) {
     const data = await res.json();
     if (data.schedules && data.schedules.length) {
       deviceSchedules[deviceId] = data.schedules;
-    } else {
-      deviceSchedules[deviceId] = [
-        { ...PRESET_TODOS },
-        { ...PRESET_LV }
-      ];
+      renderSchedules(deviceId, deviceSchedules[deviceId]);
     }
-    renderSchedules(deviceId, deviceSchedules[deviceId]);
   } catch (e) { console.warn('No se pudieron cargar schedules:', e.message); }
 }
 
@@ -3608,6 +3645,8 @@ async function toggleService(serviceId, active) {
     </div>
   </div>
 </div>
+
+<div id="undo-toast"><span id="undo-toast-label"></span><button onclick="undoLastDelete()">Deshacer</button></div>
 
 </body>
 </html>
