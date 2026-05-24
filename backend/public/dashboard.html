@@ -1819,7 +1819,7 @@ function displayFiles(files) {
         <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
         ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
       </div>
-      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${file.title}','${file.type}')">▶</button>
+      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${file.title}','${file.type}')">Ver</button>
       <button class="btn btn-danger btn-sm" onclick="deleteFile(${file.id})">✕</button>
     </div>
   `).join('');
@@ -1831,7 +1831,7 @@ function updateContentSelector(files) {
   files.forEach(file => {
     const opt = document.createElement('option');
     opt.value = file.id;
-    opt.textContent = `${file.type === 'image' ? '🖼' : '▶'} ${file.title}`;
+    opt.textContent = file.title;
     opt.dataset.type = file.type;
     selector.appendChild(opt);
   });
@@ -1988,7 +1988,7 @@ async function loadPlaylists() {
           ${pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">Shuffle</span>' : ''}
           ${pl.repeat_enabled ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">Repetir</span>' : ''}
         </div>
-        <button class="btn btn-outline btn-sm" onclick="editPlaylist(${pl.id})">✏ Editar</button>
+        <button class="btn btn-outline btn-sm" onclick="editPlaylist(${pl.id})">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${pl.id})">✕</button>
       </div>
     `).join('');
@@ -2845,7 +2845,14 @@ async function loadSchedules(deviceId) {
     });
     const data = await res.json();
     if (data.schedules && data.schedules.length) {
-      deviceSchedules[deviceId] = data.schedules;
+      const savedAll     = data.schedules.find(s => s.preset === 'all');
+      const savedWeekday = data.schedules.find(s => s.preset === 'weekday');
+      const customs      = data.schedules.filter(s => !s.preset);
+      deviceSchedules[deviceId] = [
+        savedAll     ? { ...PRESET_TODOS, ...savedAll }     : { ...PRESET_TODOS },
+        savedWeekday ? { ...PRESET_LV,    ...savedWeekday } : { ...PRESET_LV },
+        ...customs
+      ];
       renderSchedules(deviceId, deviceSchedules[deviceId]);
     }
   } catch (e) { console.warn('No se pudieron cargar schedules:', e.message); }
