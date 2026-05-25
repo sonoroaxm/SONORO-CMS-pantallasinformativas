@@ -22,6 +22,9 @@ function isValidIP(ip) {
   return ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
 }
 const emailService = require('./services/email');
+const QRCode = require('qrcode');
+const axios = require('axios');
+const Anthropic = require('@anthropic-ai/sdk');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -41,6 +44,9 @@ const { videoConversionQueue, addConversionJob, getJobStatus, getQueueStats } = 
 
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+if (!ALLOWED_ORIGINS.length && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  ALLOWED_ORIGINS no configurado en producción — CORS abierto a todos los orígenes');
+}
 const corsOrigin = ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : '*';
 
 const app = express();
@@ -123,6 +129,29 @@ const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: 'Demasiados intentos, intenta en 1 hora' },
+  standardHeaders: true,
+});
+
+const activateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de activación, intenta en 15 minutos' },
+  standardHeaders: true,
+});
+
+// Limiter para endpoints públicos del player (sin JWT) — generoso para sync legítimo,
+// restrictivo para enumeración de IDs
+const playerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Demasiadas solicitudes, intenta en un momento' },
+  standardHeaders: true,
+});
+
+const registerDeviceLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados registros de dispositivo, intenta en 15 minutos' },
   standardHeaders: true,
 });
 
@@ -216,6 +245,10 @@ pool.query('SELECT 1')
       ADD COLUMN IF NOT EXISTS tv_status           VARCHAR(20) DEFAULT 'unknown'
   `))
   .then(() => pool.query(`
+    ALTER TABLE devices
+      ADD COLUMN IF NOT EXISTS alerted_at TIMESTAMPTZ
+  `))
+  .then(() => pool.query(`
     ALTER TABLE branches
       ADD COLUMN IF NOT EXISTS config JSONB DEFAULT '{}'::jsonb
   `))
@@ -278,51 +311,44 @@ function authenticateToken(req, res, next) {
 
 async function getVideoCodec(filepath) {
   return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error('No se pudo detectar codec'));
-          return;
-        }
-        resolve(stdout.trim().toLowerCase());
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=codec_name',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { reject(new Error('No se pudo detectar codec')); return; }
+      resolve(stdout.trim().toLowerCase());
+    });
   });
 }
 
 async function getVideoDimensions(filepath) {
   return new Promise((resolve) => {
-    exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout) => {
-        if (error) {
-          resolve({ width: 1920, height: 1080 });
-          return;
-        }
-        const parts = stdout.trim().split('x');
-        resolve({ width: parseInt(parts[0]) || 1920, height: parseInt(parts[1]) || 1080 });
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'csv=s=x:p=0',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { resolve({ width: 1920, height: 1080 }); return; }
+      const parts = stdout.trim().split('x');
+      resolve({ width: parseInt(parts[0]) || 1920, height: parseInt(parts[1]) || 1080 });
+    });
   });
 }
 
 async function getVideoDuration(filepath) {
   return new Promise((resolve, reject) => {
-    exec(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filepath}"`,
-      { windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error('No se pudo obtener duración'));
-          return;
-        }
-        const duration = parseFloat(stdout) * 1000;
-        resolve(Math.round(duration));
-      }
-    );
+    execFile('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filepath
+    ], { windowsHide: true }, (error, stdout) => {
+      if (error) { reject(new Error('No se pudo obtener duración')); return; }
+      resolve(Math.round(parseFloat(stdout) * 1000));
+    });
   });
 }
 
@@ -338,9 +364,15 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   console.log(`📐 Dimensiones: ${width}x${height} → modo ${isVertical ? 'VERTICAL' : 'HORIZONTAL'}`);
 
   return new Promise((resolve, reject) => {
-    const ffmpegCmd = `C:\\ffmpeg\\bin\\ffmpeg.exe -i "${inputPath}" -c:v libx264 -preset fast -profile:v baseline -level 4.1 -vf "${scaleFilter}" -b:v 4000k -maxrate 4000k -bufsize 8000k -c:a aac -b:a 128k -movflags +faststart -y "${outputPath}"`;
-
-    const child = exec(ffmpegCmd, { windowsHide: true }, (error, stdout, stderr) => {
+    const ffmpegBin = process.platform === 'win32' ? 'C:\\ffmpeg\\bin\\ffmpeg.exe' : 'ffmpeg';
+    const child = execFile(ffmpegBin, [
+      '-i', inputPath,
+      '-c:v', 'libx264', '-preset', 'fast', '-profile:v', 'baseline', '-level', '4.1',
+      '-vf', scaleFilter,
+      '-b:v', '4000k', '-maxrate', '4000k', '-bufsize', '8000k',
+      '-c:a', 'aac', '-b:a', '128k',
+      '-movflags', '+faststart', '-y', outputPath
+    ], { windowsHide: true }, (error) => {
       if (error) {
         console.error('❌ Error conversión:', error);
         reject(new Error('Error convertiendo video'));
@@ -362,16 +394,16 @@ async function convertVideoToH264(inputPath, outputPath, timeoutMs = 7200000) {
   });
 }
 function generateThumbnail(videoPath, thumbnailPath) {
-  return new Promise((resolve, reject) => {
-    const ffmpegCmd = `ffmpeg -i "${videoPath}" -ss 1 -vframes 1 -vf "scale=320:180" -q:v 5 -y "${thumbnailPath}"`;
-
-    exec(ffmpegCmd, { windowsHide: true }, (error) => {
+  return new Promise((resolve) => {
+    execFile('ffmpeg', [
+      '-i', videoPath, '-ss', '1', '-vframes', '1',
+      '-vf', 'scale=320:180', '-q:v', '5', '-y', thumbnailPath
+    ], { windowsHide: true }, (error) => {
       if (error) {
         console.warn('⚠️ No se pudo generar thumbnail:', error.message);
         resolve(null);
         return;
       }
-
       console.log('📸 Thumbnail generado:', thumbnailPath);
       resolve(thumbnailPath);
     });
@@ -407,6 +439,7 @@ app.get('/api/health', async (req, res) => {
     res.json({
       status: 'OK',
       database: 'cms_signage',
+      uptime: process.uptime(),
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -450,8 +483,9 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     const user = result.rows[0];
 
     // Generar JWT
+    const regFeatures = user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) },
+      { id: user.id, email: user.email, role: user.role, features: regFeatures },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -462,7 +496,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, features: user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false }) }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: regFeatures }
     });
   } catch (err) {
     console.error('❌ Register error:', err);
@@ -494,8 +528,9 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     // Generar JWT
+    const loginFeatures = user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) },
+      { id: user.id, email: user.email, role: user.role, features: loginFeatures },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -505,7 +540,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, features: user.role === "admin" ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false }) }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures }
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -769,6 +804,11 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const filename = result.rows[0].filename;
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const filepath = path.join(uploadsDir, filename);
+
+    // Verificar que la ruta resultante siga dentro de uploads (previene path traversal)
+    if (!filepath.startsWith(uploadsDir + path.sep) && filepath !== uploadsDir) {
+      return res.status(400).json({ error: 'Nombre de archivo inválido' });
+    }
 
     // Eliminar archivo
     if (fs.existsSync(filepath)) {
@@ -1067,6 +1107,12 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
     await pool.query('DELETE FROM playlist_items WHERE playlist_id = $1', [playlistId]);
 
     for (let i = 0; i < items.length; i++) {
+      // Verificar que el content_id pertenece al usuario antes de insertar
+      const contentOwner = await pool.query(
+        'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+        [items[i].content_id, userId]
+      );
+      if (!contentOwner.rows.length) continue;
       await pool.query(
         'INSERT INTO playlist_items (playlist_id, content_id, display_order, duration_override_ms) VALUES ($1, $2, $3, $4)',
         [playlistId, items[i].content_id, i + 1, items[i].duration_override_ms || null]
@@ -1119,7 +1165,7 @@ app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res
 // ========================================
 
 // POST - Registrar o actualizar dispositivo (sin JWT - llamado desde RPi4)
-app.post('/api/devices/register', async (req, res) => {
+app.post('/api/devices/register', registerDeviceLimiter, async (req, res) => {
   try {
     const { device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, platform, player_version, auth_token } = req.body;
 
@@ -1162,7 +1208,7 @@ app.post('/api/devices/register', async (req, res) => {
 });
 
 // GET - Obtener configuración de un dispositivo (sin JWT - llamado desde RPi4)
-app.get('/api/devices/:device_id/config', async (req, res) => {
+app.get('/api/devices/:device_id/config', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -1202,7 +1248,7 @@ app.get('/api/devices/:device_id/config', async (req, res) => {
 // ============================================================
 
 // GET - Manifiesto de contenido para el Windows Player (caché + sync)
-app.get('/api/devices/:device_id/manifest', async (req, res) => {
+app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -1343,6 +1389,11 @@ app.put('/api/devices/:device_id/win-policy', authenticateToken, async (req, res
 app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, res) => {
   try {
     const { device_id } = req.params;
+    const ownerCheck = await pool.query('SELECT user_id FROM devices WHERE device_id = $1', [device_id]);
+    if (!ownerCheck.rows.length) return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
+    if (req.user.role !== 'admin' && ownerCheck.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'No autorizado para este dispositivo' });
+    }
     io.to(`device_${device_id}`).emit('restart_player', { device_id });
     res.json({ success: true });
     console.log(`🔄 Restart player enviado a: ${device_id}`);
@@ -1353,7 +1404,7 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 });
 
 // POST - Reboot dispositivo via SSH
-app.post('/api/devices/reboot', authenticateToken, async (req, res) => {
+app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
   const { ip } = req.body;
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
   execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
@@ -1486,7 +1537,7 @@ app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, re
 
 // POST /api/admin/rpi/tv — via Socket.io (no SSH)
 // body: { device_id, action, target? }  target: tv1|tv2|all (default: all)
-app.post('/api/admin/rpi/tv', authenticateToken, async (req, res) => {
+app.post('/api/admin/rpi/tv', authenticateToken, requireAdmin, async (req, res) => {
   const { device_id, action, target = 'all' } = req.body;
   const validActions  = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
   const validTargets  = ['tv1','tv2','all'];
@@ -1571,10 +1622,19 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
 app.post('/api/devices/:device_id/tv-result', async (req, res) => {
   const { device_id } = req.params;
   const { action, output, error } = req.body;
+  if (!tvCallbacks.has(device_id)) {
+    return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
+  }
   console.log(`📺 TV result recibido — device: ${device_id} action: ${action} output: ${output}`);
-  // Guardar estado HDMI activo en BD
-  if (action && action.startsWith('hdmi') && !error) {
-    pool.query('UPDATE devices SET tv_status = $1 WHERE device_id = $2', [action, device_id]).catch(() => {});
+  if (action && !error) {
+    // Guardar estado TV (hdmi* = entrada activa, off = apagada)
+    if (action.startsWith('hdmi') || action === 'off') {
+      pool.query('UPDATE devices SET tv_status = $1 WHERE device_id = $2', [action, device_id]).catch(() => {});
+    }
+    // TV volvió a estar activa → limpiar alerted_at para la próxima ventana
+    if (action.startsWith('hdmi') || action === 'on') {
+      pool.query('UPDATE devices SET alerted_at = NULL WHERE device_id = $1', [device_id]).catch(() => {});
+    }
   }
   const cb = tvCallbacks.get(device_id);
   if (cb) {
@@ -1591,6 +1651,7 @@ app.post('/api/devices/:device_id/logs-result', async (req, res) => {
   const { device_id } = req.params;
   const { logs, error } = req.body;
   const cb = global.logsCallbacks && global.logsCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.logsCallbacks.delete(device_id);
@@ -1605,6 +1666,7 @@ app.post('/api/devices/:device_id/stats-result', async (req, res) => {
   const { device_id } = req.params;
   const { temp, fan_state, fan_label, temp_status, error } = req.body;
   const cb = global.statsCallbacks && global.statsCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.statsCallbacks.delete(device_id);
@@ -1619,6 +1681,7 @@ app.post('/api/devices/:device_id/update-result', async (req, res) => {
   const { device_id } = req.params;
   const { success: ok, message, error } = req.body;
   const cb = global.updateCallbacks && global.updateCallbacks.get(device_id);
+  if (!cb) return res.status(403).json({ success: false, error: 'No hay solicitud pendiente para este dispositivo' });
   if (cb) {
     clearTimeout(cb.timeout);
     global.updateCallbacks.delete(device_id);
@@ -1751,7 +1814,7 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
 });
 
 // GET - Endpoint público para obtener playlist completa (sin JWT - para RPi4 player)
-app.get('/api/player/playlist/:playlistId', async (req, res) => {
+app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
   try {
     const { playlistId } = req.params;
 
@@ -1829,9 +1892,13 @@ app.get('/atencion/reportes', (req, res) => {
 });
 
 // Impresión térmica ESC/POS (stub — se activa si hay impresora configurada)
-app.post('/api/queue/print', async (req, res) => {
+// Kiosco público: sin JWT, pero valida que branch_id existe y aplica rate limiting
+app.post('/api/queue/print', playerLimiter, async (req, res) => {
   try {
     const { branch_id, token_number, service_name, wait_minutes, position, token_id } = req.body;
+    if (!branch_id) return res.status(400).json({ error: 'branch_id requerido' });
+    const branchCheck = await pool.query('SELECT id FROM branches WHERE id = $1', [branch_id]);
+    if (!branchCheck.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
     // TODO: implementar con librería escpos cuando haya impresora configurada
     console.log(`🖨️  Imprimir tiquete: ${token_number} — ${service_name}`);
     res.json({ success: true, printed: false, message: 'Sin impresora configurada' });
@@ -1911,7 +1978,7 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
 });
 
 // ── VALIDAR CÓDIGO (sin JWT — llamado desde RPi) ─────────────
-app.post('/api/activate', async (req, res) => {
+app.post('/api/activate', activateLimiter, async (req, res) => {
   try {
     const { code, device_id, ip_address, display_mode, platform, player_version } = req.body;
 
@@ -1982,7 +2049,7 @@ app.post('/api/activate', async (req, res) => {
 // ── OBTENER CONFIG (proteger por user_id) ────────────────────
 // Reemplaza el GET /api/devices/:device_id/config existente
 // para que solo devuelva config si el dispositivo está activado
-app.get('/api/devices/:device_id/config/v2', async (req, res) => {
+app.get('/api/devices/:device_id/config/v2', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -2091,7 +2158,7 @@ async function requireAdmin(req, res, next) {
   try {
     const result = await pool.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
     const role = result.rows[0]?.role;
-    if (role !== 'admin' && role !== 'staff') {
+    if (role !== 'admin') {
       return res.status(403).json({ error: 'Acceso restringido a administradores' });
     }
     next();
@@ -2112,11 +2179,23 @@ async function requireSuperAdmin(req, res, next) {
   }
 }
 
+async function requireCreativeIntelligence(req, res, next) {
+  try {
+    const { rows } = await pool.query('SELECT role, features FROM users WHERE id = $1', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const { role, features } = rows[0];
+    if (role === 'admin' || features?.creative_intelligence === true) return next();
+    return res.status(403).json({ error: 'Módulo Inteligencia Creativa no habilitado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // ── GET: Estado de licencia del usuario actual ───────────────
 app.get('/api/license/status', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, name, role, license_type, license_status, license_start, license_end
+      `SELECT id, email, name, role, features, license_type, license_status, license_start, license_end
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -2184,13 +2263,94 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
       ? { turnos: true, analytics: true }
       : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
-      { id: user.id, email: user.email, features },
+      { id: user.id, email: user.email, role: user.role, features },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
     res.json({ success: true, token, user: { ...user, features } });
   } catch(e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── LOCATIONS (Sedes signage) ─────────────────────────────────
+// Admin ve todas; cliente ve solo las suyas
+
+app.get('/api/admin/all-locations', authenticateToken, async (req, res) => {
+  try {
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'SELECT l.*, u.name AS owner_name, u.email AS owner_email FROM locations l LEFT JOIN users u ON u.id = l.user_id ORDER BY l.created_at DESC'
+      : 'SELECT * FROM locations WHERE user_id = $1 ORDER BY created_at DESC';
+    const params = isAdmin ? [] : [req.user.id];
+    const { rows } = await pool.query(q, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM locations WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const { name, city, country = 'Colombia', user_id } = req.body;
+    if (!name || !city) return res.status(400).json({ error: 'name y city requeridos' });
+    const ownerId = req.user.role === 'admin' && user_id ? user_id : req.user.id;
+    const { rows } = await pool.query(
+      'INSERT INTO locations (user_id, name, city, country) VALUES ($1,$2,$3,$4) RETURNING *',
+      [ownerId, name, city, country]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'DELETE FROM locations WHERE id = $1 RETURNING id'
+      : 'DELETE FROM locations WHERE id = $1 AND user_id = $2 RETURNING id';
+    const params = isAdmin ? [id] : [id, req.user.id];
+    const { rows } = await pool.query(q, params);
+    if (!rows.length) return res.status(404).json({ error: 'Sede no encontrada' });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const { location_id } = req.body;
+    const isAdmin = req.user.role === 'admin';
+    const q = isAdmin
+      ? 'UPDATE devices SET location_id = $1 WHERE device_id = $2 RETURNING device_id, location_id'
+      : 'UPDATE devices SET location_id = $1 WHERE device_id = $2 AND user_id = $3 RETURNING device_id, location_id';
+    const params = isAdmin ? [location_id || null, deviceId] : [location_id || null, deviceId, req.user.id];
+    const { rows } = await pool.query(q, params);
+    if (!rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── DELETE dispositivo ───────────────────────────────────────
+app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const { rows } = await pool.query('DELETE FROM devices WHERE device_id = $1 RETURNING device_id, name', [deviceId]);
+    if (!rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    console.log(`🗑️ Dispositivo eliminado: ${rows[0].name || deviceId}`);
+    res.json({ success: true, device_id: rows[0].device_id });
+  } catch (err) {
+    console.error('❌ Error eliminando dispositivo:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -2206,6 +2366,27 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json({ success: true, user: result.rows[0] });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ADMIN: Toggle individual de un feature ───────────────────
+app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+  const { feature, enabled } = req.body;
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'creative_intelligence'];
+  if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
+  try {
+    const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const features = Object.assign({ turnos: false, analytics: false, dual_hdmi: false, onpremise: false, multisede: false }, rows[0].features || {});
+    features[feature] = !!enabled;
+    const result = await pool.query(
+      'UPDATE users SET features = $1 WHERE id = $2 RETURNING id, email, name, features',
+      [JSON.stringify(features), userId]
+    );
+    res.json({ success: true, features: result.rows[0].features });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
@@ -2249,6 +2430,39 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ── CEC Monitor — disponible para cualquier usuario autenticado ─────────────
+// Admin ve todos los dispositivos; otros usuarios solo ven los suyos
+app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
+  try {
+    const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const now   = new Date();
+    const today = DAYS[now.getDay()];
+    const timeNow = now.toTimeString().slice(0, 5);
+
+    const isAdmin = req.user.role === 'admin';
+    const userFilter = isAdmin ? '' : 'AND d.user_id = $3';
+    const params = isAdmin ? [today, timeNow] : [today, timeNow, req.user.id];
+
+    const { rows } = await pool.query(`
+      SELECT DISTINCT ON (d.device_id)
+        d.device_id, d.name, d.tv_status, d.alerted_at, d.last_seen, d.status AS device_status,
+        u.email AS owner_email, u.name AS owner_name,
+        s.time_on::text AS time_on, s.time_off::text AS time_off, s.active AS sched_active,
+        ($1 = ANY(s.days) AND $2::time >= s.time_on AND $2::time <= s.time_off) AS in_window
+      FROM devices d
+      JOIN tv_schedules s ON s.device_id = d.device_id
+      JOIN users u ON u.id = d.user_id
+      WHERE (d.platform IS NULL OR d.platform != 'windows')
+      ${userFilter}
+      ORDER BY d.device_id, s.active DESC, s.time_on
+    `, params);
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -2581,6 +2795,55 @@ setInterval(async () => {
   }
 }, 24 * 60 * 60 * 1000); // Cada 24 horas
 
+// ── CRON: Monitor CEC — alerta cuando TV está apagada en ventana programada ──
+async function cecMonitor() {
+  try {
+    const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const now  = new Date();
+    const today   = DAYS[now.getDay()];
+    const timeNow = now.toTimeString().slice(0, 5); // HH:MM
+
+    const { rows } = await pool.query(`
+      SELECT DISTINCT ON (d.device_id)
+        d.device_id, d.name, d.tv_status, d.alerted_at,
+        u.email AS owner_email, u.name AS owner_name,
+        s.time_on::text AS time_on, s.time_off::text AS time_off
+      FROM devices d
+      JOIN tv_schedules s ON s.device_id = d.device_id
+      JOIN users u ON u.id = d.user_id
+      WHERE s.active = true
+        AND $1 = ANY(s.days)
+        AND $2::time >= s.time_on
+        AND $2::time <= s.time_off
+        AND (d.platform IS NULL OR d.platform != 'windows')
+      ORDER BY d.device_id, s.time_on
+    `, [today, timeNow]);
+
+    for (const d of rows) {
+      if (d.tv_status !== 'off') continue;
+
+      // 1 alerta por ventana: no re-alertar si alerted_at >= inicio de esta ventana
+      if (d.alerted_at) {
+        const windowStart = new Date(now);
+        const [h, m] = d.time_on.split(':');
+        windowStart.setHours(parseInt(h), parseInt(m), 0, 0);
+        if (new Date(d.alerted_at) >= windowStart) continue;
+      }
+
+      if (!d.owner_email) continue;
+      await emailService.sendCecAlertEmail(
+        { email: d.owner_email, name: d.owner_name },
+        { device_id: d.device_id, name: d.name },
+        { time_on: d.time_on, time_off: d.time_off }
+      );
+      await pool.query('UPDATE devices SET alerted_at = NOW() WHERE device_id = $1', [d.device_id]);
+      console.log(`📺 CEC alert → ${d.owner_email} | ${d.name} (${d.device_id})`);
+    }
+  } catch (err) {
+    console.error('❌ cecMonitor error:', err.message);
+  }
+}
+setInterval(cecMonitor, 5 * 60 * 1000);
 
 // ============================================================
 // SONORO QUEUE — API completa
@@ -3923,6 +4186,498 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`🔴 Cliente desconectado: ${socket.id} (${socket.role})`);
   });
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — helpers
+// ========================================
+
+function generateVoucherCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase(); // 8 hex chars
+}
+
+async function removeBackground(inputPath) {
+  const form = new FormData();
+  const blob = new Blob([fs.readFileSync(inputPath)]);
+  form.append('image_file', blob, path.basename(inputPath));
+  form.append('size', 'auto');
+  const response = await axios.post('https://api.remove.bg/v1.0/removebg', form, {
+    headers: { 'X-Api-Key': process.env.REMOVEBG_API_KEY },
+    responseType: 'arraybuffer',
+    timeout: 30000,
+  });
+  return Buffer.from(response.data);
+}
+
+async function generateCopy(context) {
+  if (!process.env.CLAUDE_API_KEY) throw new Error('CLAUDE_API_KEY no configurada');
+  const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 300,
+    messages: [{
+      role: 'user',
+      content: `Genera copy breve para una pieza de digital signage.
+Negocio: ${context.businessName || 'negocio'}
+Producto: ${context.productName || ''}
+Tono: directo, sin emojis, sin exclamaciones exageradas.
+Responde SOLO con JSON: {"headline":"...","body":"..."}
+Headline: máx 6 palabras. Body: máx 12 palabras.`
+    }]
+  });
+  return JSON.parse(msg.content[0].text);
+}
+
+// ========================================
+// CREATIVE INTELLIGENCE — assets
+// ========================================
+
+app.get('/api/assets', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM product_assets WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/assets', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  if (!req.files?.image) return res.status(400).json({ error: 'imagen requerida' });
+  const { type } = req.body;
+  if (!['logo', 'product'].includes(type)) return res.status(400).json({ error: 'type debe ser logo o product' });
+  try {
+    const file = req.files.image;
+    const ext = path.extname(file.name).toLowerCase();
+    if (!['.jpg','.jpeg','.png','.webp'].includes(ext)) return res.status(400).json({ error: 'formato no soportado' });
+    const filename = `asset-${uuidv4()}${ext}`;
+    const uploadDir = path.join(process.cwd(), 'uploads', 'assets');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
+    await file.mv(filepath);
+    const originalUrl = `/uploads/assets/${filename}`;
+    const { rows } = await pool.query(
+      'INSERT INTO product_assets (user_id, type, original_url) VALUES ($1,$2,$3) RETURNING *',
+      [req.user.id, type, originalUrl]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/assets/:id/process', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const assetId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM product_assets WHERE id = $1 AND user_id = $2',
+      [assetId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Asset no encontrado' });
+    const asset = rows[0];
+    if (!process.env.REMOVEBG_API_KEY) return res.status(503).json({ error: 'remove.bg no configurado' });
+    await pool.query("UPDATE product_assets SET status='processing' WHERE id=$1", [assetId]);
+    const inputPath = path.join(process.cwd(), asset.original_url);
+    const pngBuffer = await removeBackground(inputPath);
+    const outFilename = `asset-nobg-${uuidv4()}.png`;
+    const outPath = path.join(process.cwd(), 'uploads', 'assets', outFilename);
+    fs.writeFileSync(outPath, pngBuffer);
+    const processedUrl = `/uploads/assets/${outFilename}`;
+    const { rows: updated } = await pool.query(
+      "UPDATE product_assets SET processed_url=$1, status='done' WHERE id=$2 RETURNING *",
+      [processedUrl, assetId]
+    );
+    res.json(updated[0]);
+  } catch (e) {
+    await pool.query("UPDATE product_assets SET status='error' WHERE id=$1", [assetId]);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/assets/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const assetId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM product_assets WHERE id=$1 AND user_id=$2 RETURNING *',
+      [assetId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Asset no encontrado' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — copy generation
+// ========================================
+
+app.post('/api/creative/copy', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { businessName, productName } = req.body;
+  if (!businessName) return res.status(400).json({ error: 'businessName requerido' });
+  try {
+    const copy = await generateCopy({ businessName, productName });
+    res.json(copy);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — promo campaigns
+// ========================================
+
+app.get('/api/campaigns', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.*,
+         COUNT(r.id) FILTER (WHERE r.status='redeemed') AS redeemed_count_live
+       FROM promo_campaigns c
+       LEFT JOIN promo_redemptions r ON r.campaign_id = c.id
+       WHERE c.user_id = $1
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/campaigns', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at } = req.body;
+  if (!name || !discount_label) return res.status(400).json({ error: 'name y discount_label requeridos' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO promo_campaigns
+         (user_id, name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [req.user.id, name, description||null, discount_label, brand_name||null,
+       brand_logo_url||null, qr_color||'#000000', total_codes||50, expires_at||null]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/campaigns/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const { name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at, status } = req.body;
+  try {
+    const { rows } = await pool.query('SELECT id FROM promo_campaigns WHERE id=$1 AND user_id=$2', [campaignId, req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows: updated } = await pool.query(
+      `UPDATE promo_campaigns SET
+         name=COALESCE($1,name), description=COALESCE($2,description),
+         discount_label=COALESCE($3,discount_label), brand_name=COALESCE($4,brand_name),
+         brand_logo_url=COALESCE($5,brand_logo_url), qr_color=COALESCE($6,qr_color),
+         total_codes=COALESCE($7,total_codes), expires_at=COALESCE($8,expires_at),
+         status=COALESCE($9,status)
+       WHERE id=$10 RETURNING *`,
+      [name||null, description||null, discount_label||null, brand_name||null,
+       brand_logo_url||null, qr_color||null, total_codes||null, expires_at||null,
+       status||null, campaignId]
+    );
+    res.json(updated[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/campaigns/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM promo_campaigns WHERE id=$1 AND user_id=$2 RETURNING id',
+      [campaignId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/campaigns/:id/stats', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT * FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!camp.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows: redemptions } = await pool.query(
+      'SELECT * FROM promo_redemptions WHERE campaign_id=$1 ORDER BY created_at DESC LIMIT 50',
+      [campaignId]
+    );
+    const redeemed = redemptions.filter(r => r.status === 'redeemed').length;
+    const total_issued = redemptions.length;
+    res.json({ campaign: camp[0], total_issued, redeemed, recent: redemptions });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Creative pieces ──────────────────────────────────────────
+app.get('/api/creative/pieces', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT cp.*, pa.processed_url AS asset_processed_url, pa.original_url AS asset_original_url
+       FROM creative_pieces cp
+       LEFT JOIN product_assets pa ON pa.id = cp.asset_id
+       WHERE cp.user_id = $1 ORDER BY cp.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/creative/pieces', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { title, copy_headline, copy_body, cta_type, campaign_id, asset_id, resolution, qr_size,
+          bg_type, bg_color1, bg_color2, bg_angle, bg_image_url,
+          img_x, img_y, img_scale,
+          font_family, text_color, text_x, text_y, text_scale,
+          text_blocks } = req.body;
+  if (!title) return res.status(400).json({ error: 'title requerido' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO creative_pieces
+         (user_id, asset_id, title, copy_headline, copy_body, cta_type, campaign_id, resolution, qr_size,
+          bg_type, bg_color1, bg_color2, bg_angle, bg_image_url, img_x, img_y, img_scale,
+          font_family, text_color, text_x, text_y, text_scale, text_blocks)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
+      [req.user.id, asset_id||null, title, copy_headline||null, copy_body||null,
+       cta_type||'none', campaign_id||null, resolution||'1920x1080', qr_size||'medium',
+       bg_type||'none', bg_color1||'#000000', bg_color2||null, bg_angle||135, bg_image_url||null,
+       img_x||0, img_y||0, img_scale||1,
+       font_family||'Montserrat', text_color||'#ffffff', text_x||0, text_y||0.3, text_scale||1,
+       JSON.stringify(text_blocks||[])]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Background library ────────────────────────────
+app.get('/api/backgrounds', authenticateToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM background_library WHERE is_active=true ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/backgrounds', authenticateToken, requireAdmin, async (req, res) => {
+  if (!req.files?.image) return res.status(400).json({ error: 'imagen requerida' });
+  const { name, orientation } = req.body;
+  if (!name) return res.status(400).json({ error: 'name requerido' });
+  try {
+    const file = req.files.image;
+    const ext = path.extname(file.name).toLowerCase();
+    if (!['.jpg','.jpeg','.png','.webp'].includes(ext)) return res.status(400).json({ error: 'formato no soportado' });
+    const filename = `bg-${uuidv4()}${ext}`;
+    const bgDir = path.join(process.cwd(), 'uploads', 'backgrounds');
+    if (!fs.existsSync(bgDir)) fs.mkdirSync(bgDir, { recursive: true });
+    const filepath = path.join(bgDir, filename);
+    await file.mv(filepath);
+    const url = `/uploads/backgrounds/${filename}`;
+    const { rows } = await pool.query(
+      'INSERT INTO background_library (name, url, orientation) VALUES ($1,$2,$3) RETURNING *',
+      [name, url, ['landscape','portrait','both'].includes(orientation) ? orientation : 'both']
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/admin/backgrounds/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('UPDATE background_library SET is_active=false WHERE id=$1', [parseInt(req.params.id)]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/creative/pieces/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM creative_pieces WHERE id=$1 AND user_id=$2 RETURNING id',
+      [parseInt(req.params.id), req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Pieza no encontrada' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Voucher lookup by code (cashier — cross-campaign) ─────────
+app.get('/api/voucher/lookup/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const code = req.params.code.toUpperCase();
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, c.discount_label, c.brand_name, c.expires_at, c.status AS campaign_status, c.id AS campaign_id
+       FROM promo_redemptions r
+       JOIN promo_campaigns c ON c.id = r.campaign_id
+       WHERE r.code = $1 AND c.user_id = $2`,
+      [code, req.user.id]
+    );
+    if (!rows.length) return res.json({ valid: false, reason: 'Codigo no encontrado' });
+    const r = rows[0];
+    if (r.status === 'redeemed') return res.json({ valid: false, reason: 'Ya canjeado', redeemed_at: r.redeemed_at });
+    if (r.campaign_status !== 'active') return res.json({ valid: false, reason: 'Campaña inactiva' });
+    if (r.expires_at && new Date(r.expires_at) < new Date()) return res.json({ valid: false, reason: 'Campaña vencida' });
+    res.json({
+      valid: true, code: r.code, campaign_id: r.campaign_id,
+      discount_label: r.discount_label, brand_name: r.brand_name
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── QR image endpoint (returns SVG) ─────────────────────────
+app.get('/api/campaigns/:id/qr', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, qr_color FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const baseUrl = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+    const url = `${baseUrl}/v/${campaignId}`;
+    const svg = await QRCode.toString(url, {
+      type: 'svg',
+      color: { dark: rows[0].qr_color || '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+      margin: 1,
+    });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Voucher verify (cashier) ─────────────────────────────────
+app.get('/api/campaigns/:id/verify/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const code = req.params.code.toUpperCase();
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, c.discount_label, c.brand_name, c.expires_at, c.status AS campaign_status
+       FROM promo_redemptions r
+       JOIN promo_campaigns c ON c.id = r.campaign_id
+       WHERE r.campaign_id=$1 AND r.code=$2 AND c.user_id=$3`,
+      [campaignId, code, req.user.id]
+    );
+    if (!rows.length) return res.json({ valid: false, reason: 'Código no encontrado' });
+    const r = rows[0];
+    if (r.status === 'redeemed') return res.json({ valid: false, reason: 'Ya canjeado', redeemed_at: r.redeemed_at });
+    if (r.campaign_status !== 'active') return res.json({ valid: false, reason: 'Campaña inactiva' });
+    if (r.expires_at && new Date(r.expires_at) < new Date()) return res.json({ valid: false, reason: 'Campaña vencida' });
+    res.json({ valid: true, code: r.code, discount_label: r.discount_label, brand_name: r.brand_name });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/campaigns/:id/redeem/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const code = req.params.code.toUpperCase();
+  const { confirm } = req.body;
+  if (!confirm) return res.status(400).json({ error: 'Se requiere confirm:true para canjear' });
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT id FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!camp.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows } = await pool.query(
+      `UPDATE promo_redemptions SET status='redeemed', redeemed_at=NOW(), redeemed_by=$1
+       WHERE campaign_id=$2 AND code=$3 AND status='active'
+       RETURNING *`,
+      [req.user.email, campaignId, code]
+    );
+    if (!rows.length) return res.status(409).json({ error: 'Código no válido o ya canjeado' });
+    await pool.query(
+      'UPDATE promo_campaigns SET redeemed_count = redeemed_count + 1 WHERE id=$1',
+      [campaignId]
+    );
+    res.json({ success: true, redeemed_at: rows[0].redeemed_at });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public voucher page (no auth) ───────────────────────────
+app.get('/v/:campaignId', async (req, res) => {
+  const campaignId = parseInt(req.params.campaignId);
+  if (isNaN(campaignId)) return res.status(400).send('Campaña inválida');
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT * FROM promo_campaigns WHERE id=$1 AND status=$2',
+      [campaignId, 'active']
+    );
+    if (!camp.length) {
+      return res.status(404).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Promo no disponible</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Esta promocion ya no esta disponible.</p></div></body></html>`);
+    }
+    const c = camp[0];
+    if (c.expires_at && new Date(c.expires_at) < new Date()) {
+      return res.status(410).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><title>Promo vencida</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Esta promocion ha vencido.</p></div></body></html>`);
+    }
+    // Check stock
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM promo_redemptions WHERE campaign_id=$1',
+      [campaignId]
+    );
+    if (parseInt(countRows[0].total) >= c.total_codes) {
+      return res.status(410).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><title>Promo agotada</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Los codigos de esta promocion se han agotado.</p></div></body></html>`);
+    }
+    // Generate new code
+    const code = generateVoucherCode();
+    await pool.query(
+      'INSERT INTO promo_redemptions (campaign_id, code) VALUES ($1, $2)',
+      [campaignId, code]
+    );
+    const brandLogo = c.brand_logo_url
+      ? `<img src="${c.brand_logo_url}" alt="${c.brand_name || ''}" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 8px;">`
+      : '';
+    const brandName = c.brand_name ? `<div style="font-size:18px;font-weight:700;color:#111;text-align:center;margin-bottom:4px;">${c.brand_name}</div>` : '';
+    const expiry = c.expires_at
+      ? `<div style="font-size:11px;color:#888;margin-top:8px;">Valido hasta: ${new Date(c.expires_at).toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})}</div>`
+      : '';
+    res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>${c.discount_label} — ${c.brand_name || 'Promo'}</title>
+  <meta name="theme-color" content="#ffffff">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:oklch(97% 0.005 260);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;}
+    .card{background:#fff;border-radius:16px;padding:32px 24px;max-width:380px;width:100%;box-shadow:0 2px 24px oklch(0% 0 0 / 0.08);}
+    .brand{margin-bottom:20px;text-align:center;}
+    .discount{font-size:28px;font-weight:800;color:#111;text-align:center;margin-bottom:4px;letter-spacing:-0.5px;}
+    .desc{font-size:14px;color:#555;text-align:center;margin-bottom:24px;line-height:1.4;}
+    .code-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:8px;}
+    .code{font-size:36px;font-weight:800;letter-spacing:6px;color:#111;text-align:center;font-variant-numeric:tabular-nums;background:oklch(96% 0.01 260);border-radius:10px;padding:16px 12px;margin-bottom:16px;}
+    .instructions{font-size:13px;color:#555;text-align:center;line-height:1.5;padding:12px 16px;background:oklch(97% 0.005 200);border-radius:8px;margin-bottom:20px;}
+    .instructions strong{color:#111;font-weight:600;}
+    .footer{font-size:10px;color:#bbb;text-align:center;margin-top:16px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      ${brandLogo}
+      ${brandName}
+    </div>
+    <div class="discount">${c.discount_label}</div>
+    ${c.description ? `<div class="desc">${c.description}</div>` : ''}
+    <div class="code-label">Tu codigo</div>
+    <div class="code">${code}</div>
+    <div class="instructions">
+      <strong>Toma un pantallazo</strong> de esta pantalla y muestralo en caja para recibir tu beneficio.
+    </div>
+    ${expiry}
+    <div class="footer">Powered by SONORO</div>
+  </div>
+</body>
+</html>`);
+  } catch (e) {
+    console.error('Voucher page error:', e);
+    res.status(500).send('Error al generar tu codigo. Intenta de nuevo.');
+  }
 });
 
 // ========================================
