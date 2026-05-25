@@ -994,6 +994,366 @@
     @media (min-width: 769px) {
       .mobile-tabbar { display: none !important; }
     }
+    /* ── CREATIVE INTELLIGENCE MODULE ── */
+    .cr-subnav {
+      display: flex; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .cr-subnav-btn {
+      flex: 1; padding: 11px 8px; font-size: 13px; font-weight: 600;
+      color: var(--text-muted); background: none; border: none;
+      border-bottom: 2px solid transparent; cursor: pointer; text-align: center;
+      font-family: 'Montserrat', sans-serif; transition: all .2s;
+    }
+    .cr-subnav-btn.on { color: var(--magenta); border-bottom-color: var(--magenta); }
+    .cr-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
+    .cr-view.on { display: flex; }
+    .cr-section-hdr {
+      padding: 20px 20px 0; display: flex; align-items: center;
+      justify-content: space-between;
+    }
+    .cr-section-title { font-size: 16px; font-weight: 700; }
+    /* Empty state */
+    .cr-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 48px 28px; text-align: center;
+      gap: 12px; flex: 1;
+    }
+    .cr-empty-ring {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cr-empty-ring svg { width: 28px; height: 28px; opacity: .4; }
+    .cr-empty-t { font-size: 17px; font-weight: 700; }
+    .cr-empty-s { font-size: 13px; color: var(--text-muted); line-height: 1.55; max-width: 280px; }
+    /* Wizard */
+    .cr-wiz-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .cr-wdots { display: flex; gap: 6px; align-items: center; }
+    .cr-wdot {
+      width: 6px; height: 6px; border-radius: 3px;
+      background: var(--border); transition: all .25s;
+    }
+    .cr-wdot.done { background: var(--magenta); }
+    .cr-wdot.cur  { background: var(--magenta); width: 18px; }
+    .cr-step-lbl  { font-size: 11px; color: var(--text-muted); }
+    .cr-wstep { display: none; flex-direction: column; flex: 1; overflow-y: auto; }
+    .cr-wstep.on { display: flex; }
+    .cr-wtitle { font-size: 20px; font-weight: 700; padding: 18px 20px 4px; }
+    .cr-wsub   { font-size: 13px; color: var(--text-muted); padding: 0 20px 16px; line-height: 1.45; }
+    .cr-abar {
+      padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    /* Upload zone */
+    .cr-upload-zone {
+      margin: 0 20px 20px; border: 2px dashed var(--border);
+      border-radius: 12px; padding: 32px 20px;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; cursor: pointer; transition: all .2s; text-align: center;
+    }
+    .cr-upload-zone:hover { border-color: var(--magenta); background: rgba(255,27,141,.03); }
+    .cr-upload-zone svg { width: 36px; height: 36px; opacity: .35; }
+    .cr-upload-zone span { font-size: 13px; color: var(--text-muted); }
+    .cr-upload-zone strong { font-size: 14px; font-weight: 700; display: block; }
+    .cr-preview-img {
+      display: none; margin: 0 20px 12px; border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .cr-preview-img img { width: 100%; max-height: 200px; object-fit: contain; display: block; }
+    .cr-preview-img.on { display: block; }
+    /* Form fields */
+    .cr-frow { margin: 0 20px 14px; display: flex; flex-direction: column; gap: 7px; }
+    .cr-flabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); }
+    .cr-finput {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 14px; color: var(--text);
+      font-size: 14px; font-family: inherit; width: 100%; outline: none;
+      transition: border .18s;
+    }
+    .cr-finput:focus { border-color: var(--magenta); }
+    .cr-fhint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    /* CTA options */
+    .cr-cta-opts { display: flex; flex-direction: column; gap: 10px; padding: 0 20px 8px; }
+    .cr-cta-opt {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; cursor: pointer;
+      display: flex; align-items: center; gap: 14px; transition: all .18s;
+    }
+    .cr-cta-opt:hover { border-color: var(--border2); }
+    .cr-cta-opt.sel { border-color: var(--magenta); background: rgba(255,27,141,.04); }
+    .cr-cta-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .cr-cta-icon svg { width: 20px; height: 20px; }
+    .cr-cta-opt.sel .cr-cta-icon { background: rgba(255,27,141,.12); border-color: rgba(255,27,141,.3); }
+    .cr-cta-body { flex: 1; }
+    .cr-cta-name { font-size: 14px; font-weight: 700; }
+    .cr-cta-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; line-height: 1.4; }
+    .cr-cta-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,27,141,.12); color: var(--magenta);
+      border: 1px solid rgba(255,27,141,.25); width: fit-content; margin-top: 5px;
+    }
+    .cr-radio {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; transition: all .18s;
+    }
+    .cr-cta-opt.sel .cr-radio { border-color: var(--magenta); background: var(--magenta); }
+    .cr-radio-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; display: none; }
+    .cr-cta-opt.sel .cr-radio-dot { display: block; }
+    /* Promo config box */
+    .cr-promo-box {
+      margin: 0 20px 16px; background: rgba(255,27,141,.04);
+      border: 1px solid rgba(255,27,141,.22); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .cr-promo-title {
+      font-size: 12px; font-weight: 700; color: var(--magenta);
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .cr-stock-row { display: flex; gap: 8px; }
+    .cr-stock-wrap { flex: 1; position: relative; }
+    .cr-stock-wrap .cr-finput { padding-right: 50px; }
+    .cr-stock-unit {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 11px; color: var(--text-muted); font-weight: 600;
+    }
+    .cr-stock-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .cr-stock-preset {
+      padding: 5px 11px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border);
+      cursor: pointer; transition: all .15s;
+    }
+    .cr-stock-preset:hover, .cr-stock-preset.on {
+      background: rgba(255,27,141,.12); color: var(--magenta); border-color: rgba(255,27,141,.3);
+    }
+    /* QR color picker */
+    .cr-qr-color-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .cr-qr-swatch {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 2px solid transparent; cursor: pointer; transition: all .18s; flex-shrink: 0;
+    }
+    .cr-qr-swatch.on { border-color: var(--text); box-shadow: 0 0 0 3px rgba(255,255,255,.2); transform: scale(1.1); }
+    .cr-qr-custom {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: 2px dashed var(--border); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface2); overflow: hidden; position: relative; flex-shrink: 0;
+    }
+    .cr-qr-custom input[type=color] {
+      position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px);
+      opacity: 0; cursor: pointer;
+    }
+    .cr-qr-custom svg { width: 14px; height: 14px; opacity: .5; pointer-events: none; }
+    .cr-qr-color-name {
+      font-size: 11px; font-weight: 700; color: var(--magenta);
+      padding: 3px 9px; border-radius: 20px;
+      background: rgba(255,27,141,.1); border: 1px solid rgba(255,27,141,.2);
+    }
+    /* QR preview mini */
+    .cr-qr-preview {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface2); border-radius: 8px; padding: 10px 14px; margin-top: 4px;
+    }
+    .cr-qr-box {
+      width: 52px; height: 52px; background: var(--bg);
+      border-radius: 6px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); overflow: hidden;
+    }
+    .cr-qr-box img { width: 100%; height: 100%; object-fit: contain; }
+    .cr-qr-text { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .cr-qr-text strong { color: var(--text); display: block; font-size: 13px; margin-bottom: 2px; }
+    /* Pieces grid */
+    .cr-pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 20px; }
+    .cr-pcard {
+      background: var(--surface); border-radius: 12px;
+      border: 1.5px solid var(--border); overflow: hidden; cursor: pointer; transition: all .18s;
+    }
+    .cr-pcard:hover { border-color: var(--border2); }
+    .cr-pthumb {
+      aspect-ratio: 16/9; background: linear-gradient(135deg, var(--surface2), var(--surface));
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .cr-pthumb img { width: 100%; height: 100%; object-fit: cover; }
+    .cr-pthumb-ph { width: 36px; height: 36px; background: rgba(255,255,255,.07); border-radius: 6px; }
+    .cr-pinfo { padding: 8px 10px 10px; }
+    .cr-pname { font-size: 12px; font-weight: 700; }
+    .cr-pmeta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .cr-promo-badge {
+      margin-top: 6px; display: flex; align-items: center; gap: 5px;
+      background: rgba(255,27,141,.1); border: 1px solid rgba(255,27,141,.25);
+      border-radius: 6px; padding: 5px 8px; cursor: pointer; transition: all .15s;
+    }
+    .cr-promo-badge:hover { background: rgba(255,27,141,.18); }
+    .cr-promo-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--magenta); flex-shrink: 0;
+      animation: cr-pulse 2s infinite;
+    }
+    @keyframes cr-pulse { 0%,100%{ opacity:1; } 50%{ opacity:.4; } }
+    .cr-promo-text { font-size: 10px; font-weight: 700; color: var(--magenta); flex: 1; }
+    /* Campaign list */
+    .cr-camp-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .cr-camp-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; cursor: pointer; transition: all .18s;
+    }
+    .cr-camp-card:hover { border-color: var(--border2); }
+    .cr-camp-name { font-size: 14px; font-weight: 700; }
+    .cr-camp-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .cr-camp-prog { margin-top: 10px; }
+    .cr-camp-prog-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+    .cr-camp-prog-fill { height: 100%; background: var(--magenta); border-radius: 2px; transition: width .4s; }
+    .cr-camp-prog-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; }
+    .cr-ctag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700; margin-top: 6px;
+    }
+    .cr-ctag-active { background: rgba(74,222,128,.12); color: #4ade80; }
+    .cr-ctag-paused { background: rgba(250,204,21,.12); color: #facc15; }
+    .cr-ctag-expired { background: var(--surface2); color: var(--text-muted); }
+    .cr-ctag-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    /* Campaign detail */
+    .cr-camp-summary {
+      margin: 12px 20px 4px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .cr-camp-sum-line { font-size: 15px; font-weight: 700; line-height: 1.4; }
+    .cr-camp-sum-line .num-acc { color: var(--magenta); }
+    .cr-camp-sum-line .num-grn { color: #4ade80; }
+    .cr-camp-sum-sub { font-size: 12px; color: var(--text-muted); display: flex; gap: 12px; flex-wrap: wrap; }
+    .cr-camp-sum-sub .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); display: inline-block; vertical-align: middle; }
+    .cr-rlist { padding: 0 20px 20px; }
+    .cr-rlist-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin-bottom: 10px; }
+    .cr-ritem {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .cr-ritem:last-child { border-bottom: none; }
+    .cr-ritem-code { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .cr-ritem-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .cr-rbadge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+    .cr-rbadge-ok   { background: rgba(74,222,128,.15); color: #4ade80; }
+    .cr-rbadge-pend { background: rgba(255,27,141,.12); color: var(--magenta); }
+    /* Cajero verify */
+    .cr-verify-wrap { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .cr-verify-input {
+      flex: 1; background: var(--surface); border: 2px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; color: var(--text);
+      font-size: 20px; font-weight: 800; font-family: monospace;
+      outline: none; text-transform: uppercase; letter-spacing: 2px; transition: border .18s;
+    }
+    .cr-verify-input:focus { border-color: var(--magenta); }
+    .cr-verify-or {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .cr-verify-or::before, .cr-verify-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .cr-scan-btn {
+      width: 100%; padding: 16px; border-radius: 12px;
+      background: var(--surface); border: 2px solid var(--border);
+      color: var(--text); font-size: 15px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all .18s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .cr-scan-btn:hover { border-color: var(--magenta); background: rgba(255,27,141,.04); }
+    .cr-scan-btn svg { width: 22px; height: 22px; }
+    .cr-verify-result {
+      border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
+      align-items: center; text-align: center; gap: 10px; display: none;
+    }
+    .cr-verify-result.on { display: flex; }
+    .cr-verify-result.valid { background: rgba(74,222,128,.08); border: 2px solid rgba(74,222,128,.3); }
+    .cr-verify-result.invalid, .cr-verify-result.used { background: rgba(248,113,113,.08); border: 2px solid rgba(248,113,113,.3); }
+    .cr-verify-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cr-verify-icon.valid-bg { background: rgba(74,222,128,.15); }
+    .cr-verify-icon.red-bg   { background: rgba(248,113,113,.15); }
+    .cr-verify-icon svg { width: 28px; height: 28px; }
+    .cr-verify-code { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: 3px; }
+    .cr-verify-code.green { color: #4ade80; }
+    .cr-verify-code.red   { color: #f87171; }
+    .cr-verify-label { font-size: 16px; font-weight: 700; }
+    .cr-verify-meta  { font-size: 12px; color: var(--text-muted); }
+    .cr-scan-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #000; z-index: 9000; flex-direction: column;
+    }
+    .cr-scan-overlay.on { display: flex; }
+    .cr-scan-cam {
+      flex: 1; position: relative; overflow: hidden;
+      background: #0a0a0a; display: flex; align-items: center; justify-content: center;
+    }
+    .cr-scan-cam::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.015) 2px, rgba(255,255,255,.015) 4px);
+    }
+    .cr-scan-overlay-dark {
+      position: absolute; inset: 0; background: rgba(0,0,0,.55);
+      clip-path: polygon(0% 0%, 0% 100%, 15% 100%, 15% 15%, 85% 15%, 85% 85%, 15% 85%, 15% 100%, 100% 100%, 100% 0%);
+    }
+    .cr-scan-vf { width: 220px; height: 220px; position: relative; z-index: 1; }
+    .cr-scan-vf::before { content:''; position:absolute; top:0; left:0; width:24px; height:24px; border-top:3px solid var(--magenta); border-left:3px solid var(--magenta); border-radius:2px 0 0 0; }
+    .cr-scan-vf::after  { content:''; position:absolute; top:0; right:0; width:24px; height:24px; border-top:3px solid var(--magenta); border-right:3px solid var(--magenta); border-radius:0 2px 0 0; }
+    .cr-scan-corner-bl { position:absolute; bottom:0; left:0; width:24px; height:24px; border-bottom:3px solid var(--magenta); border-left:3px solid var(--magenta); border-radius:0 0 0 2px; }
+    .cr-scan-corner-br { position:absolute; bottom:0; right:0; width:24px; height:24px; border-bottom:3px solid var(--magenta); border-right:3px solid var(--magenta); border-radius:0 0 2px 0; }
+    .cr-scan-line {
+      position: absolute; left: 3px; right: 3px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--magenta), transparent);
+      animation: cr-scanline 1.6s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--magenta);
+    }
+    @keyframes cr-scanline {
+      0%   { top: 6px; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 8px); opacity: 0; }
+    }
+    .cr-scan-label {
+      position: absolute; bottom: 32px; left: 0; right: 0;
+      text-align: center; font-size: 13px; color: rgba(255,255,255,.7); font-weight: 600; z-index: 2;
+    }
+    .cr-scan-label span { color: var(--magenta); }
+    .cr-scan-bar {
+      height: 80px; background: #0a0a0a; border-top: 1px solid #1e1e1e;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .cr-scan-success {
+      display: none; position: absolute; inset: 0;
+      background: rgba(74,222,128,.15); z-index: 5;
+      align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+    }
+    .cr-scan-success.on { display: flex; }
+    .cr-scan-success-ring {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(74,222,128,.2); border: 2px solid #4ade80;
+      display: flex; align-items: center; justify-content: center;
+      animation: cr-pop .3s ease;
+    }
+    @keyframes cr-pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .cr-scan-success-ring svg { width: 32px; height: 32px; }
+    .cr-scan-success-text { color: #4ade80; font-size: 15px; font-weight: 700; }
+    /* Tip box */
+    .cr-tip {
+      margin: 0 20px 16px; background: rgba(255,27,141,.06);
+      border: 1px solid rgba(255,27,141,.18); border-radius: 8px;
+      padding: 11px 14px; font-size: 12px; color: var(--text-muted); line-height: 1.55;
+    }
+    .cr-tip strong { color: var(--text); }
+    .cr-copy-btn {
+      margin-left: auto; font-size: 11px; font-weight: 700; color: var(--magenta);
+      background: none; border: none; cursor: pointer; padding: 0; font-family: inherit;
+    }
+    /* ── END CREATIVE MODULE ── */
     .hidden-feature { display: none !important; }
     .mobile-tabbar { display: none; }
     .mobile-tab-btn {
@@ -1106,6 +1466,23 @@
             <button class="tab-btn active" data-tab="content">Contenido</button>
             <button class="tab-btn" data-tab="playlists">Listas</button>
             <button class="tab-btn" data-tab="devices">Dispositivos</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divisor -->
+      <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
+
+      <!-- GRUPO: Inteligencia Creativa -->
+      <div class="sidebar-group contenido open hidden-feature" id="group-creativa">
+        <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-creativa')">
+          <div class="sidebar-group-label">Inteligencia<br>Creativa</div>
+          <div class="sidebar-group-arrow">▶</div>
+        </div>
+        <div class="sidebar-children">
+          <div class="sidebar-children-inner">
+            <button class="tab-btn" data-tab="creative">Crear</button>
+            <button class="tab-btn" data-tab="cajero">Verificar</button>
           </div>
         </div>
       </div>
@@ -1337,6 +1714,277 @@
     </div><!-- /main -->
   </div><!-- /layout -->
 
+      <!-- ══ INTELIGENCIA CREATIVA ══ -->
+      <div id="creative-tab" class="container hidden" style="padding:0;display:flex;flex-direction:column;min-height:0;">
+
+        <!-- Sub-nav: Mis Piezas / Campañas -->
+        <div class="cr-subnav" id="cr-subnav">
+          <button class="cr-subnav-btn on" onclick="crSwitchView('piezas')">Mis Piezas</button>
+          <button class="cr-subnav-btn" onclick="crSwitchView('campanas')">Campanas</button>
+        </div>
+
+        <!-- View: Mis Piezas -->
+        <div class="cr-view on" id="crv-piezas">
+          <div class="cr-section-hdr" style="margin-bottom:4px;">
+            <div class="cr-section-title">Mis Piezas</div>
+            <button class="btn btn-grad btn-sm" onclick="crStartWizard()">+ Nueva</button>
+          </div>
+          <div id="cr-pieces-grid" style="flex:1;overflow-y:auto;"></div>
+        </div>
+
+        <!-- View: Campanas -->
+        <div class="cr-view" id="crv-campanas">
+          <div class="cr-section-hdr" style="margin-bottom:4px;">
+            <div class="cr-section-title">Campanas QR</div>
+          </div>
+          <div id="cr-camps-list" style="flex:1;overflow-y:auto;"></div>
+        </div>
+
+        <!-- Wizard overlay (full-tab) -->
+        <div class="cr-view" id="crv-wizard" style="position:absolute;inset:0;background:var(--surface);z-index:10;flex-direction:column;">
+          <div class="cr-wiz-hdr">
+            <button class="btn btn-outline btn-sm" style="font-size:12px;" onclick="crExitWizard()">Cancelar</button>
+            <div class="cr-wdots">
+              <div class="cr-wdot cur" id="cr-wd1"></div>
+              <div class="cr-wdot" id="cr-wd2"></div>
+              <div class="cr-wdot" id="cr-wd3"></div>
+              <div class="cr-wdot" id="cr-wd4"></div>
+            </div>
+            <span class="cr-step-lbl" id="cr-step-lbl">Paso 1 de 4</span>
+          </div>
+
+          <!-- Step 1: Foto del producto -->
+          <div class="cr-wstep on" id="cr-ws1">
+            <div class="cr-wtitle">Foto del producto</div>
+            <div class="cr-wsub">Sube la foto de tu producto o servicio. Quitamos el fondo automaticamente.</div>
+            <div class="cr-preview-img" id="cr-preview1">
+              <img id="cr-preview1-img" src="" alt="">
+            </div>
+            <div class="cr-upload-zone" id="cr-upload-zone" onclick="document.getElementById('cr-file-input').click()">
+              <input type="file" id="cr-file-input" accept="image/*" style="display:none;" onchange="crHandleFile(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 3-3 6 6"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+              <div><strong>Toca para elegir imagen</strong><span>JPG, PNG o WEBP</span></div>
+            </div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Nombre del negocio</div>
+              <input class="cr-finput" id="cr-biz-name" placeholder="Ej: Cafeteria Central" type="text">
+              <div class="cr-fhint">Aparece en los textos generados automaticamente.</div>
+            </div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Nombre del producto</div>
+              <input class="cr-finput" id="cr-prod-name" placeholder="Ej: Capuchino especial" type="text">
+            </div>
+            <div id="cr-removebg-row" style="display:none;margin:0 20px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" id="cr-removebg-btn" onclick="crRemoveBg()" style="font-size:12px;">Quitar fondo</button>
+              <span id="cr-removebg-status" style="font-size:12px;color:var(--text-muted);"></span>
+            </div>
+            <div style="flex:1;"></div>
+            <div class="cr-abar">
+              <button class="btn btn-primary" onclick="crStep(2)">Siguiente</button>
+            </div>
+          </div>
+
+          <!-- Step 2: Texto / Copy -->
+          <div class="cr-wstep" id="cr-ws2">
+            <div class="cr-wtitle">Texto</div>
+            <div class="cr-wsub">Genera el copy automaticamente o escribelo tu mismo.</div>
+            <div class="cr-frow">
+              <div class="cr-flabel" style="display:flex;align-items:center;justify-content:space-between;">
+                Titular
+                <button class="cr-copy-btn" onclick="crGenCopy()">Generar con IA</button>
+              </div>
+              <input class="cr-finput" id="cr-headline" placeholder="Ej: Sabor que conquista" type="text" maxlength="60">
+              <div class="cr-fhint">Maximo 6 palabras. Aparece grande en la pieza.</div>
+            </div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Descripcion</div>
+              <textarea class="cr-finput" id="cr-body" rows="2" placeholder="Ej: Hecho con granos 100% colombianos" maxlength="80" style="resize:none;"></textarea>
+              <div class="cr-fhint">Maximo 12 palabras.</div>
+            </div>
+            <div id="cr-copy-generating" style="display:none;margin:0 20px;font-size:13px;color:var(--text-muted);">Generando con IA...</div>
+            <div style="flex:1;"></div>
+            <div class="cr-abar">
+              <div style="display:flex;gap:10px;">
+                <button class="btn btn-outline" onclick="crStep(1)" style="flex:0 0 80px;">Atras</button>
+                <button class="btn btn-primary" onclick="crStep(3)" style="flex:1;">Siguiente</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: CTA -->
+          <div class="cr-wstep" id="cr-ws3">
+            <div class="cr-wtitle">Llamada a accion</div>
+            <div class="cr-wsub">¿Que quieres que haga el espectador al ver tu pieza?</div>
+            <div class="cr-cta-opts">
+              <div class="cr-cta-opt" data-cta="none" onclick="crSelectCta(this)">
+                <div class="cr-cta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8" opacity=".3"/></svg>
+                </div>
+                <div class="cr-cta-body">
+                  <div class="cr-cta-name">Sin llamada a accion</div>
+                  <div class="cr-cta-desc">Solo informativa. Muestra el producto sin pedir accion.</div>
+                </div>
+                <div class="cr-radio"><div class="cr-radio-dot"></div></div>
+              </div>
+              <div class="cr-cta-opt" data-cta="text" onclick="crSelectCta(this)">
+                <div class="cr-cta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h10M7 12h7"/></svg>
+                </div>
+                <div class="cr-cta-body">
+                  <div class="cr-cta-name">Texto informativo</div>
+                  <div class="cr-cta-desc">Un mensaje directo. Ej: "Pidelo en caja".</div>
+                </div>
+                <div class="cr-radio"><div class="cr-radio-dot"></div></div>
+              </div>
+              <div class="cr-cta-opt sel" data-cta="qr_voucher" onclick="crSelectCta(this)">
+                <div class="cr-cta-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="5" y="5" width="4" height="4" fill="currentColor" stroke="none"/><rect x="5" y="15" width="4" height="4" fill="currentColor" stroke="none"/><rect x="15" y="5" width="4" height="4" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div class="cr-cta-body">
+                  <div class="cr-cta-name">Promo canjeable con QR</div>
+                  <div class="cr-cta-desc">El espectador escanea y recibe un codigo de descuento unico.</div>
+                  <div class="cr-cta-badge">Cierra el loop: pantalla a venta</div>
+                </div>
+                <div class="cr-radio"><div class="cr-radio-dot"></div></div>
+              </div>
+            </div>
+            <div class="cr-tip">
+              <strong>¿Por que QR?</strong> Cada codigo es de un solo uso con stock limitado. Ves en tiempo real cuantos se canjearon.
+            </div>
+            <div style="flex:1;"></div>
+            <div class="cr-abar">
+              <div style="display:flex;gap:10px;">
+                <button class="btn btn-outline" onclick="crStep(2)" style="flex:0 0 80px;">Atras</button>
+                <button class="btn btn-primary" id="cr-step3-next" onclick="crStep3Next()" style="flex:1;">Configurar promo</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Promo Config -->
+          <div class="cr-wstep" id="cr-ws4">
+            <div class="cr-wtitle">Configura tu promo</div>
+            <div class="cr-wsub">Define el descuento, el stock de codigos y el color del QR.</div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Nombre de la campaña</div>
+              <input class="cr-finput" id="cr-camp-name" placeholder="Ej: Promo Junio 2026" type="text">
+            </div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Descuento / Beneficio</div>
+              <input class="cr-finput" id="cr-camp-discount" placeholder="Ej: 20% descuento, 2x1, regalo gratis" type="text">
+              <div class="cr-fhint">Este texto aparecera en el voucher digital del cliente.</div>
+            </div>
+            <div class="cr-frow">
+              <div class="cr-flabel">Descripcion (opcional)</div>
+              <input class="cr-finput" id="cr-camp-desc" placeholder="Ej: Solo para el primer cafe del dia" type="text">
+            </div>
+            <div class="cr-promo-box">
+              <div class="cr-promo-title">Stock y vigencia</div>
+              <div class="cr-frow" style="margin:0;">
+                <div class="cr-flabel">Codigos disponibles</div>
+                <div class="cr-stock-row">
+                  <div class="cr-stock-wrap">
+                    <input class="cr-finput" id="cr-camp-stock" type="number" min="1" max="9999" value="50">
+                    <span class="cr-stock-unit">cod.</span>
+                  </div>
+                </div>
+                <div class="cr-stock-presets">
+                  <button class="cr-stock-preset" onclick="crSetStock(25)">25</button>
+                  <button class="cr-stock-preset on" onclick="crSetStock(50)">50</button>
+                  <button class="cr-stock-preset" onclick="crSetStock(100)">100</button>
+                  <button class="cr-stock-preset" onclick="crSetStock(200)">200</button>
+                </div>
+              </div>
+              <div class="cr-frow" style="margin:0;">
+                <div class="cr-flabel">Vence (opcional)</div>
+                <input class="cr-finput" id="cr-camp-expires" type="date">
+              </div>
+              <div class="cr-frow" style="margin:0;">
+                <div class="cr-flabel">Color del QR</div>
+                <div class="cr-qr-color-row">
+                  <div class="cr-qr-swatch on" style="background:#000000;" data-color="#000000" onclick="crPickQrColor(this)"></div>
+                  <div class="cr-qr-swatch" style="background:#1a237e;" data-color="#1a237e" onclick="crPickQrColor(this)"></div>
+                  <div class="cr-qr-swatch" style="background:#1b5e20;" data-color="#1b5e20" onclick="crPickQrColor(this)"></div>
+                  <div class="cr-qr-swatch" style="background:#b71c1c;" data-color="#b71c1c" onclick="crPickQrColor(this)"></div>
+                  <div class="cr-qr-swatch" style="background:#4a148c;" data-color="#4a148c" onclick="crPickQrColor(this)"></div>
+                  <div class="cr-qr-custom" title="Color personalizado">
+                    <input type="color" id="cr-qr-custom-color" value="#000000" oninput="crPickQrColorCustom(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                  </div>
+                  <span class="cr-qr-color-name" id="cr-qr-color-name">Negro</span>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1;min-height:20px;"></div>
+            <div class="cr-abar">
+              <div style="display:flex;gap:10px;">
+                <button class="btn btn-outline" onclick="crStep(3)" style="flex:0 0 80px;">Atras</button>
+                <button class="btn btn-primary" id="cr-save-btn" onclick="crSavePiece()" style="flex:1;">Crear pieza</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Campaign Detail overlay -->
+        <div class="cr-view" id="crv-camp-detail" style="position:absolute;inset:0;background:var(--surface);z-index:20;flex-direction:column;overflow-y:auto;">
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+            <button style="background:none;border:none;color:var(--text-muted);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="crCloseCampDetail()">
+              <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M7 1L1 6.5L7 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Volver
+            </button>
+            <div id="cr-campdet-name" style="font-size:16px;font-weight:700;"></div>
+          </div>
+          <div id="cr-campdet-body" style="flex:1;overflow-y:auto;padding-bottom:24px;"></div>
+        </div>
+
+      </div>
+
+      <!-- ══ CAJERO / VERIFICAR ══ -->
+      <div id="cajero-tab" class="container hidden" style="padding:0;">
+        <div style="padding:20px 20px 0;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Verificar codigo</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Ingresa el codigo del cliente o escanea el QR de su pantalla.</div>
+        </div>
+        <div class="cr-verify-wrap">
+          <button class="cr-scan-btn" onclick="crStartScan()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/></svg>
+            Escanear QR
+          </button>
+          <div class="cr-verify-or">o ingresa manualmente</div>
+          <div style="display:flex;gap:8px;">
+            <input class="cr-verify-input" id="cr-verify-code-input" placeholder="XXXXXXXX" maxlength="8" oninput="this.value=this.value.toUpperCase()">
+            <button class="btn btn-primary" style="flex:0 0 auto;padding:0 16px;" onclick="crVerifyCode()">Verificar</button>
+          </div>
+          <div class="cr-verify-result" id="cr-verify-result"></div>
+          <div id="cr-redeem-btn-wrap" style="display:none;">
+            <button class="btn btn-primary" id="cr-redeem-step1" onclick="crRedeemStep1()">Marcar como canjeado</button>
+            <button class="btn btn-outline" id="cr-redeem-step2" style="display:none;background:rgba(248,113,113,.1);border-color:#f87171;color:#f87171;" onclick="crRedeemConfirm()">Confirmar canje</button>
+          </div>
+        </div>
+
+        <!-- Scanner overlay (full screen) -->
+        <div class="cr-scan-overlay" id="cr-scan-overlay">
+          <div class="cr-scan-cam">
+            <div class="cr-scan-overlay-dark"></div>
+            <div class="cr-scan-vf">
+              <div class="cr-scan-corner-bl"></div>
+              <div class="cr-scan-corner-br"></div>
+              <div class="cr-scan-line"></div>
+            </div>
+            <div class="cr-scan-label">Apunta al <span>QR</span> del cliente</div>
+            <div class="cr-scan-success" id="cr-scan-success">
+              <div class="cr-scan-success-ring">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div class="cr-scan-success-text">Codigo leido</div>
+            </div>
+          </div>
+          <div class="cr-scan-bar">
+            <button class="btn btn-outline btn-sm" onclick="crStopScan()" style="color:var(--text-muted);">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
   <!-- MENU INFERIOR MOVIL -->
   <nav class="mobile-tabbar" id="mobileTabbar">
     <button class="mobile-tab-btn active" id="mtab-content" onclick="switchMobileTab('content')">
@@ -1366,11 +2014,17 @@
       </svg>
       Turnos
     </button>
+    <button class="mobile-tab-btn" id="mtab-creative" onclick="switchMobileTab('creative')" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+      </svg>
+      Crear
+    </button>
     <button class="mobile-tab-btn" id="mtab-more" onclick="toggleMobileSidebar()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
       </svg>
-      Más
+      Mas
     </button>
   </nav>
 </div>
@@ -1555,6 +2209,7 @@ function setupTabs() {
         stopDevicesAutoRefresh();
       }
       if (tabName === 'queue') loadQueueTab();
+      if (tabName === 'creative') loadCreativeTab();
     });
   });
 }
@@ -3632,6 +4287,560 @@ async function toggleService(serviceId, active) {
 }
 
 // ══ FIN ATENCIÓN AL USUARIO ══
+
+// ═══════════════════════════════════════════════
+// CREATIVE INTELLIGENCE MODULE
+// ═══════════════════════════════════════════════
+
+function checkCreativeLicense() {
+  try {
+    const features = currentUser?.features || {};
+    const g = document.getElementById('group-creativa');
+    const mBtn = document.getElementById('mtab-creative');
+    const show = features.creative_intelligence === true || currentUser?.role === 'admin';
+    if (g) { show ? g.classList.remove('hidden-feature') : g.classList.add('hidden-feature'); }
+    if (mBtn) mBtn.style.display = show ? '' : 'none';
+  } catch(e) {}
+}
+
+// ── State ────────────────────────────────────────
+let crCurrentAssetId = null;   // uploaded asset id
+let crCurrentCta = 'qr_voucher';
+let crCurrentQrColor = '#000000';
+let crCurrentQrColorName = 'Negro';
+let crCurrentCampaignId = null;
+let crScanStream = null;
+
+// ── Tab load ─────────────────────────────────────
+function loadCreativeTab() {
+  crSwitchView('piezas');
+  crLoadPieces();
+}
+
+function crSwitchView(view) {
+  document.querySelectorAll('#cr-subnav .cr-subnav-btn').forEach((b, i) => {
+    b.classList.toggle('on', (i === 0 && view === 'piezas') || (i === 1 && view === 'campanas'));
+  });
+  document.getElementById('crv-piezas').classList.toggle('on', view === 'piezas');
+  document.getElementById('crv-campanas').classList.toggle('on', view === 'campanas');
+  if (view === 'campanas') crLoadCampaigns();
+}
+
+// ── Pieces ───────────────────────────────────────
+async function crLoadPieces() {
+  const el = document.getElementById('cr-pieces-grid');
+  el.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/creative/pieces`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const pieces = await res.json();
+    if (!Array.isArray(pieces) || pieces.length === 0) {
+      el.innerHTML = `<div class="cr-empty">
+        <div class="cr-empty-ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg></div>
+        <div class="cr-empty-t">Sin piezas aun</div>
+        <div class="cr-empty-s">Crea tu primera pieza de digital signage con foto, texto y QR promo.</div>
+        <button class="btn btn-primary" style="margin-top:4px;" onclick="crStartWizard()">Crear primera pieza</button>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="cr-pgrid">${pieces.map(p => crPieceCard(p)).join('')}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="cr-empty"><div class="cr-empty-s">Error cargando piezas.</div></div>`;
+  }
+}
+
+function crPieceCard(p) {
+  const badge = p.campaign_id ? `
+    <div class="cr-promo-badge" onclick="event.stopPropagation();crOpenCampDetail(${p.campaign_id})">
+      <div class="cr-promo-dot"></div>
+      <div class="cr-promo-text">Promo activa</div>
+      <span style="font-size:11px;color:var(--magenta);">&#8250;</span>
+    </div>` : '';
+  const thumb = p.output_url
+    ? `<img src="${p.output_url}" alt="" style="width:100%;height:100%;object-fit:cover;">`
+    : `<div class="cr-pthumb-ph"></div>`;
+  return `<div class="cr-pcard">
+    <div class="cr-pthumb">${thumb}</div>
+    <div class="cr-pinfo">
+      <div class="cr-pname">${p.title || 'Sin titulo'}</div>
+      <div class="cr-pmeta">${p.cta_type === 'qr_voucher' ? 'QR Promo' : p.cta_type === 'text' ? 'Texto' : 'Sin CTA'}</div>
+      ${badge}
+    </div>
+  </div>`;
+}
+
+// ── Campaigns list ────────────────────────────────
+async function crLoadCampaigns() {
+  const el = document.getElementById('cr-camps-list');
+  el.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const camps = await res.json();
+    if (!Array.isArray(camps) || camps.length === 0) {
+      el.innerHTML = `<div class="cr-empty">
+        <div class="cr-empty-t">Sin campanas</div>
+        <div class="cr-empty-s">Crea una pieza con CTA de QR Promo para generar tu primera campaña.</div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="cr-camp-list">${camps.map(c => crCampCard(c)).join('')}</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="cr-empty"><div class="cr-empty-s">Error cargando campanas.</div></div>`;
+  }
+}
+
+function crCampCard(c) {
+  const redeemed = parseInt(c.redeemed_count_live || c.redeemed_count || 0);
+  const total = parseInt(c.total_codes || 0);
+  const pct = total > 0 ? Math.round((redeemed / total) * 100) : 0;
+  const tagClass = c.status === 'active' ? 'cr-ctag-active' : c.status === 'paused' ? 'cr-ctag-paused' : 'cr-ctag-expired';
+  const tagLabel = c.status === 'active' ? 'Activa' : c.status === 'paused' ? 'Pausada' : 'Expirada';
+  return `<div class="cr-camp-card" onclick="crOpenCampDetail(${c.id})">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+      <div class="cr-camp-name">${c.name}</div>
+      <div class="cr-ctag ${tagClass}"><div class="cr-ctag-dot"></div>${tagLabel}</div>
+    </div>
+    <div class="cr-camp-meta">${c.discount_label}</div>
+    <div class="cr-camp-prog">
+      <div class="cr-camp-prog-bar"><div class="cr-camp-prog-fill" style="width:${pct}%"></div></div>
+      <div class="cr-camp-prog-label"><span>${redeemed} canjeados</span><span>${total} disponibles</span></div>
+    </div>
+  </div>`;
+}
+
+// ── Campaign detail ───────────────────────────────
+async function crOpenCampDetail(campaignId) {
+  crCurrentCampaignId = campaignId;
+  const detView = document.getElementById('crv-camp-detail');
+  const nameEl  = document.getElementById('cr-campdet-name');
+  const bodyEl  = document.getElementById('cr-campdet-body');
+  detView.classList.add('on');
+  bodyEl.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns/${campaignId}/stats`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    const c = data.campaign;
+    nameEl.textContent = c.name;
+    const redeemed = data.redeemed;
+    const total = c.total_codes;
+    const pct = total > 0 ? Math.round((redeemed / total) * 100) : 0;
+    const expStr = c.expires_at ? new Date(c.expires_at).toLocaleDateString('es-CO') : 'Sin vencimiento';
+    const qrUrl = `${API_URL}/api/campaigns/${campaignId}/qr?token=${authToken}`;
+    bodyEl.innerHTML = `
+      <div class="cr-camp-summary">
+        <div class="cr-camp-sum-line">
+          <span class="num-acc">${redeemed}</span> canjeados de <span class="num-grn">${total}</span> codigos disponibles
+        </div>
+        <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin:4px 0;">
+          <div style="height:100%;background:var(--magenta);border-radius:3px;width:${pct}%;transition:width .4s;"></div>
+        </div>
+        <div class="cr-camp-sum-sub">
+          <span><div class="dot"></div>${c.discount_label}</span>
+          <span><div class="dot"></div>Vence: ${expStr}</span>
+        </div>
+      </div>
+      <div style="padding:0 20px 16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="${API_URL}/api/campaigns/${campaignId}/qr" target="_blank"
+           style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--magenta);text-decoration:none;">
+          Ver QR
+        </a>
+        <button class="btn btn-outline btn-sm" onclick="crPauseCampaign(${campaignId}, '${c.status}')" style="font-size:12px;">
+          ${c.status === 'active' ? 'Pausar' : 'Reactivar'}
+        </button>
+      </div>
+      <div class="cr-rlist">
+        <div class="cr-rlist-title">Ultimos codigos (${data.total_issued} emitidos)</div>
+        ${data.recent.length === 0
+          ? '<div style="color:var(--text-muted);font-size:13px;">Aun no hay escaneos.</div>'
+          : data.recent.map(r => `
+            <div class="cr-ritem">
+              <div>
+                <div class="cr-ritem-code">${r.code}</div>
+                <div class="cr-ritem-time">${new Date(r.created_at).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
+              <div class="cr-rbadge ${r.status === 'redeemed' ? 'cr-rbadge-ok' : 'cr-rbadge-pend'}">
+                ${r.status === 'redeemed' ? 'Canjeado' : 'Sin canjear'}
+              </div>
+            </div>`).join('')
+        }
+      </div>`;
+  } catch(e) {
+    bodyEl.innerHTML = '<div style="padding:20px;color:var(--text-muted);">Error cargando detalle.</div>';
+  }
+}
+
+function crCloseCampDetail() {
+  document.getElementById('crv-camp-detail').classList.remove('on');
+  crCurrentCampaignId = null;
+}
+
+async function crPauseCampaign(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+  try {
+    await fetch(`${API_URL}/api/campaigns/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ status: newStatus })
+    });
+    crOpenCampDetail(id);
+  } catch(e) {}
+}
+
+// ── Wizard ───────────────────────────────────────
+function crStartWizard() {
+  crCurrentAssetId = null;
+  crCurrentCta = 'qr_voucher';
+  crCurrentQrColor = '#000000';
+  crCurrentCampaignId = null;
+  document.getElementById('crv-wizard').classList.add('on');
+  crStep(1);
+}
+
+function crExitWizard() {
+  document.getElementById('crv-wizard').classList.remove('on');
+  crLoadPieces();
+}
+
+function crStep(n) {
+  const total = 4;
+  for (let i = 1; i <= total; i++) {
+    const ws = document.getElementById(`cr-ws${i}`);
+    if (ws) ws.classList.toggle('on', i === n);
+    const dot = document.getElementById(`cr-wd${i}`);
+    if (dot) {
+      dot.classList.toggle('cur', i === n);
+      dot.classList.toggle('done', i < n);
+      if (i > n) dot.classList.remove('cur', 'done');
+    }
+  }
+  const lbl = document.getElementById('cr-step-lbl');
+  if (lbl) lbl.textContent = `Paso ${n} de ${total}`;
+}
+
+function crStep3Next() {
+  if (crCurrentCta === 'qr_voucher') {
+    crStep(4);
+  } else {
+    crSavePiece();
+  }
+}
+
+// ── File upload + remove.bg ───────────────────────
+async function crHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('cr-preview1');
+  const img = document.getElementById('cr-preview1-img');
+  const zone = document.getElementById('cr-upload-zone');
+  img.src = URL.createObjectURL(file);
+  preview.classList.add('on');
+  zone.style.display = 'none';
+  // Upload to server
+  const form = new FormData();
+  form.append('image', file);
+  form.append('type', 'product');
+  try {
+    const res = await fetch(`${API_URL}/api/assets`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: form
+    });
+    const data = await res.json();
+    if (data.id) {
+      crCurrentAssetId = data.id;
+      document.getElementById('cr-removebg-row').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+async function crRemoveBg() {
+  if (!crCurrentAssetId) return;
+  const btn = document.getElementById('cr-removebg-btn');
+  const status = document.getElementById('cr-removebg-status');
+  btn.disabled = true;
+  status.textContent = 'Procesando...';
+  try {
+    const res = await fetch(`${API_URL}/api/assets/${crCurrentAssetId}/process`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.processed_url) {
+      document.getElementById('cr-preview1-img').src = data.processed_url;
+      status.textContent = 'Fondo eliminado.';
+      btn.textContent = 'Listo';
+    } else {
+      status.textContent = data.error || 'Error al procesar.';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    status.textContent = 'Error de red.';
+    btn.disabled = false;
+  }
+}
+
+// ── Copy generation ───────────────────────────────
+async function crGenCopy() {
+  const biz = document.getElementById('cr-biz-name').value.trim();
+  const prod = document.getElementById('cr-prod-name').value.trim();
+  if (!biz && !prod) { showStatus('Ingresa el nombre del negocio primero.', 'error'); return; }
+  const genEl = document.getElementById('cr-copy-generating');
+  genEl.style.display = 'block';
+  try {
+    const res = await fetch(`${API_URL}/api/creative/copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ businessName: biz, productName: prod })
+    });
+    const data = await res.json();
+    if (data.headline) document.getElementById('cr-headline').value = data.headline;
+    if (data.body) document.getElementById('cr-body').value = data.body;
+  } catch(e) {
+    showStatus('Error generando copy.', 'error');
+  } finally {
+    genEl.style.display = 'none';
+  }
+}
+
+// ── CTA selector ─────────────────────────────────
+function crSelectCta(el) {
+  document.querySelectorAll('.cr-cta-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+  crCurrentCta = el.dataset.cta;
+  const nextBtn = document.getElementById('cr-step3-next');
+  if (nextBtn) nextBtn.textContent = crCurrentCta === 'qr_voucher' ? 'Configurar promo' : 'Crear pieza';
+}
+
+// ── QR color picker ───────────────────────────────
+const CR_QR_COLORS = { '#000000':'Negro','#1a237e':'Azul oscuro','#1b5e20':'Verde','#b71c1c':'Rojo','#4a148c':'Morado' };
+
+function crPickQrColor(el) {
+  document.querySelectorAll('.cr-qr-swatch').forEach(s => s.classList.remove('on'));
+  el.classList.add('on');
+  crCurrentQrColor = el.dataset.color;
+  crCurrentQrColorName = CR_QR_COLORS[crCurrentQrColor] || 'Personalizado';
+  const nameEl = document.getElementById('cr-qr-color-name');
+  if (nameEl) nameEl.textContent = crCurrentQrColorName;
+}
+
+function crPickQrColorCustom(input) {
+  crCurrentQrColor = input.value;
+  crCurrentQrColorName = 'Personalizado';
+  document.querySelectorAll('.cr-qr-swatch').forEach(s => s.classList.remove('on'));
+  const nameEl = document.getElementById('cr-qr-color-name');
+  if (nameEl) nameEl.textContent = 'Personalizado';
+}
+
+function crSetStock(n) {
+  document.getElementById('cr-camp-stock').value = n;
+  document.querySelectorAll('.cr-stock-preset').forEach(b => b.classList.toggle('on', parseInt(b.textContent) === n));
+}
+
+// ── Save piece ────────────────────────────────────
+async function crSavePiece() {
+  const btn = document.getElementById('cr-save-btn');
+  const headline = document.getElementById('cr-headline').value.trim();
+  const biz = document.getElementById('cr-biz-name').value.trim();
+  if (!headline && !biz) { showStatus('Completa el nombre del negocio o el titular.', 'error'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  try {
+    let campaignId = null;
+    // Create campaign if QR voucher
+    if (crCurrentCta === 'qr_voucher') {
+      const campName = document.getElementById('cr-camp-name').value.trim() || `Promo ${new Date().toLocaleDateString('es-CO')}`;
+      const discount = document.getElementById('cr-camp-discount').value.trim();
+      const desc = document.getElementById('cr-camp-desc').value.trim();
+      const stock = parseInt(document.getElementById('cr-camp-stock').value) || 50;
+      const expires = document.getElementById('cr-camp-expires').value || null;
+      if (!discount) { showStatus('Ingresa el descuento de la promo.', 'error'); btn.disabled = false; btn.textContent = 'Crear pieza'; return; }
+      const campRes = await fetch(`${API_URL}/api/campaigns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify({
+          name: campName, description: desc || null, discount_label: discount,
+          brand_name: biz || null, qr_color: crCurrentQrColor,
+          total_codes: stock, expires_at: expires
+        })
+      });
+      const campData = await campRes.json();
+      if (campData.id) campaignId = campData.id;
+      else throw new Error(campData.error || 'Error al crear campaña');
+    }
+    // Create piece
+    const pieceRes = await fetch(`${API_URL}/api/creative/pieces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({
+        title: headline || biz,
+        copy_headline: headline,
+        copy_body: document.getElementById('cr-body').value.trim() || null,
+        cta_type: crCurrentCta,
+        campaign_id: campaignId,
+        asset_id: crCurrentAssetId || null
+      })
+    });
+    const pieceData = await pieceRes.json();
+    if (pieceData.id) {
+      showStatus('Pieza creada correctamente.', 'success');
+      crExitWizard();
+    } else {
+      throw new Error(pieceData.error || 'Error al crear pieza');
+    }
+  } catch(e) {
+    showStatus('Error: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Crear pieza';
+  }
+}
+
+// ── Cashier verify ────────────────────────────────
+let _crVerifyCode = null;
+
+async function crVerifyCode() {
+  const codeInput = document.getElementById('cr-verify-code-input');
+  const code = codeInput.value.trim().toUpperCase();
+  if (code.length < 4) { showStatus('Ingresa un codigo valido.', 'error'); return; }
+  const resultEl = document.getElementById('cr-verify-result');
+  const redeemWrap = document.getElementById('cr-redeem-btn-wrap');
+  resultEl.className = 'cr-verify-result';
+  resultEl.style.display = 'none';
+  redeemWrap.style.display = 'none';
+  // Need campaign id — try to find by code across all campaigns
+  try {
+    // Use a dedicated lookup endpoint
+    const res = await fetch(`${API_URL}/api/voucher/lookup/${encodeURIComponent(code)}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    crShowVerifyResult(data, code);
+  } catch(e) {
+    showStatus('Error verificando codigo.', 'error');
+  }
+}
+
+function crShowVerifyResult(data, code) {
+  const resultEl = document.getElementById('cr-verify-result');
+  const redeemWrap = document.getElementById('cr-redeem-btn-wrap');
+  resultEl.style.display = 'flex';
+  if (data.valid) {
+    resultEl.className = 'cr-verify-result on valid';
+    resultEl.innerHTML = `
+      <div class="cr-verify-icon valid-bg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <div class="cr-verify-code green">${code}</div>
+      <div class="cr-verify-label">${data.discount_label}</div>
+      <div class="cr-verify-meta">${data.brand_name || ''}</div>`;
+    _crVerifyCode = { code, campaign_id: data.campaign_id };
+    redeemWrap.style.display = 'block';
+    document.getElementById('cr-redeem-step1').style.display = '';
+    document.getElementById('cr-redeem-step2').style.display = 'none';
+  } else {
+    resultEl.className = 'cr-verify-result on ' + (data.reason === 'Ya canjeado' ? 'used' : 'invalid');
+    resultEl.innerHTML = `
+      <div class="cr-verify-icon red-bg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+      <div class="cr-verify-code red">${code}</div>
+      <div class="cr-verify-label">${data.reason || 'Codigo invalido'}</div>
+      <div class="cr-verify-meta">${data.redeemed_at ? 'Canjeado: ' + new Date(data.redeemed_at).toLocaleString('es-CO') : ''}</div>`;
+    _crVerifyCode = null;
+    redeemWrap.style.display = 'none';
+  }
+}
+
+function crRedeemStep1() {
+  document.getElementById('cr-redeem-step1').style.display = 'none';
+  document.getElementById('cr-redeem-step2').style.display = '';
+}
+
+async function crRedeemConfirm() {
+  if (!_crVerifyCode) return;
+  try {
+    const res = await fetch(`${API_URL}/api/campaigns/${_crVerifyCode.campaign_id}/redeem/${_crVerifyCode.code}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ confirm: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showStatus('Codigo canjeado correctamente.', 'success');
+      document.getElementById('cr-verify-code-input').value = '';
+      document.getElementById('cr-verify-result').style.display = 'none';
+      document.getElementById('cr-redeem-btn-wrap').style.display = 'none';
+      _crVerifyCode = null;
+    } else {
+      showStatus(data.error || 'Error al canjear.', 'error');
+    }
+  } catch(e) {
+    showStatus('Error de red.', 'error');
+  }
+}
+
+// ── Scanner ───────────────────────────────────────
+async function crStartScan() {
+  const overlay = document.getElementById('cr-scan-overlay');
+  overlay.classList.add('on');
+  const success = document.getElementById('cr-scan-success');
+  success.classList.remove('on');
+  if (!('BarcodeDetector' in window)) {
+    crStopScan();
+    showStatus('Tu navegador no soporta escaneo QR. Ingresa el codigo manualmente.', 'error');
+    return;
+  }
+  try {
+    crScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.createElement('video');
+    video.srcObject = crScanStream;
+    video.setAttribute('playsinline', true);
+    video.play();
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    const scanLoop = async () => {
+      if (!crScanStream) return;
+      try {
+        const barcodes = await detector.detect(video);
+        if (barcodes.length > 0) {
+          const rawValue = barcodes[0].rawValue;
+          success.classList.add('on');
+          setTimeout(() => {
+            crStopScan();
+            // Extract code from URL or use raw value
+            const urlMatch = rawValue.match(/\/v\/(\d+)/);
+            if (!urlMatch) {
+              document.getElementById('cr-verify-code-input').value = rawValue.toUpperCase();
+              crVerifyCode();
+            }
+          }, 1100);
+          return;
+        }
+      } catch(e) {}
+      if (crScanStream) requestAnimationFrame(scanLoop);
+    };
+    video.addEventListener('loadeddata', () => requestAnimationFrame(scanLoop));
+  } catch(e) {
+    crStopScan();
+    showStatus('No se pudo acceder a la camara.', 'error');
+  }
+}
+
+function crStopScan() {
+  if (crScanStream) { crScanStream.getTracks().forEach(t => t.stop()); crScanStream = null; }
+  document.getElementById('cr-scan-overlay').classList.remove('on');
+}
+
+// ── Extend showDashboard + features_updated ───────
+const _origShowDashboard = typeof showDashboard === 'function' ? showDashboard : null;
+
+// Extend checkQueueLicense to also check creative
+const _origCheckQueueLicense = checkQueueLicense;
+function checkQueueLicense() {
+  _origCheckQueueLicense();
+  checkCreativeLicense();
+}
+
+// ══ FIN CREATIVE INTELLIGENCE ══
 
 </script>
 <!-- ══ MODAL SCREENSHOT ══ -->

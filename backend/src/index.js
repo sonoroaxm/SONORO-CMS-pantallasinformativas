@@ -4404,6 +4404,66 @@ app.get('/api/campaigns/:id/stats', authenticateToken, requireCreativeIntelligen
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Creative pieces ──────────────────────────────────────────
+app.get('/api/creative/pieces', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM creative_pieces WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/creative/pieces', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { title, copy_headline, copy_body, cta_type, campaign_id, asset_id, resolution } = req.body;
+  if (!title) return res.status(400).json({ error: 'title requerido' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO creative_pieces
+         (user_id, asset_id, title, copy_headline, copy_body, cta_type, campaign_id, resolution)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.user.id, asset_id||null, title, copy_headline||null, copy_body||null,
+       cta_type||'none', campaign_id||null, resolution||'1920x1080']
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/creative/pieces/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM creative_pieces WHERE id=$1 AND user_id=$2 RETURNING id',
+      [parseInt(req.params.id), req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Pieza no encontrada' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Voucher lookup by code (cashier — cross-campaign) ─────────
+app.get('/api/voucher/lookup/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const code = req.params.code.toUpperCase();
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, c.discount_label, c.brand_name, c.expires_at, c.status AS campaign_status, c.id AS campaign_id
+       FROM promo_redemptions r
+       JOIN promo_campaigns c ON c.id = r.campaign_id
+       WHERE r.code = $1 AND c.user_id = $2`,
+      [code, req.user.id]
+    );
+    if (!rows.length) return res.json({ valid: false, reason: 'Codigo no encontrado' });
+    const r = rows[0];
+    if (r.status === 'redeemed') return res.json({ valid: false, reason: 'Ya canjeado', redeemed_at: r.redeemed_at });
+    if (r.campaign_status !== 'active') return res.json({ valid: false, reason: 'Campaña inactiva' });
+    if (r.expires_at && new Date(r.expires_at) < new Date()) return res.json({ valid: false, reason: 'Campaña vencida' });
+    res.json({
+      valid: true, code: r.code, campaign_id: r.campaign_id,
+      discount_label: r.discount_label, brand_name: r.brand_name
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── QR image endpoint (returns SVG) ─────────────────────────
 app.get('/api/campaigns/:id/qr', authenticateToken, requireCreativeIntelligence, async (req, res) => {
   const campaignId = parseInt(req.params.id);
