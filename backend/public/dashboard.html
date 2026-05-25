@@ -1006,8 +1006,8 @@
       font-family: 'Montserrat', sans-serif; transition: all .2s;
     }
     .cr-subnav-btn.on { color: var(--magenta); border-bottom-color: var(--magenta); }
-    .cr-view { display: none; flex-direction: column; flex: 1; min-height: 0; }
-    .cr-view.on { display: flex; }
+    .cr-view { display: none; }
+    .cr-view.on { display: block; }
     .cr-section-hdr {
       padding: 20px 20px 0; display: flex; align-items: center;
       justify-content: space-between;
@@ -1017,7 +1017,7 @@
     .cr-empty {
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; padding: 48px 28px; text-align: center;
-      gap: 12px; flex: 1;
+      gap: 12px; min-height: 300px;
     }
     .cr-empty-ring {
       width: 68px; height: 68px; border-radius: 50%;
@@ -1715,7 +1715,7 @@
   </div><!-- /layout -->
 
       <!-- ══ INTELIGENCIA CREATIVA ══ -->
-      <div id="creative-tab" class="container hidden" style="padding:0;display:flex;flex-direction:column;min-height:0;">
+      <div id="creative-tab" class="container hidden" style="padding:0;position:relative;">
 
         <!-- Sub-nav: Mis Piezas / Campañas -->
         <div class="cr-subnav" id="cr-subnav">
@@ -1729,7 +1729,7 @@
             <div class="cr-section-title">Mis Piezas</div>
             <button class="btn btn-grad btn-sm" onclick="crStartWizard()">+ Nueva</button>
           </div>
-          <div id="cr-pieces-grid" style="flex:1;overflow-y:auto;"></div>
+          <div id="cr-pieces-grid"></div>
         </div>
 
         <!-- View: Campanas -->
@@ -1737,11 +1737,11 @@
           <div class="cr-section-hdr" style="margin-bottom:4px;">
             <div class="cr-section-title">Campanas QR</div>
           </div>
-          <div id="cr-camps-list" style="flex:1;overflow-y:auto;"></div>
+          <div id="cr-camps-list"></div>
         </div>
 
-        <!-- Wizard overlay (full-tab) -->
-        <div class="cr-view" id="crv-wizard" style="position:absolute;inset:0;background:var(--surface);z-index:10;flex-direction:column;">
+        <!-- Wizard overlay (full-screen) -->
+        <div class="cr-view" id="crv-wizard" style="position:fixed;inset:0;background:var(--surface);z-index:500;flex-direction:column;overflow-y:auto;">
           <div class="cr-wiz-hdr">
             <button class="btn btn-outline btn-sm" style="font-size:12px;" onclick="crExitWizard()">Cancelar</button>
             <div class="cr-wdots">
@@ -1926,7 +1926,7 @@
         </div>
 
         <!-- Campaign Detail overlay -->
-        <div class="cr-view" id="crv-camp-detail" style="position:absolute;inset:0;background:var(--surface);z-index:20;flex-direction:column;overflow-y:auto;">
+        <div class="cr-view" id="crv-camp-detail" style="position:fixed;inset:0;background:var(--surface);z-index:501;flex-direction:column;overflow-y:auto;">
           <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
             <button style="background:none;border:none;color:var(--text-muted);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="crCloseCampDetail()">
               <svg width="8" height="13" viewBox="0 0 8 13" fill="none"><path d="M7 1L1 6.5L7 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
