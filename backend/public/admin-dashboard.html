@@ -2339,6 +2339,11 @@ async function loadUsers() {
                   onchange="toggleFeature(${u.id}, 'multisede', this.checked)">
                 Multi-sede / Panel cliente
               </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                <input type="checkbox" id="feat-creative-${u.id}" ${(u.features?.creative_intelligence) ? 'checked' : ''}
+                  onchange="toggleFeature(${u.id}, 'creative_intelligence', this.checked)">
+                Inteligencia Creativa
+              </label>
             </div>
             <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
               Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
@@ -2378,7 +2383,7 @@ async function toggleFeature(userId, feature, enabled) {
   try {
     const users = await api('/api/admin/users');
     const user = users.find(u => u.id === userId);
-    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
+    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, creative_intelligence: false };
     const features = Object.assign(defaults, user?.features || {});
     features[feature] = enabled;
     const data = await api(`/api/admin/users/${userId}/features`, {

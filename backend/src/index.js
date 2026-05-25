@@ -22,6 +22,9 @@ function isValidIP(ip) {
   return ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
 }
 const emailService = require('./services/email');
+const QRCode = require('qrcode');
+const axios = require('axios');
+const Anthropic = require('@anthropic-ai/sdk');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -2176,6 +2179,18 @@ async function requireSuperAdmin(req, res, next) {
   }
 }
 
+async function requireCreativeIntelligence(req, res, next) {
+  try {
+    const { rows } = await pool.query('SELECT role, features FROM users WHERE id = $1', [req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const { role, features } = rows[0];
+    if (role === 'admin' || features?.creative_intelligence === true) return next();
+    return res.status(403).json({ error: 'Módulo Inteligencia Creativa no habilitado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 // ── GET: Estado de licencia del usuario actual ───────────────
 app.get('/api/license/status', authenticateToken, async (req, res) => {
   try {
@@ -2360,7 +2375,7 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
 app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
   const { feature, enabled } = req.body;
-  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede'];
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'creative_intelligence'];
   if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
   try {
     const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
@@ -4171,6 +4186,386 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`🔴 Cliente desconectado: ${socket.id} (${socket.role})`);
   });
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — helpers
+// ========================================
+
+function generateVoucherCode() {
+  return crypto.randomBytes(4).toString('hex').toUpperCase(); // 8 hex chars
+}
+
+async function removeBackground(inputPath) {
+  const form = new FormData();
+  const blob = new Blob([fs.readFileSync(inputPath)]);
+  form.append('image_file', blob, path.basename(inputPath));
+  form.append('size', 'auto');
+  const response = await axios.post('https://api.remove.bg/v1.0/removebg', form, {
+    headers: { 'X-Api-Key': process.env.REMOVEBG_API_KEY },
+    responseType: 'arraybuffer',
+    timeout: 30000,
+  });
+  return Buffer.from(response.data);
+}
+
+async function generateCopy(context) {
+  if (!process.env.CLAUDE_API_KEY) throw new Error('CLAUDE_API_KEY no configurada');
+  const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const msg = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 300,
+    messages: [{
+      role: 'user',
+      content: `Genera copy breve para una pieza de digital signage.
+Negocio: ${context.businessName || 'negocio'}
+Producto: ${context.productName || ''}
+Tono: directo, sin emojis, sin exclamaciones exageradas.
+Responde SOLO con JSON: {"headline":"...","body":"..."}
+Headline: máx 6 palabras. Body: máx 12 palabras.`
+    }]
+  });
+  return JSON.parse(msg.content[0].text);
+}
+
+// ========================================
+// CREATIVE INTELLIGENCE — assets
+// ========================================
+
+app.get('/api/assets', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM product_assets WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/assets', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  if (!req.files?.image) return res.status(400).json({ error: 'imagen requerida' });
+  const { type } = req.body;
+  if (!['logo', 'product'].includes(type)) return res.status(400).json({ error: 'type debe ser logo o product' });
+  try {
+    const file = req.files.image;
+    const ext = path.extname(file.name).toLowerCase();
+    if (!['.jpg','.jpeg','.png','.webp'].includes(ext)) return res.status(400).json({ error: 'formato no soportado' });
+    const filename = `asset-${uuidv4()}${ext}`;
+    const uploadDir = path.join(process.cwd(), 'uploads', 'assets');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
+    await file.mv(filepath);
+    const originalUrl = `/uploads/assets/${filename}`;
+    const { rows } = await pool.query(
+      'INSERT INTO product_assets (user_id, type, original_url) VALUES ($1,$2,$3) RETURNING *',
+      [req.user.id, type, originalUrl]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/assets/:id/process', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const assetId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM product_assets WHERE id = $1 AND user_id = $2',
+      [assetId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Asset no encontrado' });
+    const asset = rows[0];
+    if (!process.env.REMOVEBG_API_KEY) return res.status(503).json({ error: 'remove.bg no configurado' });
+    await pool.query("UPDATE product_assets SET status='processing' WHERE id=$1", [assetId]);
+    const inputPath = path.join(process.cwd(), asset.original_url);
+    const pngBuffer = await removeBackground(inputPath);
+    const outFilename = `asset-nobg-${uuidv4()}.png`;
+    const outPath = path.join(process.cwd(), 'uploads', 'assets', outFilename);
+    fs.writeFileSync(outPath, pngBuffer);
+    const processedUrl = `/uploads/assets/${outFilename}`;
+    const { rows: updated } = await pool.query(
+      "UPDATE product_assets SET processed_url=$1, status='done' WHERE id=$2 RETURNING *",
+      [processedUrl, assetId]
+    );
+    res.json(updated[0]);
+  } catch (e) {
+    await pool.query("UPDATE product_assets SET status='error' WHERE id=$1", [assetId]);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/assets/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const assetId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM product_assets WHERE id=$1 AND user_id=$2 RETURNING *',
+      [assetId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Asset no encontrado' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — copy generation
+// ========================================
+
+app.post('/api/creative/copy', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { businessName, productName } = req.body;
+  if (!businessName) return res.status(400).json({ error: 'businessName requerido' });
+  try {
+    const copy = await generateCopy({ businessName, productName });
+    res.json(copy);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ========================================
+// CREATIVE INTELLIGENCE — promo campaigns
+// ========================================
+
+app.get('/api/campaigns', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.*,
+         COUNT(r.id) FILTER (WHERE r.status='redeemed') AS redeemed_count_live
+       FROM promo_campaigns c
+       LEFT JOIN promo_redemptions r ON r.campaign_id = c.id
+       WHERE c.user_id = $1
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/campaigns', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const { name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at } = req.body;
+  if (!name || !discount_label) return res.status(400).json({ error: 'name y discount_label requeridos' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO promo_campaigns
+         (user_id, name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [req.user.id, name, description||null, discount_label, brand_name||null,
+       brand_logo_url||null, qr_color||'#000000', total_codes||50, expires_at||null]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/campaigns/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const { name, description, discount_label, brand_name, brand_logo_url, qr_color, total_codes, expires_at, status } = req.body;
+  try {
+    const { rows } = await pool.query('SELECT id FROM promo_campaigns WHERE id=$1 AND user_id=$2', [campaignId, req.user.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows: updated } = await pool.query(
+      `UPDATE promo_campaigns SET
+         name=COALESCE($1,name), description=COALESCE($2,description),
+         discount_label=COALESCE($3,discount_label), brand_name=COALESCE($4,brand_name),
+         brand_logo_url=COALESCE($5,brand_logo_url), qr_color=COALESCE($6,qr_color),
+         total_codes=COALESCE($7,total_codes), expires_at=COALESCE($8,expires_at),
+         status=COALESCE($9,status)
+       WHERE id=$10 RETURNING *`,
+      [name||null, description||null, discount_label||null, brand_name||null,
+       brand_logo_url||null, qr_color||null, total_codes||null, expires_at||null,
+       status||null, campaignId]
+    );
+    res.json(updated[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/campaigns/:id', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM promo_campaigns WHERE id=$1 AND user_id=$2 RETURNING id',
+      [campaignId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/campaigns/:id/stats', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT * FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!camp.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows: redemptions } = await pool.query(
+      'SELECT * FROM promo_redemptions WHERE campaign_id=$1 ORDER BY created_at DESC LIMIT 50',
+      [campaignId]
+    );
+    const redeemed = redemptions.filter(r => r.status === 'redeemed').length;
+    const total_issued = redemptions.length;
+    res.json({ campaign: camp[0], total_issued, redeemed, recent: redemptions });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── QR image endpoint (returns SVG) ─────────────────────────
+app.get('/api/campaigns/:id/qr', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, qr_color FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const baseUrl = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+    const url = `${baseUrl}/v/${campaignId}`;
+    const svg = await QRCode.toString(url, {
+      type: 'svg',
+      color: { dark: rows[0].qr_color || '#000000', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+      margin: 1,
+    });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Voucher verify (cashier) ─────────────────────────────────
+app.get('/api/campaigns/:id/verify/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const code = req.params.code.toUpperCase();
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, c.discount_label, c.brand_name, c.expires_at, c.status AS campaign_status
+       FROM promo_redemptions r
+       JOIN promo_campaigns c ON c.id = r.campaign_id
+       WHERE r.campaign_id=$1 AND r.code=$2 AND c.user_id=$3`,
+      [campaignId, code, req.user.id]
+    );
+    if (!rows.length) return res.json({ valid: false, reason: 'Código no encontrado' });
+    const r = rows[0];
+    if (r.status === 'redeemed') return res.json({ valid: false, reason: 'Ya canjeado', redeemed_at: r.redeemed_at });
+    if (r.campaign_status !== 'active') return res.json({ valid: false, reason: 'Campaña inactiva' });
+    if (r.expires_at && new Date(r.expires_at) < new Date()) return res.json({ valid: false, reason: 'Campaña vencida' });
+    res.json({ valid: true, code: r.code, discount_label: r.discount_label, brand_name: r.brand_name });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/campaigns/:id/redeem/:code', authenticateToken, requireCreativeIntelligence, async (req, res) => {
+  const campaignId = parseInt(req.params.id);
+  const code = req.params.code.toUpperCase();
+  const { confirm } = req.body;
+  if (!confirm) return res.status(400).json({ error: 'Se requiere confirm:true para canjear' });
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT id FROM promo_campaigns WHERE id=$1 AND user_id=$2',
+      [campaignId, req.user.id]
+    );
+    if (!camp.length) return res.status(404).json({ error: 'Campaña no encontrada' });
+    const { rows } = await pool.query(
+      `UPDATE promo_redemptions SET status='redeemed', redeemed_at=NOW(), redeemed_by=$1
+       WHERE campaign_id=$2 AND code=$3 AND status='active'
+       RETURNING *`,
+      [req.user.email, campaignId, code]
+    );
+    if (!rows.length) return res.status(409).json({ error: 'Código no válido o ya canjeado' });
+    await pool.query(
+      'UPDATE promo_campaigns SET redeemed_count = redeemed_count + 1 WHERE id=$1',
+      [campaignId]
+    );
+    res.json({ success: true, redeemed_at: rows[0].redeemed_at });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public voucher page (no auth) ───────────────────────────
+app.get('/v/:campaignId', async (req, res) => {
+  const campaignId = parseInt(req.params.campaignId);
+  if (isNaN(campaignId)) return res.status(400).send('Campaña inválida');
+  try {
+    const { rows: camp } = await pool.query(
+      'SELECT * FROM promo_campaigns WHERE id=$1 AND status=$2',
+      [campaignId, 'active']
+    );
+    if (!camp.length) {
+      return res.status(404).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Promo no disponible</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Esta promocion ya no esta disponible.</p></div></body></html>`);
+    }
+    const c = camp[0];
+    if (c.expires_at && new Date(c.expires_at) < new Date()) {
+      return res.status(410).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><title>Promo vencida</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Esta promocion ha vencido.</p></div></body></html>`);
+    }
+    // Check stock
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM promo_redemptions WHERE campaign_id=$1',
+      [campaignId]
+    );
+    if (parseInt(countRows[0].total) >= c.total_codes) {
+      return res.status(410).send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><title>Promo agotada</title>
+        <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;}
+        .msg{text-align:center;color:#555;}</style></head>
+        <body><div class="msg"><p>Los codigos de esta promocion se han agotado.</p></div></body></html>`);
+    }
+    // Generate new code
+    const code = generateVoucherCode();
+    await pool.query(
+      'INSERT INTO promo_redemptions (campaign_id, code) VALUES ($1, $2)',
+      [campaignId, code]
+    );
+    const brandLogo = c.brand_logo_url
+      ? `<img src="${c.brand_logo_url}" alt="${c.brand_name || ''}" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 8px;">`
+      : '';
+    const brandName = c.brand_name ? `<div style="font-size:18px;font-weight:700;color:#111;text-align:center;margin-bottom:4px;">${c.brand_name}</div>` : '';
+    const expiry = c.expires_at
+      ? `<div style="font-size:11px;color:#888;margin-top:8px;">Valido hasta: ${new Date(c.expires_at).toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})}</div>`
+      : '';
+    res.send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <title>${c.discount_label} — ${c.brand_name || 'Promo'}</title>
+  <meta name="theme-color" content="#ffffff">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,-apple-system,sans-serif;background:oklch(97% 0.005 260);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;}
+    .card{background:#fff;border-radius:16px;padding:32px 24px;max-width:380px;width:100%;box-shadow:0 2px 24px oklch(0% 0 0 / 0.08);}
+    .brand{margin-bottom:20px;text-align:center;}
+    .discount{font-size:28px;font-weight:800;color:#111;text-align:center;margin-bottom:4px;letter-spacing:-0.5px;}
+    .desc{font-size:14px;color:#555;text-align:center;margin-bottom:24px;line-height:1.4;}
+    .code-label{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:8px;}
+    .code{font-size:36px;font-weight:800;letter-spacing:6px;color:#111;text-align:center;font-variant-numeric:tabular-nums;background:oklch(96% 0.01 260);border-radius:10px;padding:16px 12px;margin-bottom:16px;}
+    .instructions{font-size:13px;color:#555;text-align:center;line-height:1.5;padding:12px 16px;background:oklch(97% 0.005 200);border-radius:8px;margin-bottom:20px;}
+    .instructions strong{color:#111;font-weight:600;}
+    .footer{font-size:10px;color:#bbb;text-align:center;margin-top:16px;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      ${brandLogo}
+      ${brandName}
+    </div>
+    <div class="discount">${c.discount_label}</div>
+    ${c.description ? `<div class="desc">${c.description}</div>` : ''}
+    <div class="code-label">Tu codigo</div>
+    <div class="code">${code}</div>
+    <div class="instructions">
+      <strong>Toma un pantallazo</strong> de esta pantalla y muestralo en caja para recibir tu beneficio.
+    </div>
+    ${expiry}
+    <div class="footer">Powered by SONORO</div>
+  </div>
+</body>
+</html>`);
+  } catch (e) {
+    console.error('Voucher page error:', e);
+    res.status(500).send('Error al generar tu codigo. Intenta de nuevo.');
+  }
 });
 
 // ========================================
