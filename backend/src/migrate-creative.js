@@ -2,12 +2,15 @@
 // Run once: node src/migrate-creative.js
 // Safe to re-run (IF NOT EXISTS everywhere)
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  user:     process.env.DB_USER     || 'postgres',
+  host:     process.env.DB_HOST     || 'localhost',
+  database: process.env.DB_NAME     || 'cms_signage',
+  password: process.env.DB_PASSWORD || '',
+  port:     parseInt(process.env.DB_PORT || '5432'),
 });
 
 async function run() {

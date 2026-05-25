@@ -2347,6 +2347,7 @@ function showDashboard() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
+  if (typeof checkCreativeLicense === 'function') checkCreativeLicense();
   console.log('[DEBUG] despues checkQueueLicense — group class:', document.getElementById('group-atencion')?.classList.toString());
   document.getElementById('userName').textContent = currentUser.email;
   // Mostrar modulos segun features del usuario
@@ -2406,6 +2407,7 @@ function connectWebSocket() {
         const features = currentUser.features || {};
         const g = document.getElementById('group-atencion');
         if (g) g.style.display = features.turnos ? '' : 'none';
+        if (typeof checkCreativeLicense === 'function') checkCreativeLicense();
         showStatus('Modulos actualizados', 'success');
         console.log('Features actualizados:', features);
       }
@@ -4828,16 +4830,6 @@ async function crStartScan() {
 function crStopScan() {
   if (crScanStream) { crScanStream.getTracks().forEach(t => t.stop()); crScanStream = null; }
   document.getElementById('cr-scan-overlay').classList.remove('on');
-}
-
-// ── Extend showDashboard + features_updated ───────
-const _origShowDashboard = typeof showDashboard === 'function' ? showDashboard : null;
-
-// Extend checkQueueLicense to also check creative
-const _origCheckQueueLicense = checkQueueLicense;
-function checkQueueLicense() {
-  _origCheckQueueLicense();
-  checkCreativeLicense();
 }
 
 // ══ FIN CREATIVE INTELLIGENCE ══
