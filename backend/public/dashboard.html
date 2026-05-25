@@ -1008,6 +1008,7 @@
     .cr-subnav-btn.on { color: var(--magenta); border-bottom-color: var(--magenta); }
     .cr-view { display: none; }
     .cr-view.on { display: block; }
+    #crv-wizard.on, #crv-camp-detail.on { display: flex; flex-direction: column; }
     .cr-section-hdr {
       padding: 20px 20px 0; display: flex; align-items: center;
       justify-content: space-between;
@@ -1771,7 +1772,7 @@
               <div class="cr-flabel">Nombre del producto</div>
               <input class="cr-finput" id="cr-prod-name" placeholder="Ej: Capuchino especial" type="text">
             </div>
-            <div id="cr-removebg-row" style="display:none;margin:0 20px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div id="cr-removebg-row" style="display:none;margin:0 20px 16px;align-items:center;gap:10px;flex-wrap:wrap;">
               <button class="btn btn-outline btn-sm" id="cr-removebg-btn" onclick="crRemoveBg()" style="font-size:12px;">Quitar fondo</button>
               <span id="cr-removebg-status" style="font-size:12px;color:var(--text-muted);"></span>
             </div>
@@ -4492,6 +4493,42 @@ function crStartWizard() {
   crCurrentCta = 'qr_voucher';
   crCurrentQrColor = '#000000';
   crCurrentCampaignId = null;
+  // Reset step 1
+  const zone = document.getElementById('cr-upload-zone');
+  const preview = document.getElementById('cr-preview1');
+  const img = document.getElementById('cr-preview1-img');
+  const fileInput = document.getElementById('cr-file-input');
+  const removebgRow = document.getElementById('cr-removebg-row');
+  const removebgBtn = document.getElementById('cr-removebg-btn');
+  const removebgStatus = document.getElementById('cr-removebg-status');
+  zone.style.display = '';
+  preview.classList.remove('on');
+  img.src = '';
+  if (fileInput) fileInput.value = '';
+  removebgRow.style.display = 'none';
+  removebgBtn.disabled = false;
+  removebgBtn.textContent = 'Quitar fondo';
+  removebgStatus.textContent = '';
+  // Reset step 2
+  document.getElementById('cr-biz-name').value = '';
+  document.getElementById('cr-prod-name').value = '';
+  document.getElementById('cr-headline').value = '';
+  document.getElementById('cr-body').value = '';
+  // Reset step 3
+  document.querySelectorAll('.cr-cta-opt').forEach(o => o.classList.remove('sel'));
+  const defaultCta = document.querySelector('.cr-cta-opt[data-cta="qr_voucher"]');
+  if (defaultCta) defaultCta.classList.add('sel');
+  const nextBtn = document.getElementById('cr-step3-next');
+  if (nextBtn) nextBtn.textContent = 'Configurar promo';
+  // Reset step 4
+  document.getElementById('cr-camp-name').value = '';
+  document.getElementById('cr-camp-discount').value = '';
+  document.getElementById('cr-camp-desc').value = '';
+  document.getElementById('cr-camp-stock').value = '50';
+  document.getElementById('cr-camp-expires').value = '';
+  document.querySelectorAll('.cr-stock-preset').forEach(b => b.classList.remove('on'));
+  const preset50 = document.querySelector('.cr-stock-preset[onclick*="50"]');
+  if (preset50) preset50.classList.add('on');
   document.getElementById('crv-wizard').classList.add('on');
   crStep(1);
 }
@@ -4532,10 +4569,18 @@ async function crHandleFile(input) {
   const preview = document.getElementById('cr-preview1');
   const img = document.getElementById('cr-preview1-img');
   const zone = document.getElementById('cr-upload-zone');
+  const removebgRow = document.getElementById('cr-removebg-row');
+  const removebgBtn = document.getElementById('cr-removebg-btn');
+  const removebgStatus = document.getElementById('cr-removebg-status');
+  const step1Next = document.querySelector('#cr-ws1 .btn-primary');
   img.src = URL.createObjectURL(file);
   preview.classList.add('on');
   zone.style.display = 'none';
-  // Upload to server
+  // Show row immediately with uploading state
+  removebgRow.style.display = 'flex';
+  removebgBtn.disabled = true;
+  removebgStatus.textContent = 'Subiendo...';
+  if (step1Next) step1Next.disabled = true;
   const form = new FormData();
   form.append('image', file);
   form.append('type', 'product');
@@ -4548,9 +4593,16 @@ async function crHandleFile(input) {
     const data = await res.json();
     if (data.id) {
       crCurrentAssetId = data.id;
-      document.getElementById('cr-removebg-row').style.display = 'flex';
+      removebgBtn.disabled = false;
+      removebgStatus.textContent = '';
+    } else {
+      removebgStatus.textContent = data.error || 'Error al subir imagen.';
     }
-  } catch(e) {}
+  } catch(e) {
+    removebgStatus.textContent = 'Error de red al subir.';
+  } finally {
+    if (step1Next) step1Next.disabled = false;
+  }
 }
 
 async function crRemoveBg() {
@@ -4567,7 +4619,7 @@ async function crRemoveBg() {
     const data = await res.json();
     if (data.processed_url) {
       document.getElementById('cr-preview1-img').src = data.processed_url;
-      status.textContent = 'Fondo eliminado.';
+      status.textContent = 'Listo';
       btn.textContent = 'Listo';
     } else {
       status.textContent = data.error || 'Error al procesar.';
@@ -4639,11 +4691,12 @@ function crSetStock(n) {
 // ── Save piece ────────────────────────────────────
 async function crSavePiece() {
   const btn = document.getElementById('cr-save-btn');
+  const btn3 = document.getElementById('cr-step3-next');
   const headline = document.getElementById('cr-headline').value.trim();
   const biz = document.getElementById('cr-biz-name').value.trim();
   if (!headline && !biz) { showStatus('Completa el nombre del negocio o el titular.', 'error'); return; }
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  if (btn3) { btn3.disabled = true; btn3.textContent = 'Guardando...'; }
   try {
     let campaignId = null;
     // Create campaign if QR voucher
@@ -4689,8 +4742,8 @@ async function crSavePiece() {
     }
   } catch(e) {
     showStatus('Error: ' + e.message, 'error');
-    btn.disabled = false;
-    btn.textContent = 'Crear pieza';
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear pieza'; }
+    if (btn3) { btn3.disabled = false; btn3.textContent = 'Crear pieza'; }
   }
 }
 
