@@ -1371,7 +1371,6 @@
     .mobile-tab-btn.active svg rect,
     .mobile-tab-btn.active svg circle { stroke: var(--magenta); }
   </style>
-  <script src="/auto-token-refresh.js"></script>
 </head>
 <body>
 
@@ -1711,8 +1710,6 @@
         </div>
       </div>
 
-    </div><!-- /main -->
-  </div><!-- /layout -->
 
       <!-- ══ INTELIGENCIA CREATIVA ══ -->
       <div id="creative-tab" class="container hidden" style="padding:0;position:relative;">
@@ -1985,6 +1982,9 @@
         </div>
       </div>
 
+    </div><!-- /main -->
+  </div><!-- /layout -->
+
   <!-- MENU INFERIOR MOVIL -->
   <nav class="mobile-tabbar" id="mobileTabbar">
     <button class="mobile-tab-btn active" id="mtab-content" onclick="switchMobileTab('content')">
@@ -2129,7 +2129,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
       }
     } catch(e) { console.error('refresh error:', e); }
-    console.log('[INIT] features antes showDashboard:', JSON.stringify(currentUser?.features));
     showDashboard();
     connectWebSocket();
     loadContent();
@@ -2343,12 +2342,10 @@ function checkQueueLicense() {
 }
 
 function showDashboard() {
-  console.log('[DEBUG] showDashboard — features:', JSON.stringify(currentUser?.features));
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
   if (typeof checkCreativeLicense === 'function') checkCreativeLicense();
-  console.log('[DEBUG] despues checkQueueLicense — group class:', document.getElementById('group-atencion')?.classList.toString());
   document.getElementById('userName').textContent = currentUser.email;
   // Mostrar modulos segun features del usuario
   const features = currentUser.features || {};
@@ -4333,7 +4330,7 @@ async function crLoadPieces() {
   const el = document.getElementById('cr-pieces-grid');
   el.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;">Cargando...</div>';
   try {
-    const res = await fetch(`${API_URL}/api/creative/pieces`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const res = await fetch(`${API_URL}/api/creative/pieces`, { headers: { 'Authorization': `Bearer ${authToken}` }, cache: 'no-store' });
     const pieces = await res.json();
     if (!Array.isArray(pieces) || pieces.length === 0) {
       el.innerHTML = `<div class="cr-empty">
