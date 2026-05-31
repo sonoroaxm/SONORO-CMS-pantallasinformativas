@@ -22,6 +22,7 @@ function isValidIP(ip) {
   return ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255);
 }
 const emailService = require('./services/email');
+const { withTransaction } = require('./db/withTransaction');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -3354,93 +3355,162 @@ app.put('/api/queue/agents/:id', authenticateToken, async (req, res) => {
 // OPERACIÓN — GENERAR TURNO (desde kiosco/QR)
 // ══════════════════════════════════════════════════════════════
 
-app.post('/api/queue/token', async (req, res) => {
-  try {
-    const { branch_id, service_id, is_priority, client_name, client_phone, channel } = req.body;
-    if (!branch_id || !service_id) return res.status(400).json({ error: 'branch_id y service_id requeridos' });
+// R0 (Queue v2 Framework §5): generación de turno transaccional.
+// Race condition pre-existente cerrada con:
+//  1) playerLimiter — rate limit del endpoint público
+//  2) Advisory lock por (branch_id, service_id, date_key) — serializa la generación
+//     del número correlativo dentro del scope de la transacción
+//  3) UNIQUE constraint queue_tokens_branch_service_date_token_uniq — backstop a nivel BD
+//  4) Retry con backoff en caso de 23505 (último recurso si dos procesos compiten
+//     por el mismo advisory lock — improbable pero defensivo)
+const TOKEN_INSERT_MAX_RETRIES = 3;
+const TOKEN_INSERT_BACKOFF_MS = [50, 100, 200];
 
-    // Obtener servicio y validar
-    const serviceResult = await pool.query(
-      'SELECT * FROM services WHERE id = $1 AND active = true', [service_id]
-    );
-    if (!serviceResult.rows.length) return res.status(404).json({ error: 'Servicio no encontrado' });
-    const service = serviceResult.rows[0];
-
-    // Verificar límite de cola
-    const waitingCount = await pool.query(
-      `SELECT COUNT(*) FROM queue_tokens WHERE branch_id = $1 AND service_id = $2
-       AND status = 'waiting' AND date_key = CURRENT_DATE`,
-      [branch_id, service_id]
-    );
-    if (parseInt(waitingCount.rows[0].count) >= service.max_queue_size) {
-      return res.status(429).json({ error: 'Cola llena para este servicio' });
-    }
-
-    // Generar número correlativo del día
-    const lastToken = await pool.query(
-      `SELECT token_number FROM queue_tokens
-       WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE
-       ORDER BY created_at DESC LIMIT 1`,
-      [branch_id, service_id]
-    );
-
-    let nextNum = 1;
-    if (lastToken.rows.length) {
-      const lastNum = parseInt(lastToken.rows[0].token_number.replace(/\D/g, ''));
-      nextNum = lastNum + 1;
-    }
-
-    const tokenNumber  = `${service.prefix}${String(nextNum).padStart(3, '0')}`;
-    const displayNumber = tokenNumber;
-
-    // Calcular tiempo estimado de espera
-    const waiting = await pool.query(
-      `SELECT COUNT(*) FROM queue_tokens
-       WHERE branch_id = $1 AND service_id = $2 AND status = 'waiting' AND date_key = CURRENT_DATE`,
-      [branch_id, service_id]
-    );
-    const estimatedWait = parseInt(waiting.rows[0].count) * service.avg_attention_min;
-
-    // Insertar turno
-    const result = await pool.query(
-      `INSERT INTO queue_tokens
-        (branch_id, service_id, token_number, display_number, is_priority, channel, client_name, client_phone)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [branch_id, service_id, tokenNumber, displayNumber,
-       is_priority || false, channel || 'kiosk', client_name || null, client_phone || null]
-    );
-
-    const token = result.rows[0];
-
-    // Registrar evento
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, metadata)
-       VALUES ($1, 'created', $2)`,
-      [token.id, JSON.stringify({ channel: channel || 'kiosk', is_priority })]
-    );
-
-    // Notificar via Socket.io a la pantalla y al panel del agente
-    io.to(`branch_${branch_id}`).emit('new_token', {
-      token, service_name: service.name, service_color: service.color,
-      waiting_count: parseInt(waiting.rows[0].count) + 1,
-      estimated_wait: estimatedWait
-    });
-
-    console.log(`🎫 Turno generado: ${tokenNumber} — ${service.name}`);
-    res.json({
-      success: true,
-      token_number: tokenNumber,
-      display_number: displayNumber,
-      service_name: service.name,
-      service_color: service.color,
-      estimated_wait_minutes: estimatedWait,
-      position_in_queue: parseInt(waiting.rows[0].count) + 1,
-      token_id: token.id
-    });
-  } catch (err) {
-    console.error('❌ Error generando turno:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+app.post('/api/queue/token', playerLimiter, async (req, res) => {
+  const { branch_id, service_id, is_priority, client_name, client_phone, channel } = req.body;
+  if (!branch_id || !service_id) {
+    return res.status(400).json({ error: 'branch_id y service_id requeridos' });
   }
+
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt < TOKEN_INSERT_MAX_RETRIES) {
+    try {
+      const outcome = await withTransaction(pool, async (client) => {
+        // Advisory lock por (branch_id, service_id, día). Se libera al COMMIT/ROLLBACK.
+        // Hashtext devuelve int4; concatenamos branch_id + service_id + fecha para clave estable.
+        await client.query(
+          `SELECT pg_advisory_xact_lock(
+             hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text)
+           )`,
+          [branch_id, service_id]
+        );
+
+        const serviceResult = await client.query(
+          'SELECT * FROM services WHERE id = $1 AND active = true',
+          [service_id]
+        );
+        if (!serviceResult.rows.length) {
+          const err = new Error('Servicio no encontrado');
+          err.httpStatus = 404;
+          throw err;
+        }
+        const service = serviceResult.rows[0];
+
+        const waitingCount = await client.query(
+          `SELECT COUNT(*) FROM queue_tokens
+           WHERE branch_id = $1 AND service_id = $2
+             AND status = 'waiting' AND date_key = CURRENT_DATE`,
+          [branch_id, service_id]
+        );
+        if (parseInt(waitingCount.rows[0].count) >= service.max_queue_size) {
+          const err = new Error('Cola llena para este servicio');
+          err.httpStatus = 429;
+          throw err;
+        }
+
+        // Próximo número correlativo del día — protegido por advisory lock
+        const lastToken = await client.query(
+          `SELECT token_number FROM queue_tokens
+           WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE
+           ORDER BY created_at DESC LIMIT 1`,
+          [branch_id, service_id]
+        );
+
+        let nextNum = 1;
+        if (lastToken.rows.length) {
+          const lastNum = parseInt(lastToken.rows[0].token_number.replace(/\D/g, ''));
+          nextNum = lastNum + 1;
+        }
+
+        const tokenNumber = `${service.prefix}${String(nextNum).padStart(3, '0')}`;
+        const displayNumber = tokenNumber;
+
+        const insertResult = await client.query(
+          `INSERT INTO queue_tokens
+             (branch_id, service_id, token_number, display_number,
+              is_priority, channel, client_name, client_phone)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+          [branch_id, service_id, tokenNumber, displayNumber,
+           is_priority || false, channel || 'kiosk',
+           client_name || null, client_phone || null]
+        );
+        const token = insertResult.rows[0];
+
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, metadata)
+           VALUES ($1, 'created', $2)`,
+          [token.id, JSON.stringify({ channel: channel || 'kiosk', is_priority })]
+        );
+
+        const estimatedWait =
+          (parseInt(waitingCount.rows[0].count)) * service.avg_attention_min;
+
+        return {
+          token,
+          service,
+          tokenNumber,
+          displayNumber,
+          estimatedWait,
+          waitingCount: parseInt(waitingCount.rows[0].count),
+        };
+      });
+
+      // Fuera de la transacción: notificar Socket.io (efecto secundario externo)
+      io.to(`branch_${branch_id}`).emit('new_token', {
+        token: outcome.token,
+        service_name: outcome.service.name,
+        service_color: outcome.service.color,
+        waiting_count: outcome.waitingCount + 1,
+        estimated_wait: outcome.estimatedWait,
+      });
+
+      console.log(
+        `🎫 Turno generado: ${outcome.tokenNumber} — ${outcome.service.name}` +
+        (attempt > 0 ? ` (retry ${attempt})` : '')
+      );
+      return res.json({
+        success: true,
+        token_number: outcome.tokenNumber,
+        display_number: outcome.displayNumber,
+        service_name: outcome.service.name,
+        service_color: outcome.service.color,
+        estimated_wait_minutes: outcome.estimatedWait,
+        position_in_queue: outcome.waitingCount + 1,
+        token_id: outcome.token.id,
+      });
+    } catch (err) {
+      // Errores funcionales devueltos por la transacción con httpStatus
+      if (err && err.httpStatus) {
+        return res.status(err.httpStatus).json({ error: err.message });
+      }
+
+      // 23505 = unique_violation. Solo reintentamos si es nuestra UNIQUE.
+      const isConflict =
+        err && err.code === '23505' &&
+        (err.constraint === 'queue_tokens_branch_service_date_token_uniq');
+
+      if (isConflict && attempt < TOKEN_INSERT_MAX_RETRIES - 1) {
+        const backoff = TOKEN_INSERT_BACKOFF_MS[attempt] || 200;
+        console.warn(
+          `⚠️ queue.token.conflict_retry attempt=${attempt + 1} branch=${branch_id} ` +
+          `service=${service_id} backoff=${backoff}ms`
+        );
+        await new Promise(r => setTimeout(r, backoff));
+        attempt++;
+        lastError = err;
+        continue;
+      }
+
+      console.error('❌ Error generando turno:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+
+  // Si salimos del while sin return, agotamos retries
+  console.error('❌ Agotados retries en /api/queue/token:', lastError);
+  return res.status(503).json({ error: 'Servicio temporalmente saturado, reintenta' });
 });
 
 // ══════════════════════════════════════════════════════════════
