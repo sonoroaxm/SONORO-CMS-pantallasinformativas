@@ -3410,19 +3410,21 @@ app.post('/api/queue/token', playerLimiter, async (req, res) => {
           throw err;
         }
 
-        // Próximo número correlativo del día — protegido por advisory lock
-        const lastToken = await client.query(
-          `SELECT token_number FROM queue_tokens
-           WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE
-           ORDER BY created_at DESC LIMIT 1`,
+        // Próximo número correlativo del día — protegido por advisory lock.
+        // Usamos MAX(parte_numérica) en lugar de ORDER BY created_at DESC LIMIT 1:
+        // created_at = transaction_start_time (no INSERT time), por lo que bajo
+        // concurrencia la fila con el created_at más alto NO es necesariamente
+        // la del token más alto. MAX sobre el correlativo numérico es determinista.
+        const maxNumRes = await client.query(
+          `SELECT COALESCE(
+             MAX(CAST(regexp_replace(token_number, '\\D', '', 'g') AS INTEGER)),
+             0
+           ) AS max_num
+           FROM queue_tokens
+           WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE`,
           [branch_id, service_id]
         );
-
-        let nextNum = 1;
-        if (lastToken.rows.length) {
-          const lastNum = parseInt(lastToken.rows[0].token_number.replace(/\D/g, ''));
-          nextNum = lastNum + 1;
-        }
+        const nextNum = parseInt(maxNumRes.rows[0].max_num, 10) + 1;
 
         const tokenNumber = `${service.prefix}${String(nextNum).padStart(3, '0')}`;
         const displayNumber = tokenNumber;
