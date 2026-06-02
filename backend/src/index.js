@@ -25,6 +25,7 @@ const emailService = require('./services/email');
 const { withTransaction } = require('./db/withTransaction');
 const queueSerializers = require('./queue/serializers');
 const queueValidation  = require('./queue/validation');
+const queueSlots       = require('./queue/slots');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -3368,6 +3369,27 @@ app.put('/api/queue/agents/:id', authenticateToken, async (req, res) => {
 const TOKEN_INSERT_MAX_RETRIES = 3;
 const TOKEN_INSERT_BACKOFF_MS = [50, 100, 200];
 
+// ─────────────────────────────────────────────────────────────
+// Helper compartido R0 + R1 (sesión 65): próximo correlativo
+// del día para un (branch, service). Aplica MAX(parte numérica)
+// para evitar el bug created_at=transaction_start_time bajo
+// concurrencia. Debe llamarse DENTRO de una transacción que
+// ya tomó el advisory_xact_lock sobre el mismo scope.
+// Devuelve el entero (sin prefijo); el caller formatea.
+// ─────────────────────────────────────────────────────────────
+async function generateNextTokenNumber(client, branchId, serviceId) {
+  const r = await client.query(
+    `SELECT COALESCE(
+       MAX(CAST(regexp_replace(token_number, '\\D', '', 'g') AS INTEGER)),
+       0
+     ) AS max_num
+     FROM queue_tokens
+     WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE`,
+    [branchId, serviceId]
+  );
+  return parseInt(r.rows[0].max_num, 10) + 1;
+}
+
 app.post('/api/queue/token', playerLimiter, async (req, res) => {
   const { branch_id, service_id, is_priority, client_name, client_phone, channel } = req.body;
   if (!branch_id || !service_id) {
@@ -3412,21 +3434,10 @@ app.post('/api/queue/token', playerLimiter, async (req, res) => {
           throw err;
         }
 
-        // Próximo número correlativo del día — protegido por advisory lock.
-        // Usamos MAX(parte_numérica) en lugar de ORDER BY created_at DESC LIMIT 1:
-        // created_at = transaction_start_time (no INSERT time), por lo que bajo
-        // concurrencia la fila con el created_at más alto NO es necesariamente
-        // la del token más alto. MAX sobre el correlativo numérico es determinista.
-        const maxNumRes = await client.query(
-          `SELECT COALESCE(
-             MAX(CAST(regexp_replace(token_number, '\\D', '', 'g') AS INTEGER)),
-             0
-           ) AS max_num
-           FROM queue_tokens
-           WHERE branch_id = $1 AND service_id = $2 AND date_key = CURRENT_DATE`,
-          [branch_id, service_id]
-        );
-        const nextNum = parseInt(maxNumRes.rows[0].max_num, 10) + 1;
+        // Próximo correlativo del día (helper compartido R0+R1, sesión 65).
+        // Comportamiento idéntico al inline previo: MAX(parte numérica)
+        // protegido por el advisory_xact_lock que tomamos arriba.
+        const nextNum = await generateNextTokenNumber(client, branch_id, service_id);
 
         const tokenNumber = `${service.prefix}${String(nextNum).padStart(3, '0')}`;
         const displayNumber = tokenNumber;
@@ -4093,6 +4104,7 @@ const APPT_STATUS_VALID = new Set([
   'pending','confirmed','attended','no_show','cancelled','pending_reschedule'
 ]);
 const APPT_STATUS_PATCHABLE = new Set(['confirmed','cancelled','pending_reschedule']);
+const APPT_ACTIVE_STATUSES  = ['pending','confirmed','attended'];
 
 // Helper: chequea time_blocks que cubran el instante scheduled_at.
 // Cubre tanto bloques específicos del servicio como bloques "todos"
@@ -4543,6 +4555,370 @@ app.delete('/api/queue/appointments/:id', authenticateToken, async (req, res) =>
       return res.status(err.httpStatus).json({ error: err.message });
     }
     console.error('❌ /api/queue/appointments DELETE:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// §2.5 — GET /api/queue/appointments/slots
+// ─────────────────────────────────────────────────────────────
+// Lectura pura (sin transacción). Genera la grilla del día.
+//
+// Fuentes (verificadas SSH sesión 65):
+//   · services.slot_duration_minutes (migración 006) con fallback
+//     COALESCE(slot_duration_minutes, avg_attention_min, 30)
+//   · branches.open_time / branches.close_time (columnas TIME)
+//   · appointments activas del día (status IN pending/confirmed/attended)
+//   · time_blocks que cubran el slot (incluye service_id NULL = "todos")
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/appointments/slots', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { branch_id, service_id, date } = req.query;
+
+    if (!branch_id || !UUID_RE.test(branch_id)) {
+      return res.status(400).json({ error: 'branch_id inválido' });
+    }
+    if (!service_id || !UUID_RE.test(service_id)) {
+      return res.status(400).json({ error: 'service_id inválido' });
+    }
+    const dayKey = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
+      ? date
+      : new Date().toISOString().slice(0, 10);
+
+    // Branch + service: ownership + horario + duración.
+    const branchRes = await pool.query(
+      `SELECT id, open_time, close_time
+         FROM branches
+        WHERE id = $1 AND user_id = $2`,
+      [branch_id, userId]
+    );
+    if (!branchRes.rowCount) {
+      return res.status(404).json({ error: 'Sucursal no encontrada' });
+    }
+    const branch = branchRes.rows[0];
+
+    const svcRes = await pool.query(
+      `SELECT id, slot_duration_minutes, avg_attention_min
+         FROM services
+        WHERE id = $1 AND branch_id = $2`,
+      [service_id, branch_id]
+    );
+    if (!svcRes.rowCount) {
+      return res.status(404).json({ error: 'Servicio no encontrado' });
+    }
+    const svc = svcRes.rows[0];
+    const stepMinutes = svc.slot_duration_minutes || svc.avg_attention_min || 30;
+
+    // Citas activas del día → set de ISO strings de scheduled_at.
+    const apptRes = await pool.query(
+      `SELECT scheduled_at FROM appointments
+        WHERE user_id = $1
+          AND branch_id = $2
+          AND service_id = $3
+          AND scheduled_at::date = $4::date
+          AND status = ANY($5)`,
+      [userId, branch_id, service_id, dayKey, APPT_ACTIVE_STATUSES]
+    );
+    const occupied = new Set(
+      apptRes.rows.map(r => new Date(r.scheduled_at).toISOString())
+    );
+
+    // time_blocks que toquen el día — específicos del servicio o "todos" (NULL).
+    const blockRes = await pool.query(
+      `SELECT starts_at, ends_at FROM time_blocks
+        WHERE branch_id = $1
+          AND (service_id IS NULL OR service_id = $2)
+          AND tstzrange(starts_at, ends_at, '[)')
+              && tstzrange(($3::date)::timestamptz,
+                           ($3::date + INTERVAL '1 day')::timestamptz, '[)')`,
+      [branch_id, service_id, dayKey]
+    );
+
+    const grid = queueSlots.buildSlotsGrid({
+      date:          dayKey,
+      openTime:      branch.open_time,
+      closeTime:     branch.close_time,
+      stepMinutes,
+      occupiedSet:   occupied,
+      blockedRanges: blockRes.rows,
+    });
+
+    return res.json(grid);
+  } catch (err) {
+    console.error('❌ /api/queue/appointments/slots GET:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// §2.6 — POST /api/queue/appointments/:id/confirm-presence
+// ─────────────────────────────────────────────────────────────
+// Auth en R1: SOLO authenticateToken (admin/agente). El path kiosko
+// con X-Branch-Token requiere migración 007 (branches.kiosk_token)
+// + endpoint rotate-kiosk-token → diferido a sesión 66.
+//
+// Respuesta uniforme anti-enumeración: TODA condición de no-match
+// devuelve 200 OK con { confirmed: false }. Solo errores de schema
+// (400) o fallo transaccional (500) escapan al patrón.
+//
+// En match: UPDATE status='attended' + INSERT queue_tokens con
+// link al appointment + INSERT token_events + emit appointment.confirmed
+// post-commit en user_${id} y branch_${id}.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const apptId = req.params.id;
+  const { client_id_number, branch_id } = req.body || {};
+
+  // Validación de schema (única vía que escapa anti-enumeración).
+  if (!apptId || !UUID_RE.test(apptId)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+  if (!branch_id || !UUID_RE.test(branch_id)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  const vId = queueValidation.validateClientIdNumber(client_id_number);
+  if (!vId.ok) return res.status(400).json({ error: vId.error });
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // Match exigente: id + branch + cédula + status='confirmed' + hoy + tenant.
+      // El JOIN con branches garantiza el filtro por user_id sin tocar appointments.user_id
+      // (cubre el caso de citas legacy si las hubiera). Aun así appointments.user_id es NOT NULL
+      // post-migración 002.
+      const matchRes = await client.query(
+        `SELECT a.*
+           FROM appointments a
+           JOIN branches b ON b.id = a.branch_id
+          WHERE a.id = $1
+            AND a.branch_id = $2
+            AND b.user_id = $3
+            AND a.user_id = $3
+            AND a.client_id_number = $4
+            AND a.status = 'confirmed'
+            AND a.scheduled_at::date = CURRENT_DATE
+          FOR UPDATE OF a`,
+        [apptId, branch_id, userId, vId.value]
+      );
+
+      if (!matchRes.rowCount) {
+        // No-match: NO se hace nada — la transacción confirma vacía.
+        return { confirmed: false };
+      }
+      const appt = matchRes.rows[0];
+
+      // Servicio para componer el token_number (prefijo) y wait.
+      const svcRes = await client.query(
+        `SELECT id, prefix, avg_attention_min FROM services WHERE id = $1`,
+        [appt.service_id]
+      );
+      if (!svcRes.rowCount) {
+        // Defensivo (no debería pasar — FK). Si pasa, no leakeamos info: no-match.
+        return { confirmed: false };
+      }
+      const svc = svcRes.rows[0];
+
+      // Advisory lock por scope (branch, service, hoy) — mismo patrón R0
+      // para serializar la generación de correlativo.
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text)
+         )`,
+        [appt.branch_id, appt.service_id]
+      );
+
+      const nextNum = await generateNextTokenNumber(client, appt.branch_id, appt.service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      // INSERT del token vinculado a la cita.
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'appointment',$4,$5,$6)
+         RETURNING *`,
+        [
+          appt.branch_id, appt.service_id, tokenNumber,
+          appt.client_name, appt.client_phone, appt.id,
+        ]
+      );
+      const token = tokenRes.rows[0];
+
+      // Telemetría queue v1 (consistencia con POST /api/queue/token).
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, metadata)
+         VALUES ($1, 'appointment_confirmed', $2)`,
+        [token.id, JSON.stringify({ appointment_id: appt.id, method: 'cedula' })]
+      );
+
+      // Transición de la cita.
+      const upd = await client.query(
+        `UPDATE appointments
+            SET status = 'attended'
+          WHERE id = $1
+        RETURNING *`,
+        [appt.id]
+      );
+
+      // Cola actual para estimar posición + espera.
+      const waitingRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE
+            AND status = 'waiting'`,
+        [appt.branch_id, appt.service_id]
+      );
+      const queuePosition = waitingRes.rows[0].n; // el token recién creado entra como 'waiting' → cuenta incluida
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return {
+        confirmed: true,
+        appointment: upd.rows[0],
+        token,
+        tokenNumber,
+        queuePosition,
+        estimatedWaitMinutes,
+      };
+    });
+
+    if (!outcome.confirmed) {
+      return res.json({ confirmed: false });
+    }
+
+    // Post-commit: emit appointment.confirmed.
+    const payload = {
+      id:           outcome.appointment.id,
+      branch_id:    outcome.appointment.branch_id,
+      token_id:     outcome.token.id,
+      token_number: outcome.tokenNumber,
+      method:       'cedula',
+    };
+    io.to(`user_${outcome.appointment.user_id}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.appointment.branch_id}`).emit('appointment.confirmed', payload);
+
+    // También notificamos la cola (paridad con POST /api/queue/token).
+    io.to(`branch_${outcome.appointment.branch_id}`).emit('new_token', {
+      token: outcome.token,
+      is_appointment: true,
+      waiting_count: outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(
+      `📅 appointment.confirmed id=${outcome.appointment.id} token=${outcome.tokenNumber}`
+    );
+    return res.json({
+      confirmed: true,
+      token_number: outcome.tokenNumber,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position: outcome.queuePosition,
+    });
+
+  } catch (err) {
+    console.error('❌ /api/queue/appointments/:id/confirm-presence:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.7 — PATCH /api/queue/branches/:id/operation-mode
+// Cambia branches.operation_mode entre los 3 valores permitidos
+// ('queue_only' | 'appointments_only' | 'queue_and_appointments')
+// bajo withTransaction (es un UPDATE simple pero seguimos el
+// patrón obligatorio del framework §3.1) con filtrado de tenancy.
+//
+// Auth: authenticateToken — solo el dueño del tenant puede mutar
+// el modo de operación de sus propias branches.
+//
+// Emite post-commit `branch.operation_mode.changed` con prev/new
+// en las salas user_${userId} y branch_${branchId} (sanitizado
+// idéntico — no hay PII en el payload).
+// ─────────────────────────────────────────────────────────────
+const BRANCH_OPERATION_MODES = ['queue_only', 'appointments_only', 'queue_and_appointments'];
+
+app.patch('/api/queue/branches/:id/operation-mode', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const branchId = req.params.id;
+  const { operation_mode } = req.body || {};
+
+  if (!branchId || !UUID_RE.test(branchId)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+  if (typeof operation_mode !== 'string' || !BRANCH_OPERATION_MODES.includes(operation_mode)) {
+    return res.status(400).json({
+      error: `operation_mode debe ser uno de: ${BRANCH_OPERATION_MODES.join(', ')}`,
+    });
+  }
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // SELECT FOR UPDATE filtrado por tenant: evita race condition si dos
+      // clientes del mismo user_id mutan a la vez, y previene cross-tenant.
+      const cur = await client.query(
+        `SELECT id, user_id, operation_mode
+           FROM branches
+          WHERE id = $1 AND user_id = $2
+          FOR UPDATE`,
+        [branchId, userId]
+      );
+      if (cur.rowCount === 0) {
+        const e = new Error('Branch no encontrada');
+        e.httpStatus = 404;
+        throw e;
+      }
+      const prev = cur.rows[0].operation_mode;
+
+      // No-op explícito: si ya está en el modo solicitado, salimos sin UPDATE
+      // ni emit (idempotencia barata, sin escritura inútil).
+      if (prev === operation_mode) {
+        return { branchId, userId, prev, next: prev, changed: false };
+      }
+
+      const upd = await client.query(
+        `UPDATE branches
+            SET operation_mode = $1,
+                updated_at = NOW()
+          WHERE id = $2 AND user_id = $3
+        RETURNING id, operation_mode, updated_at`,
+        [operation_mode, branchId, userId]
+      );
+      return {
+        branchId,
+        userId,
+        prev,
+        next: upd.rows[0].operation_mode,
+        updatedAt: upd.rows[0].updated_at,
+        changed: true,
+      };
+    });
+
+    if (outcome.changed) {
+      const payload = {
+        branch_id:      outcome.branchId,
+        previous_mode:  outcome.prev,
+        operation_mode: outcome.next,
+        updated_at:     outcome.updatedAt,
+      };
+      io.to(`user_${outcome.userId}`).emit('branch.operation_mode.changed', payload);
+      io.to(`branch_${outcome.branchId}`).emit('branch.operation_mode.changed', payload);
+      console.log(
+        `🔧 branch.operation_mode.changed branch=${outcome.branchId} ${outcome.prev}→${outcome.next}`
+      );
+    }
+
+    return res.json({
+      branch_id:      outcome.branchId,
+      operation_mode: outcome.next,
+      previous_mode:  outcome.prev,
+      changed:        outcome.changed,
+    });
+  } catch (err) {
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    console.error('❌ PATCH /api/queue/branches/:id/operation-mode:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
