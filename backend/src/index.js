@@ -23,6 +23,8 @@ function isValidIP(ip) {
 }
 const emailService = require('./services/email');
 const { withTransaction } = require('./db/withTransaction');
+const queueSerializers = require('./queue/serializers');
+const queueValidation  = require('./queue/validation');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -4059,6 +4061,490 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
 
     res.json({ tokens: result.rows, total: parseInt(total.rows[0].count), limit: lim, offset: off });
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R1 · CITAS — §2.1–§2.4 (POST / GET / PATCH / DELETE appointments)
+// ══════════════════════════════════════════════════════════════
+// Framework Queue v2, R1-PLAN v1.3.
+//   §2.1  POST   /api/queue/appointments        — crear cita
+//   §2.2  GET    /api/queue/appointments        — listar
+//   §2.3  PATCH  /api/queue/appointments/:id    — actualizar
+//   §2.4  DELETE /api/queue/appointments/:id    — cancelar (soft)
+//
+// Reglas duras aplicadas:
+//   · Principio 1 — todo mutador usa withTransaction()
+//   · Principio 2 — toda query filtra por req.user.id
+//   · Principio 4 — ADD-only respecto a Queue v1 (cero cambio walk-in)
+//   · Principio 5 — TIMESTAMPTZ siempre, UUID para branch/service
+//   · §3.1        — eventos Socket.io SOLO post-COMMIT
+//   · §3.4        — payloads admin con precio, payloads branch sin precio
+//
+// Defensas en concurrencia (patrón R0):
+//   · advisory lock por (branch_id, service_id, scheduled_at_iso)
+//   · UNIQUE parcial appointments_branch_service_slot_uniq como backstop
+//   · retry [50,100,200]ms si 23505 (SLOT_TAKEN)
+// ══════════════════════════════════════════════════════════════
+
+const APPT_INSERT_MAX_RETRIES = 3;
+const APPT_INSERT_BACKOFF_MS  = [50, 100, 200];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const APPT_STATUS_VALID = new Set([
+  'pending','confirmed','attended','no_show','cancelled','pending_reschedule'
+]);
+const APPT_STATUS_PATCHABLE = new Set(['confirmed','cancelled','pending_reschedule']);
+
+// Helper: chequea time_blocks que cubran el instante scheduled_at.
+// Cubre tanto bloques específicos del servicio como bloques "todos"
+// (service_id IS NULL). Ejecutar dentro de la transacción.
+async function isSlotBlocked(client, branchId, serviceId, scheduledAt) {
+  const r = await client.query(
+    `SELECT 1 FROM time_blocks
+      WHERE branch_id = $1
+        AND tstzrange(starts_at, ends_at, '[)') @> $2::timestamptz
+        AND (service_id IS NULL OR service_id = $3)
+      LIMIT 1`,
+    [branchId, scheduledAt, serviceId]
+  );
+  return r.rowCount > 0;
+}
+
+// Helper: parsea y valida scheduled_at + skew permitido (5 min al pasado).
+function parseScheduledAt(raw) {
+  if (!raw) return { ok: false, error: 'scheduled_at es requerido' };
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) {
+    return { ok: false, error: 'scheduled_at inválido (ISO 8601 requerido)' };
+  }
+  const skewMs = 5 * 60 * 1000;
+  if (d.getTime() < Date.now() - skewMs) {
+    return { ok: false, error: 'scheduled_at debe ser futuro' };
+  }
+  return { ok: true, value: d };
+}
+
+// ─────────────────────────────────────────────────────────────
+// §2.1 — POST /api/queue/appointments
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const {
+    branch_id, service_id,
+    client_name, client_phone, client_email, client_id_number,
+    scheduled_at, agent_id,
+    origin, parent_token_id,
+  } = req.body || {};
+
+  if (!branch_id || !UUID_RE.test(branch_id)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  if (!service_id || !UUID_RE.test(service_id)) {
+    return res.status(400).json({ error: 'service_id inválido' });
+  }
+
+  const vName  = queueValidation.validateClientName(client_name);
+  if (!vName.ok)  return res.status(400).json({ error: vName.error });
+  const vPhone = queueValidation.validateClientPhone(client_phone);
+  if (!vPhone.ok) return res.status(400).json({ error: vPhone.error });
+  const vId    = queueValidation.validateClientIdNumber(client_id_number);
+  if (!vId.ok)    return res.status(400).json({ error: vId.error });
+
+  const vSched = parseScheduledAt(scheduled_at);
+  if (!vSched.ok) return res.status(400).json({ error: vSched.error });
+
+  const originVal = origin || 'admin';
+  if (!['admin','follow_up','kiosk_future'].includes(originVal)) {
+    return res.status(400).json({ error: 'origin inválido' });
+  }
+  if (originVal === 'follow_up' && (!parent_token_id || !UUID_RE.test(parent_token_id))) {
+    return res.status(400).json({ error: 'parent_token_id requerido para origin=follow_up' });
+  }
+
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt < APPT_INSERT_MAX_RETRIES) {
+    try {
+      const created = await withTransaction(pool, async (client) => {
+        // Lock por slot exacto — serializa requests concurrentes al mismo slot.
+        await client.query(
+          `SELECT pg_advisory_xact_lock(
+             hashtext($1::text || ':' || $2::text || ':' || $3::text)
+           )`,
+          [branch_id, service_id, vSched.value.toISOString()]
+        );
+
+        const branchRes = await client.query(
+          `SELECT id FROM branches WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+          [branch_id, userId]
+        );
+        if (!branchRes.rowCount) {
+          const e = new Error('Sucursal no encontrada'); e.httpStatus = 404; throw e;
+        }
+        const svcRes = await client.query(
+          `SELECT id, price, currency FROM services WHERE id = $1 AND branch_id = $2`,
+          [service_id, branch_id]
+        );
+        if (!svcRes.rowCount) {
+          const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+        }
+        const svc = svcRes.rows[0];
+
+        if (originVal === 'follow_up') {
+          const tkRes = await client.query(
+            `SELECT qt.id
+               FROM queue_tokens qt
+               JOIN branches b ON b.id = qt.branch_id
+              WHERE qt.id = $1 AND b.user_id = $2`,
+            [parent_token_id, userId]
+          );
+          if (!tkRes.rowCount) {
+            const e = new Error('parent_token_id no encontrado'); e.httpStatus = 404; throw e;
+          }
+        }
+
+        if (await isSlotBlocked(client, branch_id, service_id, vSched.value.toISOString())) {
+          const e = new Error('El slot está bloqueado');
+          e.httpStatus = 409; e.code = 'BLOCKED'; throw e;
+        }
+
+        // Snapshot inmutable de precio/moneda al momento del booking (DoD #3).
+        const priceSnapshot    = svc.price ?? null;
+        const currencySnapshot = svc.currency ?? null;
+
+        const ins = await client.query(
+          `INSERT INTO appointments (
+             user_id, branch_id, service_id,
+             client_name, client_phone, client_email, client_id_number,
+             scheduled_at, status, origin,
+             parent_token_id, created_by, agent_id,
+             price_at_booking, currency_at_booking
+           ) VALUES (
+             $1,$2,$3,$4,$5,$6,$7,$8,'pending',$9,$10,$11,$12,$13,$14
+           ) RETURNING *`,
+          [
+            userId, branch_id, service_id,
+            vName.value, vPhone.value, client_email || null, vId.value,
+            vSched.value.toISOString(), originVal,
+            originVal === 'follow_up' ? parent_token_id : null,
+            userId,
+            agent_id || null,
+            priceSnapshot, currencySnapshot,
+          ]
+        );
+        return ins.rows[0];
+      });
+
+      // Post-commit (§3.1): sanitización por sala (§3.4).
+      io.to(`user_${created.user_id}`).emit(
+        'appointment.created', queueSerializers.serializeForAdmin(created)
+      );
+      io.to(`branch_${created.branch_id}`).emit(
+        'appointment.created', queueSerializers.serializeForBranch(created)
+      );
+      console.log(
+        `📅 appointment.created id=${created.id} branch=${branch_id} ` +
+        `service=${service_id}` + (attempt > 0 ? ` (retry ${attempt})` : '')
+      );
+      return res.status(201).json(queueSerializers.serializeForAdmin(created));
+
+    } catch (err) {
+      if (err && err.httpStatus) {
+        const body = { error: err.message };
+        if (err.code) body.code = err.code;
+        return res.status(err.httpStatus).json(body);
+      }
+
+      const isConflict =
+        err && err.code === '23505' &&
+        err.constraint === 'appointments_branch_service_slot_uniq';
+
+      if (isConflict && attempt < APPT_INSERT_MAX_RETRIES - 1) {
+        const backoff = APPT_INSERT_BACKOFF_MS[attempt] || 200;
+        console.warn(
+          `⚠️ appointment.conflict_retry attempt=${attempt + 1} ` +
+          `branch=${branch_id} service=${service_id} backoff=${backoff}ms`
+        );
+        await new Promise(r => setTimeout(r, backoff));
+        attempt++; lastError = err;
+        continue;
+      }
+
+      if (isConflict) {
+        return res.status(409).json({ error: 'Slot ya reservado', code: 'SLOT_TAKEN' });
+      }
+
+      console.error('❌ /api/queue/appointments POST:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+
+  console.error('❌ Agotados retries en POST /appointments:', lastError);
+  return res.status(503).json({ error: 'Servicio temporalmente saturado, reintenta' });
+});
+
+// ─────────────────────────────────────────────────────────────
+// §2.2 — GET /api/queue/appointments
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/appointments', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { branch_id, date, status } = req.query;
+
+    if (!branch_id || !UUID_RE.test(branch_id)) {
+      return res.status(400).json({ error: 'branch_id inválido' });
+    }
+
+    const dayKey = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
+      ? date
+      : new Date().toISOString().slice(0, 10);
+
+    let statusList;
+    if (status) {
+      statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
+      const invalid = statusList.find(s => !APPT_STATUS_VALID.has(s));
+      if (invalid) return res.status(400).json({ error: `status inválido: ${invalid}` });
+    } else {
+      statusList = ['pending','confirmed','attended','no_show','pending_reschedule'];
+    }
+
+    let page     = parseInt(req.query.page, 10);
+    if (!Number.isFinite(page) || page < 1) page = 1;
+    let pageSize = parseInt(req.query.page_size, 10);
+    if (!Number.isFinite(pageSize) || pageSize < 1) pageSize = 50;
+    if (pageSize > 200) pageSize = 200;
+    const offset = (page - 1) * pageSize;
+
+    const baseParams = [userId, branch_id, dayKey, statusList];
+
+    const totalRes = await pool.query(
+      `SELECT COUNT(*) FROM appointments
+        WHERE user_id = $1
+          AND branch_id = $2
+          AND scheduled_at::date = $3::date
+          AND status = ANY($4)`,
+      baseParams
+    );
+    const total = parseInt(totalRes.rows[0].count, 10);
+
+    const rowsRes = await pool.query(
+      `SELECT * FROM appointments
+        WHERE user_id = $1
+          AND branch_id = $2
+          AND scheduled_at::date = $3::date
+          AND status = ANY($4)
+        ORDER BY scheduled_at ASC, id ASC
+        LIMIT $5 OFFSET $6`,
+      [...baseParams, pageSize, offset]
+    );
+
+    return res.json({
+      items:     rowsRes.rows.map(queueSerializers.serializeForAdmin),
+      page,
+      page_size: pageSize,
+      total,
+    });
+  } catch (err) {
+    console.error('❌ /api/queue/appointments GET:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Helper compartido §2.3 + §2.4: aplica un patch dentro de
+// una transacción, calcula diff y devuelve {row, prevRow, changes}.
+// El caller emite el evento Socket.io que corresponda post-commit.
+// ─────────────────────────────────────────────────────────────
+async function applyAppointmentPatch(userId, apptId, patch) {
+  return withTransaction(pool, async (client) => {
+    const lockRes = await client.query(
+      `SELECT * FROM appointments
+        WHERE id = $1 AND user_id = $2
+        FOR UPDATE`,
+      [apptId, userId]
+    );
+    if (!lockRes.rowCount) {
+      const e = new Error('Cita no encontrada'); e.httpStatus = 404; throw e;
+    }
+    const prev = lockRes.rows[0];
+
+    const sets = [];
+    const vals = [];
+    const changes = {};
+    const push = (col, val) => { vals.push(val); sets.push(`${col} = $${vals.length}`); };
+
+    if (patch.client_name !== undefined) {
+      const v = queueValidation.validateClientName(patch.client_name);
+      if (!v.ok) { const e = new Error(v.error); e.httpStatus = 400; throw e; }
+      if (v.value !== prev.client_name) {
+        push('client_name', v.value);
+        changes.client_name = [prev.client_name, v.value];
+      }
+    }
+    if (patch.client_phone !== undefined) {
+      const v = queueValidation.validateClientPhone(patch.client_phone);
+      if (!v.ok) { const e = new Error(v.error); e.httpStatus = 400; throw e; }
+      if (v.value !== prev.client_phone) {
+        push('client_phone', v.value);
+        changes.client_phone = [prev.client_phone, v.value];
+      }
+    }
+    if (patch.client_email !== undefined) {
+      const v = patch.client_email === null ? null : String(patch.client_email).trim();
+      if (v !== prev.client_email) {
+        push('client_email', v);
+        changes.client_email = [prev.client_email, v];
+      }
+    }
+    if (patch.agent_id !== undefined) {
+      const v = patch.agent_id === null ? null : parseInt(patch.agent_id, 10);
+      if (v !== null && !Number.isFinite(v)) {
+        const e = new Error('agent_id inválido'); e.httpStatus = 400; throw e;
+      }
+      if (v !== prev.agent_id) {
+        push('agent_id', v);
+        changes.agent_id = [prev.agent_id, v];
+      }
+    }
+
+    let nextScheduledAt = prev.scheduled_at;
+    let nextServiceId   = prev.service_id;
+    let slotChanged     = false;
+
+    if (patch.scheduled_at !== undefined) {
+      const v = parseScheduledAt(patch.scheduled_at);
+      if (!v.ok) { const e = new Error(v.error); e.httpStatus = 400; throw e; }
+      if (v.value.getTime() !== new Date(prev.scheduled_at).getTime()) {
+        nextScheduledAt = v.value.toISOString();
+        push('scheduled_at', nextScheduledAt);
+        changes.scheduled_at = [prev.scheduled_at, nextScheduledAt];
+        slotChanged = true;
+      }
+    }
+    if (patch.service_id !== undefined) {
+      if (!UUID_RE.test(patch.service_id)) {
+        const e = new Error('service_id inválido'); e.httpStatus = 400; throw e;
+      }
+      if (patch.service_id !== prev.service_id) {
+        const svcRes = await client.query(
+          `SELECT id FROM services WHERE id = $1 AND branch_id = $2`,
+          [patch.service_id, prev.branch_id]
+        );
+        if (!svcRes.rowCount) {
+          const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+        }
+        nextServiceId = patch.service_id;
+        push('service_id', nextServiceId);
+        changes.service_id = [prev.service_id, nextServiceId];
+        slotChanged = true;
+      }
+    }
+
+    if (patch.status !== undefined) {
+      if (!APPT_STATUS_PATCHABLE.has(patch.status)) {
+        const e = new Error(`status no patchable vía API: ${patch.status}`);
+        e.httpStatus = 400; throw e;
+      }
+      if (patch.status !== prev.status) {
+        push('status', patch.status);
+        changes.status = [prev.status, patch.status];
+      }
+    }
+
+    // price_at_booking / currency_at_booking → inmutables (silent ignore §2.3).
+
+    if (slotChanged) {
+      if (await isSlotBlocked(client, prev.branch_id, nextServiceId, nextScheduledAt)) {
+        const e = new Error('El slot está bloqueado');
+        e.httpStatus = 409; e.code = 'BLOCKED'; throw e;
+      }
+    }
+
+    if (sets.length === 0) {
+      return { row: prev, prevRow: prev, changes };
+    }
+
+    vals.push(apptId, userId);
+    const upd = await client.query(
+      `UPDATE appointments SET ${sets.join(', ')}
+        WHERE id = $${vals.length - 1} AND user_id = $${vals.length}
+        RETURNING *`,
+      vals
+    );
+    return { row: upd.rows[0], prevRow: prev, changes };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// §2.3 — PATCH /api/queue/appointments/:id
+// ─────────────────────────────────────────────────────────────
+app.patch('/api/queue/appointments/:id', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const apptId = req.params.id;
+  if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
+
+  try {
+    const { row, changes } = await applyAppointmentPatch(userId, apptId, req.body || {});
+
+    if (Object.keys(changes).length > 0) {
+      io.to(`user_${row.user_id}`).emit('appointment.updated', {
+        ...queueSerializers.serializeForAdmin(row),
+        changes,
+      });
+      io.to(`branch_${row.branch_id}`).emit('appointment.updated', {
+        ...queueSerializers.serializeForBranch(row),
+        changed_fields: Object.keys(changes),
+      });
+      console.log(`📅 appointment.updated id=${row.id} fields=${Object.keys(changes).join(',')}`);
+    }
+    return res.json(queueSerializers.serializeForAdmin(row));
+  } catch (err) {
+    if (err && err.httpStatus) {
+      const body = { error: err.message };
+      if (err.code) body.code = err.code;
+      return res.status(err.httpStatus).json(body);
+    }
+    if (err && err.code === '23505' &&
+        err.constraint === 'appointments_branch_service_slot_uniq') {
+      return res.status(409).json({ error: 'Slot ya reservado', code: 'SLOT_TAKEN' });
+    }
+    console.error('❌ /api/queue/appointments PATCH:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// §2.4 — DELETE /api/queue/appointments/:id  (soft delete)
+// ─────────────────────────────────────────────────────────────
+app.delete('/api/queue/appointments/:id', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const apptId = req.params.id;
+  if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
+
+  try {
+    const { row, prevRow, changes } = await applyAppointmentPatch(
+      userId, apptId, { status: 'cancelled' }
+    );
+
+    if (changes.status) {
+      const payload = {
+        id:           row.id,
+        branch_id:    row.branch_id,
+        prev_status:  prevRow.status,
+        cancelled_at: row.updated_at,
+      };
+      io.to(`user_${row.user_id}`).emit('appointment.cancelled', payload);
+      io.to(`branch_${row.branch_id}`).emit('appointment.cancelled', payload);
+      console.log(`📅 appointment.cancelled id=${row.id} prev=${prevRow.status}`);
+    }
+    return res.json({ ok: true, id: row.id, status: row.status });
+  } catch (err) {
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    console.error('❌ /api/queue/appointments DELETE:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
