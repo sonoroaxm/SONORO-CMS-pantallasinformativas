@@ -26,6 +26,7 @@ const { withTransaction } = require('./db/withTransaction');
 const queueSerializers = require('./queue/serializers');
 const queueValidation  = require('./queue/validation');
 const queueSlots       = require('./queue/slots');
+const queueTimeBlocks  = require('./queue/timeBlocks');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -304,6 +305,48 @@ function authenticateToken(req, res, next) {
     req.user = user;
     next();
   });
+}
+
+// Validador del kiosko (Queue v2 R1 §2.6 — auth por X-Branch-Token).
+// Resuelve la branch a partir del UUID en el header y la deja en req.branch.
+// Anti-enumeración (D5 sesión 66): 401 si header ausente, malformado o no
+// encuentra branch activa. La diferenciación de "no encontrado" vs "encontrado
+// pero fuera de horario / sin appointment" se delega al endpoint para que el
+// 401 cubra solo "credencial inválida" y todo el resto sea 200 {confirmed:false}.
+const KIOSK_TOKEN_HEADER = 'x-branch-token';
+function validateKioskToken(req, res, next) {
+  const headerVal = req.headers[KIOSK_TOKEN_HEADER];
+  const token = typeof headerVal === 'string' ? headerVal.trim() : null;
+  if (!token || !UUID_RE.test(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  pool.query(
+    `SELECT id, user_id, name, timezone, open_time, close_time,
+            operation_mode, appointments_enabled, queue_enabled, active
+       FROM branches
+      WHERE kiosk_token = $1
+      LIMIT 1`,
+    [token]
+  ).then((r) => {
+    if (r.rowCount === 0 || r.rows[0].active === false) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    req.branch = r.rows[0];
+    next();
+  }).catch((err) => {
+    console.error('❌ validateKioskToken:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  });
+}
+
+// Resuelve el modo de autenticación de un endpoint dual (admin + kiosko).
+// Si llega X-Branch-Token, valida como kiosko (req.branch). En caso contrario,
+// cae a authenticateToken (req.user). Solo uno de los dos termina seteado.
+function requireAdminOrKiosk(req, res, next) {
+  if (typeof req.headers[KIOSK_TOKEN_HEADER] === 'string') {
+    return validateKioskToken(req, res, next);
+  }
+  return authenticateToken(req, res, next);
 }
 
 // ========================================
@@ -4654,22 +4697,33 @@ app.get('/api/queue/appointments/slots', authenticateToken, async (req, res) => 
 // ─────────────────────────────────────────────────────────────
 // §2.6 — POST /api/queue/appointments/:id/confirm-presence
 // ─────────────────────────────────────────────────────────────
-// Auth en R1: SOLO authenticateToken (admin/agente). El path kiosko
-// con X-Branch-Token requiere migración 007 (branches.kiosk_token)
-// + endpoint rotate-kiosk-token → diferido a sesión 66.
+// Auth dual (sesión 66, decisiones D4+D5):
+//   - Admin/agente vía Authorization: Bearer <JWT> → req.user
+//   - Kiosko vía X-Branch-Token: <UUID>            → req.branch
+// requireAdminOrKiosk decide según presencia del header X-Branch-Token.
 //
 // Respuesta uniforme anti-enumeración: TODA condición de no-match
 // devuelve 200 OK con { confirmed: false }. Solo errores de schema
 // (400) o fallo transaccional (500) escapan al patrón.
 //
+// Diferencias por path:
+//   - Admin: branch_id obligatorio en body; userId desde JWT.
+//   - Kiosko: branch_id IGNORA body (viene de req.branch.id); userId
+//             se obtiene de la branch resuelta; validación adicional
+//             de horario (open_time/close_time en timezone de la branch)
+//             como defense-in-depth — fuera de horario → no-match.
+//
 // En match: UPDATE status='attended' + INSERT queue_tokens con
 // link al appointment + INSERT token_events + emit appointment.confirmed
-// post-commit en user_${id} y branch_${id}.
+// post-commit en user_${id} y branch_${id}. Telemetría incluye confirmed_via.
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, async (req, res) => {
-  const userId = req.user.id;
+app.post('/api/queue/appointments/:id/confirm-presence', requireAdminOrKiosk, async (req, res) => {
+  const isKiosk = !!req.branch;
+  const userId = isKiosk ? req.branch.user_id : req.user.id;
+  const branch_id = isKiosk ? req.branch.id : (req.body && req.body.branch_id);
+  const confirmedVia = isKiosk ? 'kiosk' : 'admin';
   const apptId = req.params.id;
-  const { client_id_number, branch_id } = req.body || {};
+  const { client_id_number } = req.body || {};
 
   // Validación de schema (única vía que escapa anti-enumeración).
   if (!apptId || !UUID_RE.test(apptId)) {
@@ -4688,7 +4742,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, asyn
       // (cubre el caso de citas legacy si las hubiera). Aun así appointments.user_id es NOT NULL
       // post-migración 002.
       const matchRes = await client.query(
-        `SELECT a.*
+        `SELECT a.*, b.timezone AS branch_tz, b.open_time AS branch_open, b.close_time AS branch_close
            FROM appointments a
            JOIN branches b ON b.id = a.branch_id
           WHERE a.id = $1
@@ -4707,6 +4761,24 @@ app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, asyn
         return { confirmed: false };
       }
       const appt = matchRes.rows[0];
+
+      // Defense-in-depth para kiosko: verificar que la hora actual en el
+      // timezone de la branch está dentro del rango [open_time, close_time].
+      // Si no, tratamos como no-match (anti-enumeración). El admin puede
+      // confirmar fuera de horario (excepciones operativas).
+      if (isKiosk) {
+        const tz = appt.branch_tz || 'America/Bogota';
+        const tzCheck = await client.query(
+          `SELECT (
+             (NOW() AT TIME ZONE $1)::time >= $2::time
+             AND (NOW() AT TIME ZONE $1)::time <  $3::time
+           ) AS in_window`,
+          [tz, appt.branch_open || '00:00:00', appt.branch_close || '23:59:59']
+        );
+        if (!tzCheck.rows[0].in_window) {
+          return { confirmed: false };
+        }
+      }
 
       // Servicio para componer el token_number (prefijo) y wait.
       const svcRes = await client.query(
@@ -4750,7 +4822,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, asyn
       await client.query(
         `INSERT INTO token_events (token_id, event_type, metadata)
          VALUES ($1, 'appointment_confirmed', $2)`,
-        [token.id, JSON.stringify({ appointment_id: appt.id, method: 'cedula' })]
+        [token.id, JSON.stringify({ appointment_id: appt.id, method: 'cedula', via: confirmedVia })]
       );
 
       // Transición de la cita.
@@ -4794,6 +4866,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, asyn
       token_id:     outcome.token.id,
       token_number: outcome.tokenNumber,
       method:       'cedula',
+      via:          confirmedVia,
     };
     io.to(`user_${outcome.appointment.user_id}`).emit('appointment.confirmed', payload);
     io.to(`branch_${outcome.appointment.branch_id}`).emit('appointment.confirmed', payload);
@@ -4807,7 +4880,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', authenticateToken, asyn
     });
 
     console.log(
-      `📅 appointment.confirmed id=${outcome.appointment.id} token=${outcome.tokenNumber}`
+      `📅 appointment.confirmed id=${outcome.appointment.id} token=${outcome.tokenNumber} via=${confirmedVia}`
     );
     return res.json({
       confirmed: true,
@@ -4919,6 +4992,256 @@ app.patch('/api/queue/branches/:id/operation-mode', authenticateToken, async (re
       return res.status(err.httpStatus).json({ error: err.message });
     }
     console.error('❌ PATCH /api/queue/branches/:id/operation-mode:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.6.b — POST /api/queue/branches/:id/kiosk-token/rotate
+// Rota el UUID kiosk_token de una branch. Invalida cualquier kiosko
+// conectado con el token anterior; el admin debe propagar el nuevo
+// a la tablet/pantalla manualmente.
+//
+// Auth: solo admin (authenticateToken). El nuevo token se devuelve
+// EN EL CUERPO HTTP (única exhibición); el evento socket NO lo
+// incluye para no filtrarlo en logs ni a otros clientes.
+//
+// Telemetría: branch.kiosk_token.rotated emitido SOLO en
+// user_${userId} (jamás en branch_${id} — los kioskos escuchan ahí
+// y no deben recibir el secreto rotado).
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/branches/:id/kiosk-token/rotate', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const branchId = req.params.id;
+  if (!branchId || !UUID_RE.test(branchId)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      const cur = await client.query(
+        `SELECT id, user_id FROM branches WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+        [branchId, userId]
+      );
+      if (cur.rowCount === 0) {
+        const e = new Error('Branch no encontrada');
+        e.httpStatus = 404;
+        throw e;
+      }
+      const upd = await client.query(
+        `UPDATE branches
+            SET kiosk_token = gen_random_uuid(),
+                updated_at  = NOW()
+          WHERE id = $1 AND user_id = $2
+        RETURNING id, kiosk_token, updated_at`,
+        [branchId, userId]
+      );
+      return {
+        branchId,
+        userId,
+        kioskToken: upd.rows[0].kiosk_token,
+        rotatedAt:  upd.rows[0].updated_at,
+      };
+    });
+
+    // Socket: NO incluir el token. Solo señalar la rotación al admin.
+    io.to(`user_${outcome.userId}`).emit('branch.kiosk_token.rotated', {
+      branch_id:  outcome.branchId,
+      rotated_at: outcome.rotatedAt,
+    });
+    console.log(`🔑 branch.kiosk_token.rotated branch=${outcome.branchId}`);
+
+    return res.json({
+      branch_id:   outcome.branchId,
+      kiosk_token: outcome.kioskToken,
+      rotated_at:  outcome.rotatedAt,
+    });
+  } catch (err) {
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    console.error('❌ POST /api/queue/branches/:id/kiosk-token/rotate:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.8 — CRUD de time_blocks (POST / GET / DELETE)
+// ─────────────────────────────────────────────────────────────
+// Decisión sesión 60 (B+5.1, firmada):
+//   El EXCLUDE constraint en la BD cubre 3/4 casos de overlap
+//   (mismo scope). El cuarto caso — service_id NULL vs NOT NULL
+//   sobre la misma branch — se valida en app porque NULL no es
+//   igual a NULL en EXCLUDE WITH =.
+//
+// Errores específicos:
+//   409 BLOCKED_SAME_SCOPE     — INSERT 23P01 (excluded by EXCLUDE)
+//   409 BLOCKED_CROSS_SCOPE    — pre-check cross-NULL falla
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/time-blocks', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const parsed = queueTimeBlocks.validateTimeBlockInput(req.body || {});
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const { branch_id, service_id, starts_at, ends_at, reason, recurrence } = parsed.value;
+
+  try {
+    const out = await withTransaction(pool, async (client) => {
+      // Branch del tenant (FOR UPDATE para serializar bloqueos paralelos).
+      const br = await client.query(
+        `SELECT id FROM branches WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+        [branch_id, userId]
+      );
+      if (br.rowCount === 0) {
+        const e = new Error('Branch no encontrada'); e.httpStatus = 404; throw e;
+      }
+      // Verificar service del tenant si se especificó.
+      if (service_id) {
+        const sv = await client.query(
+          `SELECT s.id FROM services s
+             JOIN branches b ON b.id = s.branch_id
+            WHERE s.id = $1 AND b.user_id = $2`,
+          [service_id, userId]
+        );
+        if (sv.rowCount === 0) {
+          const e = new Error('Service no encontrado'); e.httpStatus = 404; throw e;
+        }
+      }
+      // Cross-NULL pre-check (caso que EXCLUDE no cubre):
+      //   - Si insertando service_id NULL → conflicta con cualquier bloque
+      //     específico que cruce el rango.
+      //   - Si insertando service_id NOT NULL → conflicta con cualquier
+      //     bloque "todos los servicios" (service_id NULL) que cruce.
+      const cross = await client.query(
+        `SELECT 1
+           FROM time_blocks
+          WHERE branch_id = $1
+            AND tstzrange(starts_at, ends_at, '[)') && tstzrange($2::timestamptz, $3::timestamptz, '[)')
+            AND (
+              ($4::uuid IS NULL     AND service_id IS NOT NULL) OR
+              ($4::uuid IS NOT NULL AND service_id IS NULL)
+            )
+          LIMIT 1`,
+        [branch_id, starts_at, ends_at, service_id]
+      );
+      if (cross.rowCount > 0) {
+        const e = new Error('BLOCKED_CROSS_SCOPE');
+        e.httpStatus = 409;
+        e.code = 'BLOCKED_CROSS_SCOPE';
+        throw e;
+      }
+      // INSERT — el EXCLUDE constraint detecta same-scope overlap.
+      const ins = await client.query(
+        `INSERT INTO time_blocks
+           (user_id, branch_id, service_id, starts_at, ends_at, reason, recurrence, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $1)
+         RETURNING *`,
+        [userId, branch_id, service_id, starts_at, ends_at, reason, recurrence]
+      );
+      return ins.rows[0];
+    });
+
+    io.to(`user_${userId}`).emit('time_block.created', {
+      id: out.id, branch_id: out.branch_id, service_id: out.service_id,
+      starts_at: out.starts_at, ends_at: out.ends_at, recurrence: out.recurrence,
+    });
+    io.to(`branch_${out.branch_id}`).emit('time_block.created', {
+      id: out.id, branch_id: out.branch_id, service_id: out.service_id,
+      starts_at: out.starts_at, ends_at: out.ends_at, recurrence: out.recurrence,
+    });
+    console.log(`⛔ time_block.created id=${out.id} branch=${out.branch_id}`);
+    return res.status(201).json(out);
+  } catch (err) {
+    if (err && err.code === 'BLOCKED_CROSS_SCOPE') {
+      return res.status(409).json({ error: 'BLOCKED_CROSS_SCOPE',
+        message: 'Otro bloque "todos los servicios" o específico cruza el rango.' });
+    }
+    if (err && err.code === '23P01') { // EXCLUDE violation
+      return res.status(409).json({ error: 'BLOCKED_SAME_SCOPE',
+        message: 'Ya existe un bloque solapado en el mismo branch+servicio.' });
+    }
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    console.error('❌ POST /api/queue/time-blocks:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/queue/time-blocks', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { branch_id, from, to, service_id } = req.query || {};
+
+  if (!branch_id || !UUID_RE.test(branch_id)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  if (service_id && !UUID_RE.test(service_id)) {
+    return res.status(400).json({ error: 'service_id inválido' });
+  }
+  const fromDate = from ? new Date(from) : null;
+  const toDate   = to   ? new Date(to)   : null;
+  if (from && !Number.isFinite(fromDate?.getTime())) {
+    return res.status(400).json({ error: 'from no es ISO-8601 válido' });
+  }
+  if (to && !Number.isFinite(toDate?.getTime())) {
+    return res.status(400).json({ error: 'to no es ISO-8601 válido' });
+  }
+  if (fromDate && toDate && toDate <= fromDate) {
+    return res.status(400).json({ error: 'to debe ser posterior a from' });
+  }
+
+  try {
+    // Verificar tenancy: branch debe ser del user.
+    const br = await pool.query(
+      `SELECT 1 FROM branches WHERE id = $1 AND user_id = $2`,
+      [branch_id, userId]
+    );
+    if (br.rowCount === 0) {
+      return res.status(404).json({ error: 'Branch no encontrada' });
+    }
+    const params = [branch_id, userId];
+    let sql = `SELECT * FROM time_blocks
+                WHERE branch_id = $1 AND user_id = $2`;
+    if (service_id) { params.push(service_id); sql += ` AND service_id = $${params.length}`; }
+    if (fromDate)   { params.push(fromDate.toISOString()); sql += ` AND ends_at   >  $${params.length}`; }
+    if (toDate)     { params.push(toDate.toISOString());   sql += ` AND starts_at <  $${params.length}`; }
+    sql += ` ORDER BY starts_at ASC LIMIT 500`;
+    const r = await pool.query(sql, params);
+    return res.json({ items: r.rows, count: r.rowCount });
+  } catch (err) {
+    console.error('❌ GET /api/queue/time-blocks:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.delete('/api/queue/time-blocks/:id', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+  try {
+    const out = await withTransaction(pool, async (client) => {
+      const cur = await client.query(
+        `SELECT id, branch_id FROM time_blocks
+          WHERE id = $1 AND user_id = $2
+          FOR UPDATE`,
+        [id, userId]
+      );
+      if (cur.rowCount === 0) {
+        const e = new Error('Time block no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const branchId = cur.rows[0].branch_id;
+      await client.query(`DELETE FROM time_blocks WHERE id = $1`, [id]);
+      return { id, branchId };
+    });
+    io.to(`user_${userId}`).emit('time_block.deleted', { id: out.id, branch_id: out.branchId });
+    io.to(`branch_${out.branchId}`).emit('time_block.deleted', { id: out.id, branch_id: out.branchId });
+    console.log(`🗑️  time_block.deleted id=${out.id}`);
+    return res.json({ id: out.id, deleted: true });
+  } catch (err) {
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    console.error('❌ DELETE /api/queue/time-blocks/:id:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
