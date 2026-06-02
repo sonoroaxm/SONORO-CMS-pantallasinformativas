@@ -27,6 +27,7 @@ const queueSerializers = require('./queue/serializers');
 const queueValidation  = require('./queue/validation');
 const queueSlots       = require('./queue/slots');
 const queueTimeBlocks  = require('./queue/timeBlocks');
+const { requireFeatureFlag } = require('./queue/featureFlag');
 
 
 // INICIALIZAR PM2 MONITOR (NUEVO)
@@ -4181,7 +4182,7 @@ function parseScheduledAt(raw) {
 // ─────────────────────────────────────────────────────────────
 // §2.1 — POST /api/queue/appointments
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/appointments', authenticateToken, async (req, res) => {
+app.post('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const {
     branch_id, service_id,
@@ -4341,7 +4342,7 @@ app.post('/api/queue/appointments', authenticateToken, async (req, res) => {
 // ─────────────────────────────────────────────────────────────
 // §2.2 — GET /api/queue/appointments
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/appointments', authenticateToken, async (req, res) => {
+app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   try {
     const userId = req.user.id;
     const { branch_id, date, status } = req.query;
@@ -4533,7 +4534,7 @@ async function applyAppointmentPatch(userId, apptId, patch) {
 // ─────────────────────────────────────────────────────────────
 // §2.3 — PATCH /api/queue/appointments/:id
 // ─────────────────────────────────────────────────────────────
-app.patch('/api/queue/appointments/:id', authenticateToken, async (req, res) => {
+app.patch('/api/queue/appointments/:id', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const apptId = req.params.id;
   if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
@@ -4571,7 +4572,7 @@ app.patch('/api/queue/appointments/:id', authenticateToken, async (req, res) => 
 // ─────────────────────────────────────────────────────────────
 // §2.4 — DELETE /api/queue/appointments/:id  (soft delete)
 // ─────────────────────────────────────────────────────────────
-app.delete('/api/queue/appointments/:id', authenticateToken, async (req, res) => {
+app.delete('/api/queue/appointments/:id', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const apptId = req.params.id;
   if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
@@ -4614,7 +4615,7 @@ app.delete('/api/queue/appointments/:id', authenticateToken, async (req, res) =>
 //   · appointments activas del día (status IN pending/confirmed/attended)
 //   · time_blocks que cubran el slot (incluye service_id NULL = "todos")
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/appointments/slots', authenticateToken, async (req, res) => {
+app.get('/api/queue/appointments/slots', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   try {
     const userId = req.user.id;
     const { branch_id, service_id, date } = req.query;
@@ -4719,6 +4720,14 @@ app.get('/api/queue/appointments/slots', authenticateToken, async (req, res) => 
 // ─────────────────────────────────────────────────────────────
 app.post('/api/queue/appointments/:id/confirm-presence', requireAdminOrKiosk, async (req, res) => {
   const isKiosk = !!req.branch;
+  // G-1 #7 — feature flag aplica solo al path admin. El path kiosko (X-Branch-Token)
+  // queda abierto: el token de sucursal es la credencial y no porta features JSONB.
+  if (!isKiosk) {
+    const enabled = req.user && req.user.features && req.user.features.queue_v2_appointments === true;
+    if (!enabled) {
+      return res.status(403).json({ error: 'FEATURE_DISABLED', feature: 'queue_v2_appointments' });
+    }
+  }
   const userId = isKiosk ? req.branch.user_id : req.user.id;
   const branch_id = isKiosk ? req.branch.id : (req.body && req.body.branch_id);
   const confirmedVia = isKiosk ? 'kiosk' : 'admin';
@@ -4911,7 +4920,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', requireAdminOrKiosk, as
 // ─────────────────────────────────────────────────────────────
 const BRANCH_OPERATION_MODES = ['queue_only', 'appointments_only', 'queue_and_appointments'];
 
-app.patch('/api/queue/branches/:id/operation-mode', authenticateToken, async (req, res) => {
+app.patch('/api/queue/branches/:id/operation-mode', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const branchId = req.params.id;
   const { operation_mode } = req.body || {};
@@ -5010,7 +5019,7 @@ app.patch('/api/queue/branches/:id/operation-mode', authenticateToken, async (re
 // user_${userId} (jamás en branch_${id} — los kioskos escuchan ahí
 // y no deben recibir el secreto rotado).
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/branches/:id/kiosk-token/rotate', authenticateToken, async (req, res) => {
+app.post('/api/queue/branches/:id/kiosk-token/rotate', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const branchId = req.params.id;
   if (!branchId || !UUID_RE.test(branchId)) {
@@ -5077,7 +5086,7 @@ app.post('/api/queue/branches/:id/kiosk-token/rotate', authenticateToken, async 
 //   409 BLOCKED_SAME_SCOPE     — INSERT 23P01 (excluded by EXCLUDE)
 //   409 BLOCKED_CROSS_SCOPE    — pre-check cross-NULL falla
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/time-blocks', authenticateToken, async (req, res) => {
+app.post('/api/queue/time-blocks', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const parsed = queueTimeBlocks.validateTimeBlockInput(req.body || {});
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
@@ -5166,7 +5175,7 @@ app.post('/api/queue/time-blocks', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/queue/time-blocks', authenticateToken, async (req, res) => {
+app.get('/api/queue/time-blocks', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const { branch_id, from, to, service_id } = req.query || {};
 
@@ -5212,7 +5221,7 @@ app.get('/api/queue/time-blocks', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/queue/time-blocks/:id', authenticateToken, async (req, res) => {
+app.delete('/api/queue/time-blocks/:id', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   const userId = req.user.id;
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || id <= 0) {
