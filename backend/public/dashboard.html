@@ -1111,6 +1111,7 @@
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="queue">Puntos de Atención</button>
+            <button class="tab-btn" data-tab="appointments" style="display:none;">Citas</button>
             <button class="tab-btn" onclick="window.open('/atencion/reportes','_blank')">Reportes ↗</button>
           </div>
         </div>
@@ -1319,6 +1320,34 @@
                 <button class="btn btn-primary" onclick="addService()" style="width:100%;">+ Agregar servicio</button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CITAS (Queue v2 R1 — slice 1 lectura pura) ── -->
+      <div id="appointments-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Gestión de Citas</div>
+          <button class="btn btn-primary btn-sm" onclick="loadAppointmentsData()">↻ Actualizar</button>
+        </div>
+
+        <div class="card" style="padding:20px;">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
+            <div class="form-group" style="margin:0;flex:1 1 220px;min-width:200px;">
+              <label>Sucursal</label>
+              <select id="apptBranchFilter" onchange="onAppointmentFilterChange()"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:0 0 180px;">
+              <label>Fecha</label>
+              <input type="date" id="apptDateFilter" onchange="onAppointmentFilterChange()" />
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="resetAppointmentFilters()" style="margin-bottom:2px;">Hoy</button>
+          </div>
+
+          <div id="apptStatusBanner" style="display:none;padding:14px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;line-height:1.5;"></div>
+
+          <div id="appointmentsList">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Selecciona una sucursal para ver las citas.</div>
           </div>
         </div>
       </div>
@@ -1544,6 +1573,7 @@ function setupTabs() {
         stopDevicesAutoRefresh();
       }
       if (tabName === 'queue') loadQueueTab();
+      if (tabName === 'appointments') loadAppointmentsTab();
     });
   });
 }
@@ -1676,11 +1706,21 @@ function checkQueueLicense() {
   } catch(e) {}
 }
 
+function checkAppointmentsFeature() {
+  try {
+    const features = currentUser?.features || {};
+    const enabled = features.queue_v2_appointments === true && features.turnos === true;
+    const btn = document.querySelector('.tab-btn[data-tab="appointments"]');
+    if (btn) btn.style.display = enabled ? '' : 'none';
+  } catch(e) {}
+}
+
 function showDashboard() {
   console.log('[DEBUG] showDashboard — features:', JSON.stringify(currentUser?.features));
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
+  checkAppointmentsFeature();
   console.log('[DEBUG] despues checkQueueLicense — group class:', document.getElementById('group-atencion')?.classList.toString());
   document.getElementById('userName').textContent = currentUser.email;
   // Mostrar modulos segun features del usuario
@@ -1740,6 +1780,7 @@ function connectWebSocket() {
         const features = currentUser.features || {};
         const g = document.getElementById('group-atencion');
         if (g) g.style.display = features.turnos ? '' : 'none';
+        checkAppointmentsFeature();
         showStatus('Modulos actualizados', 'success');
         console.log('Features actualizados:', features);
       }
@@ -3529,6 +3570,259 @@ async function toggleService(serviceId, active) {
 }
 
 // ══ FIN ATENCIÓN AL USUARIO ══
+
+// ══ CITAS (Queue v2 R1 — slice 1: lectura pura) ══
+const _apptState = {
+  branches: null,
+  branchesById: null,
+  servicesByBranch: new Map(),
+  selectedBranchId: null,
+  selectedDate: null
+};
+
+function _apptTodayLocalISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function _apptEscapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function appointmentStatusLabel(s) {
+  const map = {
+    pending: 'Pendiente',
+    confirmed: 'Confirmada',
+    in_progress: 'En atención',
+    completed: 'Completada',
+    cancelled: 'Cancelada',
+    no_show: 'No asistió'
+  };
+  return map[s] || s || '—';
+}
+
+function appointmentStatusColor(s) {
+  const map = {
+    pending:     { bg: '#3a2d00', fg: '#ffc857' },
+    confirmed:   { bg: '#0d2a4d', fg: '#5fb1ff' },
+    in_progress: { bg: '#1b3a1b', fg: '#7ed957' },
+    completed:   { bg: '#1f2937', fg: '#9ca3af' },
+    cancelled:   { bg: '#3a1414', fg: '#ff6b6b' },
+    no_show:     { bg: '#2a1d3a', fg: '#c084fc' }
+  };
+  return map[s] || { bg: '#1f2937', fg: '#9ca3af' };
+}
+
+function showAppointmentBanner(kind, msg) {
+  const el = document.getElementById('apptStatusBanner');
+  if (!el) return;
+  const palette = {
+    error:   { bg: '#3a1414', fg: '#ff6b6b' },
+    warn:    { bg: '#3a2d00', fg: '#ffc857' },
+    info:    { bg: '#0d2a4d', fg: '#5fb1ff' }
+  };
+  const c = palette[kind] || palette.info;
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideAppointmentBanner() {
+  const el = document.getElementById('apptStatusBanner');
+  if (el) el.style.display = 'none';
+}
+
+async function loadAppointmentsTab() {
+  hideAppointmentBanner();
+  const dateInput = document.getElementById('apptDateFilter');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = _apptState.selectedDate || _apptTodayLocalISO();
+  }
+  _apptState.selectedDate = dateInput?.value || _apptTodayLocalISO();
+  try {
+    await ensureAppointmentBranches();
+  } catch (err) {
+    showAppointmentBanner('error', 'No se pudieron cargar las sucursales: ' + (err.message || 'error desconocido'));
+    return;
+  }
+  if (_apptState.selectedBranchId) {
+    await loadAppointmentsData();
+  }
+}
+
+async function ensureAppointmentBranches() {
+  if (_apptState.branches) {
+    _apptRenderBranchSelect();
+    return;
+  }
+  const res = await fetch(`${API_URL}/api/queue/branches`, {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const list = await res.json();
+  _apptState.branches = Array.isArray(list) ? list : [];
+  _apptState.branchesById = new Map(_apptState.branches.map(b => [b.id, b]));
+  if (!_apptState.selectedBranchId && _apptState.branches.length > 0) {
+    _apptState.selectedBranchId = _apptState.branches[0].id;
+  }
+  _apptRenderBranchSelect();
+}
+
+function _apptRenderBranchSelect() {
+  const sel = document.getElementById('apptBranchFilter');
+  if (!sel) return;
+  if (!_apptState.branches || _apptState.branches.length === 0) {
+    sel.innerHTML = '<option value="">(sin sucursales)</option>';
+    sel.disabled = true;
+    document.getElementById('appointmentsList').innerHTML =
+      '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">No tienes sucursales registradas.</div>';
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = _apptState.branches.map(b =>
+    `<option value="${_apptEscapeHtml(b.id)}">${_apptEscapeHtml(b.name || '(sin nombre)')}</option>`
+  ).join('');
+  if (_apptState.selectedBranchId) sel.value = _apptState.selectedBranchId;
+}
+
+async function ensureBranchServices(branchId) {
+  if (!branchId) return new Map();
+  if (_apptState.servicesByBranch.has(branchId)) {
+    return _apptState.servicesByBranch.get(branchId);
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${encodeURIComponent(branchId)}/services`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) {
+      _apptState.servicesByBranch.set(branchId, new Map());
+      return _apptState.servicesByBranch.get(branchId);
+    }
+    const list = await res.json();
+    const map = new Map((Array.isArray(list) ? list : []).map(s => [s.id, s]));
+    _apptState.servicesByBranch.set(branchId, map);
+    return map;
+  } catch(e) {
+    _apptState.servicesByBranch.set(branchId, new Map());
+    return _apptState.servicesByBranch.get(branchId);
+  }
+}
+
+async function onAppointmentFilterChange() {
+  const sel = document.getElementById('apptBranchFilter');
+  const dateInput = document.getElementById('apptDateFilter');
+  _apptState.selectedBranchId = sel?.value || null;
+  _apptState.selectedDate = dateInput?.value || _apptTodayLocalISO();
+  await loadAppointmentsData();
+}
+
+function resetAppointmentFilters() {
+  const dateInput = document.getElementById('apptDateFilter');
+  const today = _apptTodayLocalISO();
+  if (dateInput) dateInput.value = today;
+  _apptState.selectedDate = today;
+  loadAppointmentsData();
+}
+
+async function loadAppointmentsData() {
+  const listEl = document.getElementById('appointmentsList');
+  if (!listEl) return;
+  if (!_apptState.selectedBranchId) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Selecciona una sucursal.</div>';
+    return;
+  }
+  hideAppointmentBanner();
+  listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Cargando…</div>';
+  const params = new URLSearchParams({
+    branch_id: _apptState.selectedBranchId,
+    date: _apptState.selectedDate || _apptTodayLocalISO(),
+    page_size: '200'
+  });
+  try {
+    const [res, servicesMap] = await Promise.all([
+      fetch(`${API_URL}/api/queue/appointments?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      }),
+      ensureBranchServices(_apptState.selectedBranchId)
+    ]);
+    if (res.status === 403) {
+      let body = {};
+      try { body = await res.json(); } catch(_) {}
+      if (body && body.error === 'FEATURE_DISABLED') {
+        showAppointmentBanner('warn', 'El módulo Citas no está habilitado para tu cuenta. Contacta al administrador.');
+      } else {
+        showAppointmentBanner('error', 'No tienes permiso para ver estas citas.');
+      }
+      listEl.innerHTML = '';
+      return;
+    }
+    if (!res.ok) {
+      showAppointmentBanner('error', 'Error al cargar citas (HTTP ' + res.status + ').');
+      listEl.innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    const items = (data && Array.isArray(data.items)) ? data.items : [];
+    renderAppointmentsList(items, servicesMap);
+  } catch (err) {
+    showAppointmentBanner('error', 'Error de red: ' + (err.message || 'desconocido'));
+    listEl.innerHTML = '';
+  }
+}
+
+function renderAppointmentsList(items, servicesMap) {
+  const listEl = document.getElementById('appointmentsList');
+  if (!listEl) return;
+  if (!items || items.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">No hay citas para esta sucursal y fecha.</div>';
+    return;
+  }
+  const sorted = items.slice().sort((a, b) => {
+    const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+    const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+    return ta - tb;
+  });
+  const rows = sorted.map(a => {
+    const dt = a.scheduled_at ? new Date(a.scheduled_at) : null;
+    const hh = dt ? String(dt.getHours()).padStart(2, '0') : '--';
+    const mm = dt ? String(dt.getMinutes()).padStart(2, '0') : '--';
+    const time = `${hh}:${mm}`;
+    const svc = servicesMap && a.service_id ? servicesMap.get(a.service_id) : null;
+    const svcName = svc ? svc.name : (a.service_id ? '(servicio)' : '—');
+    const statusColor = appointmentStatusColor(a.status);
+    const clientName = a.client_name || '(sin nombre)';
+    const clientPhone = a.client_phone ? ` · ${_apptEscapeHtml(a.client_phone)}` : '';
+    const origin = a.origin ? a.origin : '';
+    return `
+      <div style="display:flex;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg-card);">
+        <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text);text-align:center;">${_apptEscapeHtml(time)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:var(--text);">${_apptEscapeHtml(clientName)}${clientPhone}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+            ${_apptEscapeHtml(svcName)}${origin ? ' · ' + _apptEscapeHtml(origin) : ''}
+          </div>
+        </div>
+        <div style="flex:0 0 auto;">
+          <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;background:${statusColor.bg};color:${statusColor.fg};">
+            ${_apptEscapeHtml(appointmentStatusLabel(a.status))}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+  listEl.innerHTML = rows;
+}
+// ══ FIN CITAS ══
 
 </script>
 <!-- ══ MODAL SCREENSHOT ══ -->
