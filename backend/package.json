@@ -8,7 +8,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:queue-v2-r1:unit": "node --test test/queue-v2-r1/*.test.js"
+    "test:queue-v2-r1:unit": "node --test test/queue-v2-r1/*.test.js",
+    "test:queue-v2-r1": "node --test test/queue-v2-r1/validation.test.js test/queue-v2-r1/serializers.test.js test/queue-v2-r1/withTransaction.test.js test/queue-v2-r1/recurrence.test.js test/queue-v2-r1/appointment_create.test.js test/queue-v2-r1/appointment_price_snapshot.test.js test/queue-v2-r1/confirm_presence.test.js test/queue-v2-r1/operation_mode.test.js test/queue-v2-r1/time_blocks_overlap.test.js test/queue-v2-r1/concurrent_booking.test.js test/queue-v2-r1/concurrent_confirm.test.js"
   },
   "keywords": [
     "digital-signage",

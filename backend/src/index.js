@@ -573,7 +573,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     // Generar JWT
-    const loginFeatures = user.role === 'admin' ? { turnos: true, analytics: true } : (user.features || { turnos: false, analytics: false });
+    const loginFeatures = user.role === 'admin' ? { turnos: true, analytics: true, ...(user.features || {}) } : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, features: loginFeatures },
       JWT_SECRET,
@@ -3486,14 +3486,47 @@ app.post('/api/queue/token', playerLimiter, async (req, res) => {
         const tokenNumber = `${service.prefix}${String(nextNum).padStart(3, '0')}`;
         const displayNumber = tokenNumber;
 
+        // ── Slot estimado para el walk-in (S79) ───────────────────────────
+        // Busca el primer intervalo libre del día para este servicio,
+        // considerando citas confirmadas + walk-ins con estimated_call_at ya asignado.
+        const slotMin = service.slot_duration_minutes || service.avg_attention_min || 30;
+        const slotMs  = slotMin * 60 * 1000;
+
+        const occupiedRes = await client.query(
+          `SELECT scheduled_at AS t FROM appointments
+            WHERE branch_id = $1 AND service_id = $2
+              AND (scheduled_at AT TIME ZONE 'America/Bogota')::date
+                  = (NOW() AT TIME ZONE 'America/Bogota')::date
+              AND status IN ('pending','confirmed','attended')
+           UNION ALL
+           SELECT estimated_call_at AS t FROM queue_tokens
+            WHERE branch_id = $1 AND service_id = $2
+              AND date_key = CURRENT_DATE
+              AND status IN ('waiting','called','attending')
+              AND estimated_call_at IS NOT NULL
+           ORDER BY t ASC`,
+          [branch_id, service_id]
+        );
+        const occupied = occupiedRes.rows.map(r => new Date(r.t).getTime());
+
+        // Candidato: ahora, redondeado hacia arriba al próximo múltiplo de slotMin
+        let candidate = Math.ceil(Date.now() / slotMs) * slotMs;
+        for (const occ of occupied) {
+          if (candidate >= occ && candidate < occ + slotMs) {
+            candidate = occ + slotMs; // Empujar al siguiente slot libre
+          }
+        }
+        const estimatedCallAt = new Date(candidate);
+        // ─────────────────────────────────────────────────────────────────
+
         const insertResult = await client.query(
           `INSERT INTO queue_tokens
              (branch_id, service_id, token_number, display_number,
-              is_priority, channel, client_name, client_phone)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+              is_priority, channel, client_name, client_phone, estimated_call_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
           [branch_id, service_id, tokenNumber, displayNumber,
            is_priority || false, channel || 'kiosk',
-           client_name || null, client_phone || null]
+           client_name || null, client_phone || null, estimatedCallAt]
         );
         const token = insertResult.rows[0];
 
@@ -3618,6 +3651,21 @@ app.post('/api/queue/agent/session/close', authenticateAgentOrUser, async (req, 
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
+// Verificar si una sesión sigue activa (usado al refrescar la página)
+app.get('/api/queue/agent/session/:sessionId/status', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT active FROM agent_sessions WHERE id = $1',
+      [req.params.sessionId]
+    );
+    if (!result.rows.length) return res.json({ active: false });
+    res.json({ active: result.rows[0].active === true });
+  } catch (err) {
+    console.error('❌ GET /api/queue/agent/session/:id/status:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Iniciar / terminar pausa
 app.post('/api/queue/agent/break/start', authenticateAgentOrUser, async (req, res) => {
   try {
@@ -3702,43 +3750,118 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
     }
     if (!serviceIds.length) return res.status(400).json({ error: 'No hay servicios activos en esta sucursal' });
 
-    // Buscar siguiente turno (prioridad primero, luego FIFO)
-    const tokenResult = await pool.query(
-      `SELECT qt.*, s.name as service_name, s.color as service_color
-       FROM queue_tokens qt
-       JOIN services s ON s.id = qt.service_id
-       WHERE qt.branch_id = $1
-         AND qt.status = 'waiting'
-         AND qt.date_key = CURRENT_DATE
-         AND (
-           (qt.service_id = ANY($2::uuid[]) AND (qt.counter_id IS NULL OR qt.counter_id = $3))
-           OR qt.counter_id = $3
-         )
-       ORDER BY qt.is_priority DESC, qt.created_at ASC
+    // Buscar siguiente turno: UNION de walk-ins/tokens + citas confirmadas sin token
+    // Orden: prioridad DESC, luego por tiempo (estimated_call_at o scheduled_at o created_at)
+    const candidateResult = await pool.query(
+      `SELECT * FROM (
+         -- Walk-ins y tokens de confirm-presence ya en cola
+         SELECT
+           qt.id AS token_id, NULL::uuid AS appt_id,
+           qt.branch_id, qt.service_id,
+           qt.token_number, qt.display_number,
+           qt.is_priority, qt.is_appointment, qt.channel,
+           qt.client_name, qt.client_phone, qt.appointment_id,
+           qt.created_at,
+           COALESCE(qt.estimated_call_at, qt.created_at) AS sort_time,
+           s.name AS service_name, s.color AS service_color,
+           'token' AS _source
+         FROM queue_tokens qt
+         JOIN services s ON s.id = qt.service_id
+         WHERE qt.branch_id = $1
+           AND qt.status = 'waiting'
+           AND qt.date_key = CURRENT_DATE
+           AND (
+             (qt.service_id = ANY($2::uuid[]) AND (qt.counter_id IS NULL OR qt.counter_id = $3))
+             OR qt.counter_id = $3
+           )
+         UNION ALL
+         -- Citas confirmadas hoy que aún no tienen token activo
+         SELECT
+           NULL::uuid AS token_id, a.id AS appt_id,
+           a.branch_id, a.service_id,
+           NULL AS token_number, NULL AS display_number,
+           false AS is_priority, true AS is_appointment, 'appointment'::varchar AS channel,
+           a.client_name, a.client_phone, a.id AS appointment_id,
+           a.created_at,
+           a.scheduled_at AS sort_time,
+           s.name AS service_name, s.color AS service_color,
+           'appointment' AS _source
+         FROM appointments a
+         JOIN services s ON s.id = a.service_id
+         WHERE a.branch_id = $1
+           AND a.status = 'confirmed'
+           AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date
+               = (NOW() AT TIME ZONE 'America/Bogota')::date
+           AND a.service_id = ANY($2::uuid[])
+           AND NOT EXISTS (
+             SELECT 1 FROM queue_tokens qt2
+             WHERE qt2.appointment_id = a.id
+               AND qt2.status NOT IN ('finished','no_show')
+           )
+       ) AS candidates
+       ORDER BY is_priority DESC, sort_time ASC
        LIMIT 1`,
       [branch_id, serviceIds, counter_id]
     );
 
-    if (!tokenResult.rows.length) return res.json({ success: true, token: null, message: 'No hay turnos en espera' });
+    if (!candidateResult.rows.length) return res.json({ success: true, token: null, message: 'No hay turnos en espera' });
 
-    const token = tokenResult.rows[0];
+    const candidate = candidateResult.rows[0];
+    let token;
 
-    // Actualizar turno
-    await pool.query(
-      `UPDATE queue_tokens SET
-        status = 'called', counter_id = $1, agent_id = $2,
-        agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
-        wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
-       WHERE id = $4`,
-      [counter_id, session.agent_id, session_id, token.id]
-    );
+    if (candidate._source === 'appointment') {
+      // Crear token on-the-fly para la cita y llamarla directamente
+      token = await withTransaction(pool, async (client) => {
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+          [candidate.branch_id, candidate.service_id]
+        );
+        const svcRow = await client.query(
+          'SELECT prefix FROM services WHERE id = $1', [candidate.service_id]
+        );
+        const nextNum = await generateNextTokenNumber(client, candidate.branch_id, candidate.service_id);
+        const tokenNumber = `${svcRow.rows[0].prefix}${String(nextNum).padStart(3, '0')}`;
 
-    // Registrar evento
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
-       VALUES ($1, 'called', $2, $3)`,
-      [token.id, session.agent_id, counter_id]
-    );
+        const ins = await client.query(
+          `INSERT INTO queue_tokens
+             (branch_id, service_id, token_number, display_number,
+              is_priority, is_appointment, channel,
+              client_name, client_phone, appointment_id,
+              status, counter_id, agent_id, agent_session_id, called_at)
+           VALUES ($1,$2,$3,$3,false,true,'appointment',$4,$5,$6,
+                   'called',$7,$8,$9,CURRENT_TIMESTAMP)
+           RETURNING *`,
+          [candidate.branch_id, candidate.service_id, tokenNumber,
+           candidate.client_name, candidate.client_phone, candidate.appt_id,
+           counter_id, session.agent_id, session_id]
+        );
+        await client.query(
+          `UPDATE appointments SET status='attended' WHERE id=$1`, [candidate.appt_id]
+        );
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
+           VALUES ($1,'called',$2,$3)`,
+          [ins.rows[0].id, session.agent_id, counter_id]
+        );
+        return { ...ins.rows[0], service_name: candidate.service_name, service_color: candidate.service_color };
+      });
+    } else {
+      // Token existente: actualizar igual que antes
+      await pool.query(
+        `UPDATE queue_tokens SET
+          status = 'called', counter_id = $1, agent_id = $2,
+          agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
+          wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
+         WHERE id = $4`,
+        [counter_id, session.agent_id, session_id, candidate.token_id]
+      );
+      await pool.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
+         VALUES ($1, 'called', $2, $3)`,
+        [candidate.token_id, session.agent_id, counter_id]
+      );
+      token = { ...candidate, id: candidate.token_id };
+    }
 
     // Obtener nombre del agente y ventanilla para mostrar en pantalla
     const agentResult = await pool.query('SELECT name FROM agents WHERE id = $1', [session.agent_id]);
@@ -3747,6 +3870,7 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
     const callData = {
       token_id: token.id,
       token_number: token.display_number,
+      client_name: token.client_name || null,
       service_name: token.service_name,
       service_color: token.service_color,
       counter_name: counterResult.rows[0]?.display_name || 'Ventanilla',
@@ -3884,6 +4008,137 @@ app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (
     });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R3 — Notas del agente + Seguimiento
+// ══════════════════════════════════════════════════════════════
+
+app.post('/api/queue/tokens/:tokenId/note', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const text = (req.body && req.body.text) ? String(req.body.text).trim().slice(0, 1000) : '';
+    if (!text) return res.status(400).json({ error: 'Texto de nota requerido' });
+    const check = req.user.role === 'agent'
+      ? await pool.query('SELECT id FROM queue_tokens WHERE id = $1 AND branch_id = $2', [tokenId, req.user.branch_id])
+      : await pool.query('SELECT qt.id FROM queue_tokens qt JOIN branches b ON b.id = qt.branch_id WHERE qt.id = $1 AND b.user_id = $2', [tokenId, req.user.id]);
+    if (!check.rowCount) return res.status(404).json({ error: 'Turno no encontrado' });
+    const agentId = req.user.agent_id || null;
+    await pool.query(
+      `INSERT INTO token_events (token_id, event_type, agent_id, metadata) VALUES ($1, 'note_added', $2, $3)`,
+      [tokenId, agentId, JSON.stringify({ text })]
+    );
+    console.log(`📝 agent.note_added token=${tokenId} agent=${agentId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ POST /api/queue/tokens/:tokenId/note:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/queue/tokens/:tokenId/notes', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const result = await pool.query(
+      `SELECT te.id, te.created_at, te.metadata->>'text' AS text, a.name AS agent_name
+         FROM token_events te LEFT JOIN agents a ON a.id = te.agent_id
+        WHERE te.token_id = $1 AND te.event_type = 'note_added'
+        ORDER BY te.created_at ASC`,
+      [tokenId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/tokens/:tokenId/notes:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/queue/appointments/:id/notes', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  try {
+    const apptId = req.params.id;
+    if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
+    const apptRes = await pool.query(
+      'SELECT id FROM appointments WHERE id = $1 AND user_id = $2', [apptId, req.user.id]
+    );
+    if (!apptRes.rowCount) return res.status(404).json({ error: 'Cita no encontrada' });
+    const tokenRes = await pool.query(
+      'SELECT id FROM queue_tokens WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1', [apptId]
+    );
+    if (!tokenRes.rowCount) return res.json([]);
+    const result = await pool.query(
+      `SELECT te.id, te.created_at, te.metadata->>'text' AS text, a.name AS agent_name
+         FROM token_events te LEFT JOIN agents a ON a.id = te.agent_id
+        WHERE te.token_id = $1 AND te.event_type = 'note_added'
+        ORDER BY te.created_at ASC`,
+      [tokenRes.rows[0].id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/appointments/:id/notes:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/queue/agent/followup', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { branch_id, service_id, client_name, client_phone, scheduled_at, parent_token_id } = req.body || {};
+    if (!branch_id || !UUID_RE.test(branch_id)) return res.status(400).json({ error: 'branch_id inválido' });
+    if (!service_id || !UUID_RE.test(service_id)) return res.status(400).json({ error: 'service_id inválido' });
+    if (!parent_token_id || !UUID_RE.test(parent_token_id)) return res.status(400).json({ error: 'parent_token_id requerido' });
+    const vName  = queueValidation.validateClientName(client_name);
+    if (!vName.ok) return res.status(400).json({ error: vName.error });
+    const vPhone = queueValidation.validateClientPhone(client_phone);
+    if (!vPhone.ok) return res.status(400).json({ error: vPhone.error });
+    const vSched = parseScheduledAt(scheduled_at);
+    if (!vSched.ok) return res.status(400).json({ error: vSched.error });
+
+    const branchRow = await pool.query(
+      `SELECT b.user_id, u.features->>'queue_v2_appointments' AS feat
+         FROM branches b JOIN users u ON u.id = b.user_id WHERE b.id = $1`,
+      [branch_id]
+    );
+    if (!branchRow.rowCount) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    if (branchRow.rows[0].feat !== 'true') return res.status(403).json({ error: 'FEATURE_DISABLED', feature: 'queue_v2_appointments' });
+    const userId = branchRow.rows[0].user_id;
+
+    const created = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || $3::text))`,
+        [branch_id, service_id, vSched.value.toISOString()]
+      );
+      const svcRes = await client.query(
+        `SELECT id, price, currency FROM services WHERE id = $1 AND branch_id = $2`,
+        [service_id, branch_id]
+      );
+      if (!svcRes.rowCount) { const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e; }
+      const tkRes = await client.query(
+        'SELECT id FROM queue_tokens WHERE id = $1 AND branch_id = $2', [parent_token_id, branch_id]
+      );
+      if (!tkRes.rowCount) { const e = new Error('parent_token_id no encontrado'); e.httpStatus = 404; throw e; }
+      if (await isSlotBlocked(client, branch_id, service_id, vSched.value.toISOString())) {
+        const e = new Error('El slot está bloqueado'); e.httpStatus = 409; e.code = 'BLOCKED'; throw e;
+      }
+      const svc = svcRes.rows[0];
+      const ins = await client.query(
+        `INSERT INTO appointments
+           (user_id, branch_id, service_id, client_name, client_phone, scheduled_at,
+            status, origin, parent_token_id, created_by, price_at_booking, currency_at_booking)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending','follow_up',$7,$8,$9,$10) RETURNING *`,
+        [userId, branch_id, service_id, vName.value, vPhone.value,
+         vSched.value.toISOString(), parent_token_id, userId, svc.price ?? null, svc.currency ?? null]
+      );
+      return ins.rows[0];
+    });
+    io.to(`user_${created.user_id}`).emit('appointment.created', queueSerializers.serializeForAdmin(created));
+    io.to(`branch_${created.branch_id}`).emit('appointment.created', queueSerializers.serializeForBranch(created));
+    console.log(`📅 appointment.created(follow_up) id=${created.id} parent=${parent_token_id}`);
+    return res.status(201).json(queueSerializers.serializeForAdmin(created));
+  } catch (err) {
+    if (err && err.httpStatus) { const b = { error: err.message }; if (err.code) b.code = err.code; return res.status(err.httpStatus).json(b); }
+    if (err && err.code === '23505') return res.status(409).json({ error: 'Slot ya reservado', code: 'SLOT_TAKEN' });
+    console.error('❌ POST /api/queue/agent/followup:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -4377,7 +4632,7 @@ app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_
       `SELECT COUNT(*) FROM appointments
         WHERE user_id = $1
           AND branch_id = $2
-          AND scheduled_at::date = $3::date
+          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $3::date
           AND status = ANY($4)`,
       baseParams
     );
@@ -4387,7 +4642,7 @@ app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_
       `SELECT * FROM appointments
         WHERE user_id = $1
           AND branch_id = $2
-          AND scheduled_at::date = $3::date
+          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $3::date
           AND status = ANY($4)
         ORDER BY scheduled_at ASC, id ASC
         LIMIT $5 OFFSET $6`,
@@ -4660,7 +4915,7 @@ app.get('/api/queue/appointments/slots', authenticateToken, requireFeatureFlag('
         WHERE user_id = $1
           AND branch_id = $2
           AND service_id = $3
-          AND scheduled_at::date = $4::date
+          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $4::date
           AND status = ANY($5)`,
       [userId, branch_id, service_id, dayKey, APPT_ACTIVE_STATUSES]
     );
@@ -4760,7 +5015,7 @@ app.post('/api/queue/appointments/:id/confirm-presence', requireAdminOrKiosk, as
             AND a.user_id = $3
             AND a.client_id_number = $4
             AND a.status = 'confirmed'
-            AND a.scheduled_at::date = CURRENT_DATE
+            AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date
           FOR UPDATE OF a`,
         [apptId, branch_id, userId, vId.value]
       );
@@ -4903,6 +5158,132 @@ app.post('/api/queue/appointments/:id/confirm-presence', requireAdminOrKiosk, as
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
+
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.6b — POST /api/queue/appointments/:id/confirm-arrival
+// Confirma llegada del cliente desde el dashboard (admin), sin
+// requerir cédula. Acepta pending OR confirmed. Crea queue_token
+// y pasa la cita a 'attended'. Principio P1 (withTransaction).
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments/:id/confirm-arrival',
+  authenticateToken,
+  requireFeatureFlag('queue_v2_appointments'),
+  async (req, res) => {
+    const userId = req.user.id;
+    const apptId = req.params.id;
+    if (!UUID_RE.test(apptId)) {
+      return res.status(400).json({ error: 'ID de cita inválido' });
+    }
+
+    try {
+      const result = await withTransaction(pool, async (client) => {
+        const apptRes = await client.query(
+          `SELECT a.*, s.prefix, s.avg_attention_min, s.slot_duration_minutes
+           FROM appointments a
+           JOIN services s ON s.id = a.service_id
+           WHERE a.id = $1
+             AND a.user_id = $2
+             AND a.status IN ('pending','confirmed')
+             AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date
+                 = (NOW() AT TIME ZONE 'America/Bogota')::date
+           FOR UPDATE OF a`,
+          [apptId, userId]
+        );
+        if (!apptRes.rowCount) {
+          const e = new Error('Cita no encontrada, ya atendida o no es de hoy');
+          e.httpStatus = 404;
+          throw e;
+        }
+        const appt = apptRes.rows[0];
+
+        await client.query(
+          `SELECT pg_advisory_xact_lock(
+             hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text)
+           )`,
+          [appt.branch_id, appt.service_id]
+        );
+
+        const nextNum = await generateNextTokenNumber(client, appt.branch_id, appt.service_id);
+        const tokenNumber = `${appt.prefix}${String(nextNum).padStart(3, '0')}`;
+
+        const slotMin = appt.slot_duration_minutes || appt.avg_attention_min || 30;
+        const slotMs  = slotMin * 60 * 1000;
+        const occupiedRes = await client.query(
+          `SELECT scheduled_at AS t FROM appointments
+            WHERE branch_id = $1 AND service_id = $2
+              AND (scheduled_at AT TIME ZONE 'America/Bogota')::date
+                  = (NOW() AT TIME ZONE 'America/Bogota')::date
+              AND status IN ('pending','confirmed','attended')
+              AND id <> $3
+           UNION ALL
+           SELECT estimated_call_at AS t FROM queue_tokens
+            WHERE branch_id = $1 AND service_id = $2
+              AND date_key = CURRENT_DATE
+              AND status IN ('waiting','called','attending')
+              AND estimated_call_at IS NOT NULL
+           ORDER BY t ASC`,
+          [appt.branch_id, appt.service_id, apptId]
+        );
+        const occupied = occupiedRes.rows.map(r => new Date(r.t).getTime());
+        let candidate = Math.ceil(Date.now() / slotMs) * slotMs;
+        for (const occ of occupied) {
+          if (candidate >= occ && candidate < occ + slotMs) candidate = occ + slotMs;
+        }
+        const estimatedCallAt = new Date(candidate);
+
+        const tokenRes = await client.query(
+          `INSERT INTO queue_tokens
+             (branch_id, service_id, token_number, display_number,
+              is_priority, is_appointment, channel,
+              client_name, client_phone, appointment_id, estimated_call_at)
+           VALUES ($1,$2,$3,$3,false,true,'appointment',$4,$5,$6,$7)
+           RETURNING *`,
+          [appt.branch_id, appt.service_id, tokenNumber,
+           appt.client_name, appt.client_phone, apptId, estimatedCallAt]
+        );
+        const token = tokenRes.rows[0];
+
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, metadata)
+           VALUES ($1,'appointment_confirmed',$2)`,
+          [token.id, JSON.stringify({ appointment_id: apptId, method: 'admin_arrival' })]
+        );
+
+        await client.query(
+          `UPDATE appointments SET status = 'attended' WHERE id = $1`, [apptId]
+        );
+
+        const waitRes = await client.query(
+          `SELECT COUNT(*)::int AS n FROM queue_tokens
+            WHERE branch_id = $1 AND service_id = $2
+              AND date_key = CURRENT_DATE AND status = 'waiting'`,
+          [appt.branch_id, appt.service_id]
+        );
+
+        return {
+          confirmed: true,
+          token_number: tokenNumber,
+          queue_position: waitRes.rows[0].n,
+          estimated_call_at: estimatedCallAt,
+          branch_id: appt.branch_id,
+        };
+      });
+
+      io.to(`branch_${result.branch_id}`).emit('queue_updated', {
+        branch_id: result.branch_id,
+        action: 'arrival_confirmed',
+        token_number: result.token_number,
+      });
+
+      return res.json(result);
+    } catch (err) {
+      if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+      console.error('❌ /api/queue/appointments/:id/confirm-arrival:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+);
 
 // ─────────────────────────────────────────────────────────────
 // R1 §2.7 — PATCH /api/queue/branches/:id/operation-mode
@@ -5069,6 +5450,145 @@ app.post('/api/queue/branches/:id/kiosk-token/rotate', authenticateToken, requir
       return res.status(err.httpStatus).json({ error: err.message });
     }
     console.error('❌ POST /api/queue/branches/:id/kiosk-token/rotate:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.9 — POST /api/queue/kiosk/confirm-presence
+// Confirmación de cita desde kiosco sin ID de cita (solo cédula).
+// Auth: validateKioskToken (X-Branch-Token). Sin feature flag —
+// el token de sucursal es la credencial. Anti-enumeración: toda
+// condición de no-match devuelve 200 { confirmed: false }.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/kiosk/confirm-presence', validateKioskToken, async (req, res) => {
+  const branch_id = req.branch.id;
+  const userId    = req.branch.user_id;
+  const { client_id_number } = req.body || {};
+
+  const vId = queueValidation.validateClientIdNumber(client_id_number);
+  if (!vId.ok) return res.status(400).json({ error: vId.error });
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      const tz = req.branch.timezone || 'America/Bogota';
+
+      // Defense-in-depth: horario de atención. Fuera de ventana → no-match.
+      const tzCheck = await client.query(
+        `SELECT (
+           (NOW() AT TIME ZONE $1)::time >= $2::time
+           AND (NOW() AT TIME ZONE $1)::time <  $3::time
+         ) AS in_window`,
+        [tz, req.branch.open_time || '00:00:00', req.branch.close_time || '23:59:59']
+      );
+      if (!tzCheck.rows[0].in_window) {
+        return { confirmed: false };
+      }
+
+      // Lookup por cédula+branch+hoy (la más reciente si hay varias citas).
+      const matchRes = await client.query(
+        `SELECT a.*
+           FROM appointments a
+          WHERE a.branch_id = $1
+            AND a.user_id   = $2
+            AND a.client_id_number = $3
+            AND a.status = 'confirmed'
+            AND (a.scheduled_at AT TIME ZONE $4)::date = (NOW() AT TIME ZONE $4)::date
+          ORDER BY a.scheduled_at ASC
+          LIMIT 1
+          FOR UPDATE OF a`,
+        [branch_id, userId, vId.value, tz]
+      );
+
+      if (!matchRes.rowCount) {
+        return { confirmed: false };
+      }
+      const appt = matchRes.rows[0];
+
+      const svcRes = await client.query(
+        `SELECT id, prefix, avg_attention_min FROM services WHERE id = $1`,
+        [appt.service_id]
+      );
+      if (!svcRes.rowCount) return { confirmed: false };
+      const svc = svcRes.rows[0];
+
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text)
+         )`,
+        [appt.branch_id, appt.service_id]
+      );
+
+      const nextNum     = await generateNextTokenNumber(client, appt.branch_id, appt.service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'kiosk',$4,$5,$6)
+         RETURNING *`,
+        [appt.branch_id, appt.service_id, tokenNumber,
+         appt.client_name, appt.client_phone, appt.id]
+      );
+      const token = tokenRes.rows[0];
+
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, metadata)
+         VALUES ($1, 'appointment_confirmed', $2)`,
+        [token.id, JSON.stringify({ appointment_id: appt.id, method: 'cedula', via: 'kiosk' })]
+      );
+
+      await client.query(
+        `UPDATE appointments SET status = 'attended' WHERE id = $1`,
+        [appt.id]
+      );
+
+      const waitingRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE
+            AND status = 'waiting'`,
+        [appt.branch_id, appt.service_id]
+      );
+      const queuePosition        = waitingRes.rows[0].n;
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return { confirmed: true, appt, token, tokenNumber, queuePosition, estimatedWaitMinutes };
+    });
+
+    if (!outcome.confirmed) {
+      return res.json({ confirmed: false });
+    }
+
+    const payload = {
+      id:           outcome.appt.id,
+      branch_id:    outcome.appt.branch_id,
+      token_id:     outcome.token.id,
+      token_number: outcome.tokenNumber,
+      method:       'cedula',
+      via:          'kiosk',
+    };
+    io.to(`user_${userId}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.appt.branch_id}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.appt.branch_id}`).emit('new_token', {
+      token:          outcome.token,
+      is_appointment: true,
+      waiting_count:  outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(`📅 kiosk.appointment.confirmed id=${outcome.appt.id} token=${outcome.tokenNumber}`);
+    return res.json({
+      confirmed:              true,
+      token_number:           outcome.tokenNumber,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position:         outcome.queuePosition,
+    });
+
+  } catch (err) {
+    console.error('❌ POST /api/queue/kiosk/confirm-presence:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -5251,6 +5771,684 @@ app.delete('/api/queue/time-blocks/:id', authenticateToken, requireFeatureFlag('
       return res.status(err.httpStatus).json({ error: err.message });
     }
     console.error('❌ DELETE /api/queue/time-blocks/:id:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R1.5 §A — Agenda del agente (citas del día para su servicio)
+// Auth: authenticateAgentOrUser (JWT del agente).
+// req.user: { id, agent_id, branch_id, role, name }
+// Feature flag: verificado inline via SQL sobre users.features.
+// ══════════════════════════════════════════════════════════════
+app.get('/api/queue/agent/appointments/today', authenticateAgentOrUser, async (req, res) => {
+  const userId   = req.user.id;
+  const branchId = req.user.branch_id;
+  if (!branchId) {
+    return res.status(400).json({ error: 'branch_id requerido en el token del agente' });
+  }
+
+  const serviceId = req.query.service_id || null;
+
+  const rawDate   = req.query.date;
+  const dateRE    = /^\d{4}-\d{2}-\d{2}$/;
+  const queryDate = rawDate && dateRE.test(rawDate) ? rawDate : null;
+
+  try {
+    // Resolver owner de la sucursal: el flag vive en su cuenta, no en la del agente
+    const branchRow = await pool.query(
+      `SELECT b.user_id AS owner_id, u.features->>'queue_v2_appointments' AS enabled
+       FROM branches b
+       JOIN users u ON u.id = b.user_id
+       WHERE b.id = $1`,
+      [branchId]
+    );
+    if (!branchRow.rowCount || branchRow.rows[0].enabled !== 'true') {
+      return res.status(404).json({ error: 'FEATURE_DISABLED' });
+    }
+    const ownerUserId = branchRow.rows[0].owner_id;
+
+    const params = [branchId, ownerUserId];
+    let dateFilter;
+    if (queryDate) {
+      params.push(queryDate);
+      dateFilter = `(a.scheduled_at AT TIME ZONE 'America/Bogota')::date = $${params.length}::date`;
+    } else {
+      dateFilter = `(a.scheduled_at AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date`;
+    }
+
+    let serviceFilter = '';
+    if (serviceId) {
+      params.push(serviceId);
+      serviceFilter = `AND a.service_id = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT
+         a.id,
+         a.scheduled_at,
+         a.client_name,
+         a.status,
+         s.name   AS service_name,
+         s.color  AS service_color,
+         CASE WHEN a.client_name IS NOT NULL THEN 'public' ELSE 'walk_in' END AS origin
+       FROM appointments a
+       JOIN services  s ON s.id = a.service_id
+       JOIN branches  b ON b.id = a.branch_id
+       WHERE a.branch_id = $1
+         AND b.user_id   = $2
+         AND ${dateFilter}
+         AND a.status NOT IN ('cancelled')
+         ${serviceFilter}
+       ORDER BY a.scheduled_at ASC`,
+      params
+    );
+
+    return res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/agent/appointments/today:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R1.5 §B — Walk-ins del día para el tab Citas del admin
+// Auth: authenticateToken + requireFeatureFlag('queue_v2_appointments')
+// Solo retorna tokens donde appointment_id IS NULL (puro kiosko).
+// ══════════════════════════════════════════════════════════════
+app.get('/api/queue/branches/:branchId/walkins', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  const userId   = req.user.id;
+  const branchId = req.params.branchId;
+
+  const rawDate   = req.query.date;
+  const dateRE    = /^\d{4}-\d{2}-\d{2}$/;
+  const queryDate = rawDate && dateRE.test(rawDate) ? rawDate : null;
+
+  try {
+    const params = [branchId, userId];
+    let dateFilter;
+    if (queryDate) {
+      params.push(queryDate);
+      dateFilter = `(t.created_at AT TIME ZONE 'America/Bogota')::date = $${params.length}::date`;
+    } else {
+      dateFilter = `(t.created_at AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date`;
+    }
+
+    const result = await pool.query(
+      `SELECT
+         t.id,
+         t.token_number,
+         t.status,
+         t.created_at,
+         s.name   AS service_name,
+         s.color  AS service_color,
+         s.prefix AS service_prefix
+       FROM queue_tokens t
+       JOIN branches b ON b.id = t.branch_id
+       JOIN services s ON s.id = t.service_id
+       WHERE t.branch_id      = $1
+         AND b.user_id        = $2
+         AND t.appointment_id IS NULL
+         AND ${dateFilter}
+       ORDER BY t.created_at ASC`,
+      params
+    );
+
+    return res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/branches/:branchId/walkins:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+
+// ─────────────────────────────────────────────────────────────
+// Helper R1.5: convierte "HH:MM" local (tzName) → "HH:MM" UTC.
+// Necesario porque buildSlotsGrid espera horas en UTC pero
+// open_time/close_time de branches están en hora local del tenant.
+// ─────────────────────────────────────────────────────────────
+function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
+  if (!timeStr || !dateStr) return timeStr;
+  const [h, m] = timeStr.split(':').map(Number);
+  const guess = new Date(`${dateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00.000Z`);
+  const parts = {};
+  new Intl.DateTimeFormat('en', {
+    timeZone: tzName, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(guess).forEach(({ type, value }) => { parts[type] = value; });
+  const diffMin = (h * 60 + m) - (parseInt(parts.hour) * 60 + parseInt(parts.minute));
+  const adj = new Date(guess.getTime() + diffMin * 60 * 1000);
+  return `${String(adj.getUTCHours()).padStart(2,'0')}:${String(adj.getUTCMinutes()).padStart(2,'0')}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// R1.5 — Reservas públicas /api/queue/public/:slug
+// Sin autenticación JWT. Anti-bot: honeypot + timing + habeas data.
+// public_booking_mode: 'auto' → confirmed, 'manual' → pending.
+// Multi-tenancy: user_id siempre derivado del slug, nunca del body.
+// ══════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §1 — GET /agendar/:slug  →  booking.html
+// ─────────────────────────────────────────────────────────────
+app.get('/agendar/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §2 — GET /api/queue/public/:slug
+// Devuelve tenant + sucursales activas + servicios. Sin auth.
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/public/:slug', async (req, res) => {
+  const { slug } = req.params;
+  if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
+    return res.status(400).json({ error: 'slug inválido' });
+  }
+  try {
+    const userRes = await pool.query(
+      `SELECT id, name FROM users WHERE public_slug = $1`,
+      [slug]
+    );
+    if (!userRes.rowCount) {
+      return res.status(404).json({ error: 'Tenant no encontrado' });
+    }
+    const user = userRes.rows[0];
+
+    const branchRes = await pool.query(
+      `SELECT id, name, address, public_booking_mode, open_time, close_time
+         FROM branches
+        WHERE user_id = $1
+          AND public_booking_mode != 'disabled'
+        ORDER BY name`,
+      [user.id]
+    );
+    if (!branchRes.rowCount) {
+      return res.status(404).json({ error: 'No hay sucursales disponibles para reservas' });
+    }
+
+    const branchIds = branchRes.rows.map(b => b.id);
+    const svcRes = await pool.query(
+      `SELECT id, branch_id, name, description, color, avg_attention_min, slot_duration_minutes
+         FROM services
+        WHERE branch_id = ANY($1::uuid[])
+        ORDER BY branch_id, name`,
+      [branchIds]
+    );
+    const svcsByBranch = {};
+    for (const s of svcRes.rows) {
+      (svcsByBranch[s.branch_id] = svcsByBranch[s.branch_id] || []).push(s);
+    }
+
+    const branches = branchRes.rows.map(b => ({
+      ...b,
+      services: svcsByBranch[b.id] || [],
+    }));
+
+    return res.json({ tenant: { name: user.name }, branches });
+  } catch (err) {
+    console.error('❌ GET /api/queue/public/:slug:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §3 — GET /api/queue/public/:slug/slots
+// ?branch_id=UUID&service_id=UUID&date=YYYY-MM-DD
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/public/:slug/slots', async (req, res) => {
+  const { slug } = req.params;
+  const { branch_id, service_id, date } = req.query;
+
+  if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
+    return res.status(400).json({ error: 'slug inválido' });
+  }
+  if (!branch_id || !UUID_RE.test(branch_id)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  if (!service_id || !UUID_RE.test(service_id)) {
+    return res.status(400).json({ error: 'service_id inválido' });
+  }
+  const dayKey = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
+    ? date
+    : new Date().toISOString().slice(0, 10);
+
+  try {
+    const branchRes = await pool.query(
+      `SELECT b.id, b.open_time, b.close_time, b.public_booking_mode,
+              COALESCE(b.timezone, 'America/Bogota') AS timezone
+         FROM branches b
+         JOIN users u ON u.id = b.user_id
+        WHERE u.public_slug = $1
+          AND b.id = $2
+          AND b.public_booking_mode != 'disabled'`,
+      [slug, branch_id]
+    );
+    if (!branchRes.rowCount) {
+      return res.status(404).json({ error: 'Sucursal no disponible' });
+    }
+    const branch = branchRes.rows[0];
+    const tz = branch.timezone;
+
+    const svcRes = await pool.query(
+      `SELECT id, slot_duration_minutes, avg_attention_min
+         FROM services
+        WHERE id = $1 AND branch_id = $2`,
+      [service_id, branch_id]
+    );
+    if (!svcRes.rowCount) {
+      return res.status(404).json({ error: 'Servicio no encontrado' });
+    }
+    const svc = svcRes.rows[0];
+    const stepMinutes = svc.slot_duration_minutes || svc.avg_attention_min || 30;
+
+    const apptRes = await pool.query(
+      `SELECT scheduled_at FROM appointments
+        WHERE branch_id = $1
+          AND service_id = $2
+          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $3::date
+          AND status = ANY($4)`,
+      [branch_id, service_id, dayKey, APPT_ACTIVE_STATUSES]
+    );
+    const occupied = new Set(
+      apptRes.rows.map(r => new Date(r.scheduled_at).toISOString())
+    );
+
+    const blockRes = await pool.query(
+      `SELECT starts_at, ends_at FROM time_blocks
+        WHERE branch_id = $1
+          AND (service_id IS NULL OR service_id = $2)
+          AND tstzrange(starts_at, ends_at, '[)')
+              && tstzrange(($3::date)::timestamptz,
+                           ($3::date + INTERVAL '1 day')::timestamptz, '[)')`,
+      [branch_id, service_id, dayKey]
+    );
+
+    const grid = queueSlots.buildSlotsGrid({
+      date:          dayKey,
+      openTime:      localHHMMtoUTCHHMM(branch.open_time,  dayKey, tz),
+      closeTime:     localHHMMtoUTCHHMM(branch.close_time, dayKey, tz),
+      stepMinutes,
+      occupiedSet:   occupied,
+      blockedRanges: blockRes.rows,
+    });
+
+    return res.json(grid);
+  } catch (err) {
+    console.error('❌ GET /api/queue/public/:slug/slots:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §4 — POST /api/queue/public/:slug/appointments
+// Anti-bot: hp_field vacío + timing ≥2 s + habeas_data aceptado.
+// public_booking_mode 'auto' → confirmed, 'manual' → pending.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/public/:slug/appointments', async (req, res) => {
+  const { slug } = req.params;
+  if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
+    return res.status(400).json({ error: 'slug inválido' });
+  }
+
+  const {
+    branch_id, service_id,
+    scheduled_at,
+    client_name, client_phone, client_email, client_id_number,
+    accepted_habeas_data,
+    hp_field,
+  } = req.body || {};
+
+  // ── Anti-bot ──────────────────────────────────────────────
+  if (hp_field !== '') {
+    return res.status(400).json({ error: 'Solicitud rechazada' });
+  }
+  const formStartedAt = parseInt(req.headers['x-form-started-at'] || '0', 10);
+  const elapsedMs = Date.now() - formStartedAt;
+  if (!formStartedAt || elapsedMs < 2000) {
+    return res.status(400).json({ error: 'Solicitud rechazada' });
+  }
+  if (accepted_habeas_data !== true) {
+    return res.status(400).json({ error: 'Debe aceptar la política de tratamiento de datos' });
+  }
+
+  if (!branch_id || !UUID_RE.test(branch_id)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  if (!service_id || !UUID_RE.test(service_id)) {
+    return res.status(400).json({ error: 'service_id inválido' });
+  }
+  const vAt = parseScheduledAt(scheduled_at);
+  if (!vAt.ok) return res.status(400).json({ error: vAt.error });
+
+  const vId = queueValidation.validateClientIdNumber(client_id_number);
+  if (!vId.ok) return res.status(400).json({ error: vId.error });
+
+  const nameClean = (client_name || '').trim();
+  if (!nameClean || nameClean.length > 120) {
+    return res.status(400).json({ error: 'Nombre requerido (máx 120 caracteres)' });
+  }
+  const phoneClean = (client_phone || '').trim() || null;
+  const emailClean = (client_email || '').trim().toLowerCase() || null;
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      const userRes = await client.query(
+        `SELECT id FROM users WHERE public_slug = $1`,
+        [slug]
+      );
+      if (!userRes.rowCount) {
+        const e = new Error('Tenant no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const userId = userRes.rows[0].id;
+
+      const branchRes = await client.query(
+        `SELECT id, public_booking_mode
+           FROM branches
+          WHERE id = $1 AND user_id = $2
+            AND public_booking_mode != 'disabled'
+          FOR UPDATE`,
+        [branch_id, userId]
+      );
+      if (!branchRes.rowCount) {
+        const e = new Error('Sucursal no disponible'); e.httpStatus = 404; throw e;
+      }
+      const branch = branchRes.rows[0];
+
+      const svcRes = await client.query(
+        `SELECT id FROM services WHERE id = $1 AND branch_id = $2`,
+        [service_id, branch_id]
+      );
+      if (!svcRes.rowCount) {
+        const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+      }
+
+      const blocked = await isSlotBlocked(client, branch_id, service_id, vAt.value.toISOString());
+      if (blocked) {
+        const e = new Error('El horario está bloqueado'); e.httpStatus = 409; throw e;
+      }
+
+      const status = branch.public_booking_mode === 'auto' ? 'confirmed' : 'pending';
+      const apptRes = await client.query(
+        `INSERT INTO appointments
+           (user_id, branch_id, service_id,
+            client_name, client_phone, client_email, client_id_number,
+            scheduled_at, status, origin)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'public')
+         RETURNING id, scheduled_at, status`,
+        [userId, branch_id, service_id,
+         nameClean, phoneClean, emailClean, vId.value,
+         vAt.value.toISOString(), status]
+      );
+      const appt = apptRes.rows[0];
+
+      const tokenRes = await client.query(
+        `INSERT INTO public_appointment_tokens
+           (user_id, appointment_id, action_allowed, expires_at)
+         VALUES ($1,$2,'both', NOW() + INTERVAL '7 days')
+         RETURNING token`,
+        [userId, appt.id]
+      );
+      const publicToken = tokenRes.rows[0].token;
+
+      return { appt, publicToken, userId, status };
+    });
+
+    console.log(`📅 public.appointment.created id=${outcome.appt.id} slug=${slug} status=${outcome.status}`);
+
+    // Fire-and-forget email — no falla el endpoint si el email falla
+    if (emailClean) {
+      const _citaUrl = `${process.env.CMS_URL || 'https://cms.sonoro.com.co'}/cita/${outcome.publicToken}`;
+      const _apptData = { client_name: nameClean, scheduled_at: outcome.appt.scheduled_at, status: outcome.appt.status };
+      (async () => {
+        try {
+          const nr = await pool.query(
+            `SELECT b.name AS branch_name, s.name AS service_name
+               FROM branches b, services s
+              WHERE b.id = $1 AND s.id = $2`,
+            [branch_id, service_id]
+          );
+          const n = nr.rows[0] || {};
+          await emailService.sendAppointmentConfirmation(emailClean,
+            { ..._apptData, branch_name: n.branch_name || '', service_name: n.service_name || '' },
+            _citaUrl
+          );
+        } catch(e) { console.warn('⚠️ email cita:', e.message); }
+      })();
+    }
+
+    return res.status(201).json({
+      id:           outcome.appt.id,
+      scheduled_at: outcome.appt.scheduled_at,
+      status:       outcome.appt.status,
+      public_token: outcome.publicToken,
+      message:      outcome.status === 'confirmed'
+        ? 'Cita confirmada.'
+        : 'Cita solicitada. Está pendiente de confirmación.',
+    });
+  } catch (err) {
+    if (err && err.httpStatus) {
+      return res.status(err.httpStatus).json({ error: err.message });
+    }
+    if (err && err.code === '23505') {
+      return res.status(409).json({ error: 'Horario no disponible. Selecciona otro.' });
+    }
+    console.error('❌ POST /api/queue/public/:slug/appointments:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §5 — GET /api/queue/tenant/profile
+// Devuelve public_slug del tenant autenticado.
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/tenant/profile', authenticateToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT public_slug FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    const row = r.rows[0] || {};
+    return res.json({ public_slug: row.public_slug || null });
+  } catch (err) {
+    console.error('❌ GET /api/queue/tenant/profile:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §6 — PATCH /api/queue/tenant/public-slug
+// Body: { public_slug: string }
+// ─────────────────────────────────────────────────────────────
+app.patch('/api/queue/tenant/public-slug', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const slug = (req.body?.public_slug || '').trim().toLowerCase();
+  if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
+    return res.status(400).json({ error: 'Slug inválido (solo minúsculas, números y guiones, 2–60 caracteres)' });
+  }
+  try {
+    await pool.query(
+      `UPDATE users SET public_slug = $1 WHERE id = $2`,
+      [slug, userId]
+    );
+    console.log(`🔗 tenant.public_slug.updated user=${userId} slug=${slug}`);
+    return res.json({ public_slug: slug });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Ese slug ya está en uso. Elige otro.' });
+    }
+    console.error('❌ PATCH /api/queue/tenant/public-slug:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §7 — PATCH /api/queue/branches/:id/public-booking-mode
+// Body: { public_booking_mode: 'auto'|'manual'|'disabled' }
+// ─────────────────────────────────────────────────────────────
+app.patch('/api/queue/branches/:id/public-booking-mode', authenticateToken, async (req, res) => {
+  const userId   = req.user.id;
+  const branchId = req.params.id;
+  if (!UUID_RE.test(branchId)) {
+    return res.status(400).json({ error: 'branch_id inválido' });
+  }
+  const mode = req.body?.public_booking_mode;
+  if (!['auto', 'manual', 'disabled'].includes(mode)) {
+    return res.status(400).json({ error: 'public_booking_mode debe ser auto, manual o disabled' });
+  }
+  try {
+    const r = await pool.query(
+      `UPDATE branches SET public_booking_mode = $1
+        WHERE id = $2 AND user_id = $3
+        RETURNING id`,
+      [mode, branchId, userId]
+    );
+    if (!r.rowCount) {
+      return res.status(404).json({ error: 'Sucursal no encontrada' });
+    }
+    console.log(`🔗 branch.public_booking_mode.updated branch=${branchId} mode=${mode}`);
+    return res.json({ id: branchId, public_booking_mode: mode });
+  } catch (err) {
+    console.error('❌ PATCH /api/queue/branches/:id/public-booking-mode:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §8 — GET /cita/:token  →  cita.html (gestión pública)
+// ─────────────────────────────────────────────────────────────
+app.get('/cita/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/cita.html'));
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §9 — GET /api/queue/cita/:token
+// Devuelve detalles de la cita para la página pública.
+// ─────────────────────────────────────────────────────────────
+app.get('/api/queue/cita/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
+  try {
+    const r = await pool.query(
+      `SELECT t.action_allowed, t.expires_at, t.used_at,
+              a.id AS appointment_id, a.scheduled_at, a.status, a.client_name,
+              a.branch_id, a.service_id,
+              b.name AS branch_name,
+              s.name AS service_name,
+              u.public_slug
+         FROM public_appointment_tokens t
+         JOIN appointments a ON a.id = t.appointment_id
+         JOIN branches     b ON b.id = a.branch_id
+         JOIN services     s ON s.id = a.service_id
+         JOIN users        u ON u.id = a.user_id
+        WHERE t.token = $1`,
+      [token]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Cita no encontrada' });
+    const row = r.rows[0];
+    if (row.used_at)                          return res.status(410).json({ error: 'Este enlace ya fue utilizado' });
+    if (new Date(row.expires_at) < new Date()) return res.status(410).json({ error: 'Este enlace ha expirado' });
+    return res.json({
+      appointment_id: row.appointment_id,
+      scheduled_at:   row.scheduled_at,
+      status:         row.status,
+      client_name:    row.client_name,
+      branch_id:      row.branch_id,
+      service_id:     row.service_id,
+      branch_name:    row.branch_name,
+      service_name:   row.service_name,
+      public_slug:    row.public_slug,
+      action_allowed: row.action_allowed,
+      expires_at:     row.expires_at,
+    });
+  } catch (err) {
+    console.error('❌ GET /api/queue/cita/:token:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §10 — DELETE /api/queue/cita/:token
+// Cancela la cita y marca el token como usado.
+// ─────────────────────────────────────────────────────────────
+app.delete('/api/queue/cita/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
+  try {
+    await withTransaction(pool, async (client) => {
+      const tRes = await client.query(
+        `SELECT t.appointment_id, t.action_allowed, t.expires_at, t.used_at,
+                a.status
+           FROM public_appointment_tokens t
+           JOIN appointments a ON a.id = t.appointment_id
+          WHERE t.token = $1 FOR UPDATE`,
+        [token]
+      );
+      if (!tRes.rowCount) { const e = new Error('Cita no encontrada'); e.httpStatus = 404; throw e; }
+      const row = tRes.rows[0];
+      if (row.used_at)                          { const e = new Error('Este enlace ya fue utilizado'); e.httpStatus = 410; throw e; }
+      if (new Date(row.expires_at) < new Date()) { const e = new Error('Este enlace ha expirado');     e.httpStatus = 410; throw e; }
+      if (!['both', 'cancel'].includes(row.action_allowed)) {
+        const e = new Error('Cancelación no permitida para este enlace'); e.httpStatus = 403; throw e;
+      }
+      if (['cancelled', 'no_show'].includes(row.status)) {
+        const e = new Error('La cita ya fue cancelada'); e.httpStatus = 409; throw e;
+      }
+      await client.query(`UPDATE appointments SET status = 'cancelled' WHERE id = $1`, [row.appointment_id]);
+      await client.query(`UPDATE public_appointment_tokens SET used_at = NOW() WHERE token = $1`, [token]);
+    });
+    console.log(`📅 public.appointment.cancelled token=${token}`);
+    return res.json({ message: 'Tu cita ha sido cancelada.' });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ DELETE /api/queue/cita/:token:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1.5 §11 — PATCH /api/queue/cita/:token
+// Reprograma la cita. El token NO se consume (permite re-agendar).
+// Body: { scheduled_at: ISO8601 }
+// ─────────────────────────────────────────────────────────────
+app.patch('/api/queue/cita/:token', async (req, res) => {
+  const { token } = req.params;
+  if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
+  const vAt = parseScheduledAt(req.body?.scheduled_at);
+  if (!vAt.ok) return res.status(400).json({ error: vAt.error });
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      const tRes = await client.query(
+        `SELECT t.appointment_id, t.action_allowed, t.expires_at, t.used_at,
+                a.status, a.branch_id, a.service_id
+           FROM public_appointment_tokens t
+           JOIN appointments a ON a.id = t.appointment_id
+          WHERE t.token = $1 FOR UPDATE`,
+        [token]
+      );
+      if (!tRes.rowCount) { const e = new Error('Cita no encontrada'); e.httpStatus = 404; throw e; }
+      const row = tRes.rows[0];
+      if (row.used_at)                          { const e = new Error('Este enlace ya fue utilizado'); e.httpStatus = 410; throw e; }
+      if (new Date(row.expires_at) < new Date()) { const e = new Error('Este enlace ha expirado');     e.httpStatus = 410; throw e; }
+      if (!['both', 'reschedule'].includes(row.action_allowed)) {
+        const e = new Error('Modificación no permitida para este enlace'); e.httpStatus = 403; throw e;
+      }
+      if (['cancelled', 'no_show'].includes(row.status)) {
+        const e = new Error('No se puede modificar una cita cancelada'); e.httpStatus = 409; throw e;
+      }
+      const blocked = await isSlotBlocked(client, row.branch_id, row.service_id, vAt.value.toISOString());
+      if (blocked) { const e = new Error('El horario está bloqueado'); e.httpStatus = 409; throw e; }
+      const apptRes = await client.query(
+        `UPDATE appointments SET scheduled_at = $1 WHERE id = $2 RETURNING scheduled_at`,
+        [vAt.value.toISOString(), row.appointment_id]
+      );
+      return { scheduled_at: apptRes.rows[0].scheduled_at };
+    });
+    console.log(`📅 public.appointment.rescheduled token=${token}`);
+    return res.json({ scheduled_at: outcome.scheduled_at, message: 'Tu cita ha sido reprogramada.' });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    if (err.code === '23505') return res.status(409).json({ error: 'Horario no disponible. Selecciona otro.' });
+    console.error('❌ PATCH /api/queue/cita/:token:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

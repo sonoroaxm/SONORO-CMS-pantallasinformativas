@@ -311,6 +311,81 @@
     .error-icon { font-size: 48px; margin-bottom: 16px; }
     .error-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
     .error-sub { font-size: 14px; color: var(--muted); }
+
+    /* ══ CONFIRM-CITA — numpad ══ */
+    #confirmApptScreen {
+      gap: 0; background: var(--black);
+      padding-bottom: 56px;
+    }
+    .confirm-appt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 40px 48px;
+      text-align: center;
+      max-width: 480px; width: 100%;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.12);
+      position: relative; overflow: hidden;
+    }
+    .confirm-appt-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--grad);
+    }
+    .numpad-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+    .numpad-sub { font-size: 14px; color: var(--muted); font-weight: 600; margin-bottom: 24px; }
+    .numpad-input-display {
+      font-size: 30px; font-weight: 800; letter-spacing: 6px;
+      background: #f3f2ef; border: 2px solid var(--border);
+      border-radius: 12px; padding: 14px 20px;
+      min-height: 62px; min-width: 260px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+      font-family: 'Montserrat', monospace;
+      color: var(--text); transition: border-color 0.15s;
+    }
+    .numpad-input-display.has-value { border-color: var(--magenta); }
+    .numpad-error { font-size: 13px; color: var(--magenta); font-weight: 600; min-height: 22px; margin-bottom: 12px; }
+    .numpad-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; max-width: 300px; margin: 0 auto 20px;
+    }
+    .numpad-key {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 20px 0;
+      font-size: 22px; font-weight: 700; cursor: pointer;
+      transition: all 0.12s cubic-bezier(0.16,1,0.3,1);
+      font-family: 'Montserrat', sans-serif; color: var(--text);
+    }
+    .numpad-key:active { transform: scale(0.93); background: #f0eeec; }
+    .numpad-key.numpad-del { font-size: 18px; }
+    .numpad-key.numpad-confirm {
+      background: var(--grad); border-color: transparent;
+      color: white; font-size: 18px;
+    }
+    .numpad-key.numpad-confirm:active { opacity: 0.85; transform: scale(0.93); }
+    .numpad-cancel {
+      font-size: 13px; color: var(--muted); font-weight: 600;
+      cursor: pointer; padding: 8px 16px;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .numpad-cancel:active { color: var(--text); }
+
+    /* ══ TOKEN EXPIRADO ══ */
+    #tokenExpiredScreen { gap: 20px; background: var(--black); }
+
+    /* ══ BOTÓN CONFIRMAR CITA (welcome) ══ */
+    .btn-confirm-appt {
+      display: block; width: 100%; max-width: 640px;
+      padding: 32px 48px;
+      background: white; border: 3px solid var(--magenta);
+      border-radius: 20px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(18px, 2.5vw, 26px); font-weight: 800; color: var(--magenta);
+      cursor: pointer; transition: all 0.18s;
+      line-height: 1.2;
+    }
+    .btn-confirm-appt:active { background: rgba(255,27,141,0.08); transform: scale(0.97); }
   </style>
 </head>
 <body>
@@ -336,11 +411,17 @@
   <div class="welcome-hero">
     <div class="welcome-title" id="welcomeMessage">Bienvenido</div>
     <div class="welcome-sub">Atención al Usuario</div>
-    <div class="welcome-instruction">Toca el servicio que necesitas</div>
+    <div class="welcome-instruction" id="welcomeInstruction">Toca el servicio que necesitas</div>
   </div>
 
   <div class="services-grid" id="servicesGrid">
     <!-- Se llena dinámicamente -->
+  </div>
+
+  <div id="apptConfirmSection" style="display:none; margin-top:28px; padding:8px 0; width:100%; max-width:640px; display:none;">
+    <button class="btn-confirm-appt" onclick="showScreen('confirmApptScreen');resetNumpad()">
+      ¿Tienes cita?<br>Confirma aquí
+    </button>
   </div>
 </div>
 
@@ -377,6 +458,45 @@
   </div>
 </div>
 
+<!-- CONFIRM-CITA: numpad para confirmar cita por cédula -->
+<div class="screen" id="confirmApptScreen">
+  <div class="kiosk-header">
+    <div class="kiosk-logo"><img id="clientLogo3" src="" alt="SONORO." style="max-height:40px;max-width:140px;object-fit:contain;display:none;" onerror="this.style.display='none';document.getElementById('logoText3').style.display='block'"><span id="logoText3" style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SONORO.</span></div>
+    <div class="kiosk-branch" id="confirmApptBranchName">—</div>
+    <div class="kiosk-clock" id="confirmApptClock">00:00</div>
+  </div>
+  <div class="confirm-appt-card">
+    <div class="numpad-title">Confirma tu cita</div>
+    <div class="numpad-sub">Ingresa tu número de documento</div>
+    <div class="numpad-input-display" id="numpadDisplay">—</div>
+    <div class="numpad-error" id="numpadError"></div>
+    <div class="numpad-grid">
+      <button class="numpad-key" onclick="numpadAppend('7')">7</button>
+      <button class="numpad-key" onclick="numpadAppend('8')">8</button>
+      <button class="numpad-key" onclick="numpadAppend('9')">9</button>
+      <button class="numpad-key" onclick="numpadAppend('4')">4</button>
+      <button class="numpad-key" onclick="numpadAppend('5')">5</button>
+      <button class="numpad-key" onclick="numpadAppend('6')">6</button>
+      <button class="numpad-key" onclick="numpadAppend('1')">1</button>
+      <button class="numpad-key" onclick="numpadAppend('2')">2</button>
+      <button class="numpad-key" onclick="numpadAppend('3')">3</button>
+      <button class="numpad-key numpad-del" onclick="numpadBackspace()">←</button>
+      <button class="numpad-key" onclick="numpadAppend('0')">0</button>
+      <button class="numpad-key numpad-confirm" id="numpadConfirmBtn" onclick="submitConfirmAppt()">✓</button>
+    </div>
+    <div class="numpad-cancel" onclick="goToWelcome()">Cancelar · Volver</div>
+  </div>
+</div>
+
+<!-- TOKEN EXPIRADO: el admin rotó el token y el kiosco quedó inválido -->
+<div class="screen" id="tokenExpiredScreen">
+  <div class="error-msg">
+    <div class="error-icon">🔐</div>
+    <div class="error-title">Kiosco desconectado</div>
+    <div class="error-sub">El administrador debe reconectar este kiosco desde el panel</div>
+  </div>
+</div>
+
 <div class="kiosk-footer">
   <div class="kiosk-footer-brand"><span>SONORO.</span> CMS · Pantallas Informativas</div>
   <div class="kiosk-footer-url">www.sonoro.com.co</div>
@@ -384,12 +504,16 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const API_URL   = window.location.origin;
-const BRANCH_ID = new URLSearchParams(window.location.search).get('branch');
-const socket    = io();
+const API_URL     = window.location.origin;
+const BRANCH_ID   = new URLSearchParams(window.location.search).get('branch');
+const KIOSK_TOKEN = new URLSearchParams(window.location.search).get('token');
+const socket      = io();
 
-let services      = [];
-let countdownTimer = null;
+let services           = [];
+let countdownTimer     = null;
+let branchData         = null;
+let numpadValue        = '';
+let confirmApptLoading = false;
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
@@ -415,7 +539,16 @@ async function init() {
   }
 
   socket.emit('join_branch', BRANCH_ID);
-  socket.on('new_token', loadServices); // actualizar conteos en tiempo real
+  socket.on('new_token', loadServices);
+  socket.on('branch.operation_mode.changed', (data) => {
+    if (branchData) {
+      branchData.operation_mode = data.operation_mode;
+      renderWelcomeByMode();
+    }
+  });
+  socket.on('branch.kiosk_token.rotated', () => {
+    showScreen('tokenExpiredScreen');
+  });
 }
 
 // ── CARGAR SUCURSAL ────────────────────────────────────────────
@@ -423,20 +556,24 @@ async function loadBranch() {
   const res  = await fetch(`${API_URL}/api/queue/display/${BRANCH_ID}`);
   const data = await res.json();
   if (!data.branch) return;
+  branchData = data.branch;
   const name = data.branch.name || 'SONORO';
-  document.getElementById('branchName').textContent        = name;
-  document.getElementById('confirmBranchName').textContent = name;
-  // Cargar logo del cliente
+  document.getElementById('branchName').textContent            = name;
+  document.getElementById('confirmBranchName').textContent     = name;
+  document.getElementById('confirmApptBranchName').textContent = name;
   if (data.branch.logo_url) {
-    const logos = [document.getElementById('clientLogo'), document.getElementById('clientLogo2')];
-    const texts = [document.getElementById('logoText'), document.getElementById('logoText2')];
-    logos.forEach((img, i) => {
+    const logoIds = ['clientLogo', 'clientLogo3'];
+    const textIds = ['logoText',   'logoText3'];
+    logoIds.forEach((id, i) => {
+      const img = document.getElementById(id);
+      const txt = document.getElementById(textIds[i]);
       if (img) { img.src = data.branch.logo_url; img.style.display = 'block'; }
-      if (texts[i]) texts[i].style.display = 'none';
+      if (txt) txt.style.display = 'none';
     });
   }
   const msg = data.branch.welcome_message || 'Bienvenido';
-  document.getElementById('welcomeMessage').textContent    = msg;
+  document.getElementById('welcomeMessage').textContent = msg;
+  renderWelcomeByMode();
 }
 
 // ── CARGAR SERVICIOS ───────────────────────────────────────────
@@ -547,6 +684,7 @@ function showConfirmation(data, serviceName, serviceColor) {
 function goToWelcome() {
   clearTimeout(countdownTimer);
   loadServices();
+  renderWelcomeByMode();
   showScreen('welcomeScreen');
 }
 
@@ -590,11 +728,96 @@ function startClock() {
     const h   = String(now.getHours()).padStart(2,'0');
     const m   = String(now.getMinutes()).padStart(2,'0');
     const t   = `${h}:${m}`;
-    document.getElementById('kioskClock').textContent   = t;
-    document.getElementById('confirmClock').textContent = t;
+    document.getElementById('kioskClock').textContent        = t;
+    document.getElementById('confirmClock').textContent      = t;
+    document.getElementById('confirmApptClock').textContent  = t;
   }
   tick();
   setInterval(tick, 1000);
+}
+
+// ── MODO DE OPERACIÓN ─────────────────────────────────────────
+function renderWelcomeByMode() {
+  if (!branchData) return;
+  const mode        = branchData.operation_mode || 'queue_only';
+  const grid        = document.getElementById('servicesGrid');
+  const apptSection = document.getElementById('apptConfirmSection');
+  const instruction = document.getElementById('welcomeInstruction');
+  if (mode === 'queue_only') {
+    grid.style.display        = '';
+    apptSection.style.display = 'none';
+    if (instruction) instruction.textContent = 'Toca el servicio que necesitas';
+  } else if (mode === 'appointments_only') {
+    grid.style.display        = 'none';
+    apptSection.style.display = 'block';
+    if (instruction) instruction.textContent = 'Confirma tu cita para ser atendido';
+  } else {
+    grid.style.display        = '';
+    apptSection.style.display = 'block';
+    if (instruction) instruction.textContent = 'Toca el servicio que necesitas o confirma tu cita';
+  }
+}
+
+// ── NUMPAD ────────────────────────────────────────────────────
+function resetNumpad() {
+  numpadValue = '';
+  document.getElementById('numpadDisplay').textContent = '—';
+  document.getElementById('numpadDisplay').classList.remove('has-value');
+  document.getElementById('numpadError').textContent = '';
+}
+
+function numpadAppend(digit) {
+  if (numpadValue.length >= 12) return;
+  numpadValue += digit;
+  document.getElementById('numpadDisplay').textContent = numpadValue;
+  document.getElementById('numpadDisplay').classList.add('has-value');
+}
+
+function numpadBackspace() {
+  if (!numpadValue.length) return;
+  numpadValue = numpadValue.slice(0, -1);
+  document.getElementById('numpadDisplay').textContent = numpadValue || '—';
+  document.getElementById('numpadDisplay').classList.toggle('has-value', numpadValue.length > 0);
+}
+
+async function submitConfirmAppt() {
+  if (confirmApptLoading) return;
+  if (numpadValue.length < 4) {
+    document.getElementById('numpadError').textContent = 'Ingresa al menos 4 dígitos';
+    return;
+  }
+  if (!KIOSK_TOKEN) {
+    document.getElementById('numpadError').textContent = 'Kiosco sin token configurado';
+    return;
+  }
+  confirmApptLoading = true;
+  document.getElementById('numpadError').textContent = '';
+  document.getElementById('numpadConfirmBtn').textContent = '...';
+  try {
+    const res = await fetch(`${API_URL}/api/queue/kiosk/confirm-presence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Branch-Token': KIOSK_TOKEN },
+      body: JSON.stringify({ client_id_number: numpadValue }),
+    });
+    const data = await res.json();
+    if (!data.confirmed) {
+      document.getElementById('numpadError').textContent =
+        'No encontramos una cita confirmada para ese documento hoy';
+      return;
+    }
+    showConfirmation(
+      { token_number: data.token_number, estimated_wait_minutes: data.estimated_wait_minutes,
+        position_in_queue: data.queue_position, success: true },
+      'Cita confirmada',
+      '#FF1B8D'
+    );
+    resetNumpad();
+  } catch(e) {
+    document.getElementById('numpadError').textContent = 'Error de conexión. Intenta de nuevo.';
+  } finally {
+    document.getElementById('numpadConfirmBtn').textContent = '✓';
+    confirmApptLoading = false;
+  }
 }
 
 // ── START ──────────────────────────────────────────────────────

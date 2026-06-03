@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Cita — SONORO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --magenta: #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --grad:    linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+      --bg:      #f5f4f2;
+      --surface: #ffffff;
+      --border:  #e0ddd8;
+      --text:    #1a1a1a;
+      --muted:   #8a8680;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .page {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .brand-logo {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #FF1B8D, #FF8C00, #FFE566);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: #999;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+
+    /* ── Detail rows ── */
+    .detail-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .detail-value {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ── Status badge ── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .badge-confirmed  { background: #d4edda; color: #155724; }
+    .badge-pending    { background: #fff3cd; color: #856404; }
+    .badge-cancelled  { background: #f8d7da; color: #721c24; }
+    .badge-attended   { background: #cce5ff; color: #004085; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:active { opacity: .8; }
+    .btn-primary {
+      background: var(--grad);
+      color: #fff;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: #fff;
+    }
+    .btn-ghost {
+      background: var(--border);
+      color: var(--text);
+    }
+    .btn + .btn { margin-top: 10px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Date input ── */
+    .date-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .date-input:focus { border-color: var(--magenta); }
+
+    /* ── Slots grid ── */
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .slot-btn {
+      padding: 10px 4px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      text-align: center;
+    }
+    .slot-btn:hover:not(.slot-taken):not(.slot-selected) { border-color: var(--orange); color: var(--orange); }
+    .slot-btn.slot-selected { background: var(--grad); color:#fff; border-color: transparent; }
+    .slot-btn.slot-taken { background: var(--bg); color: var(--muted); cursor: not-allowed; }
+    .slots-empty { color: #999; font-size: 14px; text-align: center; padding: 20px 0; }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #eee;
+      border-top-color: #FF1B8D;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 32px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result icon ── */
+    .result-icon {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      margin: 0 auto 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 900; color: #fff;
+    }
+    .result-icon.ok  { background: #38a169; }
+    .result-icon.err { background: #dc3545; }
+    .result-title {
+      font-size: 20px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .result-msg {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    /* ── Expiry note ── */
+    .expiry-note {
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* ── Error state ── */
+    .error-box {
+      background: #fff3f3;
+      border: 1px solid #ffc2c2;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .error-box .error-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #dc3545; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 900;
+      margin: 0 auto 12px;
+    }
+    .error-box .error-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #c00; }
+    .error-box .error-msg { font-size: 13px; color: #888; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-logo">SONORO.</div>
+    <div class="brand-sub">Gestión de Citas</div>
+  </div>
+
+  <!-- ── Screen: loading ── -->
+  <div id="loadingScreen" class="screen active">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ── Screen: error ── -->
+  <div id="errorScreen" class="screen">
+    <div class="error-box">
+      <div class="error-icon">!</div>
+      <div class="error-title" id="errorTitle">Enlace no válido</div>
+      <div class="error-msg" id="errorMsg">Este enlace no existe, ya fue utilizado o ha expirado.</div>
+    </div>
+  </div>
+
+  <!-- ── Screen: view appointment ── -->
+  <div id="viewScreen" class="screen">
+    <div class="card">
+      <div class="card-title">Detalle de tu cita</div>
+      <div class="detail-row">
+        <div class="detail-label">Cliente</div>
+        <div class="detail-value" id="vClientName">—</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Sucursal</div>
+        <div class="detail-value" id="vBranchName">—</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Servicio</div>
+        <div class="detail-value" id="vServiceName">—</div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-label">Fecha y hora</div>
+        <div class="detail-value" id="vScheduledAt">—</div>
+      </div>
+      <div class="detail-row" style="border-bottom:none;">
+        <div class="detail-label">Estado</div>
+        <div><span class="badge" id="vStatus">—</span></div>
+      </div>
+    </div>
+
+    <div id="viewActions">
+      <button class="btn btn-primary" id="btnReschedule" onclick="showScreen('rescheduleScreen')">
+        Cambiar horario
+      </button>
+      <button class="btn btn-danger" id="btnCancel" onclick="showScreen('cancelScreen')">
+        Cancelar cita
+      </button>
+    </div>
+    <p class="expiry-note" id="vExpiry"></p>
+  </div>
+
+  <!-- ── Screen: cancel confirm ── -->
+  <div id="cancelScreen" class="screen">
+    <div class="card">
+      <div class="card-title">Cancelar cita</div>
+      <p style="font-size:14px;color:#555;line-height:1.6;margin-bottom:20px;">
+        ¿Estás seguro de que deseas cancelar tu cita? Esta acción no se puede deshacer.
+      </p>
+      <div id="cancelDetails" style="background:#f9f9f9;border-radius:8px;padding:14px 16px;font-size:14px;color:#333;margin-bottom:20px;line-height:1.8;"></div>
+      <button class="btn btn-danger" id="btnConfirmCancel" onclick="doCancel()">Sí, cancelar mi cita</button>
+      <button class="btn btn-ghost" onclick="showScreen('viewScreen')">Volver</button>
+    </div>
+  </div>
+
+  <!-- ── Screen: reschedule ── -->
+  <div id="rescheduleScreen" class="screen">
+    <div class="card">
+      <div class="card-title">Cambiar horario</div>
+      <label style="font-size:12px;font-weight:700;color:#888;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;">
+        Selecciona fecha
+      </label>
+      <input type="date" id="rescheduleDate" class="date-input" onchange="loadRescheduleSlots()">
+      <div id="rescheduleSlotsContainer"></div>
+      <button class="btn btn-primary" id="btnConfirmReschedule" onclick="doReschedule()" disabled>
+        Confirmar nuevo horario
+      </button>
+      <button class="btn btn-ghost" onclick="showScreen('viewScreen')">Volver</button>
+    </div>
+  </div>
+
+  <!-- ── Screen: result ── -->
+  <div id="resultScreen" class="screen">
+    <div class="card" style="text-align:center;padding:36px 24px;">
+      <div class="result-icon ok" id="resultIcon">✓</div>
+      <div class="result-title" id="resultTitle">¡Listo!</div>
+      <p class="result-msg" id="resultMsg"></p>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  const TOKEN = location.pathname.split('/cita/')[1] || '';
+  let _st = {
+    appt: null,
+    selectedSlot: null,
+  };
+
+  /* ── helpers ── */
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function fmtDateTime(isoStr) {
+    if (!isoStr) return '—';
+    const d = new Date(isoStr);
+    const dateStr = d.toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota',
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+    const timeStr = d.toLocaleTimeString('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+    return `${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}, ${timeStr}`;
+  }
+
+  function fmtTime(isoStr) {
+    const d = new Date(isoStr);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  function fmtDateInput(isoStr) {
+    const d = new Date(isoStr);
+    const bog = new Date(d.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+    const y = bog.getFullYear();
+    const m = String(bog.getMonth() + 1).padStart(2, '0');
+    const dd = String(bog.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  }
+
+  function statusLabel(status) {
+    const map = {
+      confirmed: ['Confirmada', 'confirmed'],
+      pending:   ['Pendiente de confirmación', 'pending'],
+      cancelled: ['Cancelada', 'cancelled'],
+      attended:  ['Atendida', 'attended'],
+      no_show:   ['No se presentó', 'cancelled'],
+    };
+    return map[status] || [status, ''];
+  }
+
+  function setExpiry(expiresAt) {
+    const exp = new Date(expiresAt);
+    const now = new Date();
+    const diffMs = exp - now;
+    if (diffMs < 0) return;
+    const diffDays = Math.ceil(diffMs / 86400000);
+    const el = document.getElementById('vExpiry');
+    el.textContent = diffDays === 1
+      ? 'Este enlace vence mañana.'
+      : `Este enlace vence en ${diffDays} días.`;
+  }
+
+  /* ── load appointment details ── */
+  async function loadAppointment() {
+    if (!TOKEN) { showError('Enlace inválido', 'No se encontró el token en la URL.'); return; }
+    try {
+      const r = await fetch(`/api/queue/cita/${TOKEN}`);
+      const data = await r.json();
+      if (!r.ok) { showError('Enlace no disponible', data.error || 'Error desconocido'); return; }
+      _st.appt = data;
+      renderView();
+    } catch(e) {
+      showError('Error de conexión', 'No se pudo cargar la información de la cita.');
+    }
+  }
+
+  function renderView() {
+    const a = _st.appt;
+    document.getElementById('vClientName').textContent  = a.client_name;
+    document.getElementById('vBranchName').textContent  = a.branch_name;
+    document.getElementById('vServiceName').textContent = a.service_name;
+    document.getElementById('vScheduledAt').textContent = fmtDateTime(a.scheduled_at);
+
+    const [label, cls] = statusLabel(a.status);
+    const badge = document.getElementById('vStatus');
+    badge.textContent = label;
+    badge.className = `badge badge-${cls}`;
+
+    setExpiry(a.expires_at);
+
+    const terminal = ['cancelled', 'no_show', 'attended'].includes(a.status);
+    const actions  = document.getElementById('viewActions');
+    if (terminal) {
+      actions.innerHTML = '';
+    } else {
+      const canCancel    = ['both','cancel'].includes(a.action_allowed);
+      const canReschedule= ['both','reschedule'].includes(a.action_allowed);
+      document.getElementById('btnReschedule').style.display = canReschedule ? '' : 'none';
+      document.getElementById('btnCancel').style.display     = canCancel    ? '' : 'none';
+
+      // Prepopulate cancel details
+      document.getElementById('cancelDetails').innerHTML =
+        `<strong>${a.service_name}</strong><br>` +
+        `${a.branch_name}<br>` +
+        `${fmtDateTime(a.scheduled_at)}`;
+    }
+
+    // Pre-fill reschedule date with current appointment date
+    const reschedDate = document.getElementById('rescheduleDate');
+    reschedDate.value = fmtDateInput(a.scheduled_at);
+    // Set min date to today
+    reschedDate.min = fmtDateInput(new Date().toISOString());
+
+    showScreen('viewScreen');
+  }
+
+  function showError(title, msg) {
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorMsg').textContent   = msg;
+    showScreen('errorScreen');
+  }
+
+  /* ── Cancel ── */
+  async function doCancel() {
+    const btn = document.getElementById('btnConfirmCancel');
+    btn.disabled = true;
+    btn.textContent = 'Cancelando…';
+    try {
+      const r = await fetch(`/api/queue/cita/${TOKEN}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (!r.ok) {
+        btn.disabled = false;
+        btn.textContent = 'Sí, cancelar mi cita';
+        showResult('error', 'No se pudo cancelar', data.error || 'Error desconocido');
+        return;
+      }
+      showResult('ok', 'Cita cancelada', 'Tu cita ha sido cancelada exitosamente.');
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Sí, cancelar mi cita';
+      showResult('error', 'Error de conexión', 'No se pudo procesar la cancelación.');
+    }
+  }
+
+  /* ── Reschedule slots ── */
+  async function loadRescheduleSlots() {
+    const dateVal = document.getElementById('rescheduleDate').value;
+    if (!dateVal) return;
+    _st.selectedSlot = null;
+    document.getElementById('btnConfirmReschedule').disabled = true;
+
+    const container = document.getElementById('rescheduleSlotsContainer');
+    container.innerHTML = '<div class="spinner" style="margin:16px auto;width:28px;height:28px;border-width:2px;"></div>';
+
+    const a = _st.appt;
+    try {
+      const url = `/api/queue/public/${a.public_slug}/slots?branch_id=${a.branch_id}&service_id=${a.service_id}&date=${dateVal}`;
+      const r = await fetch(url);
+      const data = await r.json();
+      if (!r.ok) { container.innerHTML = `<p class="slots-empty">${data.error || 'Error al cargar horarios'}</p>`; return; }
+      const slots = data.slots || [];
+      if (!slots.length) { container.innerHTML = '<p class="slots-empty">No hay horarios disponibles para este día.</p>'; return; }
+      renderRescheduleSlots(slots, dateVal);
+    } catch(e) {
+      container.innerHTML = '<p class="slots-empty">Error de conexión.</p>';
+    }
+  }
+
+  function renderRescheduleSlots(slots, dateStr) {
+    const container = document.getElementById('rescheduleSlotsContainer');
+    const available = slots.filter(s => s.available === true);
+    if (!available.length) {
+      container.innerHTML = '<p class="slots-empty">No hay horarios disponibles para este día.</p>';
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'slots-grid';
+    slots.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'slot-btn' + (s.available ? '' : ' slot-taken');
+      btn.textContent = fmtTime(s.starts_at);
+      btn.disabled = !s.available;
+      if (s.available) {
+        btn.onclick = () => selectRescheduleSlot(btn, s.starts_at);
+      }
+      grid.appendChild(btn);
+    });
+    container.innerHTML = '';
+    container.appendChild(grid);
+  }
+
+  function selectRescheduleSlot(btn, isoStr) {
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('slot-selected'));
+    btn.classList.add('slot-selected');
+    _st.selectedSlot = isoStr;
+    document.getElementById('btnConfirmReschedule').disabled = false;
+  }
+
+  /* ── Do reschedule ── */
+  async function doReschedule() {
+    if (!_st.selectedSlot) return;
+    const btn = document.getElementById('btnConfirmReschedule');
+    btn.disabled = true;
+    btn.textContent = 'Reprogramando…';
+    try {
+      const r = await fetch(`/api/queue/cita/${TOKEN}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduled_at: _st.selectedSlot }),
+      });
+      const data = await r.json();
+      btn.disabled = false;
+      btn.textContent = 'Confirmar nuevo horario';
+      if (!r.ok) {
+        showResult('error', 'No se pudo reprogramar', data.error || 'Error desconocido');
+        return;
+      }
+      // Update local state and show success
+      _st.appt.scheduled_at = data.scheduled_at;
+      showResult('ok', 'Cita reprogramada', `Tu cita ha sido reprogramada para el ${fmtDateTime(data.scheduled_at)}.`);
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar nuevo horario';
+      showResult('error', 'Error de conexión', 'No se pudo procesar la reprogramación.');
+    }
+  }
+
+  /* ── Result screen ── */
+  function showResult(type, title, msg) {
+    const icon = document.getElementById('resultIcon');
+    icon.className = `result-icon ${type === 'ok' ? 'ok' : 'err'}`;
+    icon.textContent = type === 'ok' ? '✓' : '✕';
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultMsg').textContent   = msg;
+    showScreen('resultScreen');
+  }
+
+  /* ── Init ── */
+  loadAppointment();
+</script>
+</body>
+</html>

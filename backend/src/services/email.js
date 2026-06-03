@@ -482,4 +482,71 @@ async function sendPasswordResetEmail(user, resetLink) {
   console.log(`✅ Email reset password enviado a ${user.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, verifyConnection };
+
+// ── R1.5 §C — EMAIL DE CONFIRMACIÓN DE CITA PÚBLICA ──────────
+async function sendAppointmentConfirmation(to, appt, citaUrl) {
+  const d = new Date(appt.scheduled_at);
+  const dateStr = d.toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const timeStr = d.toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+  const fmtDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+  const isConfirmed = appt.status === 'confirmed';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
+      ${isConfirmed ? 'Cita confirmada ✓' : 'Cita recibida — pendiente de confirmación'}
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${appt.client_name}</strong>,
+      ${isConfirmed
+        ? 'tu cita ha sido confirmada exitosamente.'
+        : 'hemos recibido tu solicitud. Te notificaremos cuando sea confirmada.'}
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:28px;">
+      ${appt.branch_name ? `
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Sucursal</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.branch_name}</p>
+      </td></tr>` : ''}
+      ${appt.service_name ? `
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Servicio</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.service_name}</p>
+      </td></tr>` : ''}
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha y hora</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${fmtDate}, ${timeStr}</p>
+      </td></tr>
+    </table>
+    <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">
+      Usa el siguiente enlace para <strong>cancelar o modificar</strong> tu cita (válido 7 días):
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr><td align="center">
+        <a href="${citaUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Ver / modificar mi cita
+        </a>
+      </td></tr>
+    </table>
+    <p style="font-size:11px;color:#bbb;margin:0;word-break:break-all;">
+      O copia este enlace: <span style="color:#FF8C00;">${citaUrl}</span>
+    </p>
+  `);
+
+  await transporter.sendMail({
+    from:    FROM,
+    to,
+    subject: isConfirmed
+      ? `Cita confirmada — ${fmtDate}, ${timeStr}`
+      : `Solicitud de cita recibida — ${fmtDate}, ${timeStr}`,
+    html,
+  });
+  console.log(`✅ Email confirmación de cita enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendAppointmentConfirmation, verifyConnection };
