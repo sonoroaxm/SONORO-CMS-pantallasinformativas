@@ -1324,11 +1324,14 @@
         </div>
       </div>
 
-      <!-- ── CITAS (Queue v2 R1 — slice 1 lectura pura) ── -->
+      <!-- ── CITAS (Queue v2 R1 — slice 1 lectura + slice 2 crear) ── -->
       <div id="appointments-tab" class="container hidden">
         <div class="section-header">
           <div class="section-title">Gestión de Citas</div>
-          <button class="btn btn-primary btn-sm" onclick="loadAppointmentsData()">↻ Actualizar</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="loadAppointmentsData()">↻ Actualizar</button>
+            <button class="btn btn-primary btn-sm" onclick="openCreateAppointmentModal()">+ Nueva cita</button>
+          </div>
         </div>
 
         <div class="card" style="padding:20px;">
@@ -1448,6 +1451,59 @@
           <button type="button" class="btn btn-outline" onclick="closePlaylistModal()">Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL NUEVA CITA (Queue v2 R1 slice 2) ══ -->
+<div id="appointmentModal" class="modal">
+  <div class="modal-content" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>Nueva cita</h3>
+      <button class="modal-close" onclick="closeCreateAppointmentModal()">✕</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:14px;">
+      <div id="apptCreateBanner" style="display:none;padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.5;"></div>
+      <div class="form-group" style="margin:0;">
+        <label>Sucursal</label>
+        <select id="apptCreateBranch" onchange="_apptOnCreateBranchChange()"></select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Servicio</label>
+        <select id="apptCreateService"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" style="margin:0;">
+          <label>Fecha</label>
+          <input type="date" id="apptCreateDate" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Hora</label>
+          <input type="time" id="apptCreateTime" step="300" />
+        </div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Nombre del cliente</label>
+        <input type="text" id="apptCreateName" placeholder="Ej: María Ramírez" maxlength="120" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group" style="margin:0;">
+          <label>Teléfono</label>
+          <input type="tel" id="apptCreatePhone" placeholder="+57 300 1112233" maxlength="30" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Cédula</label>
+          <input type="text" id="apptCreateIdNumber" placeholder="1020304050" maxlength="40" />
+        </div>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Email (opcional)</label>
+        <input type="email" id="apptCreateEmail" placeholder="cliente@correo.com" maxlength="120" />
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-grad" id="apptCreateSubmitBtn" onclick="submitCreateAppointment()" style="flex:1;">Crear cita</button>
+        <button class="btn btn-outline" onclick="closeCreateAppointmentModal()">Cancelar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3821,6 +3877,194 @@ function renderAppointmentsList(items, servicesMap) {
     `;
   }).join('');
   listEl.innerHTML = rows;
+}
+
+// ── slice 2: crear cita ──
+function _apptShowCreateBanner(kind, msg) {
+  const el = document.getElementById('apptCreateBanner');
+  if (!el) return;
+  const palette = {
+    error: { bg: '#3a1414', fg: '#ff6b6b' },
+    warn:  { bg: '#3a2d00', fg: '#ffc857' },
+    info:  { bg: '#0d2a4d', fg: '#5fb1ff' }
+  };
+  const c = palette[kind] || palette.info;
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _apptHideCreateBanner() {
+  const el = document.getElementById('apptCreateBanner');
+  if (el) el.style.display = 'none';
+}
+
+async function _apptPopulateCreateServiceSelect(branchId) {
+  const sel = document.getElementById('apptCreateService');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Cargando…</option>';
+  sel.disabled = true;
+  const map = await ensureBranchServices(branchId);
+  const list = Array.from(map.values()).filter(s => s.active !== false);
+  if (list.length === 0) {
+    sel.innerHTML = '<option value="">(sin servicios)</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.innerHTML = list.map(s =>
+    `<option value="${_apptEscapeHtml(s.id)}">${_apptEscapeHtml(s.name || '(sin nombre)')}</option>`
+  ).join('');
+  sel.disabled = false;
+}
+
+async function _apptOnCreateBranchChange() {
+  const branchSel = document.getElementById('apptCreateBranch');
+  const branchId = branchSel ? branchSel.value : null;
+  if (!branchId) return;
+  await _apptPopulateCreateServiceSelect(branchId);
+}
+
+async function openCreateAppointmentModal() {
+  _apptHideCreateBanner();
+  const modal = document.getElementById('appointmentModal');
+  if (!modal) return;
+  try {
+    await ensureAppointmentBranches();
+  } catch (err) {
+    showStatus('No se pudieron cargar las sucursales: ' + (err.message || 'error'), 'error');
+    return;
+  }
+  if (!_apptState.branches || _apptState.branches.length === 0) {
+    showStatus('Primero debes crear una sucursal antes de agendar citas.', 'error');
+    return;
+  }
+  const branchSel = document.getElementById('apptCreateBranch');
+  branchSel.innerHTML = _apptState.branches.map(b =>
+    `<option value="${_apptEscapeHtml(b.id)}">${_apptEscapeHtml(b.name || '(sin nombre)')}</option>`
+  ).join('');
+  const preselect = _apptState.selectedBranchId || _apptState.branches[0].id;
+  branchSel.value = preselect;
+  await _apptPopulateCreateServiceSelect(preselect);
+
+  // Defaults: fecha = filtro activo (o hoy); hora = próximo cuarto de hora
+  const dateInput = document.getElementById('apptCreateDate');
+  const timeInput = document.getElementById('apptCreateTime');
+  const nameInput = document.getElementById('apptCreateName');
+  const phoneInput = document.getElementById('apptCreatePhone');
+  const idInput = document.getElementById('apptCreateIdNumber');
+  const emailInput = document.getElementById('apptCreateEmail');
+  if (dateInput) dateInput.value = _apptState.selectedDate || _apptTodayLocalISO();
+  if (timeInput) {
+    const now = new Date();
+    const next = new Date(now.getTime() + 30 * 60 * 1000);
+    const rounded = new Date(next.getTime() - (next.getMinutes() % 15) * 60 * 1000);
+    rounded.setSeconds(0, 0);
+    const hh = String(rounded.getHours()).padStart(2, '0');
+    const mm = String(rounded.getMinutes()).padStart(2, '0');
+    timeInput.value = `${hh}:${mm}`;
+  }
+  if (nameInput) nameInput.value = '';
+  if (phoneInput) phoneInput.value = '';
+  if (idInput) idInput.value = '';
+  if (emailInput) emailInput.value = '';
+
+  modal.classList.add('active');
+}
+
+function closeCreateAppointmentModal() {
+  const modal = document.getElementById('appointmentModal');
+  if (modal) modal.classList.remove('active');
+  _apptHideCreateBanner();
+}
+
+async function submitCreateAppointment() {
+  _apptHideCreateBanner();
+  const btn = document.getElementById('apptCreateSubmitBtn');
+  const branchId = document.getElementById('apptCreateBranch').value;
+  const serviceId = document.getElementById('apptCreateService').value;
+  const dateVal = document.getElementById('apptCreateDate').value;
+  const timeVal = document.getElementById('apptCreateTime').value;
+  const name = (document.getElementById('apptCreateName').value || '').trim();
+  const phone = (document.getElementById('apptCreatePhone').value || '').trim();
+  const idNumber = (document.getElementById('apptCreateIdNumber').value || '').trim();
+  const email = (document.getElementById('apptCreateEmail').value || '').trim();
+
+  // Validación cliente
+  if (!branchId) return _apptShowCreateBanner('error', 'Selecciona una sucursal.');
+  if (!serviceId) return _apptShowCreateBanner('error', 'Selecciona un servicio.');
+  if (!dateVal || !timeVal) return _apptShowCreateBanner('error', 'Indica fecha y hora.');
+  if (name.length < 3) return _apptShowCreateBanner('error', 'El nombre debe tener al menos 3 caracteres.');
+  if (!/^\+?[0-9\s\-]{7,}$/.test(phone)) return _apptShowCreateBanner('error', 'Teléfono inválido (mínimo 7 dígitos, opcionalmente con +).');
+  if (idNumber.length < 4) return _apptShowCreateBanner('error', 'La cédula debe tener al menos 4 caracteres.');
+
+  const localDt = new Date(`${dateVal}T${timeVal}:00`);
+  if (isNaN(localDt.getTime())) return _apptShowCreateBanner('error', 'Fecha/hora inválida.');
+  const skewMs = 5 * 60 * 1000;
+  if (localDt.getTime() < Date.now() - skewMs) {
+    return _apptShowCreateBanner('error', 'La fecha/hora debe ser futura.');
+  }
+  const scheduledIso = localDt.toISOString();
+
+  const body = {
+    branch_id: branchId,
+    service_id: serviceId,
+    client_name: name,
+    client_phone: phone,
+    client_id_number: idNumber,
+    scheduled_at: scheduledIso,
+    origin: 'admin'
+  };
+  if (email) body.client_email = email;
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando…'; }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch(_) {}
+
+    if (res.status === 201 || res.ok) {
+      closeCreateAppointmentModal();
+      showStatus('Cita creada correctamente', 'success');
+      // Alinear filtro al día de la cita creada para que aparezca en la lista
+      const createdDate = `${dateVal}`;
+      _apptState.selectedBranchId = branchId;
+      _apptState.selectedDate = createdDate;
+      const branchFilter = document.getElementById('apptBranchFilter');
+      const dateFilter = document.getElementById('apptDateFilter');
+      if (branchFilter) branchFilter.value = branchId;
+      if (dateFilter) dateFilter.value = createdDate;
+      await loadAppointmentsData();
+      return;
+    }
+
+    const code = payload && (payload.code || payload.error);
+    if (res.status === 403 && code === 'FEATURE_DISABLED') {
+      _apptShowCreateBanner('warn', 'El módulo Citas no está habilitado para tu cuenta.');
+    } else if (res.status === 400) {
+      _apptShowCreateBanner('error', payload.error || 'Datos inválidos.');
+    } else if (res.status === 404) {
+      _apptShowCreateBanner('error', 'Sucursal o servicio no encontrado.');
+    } else if (res.status === 409) {
+      const msg = code === 'SLOT_TAKEN'   ? 'Ese horario ya está ocupado. Elige otro.'
+                : code === 'BLOCKED'      ? 'El horario está bloqueado.'
+                : code === 'OVER_CAPACITY' ? 'El cupo del horario está lleno.'
+                : (payload.error || 'Conflicto al guardar la cita.');
+      _apptShowCreateBanner('error', msg);
+    } else if (res.status === 503) {
+      _apptShowCreateBanner('error', 'Servicio ocupado, intenta de nuevo en unos segundos.');
+    } else {
+      _apptShowCreateBanner('error', payload.error || `Error inesperado (HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    _apptShowCreateBanner('error', 'Error de red: ' + (err.message || 'desconocido'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cita'; }
+  }
 }
 // ══ FIN CITAS ══
 
