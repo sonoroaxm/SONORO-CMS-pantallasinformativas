@@ -5776,6 +5776,393 @@ app.delete('/api/queue/time-blocks/:id', authenticateToken, requireFeatureFlag('
 });
 
 // ══════════════════════════════════════════════════════════════
+// R2 — Operaciones bulk + bloqueos reactivos
+// ══════════════════════════════════════════════════════════════
+
+// Helper: encuentra el próximo slot disponible para una cita,
+// buscando desde fromTs hacia adelante hasta maxDays días.
+// Requiere un client de transacción (o pool) con acceso a BD.
+async function findNextAvailableSlot(client, branchId, serviceId, userId, fromTs, maxDays = 14) {
+  const brRes = await client.query(
+    `SELECT open_time, close_time FROM branches WHERE id = $1 AND user_id = $2`,
+    [branchId, userId]
+  );
+  if (!brRes.rowCount) return null;
+  const { open_time, close_time } = brRes.rows[0];
+
+  const svcRes = await client.query(
+    `SELECT slot_duration_minutes, avg_attention_min, max_concurrent_per_slot
+     FROM services WHERE id = $1 AND branch_id = $2`,
+    [serviceId, branchId]
+  );
+  if (!svcRes.rowCount) return null;
+  const svc = svcRes.rows[0];
+  const stepMinutes = svc.slot_duration_minutes || svc.avg_attention_min || 30;
+  const maxConcurrent = svc.max_concurrent_per_slot || 1;
+
+  const fromDate = new Date(fromTs);
+  for (let dayOffset = 0; dayOffset <= maxDays; dayOffset++) {
+    const searchDate = new Date(fromDate);
+    searchDate.setUTCDate(searchDate.getUTCDate() + dayOffset);
+    const dayKey = searchDate.toISOString().slice(0, 10);
+
+    const apptRes = await client.query(
+      `SELECT scheduled_at FROM appointments
+       WHERE user_id = $1 AND branch_id = $2 AND service_id = $3
+         AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $4::date
+         AND status = ANY($5)`,
+      [userId, branchId, serviceId, dayKey, APPT_ACTIVE_STATUSES]
+    );
+    const slotCount = {};
+    for (const r of apptRes.rows) {
+      const k = new Date(r.scheduled_at).toISOString();
+      slotCount[k] = (slotCount[k] || 0) + 1;
+    }
+
+    const blockRes = await client.query(
+      `SELECT starts_at, ends_at FROM time_blocks
+       WHERE branch_id = $1
+         AND (service_id IS NULL OR service_id = $2)
+         AND tstzrange(starts_at, ends_at, '[)')
+             && tstzrange(($3::date)::timestamptz, ($3::date + INTERVAL '1 day')::timestamptz, '[)')`,
+      [branchId, serviceId, dayKey]
+    );
+
+    const grid = queueSlots.buildSlotsGrid({
+      date: dayKey,
+      openTime: open_time,
+      closeTime: close_time,
+      stepMinutes,
+      occupiedSet: new Set(Object.keys(slotCount).filter(k => slotCount[k] >= maxConcurrent)),
+      blockedRanges: blockRes.rows,
+    });
+
+    for (const slot of grid) {
+      if (!slot.available) continue;
+      const slotTs = new Date(slot.time);
+      if (slotTs <= new Date()) continue;
+      if (dayOffset === 0 && slotTs <= fromDate) continue;
+      return slot.time;
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// R2 §1 — POST /api/queue/time-blocks/:id/preview
+// Preview (sin mutación) de citas afectadas por un bloqueo
+// y propuesta de reasignación por cada una.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/time-blocks/:id/preview', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  const userId  = req.user.id;
+  const blockId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(blockId)) return res.status(400).json({ error: 'id inválido' });
+
+  try {
+    const blockRes = await pool.query(
+      `SELECT id, branch_id, service_id, starts_at, ends_at, reason
+       FROM time_blocks WHERE id = $1 AND user_id = $2`,
+      [blockId, userId]
+    );
+    if (!blockRes.rowCount) return res.status(404).json({ error: 'Bloqueo no encontrado' });
+    const block = blockRes.rows[0];
+
+    const apptParams = [userId, block.branch_id, block.starts_at, block.ends_at];
+    let apptSQL = `
+      SELECT a.id, a.scheduled_at, a.service_id, a.client_name, a.client_phone, a.status,
+             s.name AS service_name
+      FROM appointments a
+      LEFT JOIN services s ON s.id = a.service_id
+      WHERE a.user_id = $1 AND a.branch_id = $2
+        AND a.status IN ('pending','confirmed')
+        AND a.scheduled_at >= $3 AND a.scheduled_at < $4`;
+    if (block.service_id) {
+      apptSQL += ` AND a.service_id = $5`;
+      apptParams.push(block.service_id);
+    }
+    apptSQL += ` ORDER BY a.scheduled_at`;
+    const apptRes = await pool.query(apptSQL, apptParams);
+
+    const affected = [];
+    for (const appt of apptRes.rows) {
+      const tempClient = await pool.connect();
+      let proposedSlot = null;
+      try {
+        proposedSlot = await findNextAvailableSlot(
+          tempClient, block.branch_id, appt.service_id || block.service_id,
+          userId, new Date(block.ends_at), 14
+        );
+      } finally {
+        tempClient.release();
+      }
+      affected.push({
+        appointment: {
+          id: appt.id, scheduled_at: appt.scheduled_at,
+          client_name: appt.client_name, client_phone: appt.client_phone,
+          status: appt.status, service_name: appt.service_name,
+        },
+        proposed_slot: proposedSlot,
+      });
+    }
+
+    const reschedulable = affected.filter(a => a.proposed_slot !== null).length;
+    return res.json({
+      block,
+      affected,
+      summary: { total: affected.length, reschedulable, pending_reschedule: affected.length - reschedulable },
+    });
+  } catch (err) {
+    console.error('❌ POST /api/queue/time-blocks/:id/preview:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R2 §2 — POST /api/queue/time-blocks/:id/apply
+// Ejecuta reasignación de citas afectadas por un bloqueo.
+// withTransaction + Idempotency-Key opcional.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  const userId  = req.user.id;
+  const blockId = parseInt(req.params.id, 10);
+  if (!Number.isFinite(blockId)) return res.status(400).json({ error: 'id inválido' });
+
+  const idKey    = req.headers['idempotency-key'] || null;
+  const endpoint = `time-blocks.apply.${blockId}`;
+
+  try {
+    if (idKey) {
+      if (!/^[0-9a-f-]{36}$/i.test(idKey)) return res.status(400).json({ error: 'Idempotency-Key debe ser UUID v4' });
+      const cached = await pool.query(
+        `SELECT response_body, response_status FROM idempotency_keys
+         WHERE key = $1 AND user_id = $2 AND endpoint = $3 AND expires_at > NOW()`,
+        [idKey, userId, endpoint]
+      );
+      if (cached.rowCount) return res.status(cached.rows[0].response_status).json(cached.rows[0].response_body);
+    }
+
+    const result = await withTransaction(pool, async (client) => {
+      const blockRes = await client.query(
+        `SELECT id, branch_id, service_id, starts_at, ends_at
+         FROM time_blocks WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+        [blockId, userId]
+      );
+      if (!blockRes.rowCount) {
+        const e = new Error('Bloqueo no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const block = blockRes.rows[0];
+
+      const apptParams = [userId, block.branch_id, block.starts_at, block.ends_at];
+      let apptSQL = `
+        SELECT a.id, a.scheduled_at, a.service_id
+        FROM appointments a
+        WHERE a.user_id = $1 AND a.branch_id = $2
+          AND a.status IN ('pending','confirmed')
+          AND a.scheduled_at >= $3 AND a.scheduled_at < $4`;
+      if (block.service_id) { apptSQL += ` AND a.service_id = $5`; apptParams.push(block.service_id); }
+      const apptRes = await client.query(apptSQL, apptParams);
+
+      const movements = [];
+      let rescheduled = 0; let pendingReschedule = 0;
+
+      for (const appt of apptRes.rows) {
+        const nextSlot = await findNextAvailableSlot(
+          client, block.branch_id, appt.service_id, userId, new Date(block.ends_at), 14
+        );
+        if (nextSlot) {
+          await client.query(
+            `UPDATE appointments SET scheduled_at = $1, updated_at = NOW() WHERE id = $2`,
+            [nextSlot, appt.id]
+          );
+          await client.query(
+            `INSERT INTO appointment_movements
+               (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [userId, appt.id, userId, appt.scheduled_at, nextSlot, `Bloqueo #${blockId}`]
+          );
+          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: nextSlot, status: 'rescheduled' });
+          rescheduled++;
+        } else {
+          await client.query(
+            `UPDATE appointments SET status = 'pending_reschedule', updated_at = NOW() WHERE id = $1`,
+            [appt.id]
+          );
+          await client.query(
+            `INSERT INTO appointment_movements
+               (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason)
+             VALUES ($1, $2, $3, $4, NULL, $5)`,
+            [userId, appt.id, userId, appt.scheduled_at, `Bloqueo #${blockId} — sin slot disponible`]
+          );
+          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: null, status: 'pending_reschedule' });
+          pendingReschedule++;
+        }
+      }
+      return { block_id: blockId, movements, summary: { total: apptRes.rowCount, rescheduled, pending_reschedule: pendingReschedule } };
+    });
+
+    io.to(`user_${userId}`).emit('time_block.applied', { block_id: blockId, ...result.summary });
+    if (result.summary.pending_reschedule > 0) {
+      io.to(`user_${userId}`).emit('appointment.pending_reschedule', { count: result.summary.pending_reschedule });
+    }
+    console.log(`⛔ time_block.applied id=${blockId} rescheduled=${result.summary.rescheduled} pending=${result.summary.pending_reschedule}`);
+
+    if (idKey) {
+      await pool.query(
+        `INSERT INTO idempotency_keys (key, user_id, endpoint, response_body, response_status, expires_at)
+         VALUES ($1, $2, $3, $4, 200, NOW() + INTERVAL '24 hours') ON CONFLICT (key) DO NOTHING`,
+        [idKey, userId, endpoint, result]
+      );
+    }
+    return res.json(result);
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ POST /api/queue/time-blocks/:id/apply:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R2 §3 — POST /api/queue/appointments/bulk-move
+// Mueve/reasigna/cancela múltiples citas en una transacción.
+// body: { appointment_ids: UUID[], action: 'move'|'reassign'|'cancel',
+//         target?: { scheduled_at } }
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  const userId = req.user.id;
+  const { appointment_ids, action, target } = req.body || {};
+  const idKey    = req.headers['idempotency-key'] || null;
+  const endpoint = 'appointments.bulk-move';
+
+  if (!Array.isArray(appointment_ids) || !appointment_ids.length)
+    return res.status(400).json({ error: 'appointment_ids debe ser un array no vacío' });
+  if (appointment_ids.length > 200)
+    return res.status(400).json({ error: 'Máximo 200 citas por operación bulk' });
+  if (!['move', 'reassign', 'cancel'].includes(action))
+    return res.status(400).json({ error: 'action debe ser move, reassign o cancel' });
+  if (action === 'move') {
+    if (!target?.scheduled_at) return res.status(400).json({ error: 'target.scheduled_at requerido para action=move' });
+    const d = new Date(target.scheduled_at);
+    if (Number.isNaN(d.getTime())) return res.status(400).json({ error: 'target.scheduled_at inválido' });
+    if (d < new Date()) return res.status(400).json({ error: 'target.scheduled_at debe ser futuro' });
+  }
+  const UUID_RE_BULK = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!appointment_ids.every(id => UUID_RE_BULK.test(id)))
+    return res.status(400).json({ error: 'appointment_ids contiene IDs inválidos' });
+
+  try {
+    if (idKey) {
+      if (!/^[0-9a-f-]{36}$/i.test(idKey)) return res.status(400).json({ error: 'Idempotency-Key debe ser UUID v4' });
+      const cached = await pool.query(
+        `SELECT response_body, response_status FROM idempotency_keys
+         WHERE key = $1 AND user_id = $2 AND endpoint = $3 AND expires_at > NOW()`,
+        [idKey, userId, endpoint]
+      );
+      if (cached.rowCount) return res.status(cached.rows[0].response_status).json(cached.rows[0].response_body);
+    }
+
+    const batchId = uuidv4();
+
+    const result = await withTransaction(pool, async (client) => {
+      const apptRes = await client.query(
+        `SELECT id, user_id, branch_id, service_id, scheduled_at, status
+         FROM appointments
+         WHERE id = ANY($1::uuid[]) AND user_id = $2
+           AND status IN ('pending','confirmed','pending_reschedule')
+         FOR UPDATE`,
+        [appointment_ids, userId]
+      );
+      if (!apptRes.rowCount) {
+        const e = new Error('No se encontraron citas válidas'); e.httpStatus = 404; throw e;
+      }
+
+      const movements = [];
+      let processed = 0; let skipped = 0;
+
+      for (const appt of apptRes.rows) {
+        if (action === 'cancel') {
+          await client.query(
+            `UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+            [appt.id]
+          );
+          await client.query(
+            `INSERT INTO appointment_movements
+               (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason, bulk_batch_id)
+             VALUES ($1, $2, $3, $4, NULL, 'Cancelación bulk', $5)`,
+            [userId, appt.id, userId, appt.scheduled_at, batchId]
+          );
+          movements.push({ appointment_id: appt.id, action: 'cancelled' });
+          processed++;
+        } else if (action === 'move') {
+          await client.query(
+            `UPDATE appointments SET scheduled_at = $1, updated_at = NOW() WHERE id = $2`,
+            [target.scheduled_at, appt.id]
+          );
+          await client.query(
+            `INSERT INTO appointment_movements
+               (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason, bulk_batch_id)
+             VALUES ($1, $2, $3, $4, $5, 'Movimiento bulk', $6)`,
+            [userId, appt.id, userId, appt.scheduled_at, target.scheduled_at, batchId]
+          );
+          movements.push({ appointment_id: appt.id, action: 'moved', to: target.scheduled_at });
+          processed++;
+        } else {
+          const nextSlot = await findNextAvailableSlot(
+            client, appt.branch_id, appt.service_id, userId, new Date(), 14
+          );
+          if (nextSlot) {
+            await client.query(
+              `UPDATE appointments SET scheduled_at = $1, status = 'confirmed', updated_at = NOW() WHERE id = $2`,
+              [nextSlot, appt.id]
+            );
+            await client.query(
+              `INSERT INTO appointment_movements
+                 (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason, bulk_batch_id)
+               VALUES ($1, $2, $3, $4, $5, 'Reasignación bulk', $6)`,
+              [userId, appt.id, userId, appt.scheduled_at, nextSlot, batchId]
+            );
+            movements.push({ appointment_id: appt.id, action: 'reassigned', to: nextSlot });
+            processed++;
+          } else {
+            await client.query(
+              `UPDATE appointments SET status = 'pending_reschedule', updated_at = NOW() WHERE id = $1`,
+              [appt.id]
+            );
+            await client.query(
+              `INSERT INTO appointment_movements
+                 (user_id, appointment_id, moved_by, prev_scheduled_at, new_scheduled_at, reason, bulk_batch_id)
+               VALUES ($1, $2, $3, $4, NULL, 'Reasignación bulk — sin slot', $5)`,
+              [userId, appt.id, userId, appt.scheduled_at, batchId]
+            );
+            movements.push({ appointment_id: appt.id, action: 'pending_reschedule' });
+            skipped++;
+          }
+        }
+      }
+      return { batch_id: batchId, movements, summary: { processed, skipped, total: apptRes.rowCount } };
+    });
+
+    io.to(`user_${userId}`).emit('bulk_move.executed', { batch_id: result.batch_id, action, ...result.summary });
+    if (result.summary.skipped > 0) {
+      io.to(`user_${userId}`).emit('appointment.pending_reschedule', { count: result.summary.skipped });
+    }
+    console.log(`📦 bulk_move.executed batch=${result.batch_id} action=${action} processed=${result.summary.processed} skipped=${result.summary.skipped}`);
+
+    if (idKey) {
+      await pool.query(
+        `INSERT INTO idempotency_keys (key, user_id, endpoint, response_body, response_status, expires_at)
+         VALUES ($1, $2, $3, $4, 200, NOW() + INTERVAL '24 hours') ON CONFLICT (key) DO NOTHING`,
+        [idKey, userId, endpoint, result]
+      );
+    }
+    return res.json(result);
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ POST /api/queue/appointments/bulk-move:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
 // R1.5 §A — Agenda del agente (citas del día para su servicio)
 // Auth: authenticateAgentOrUser (JWT del agente).
 // req.user: { id, agent_id, branch_id, role, name }
