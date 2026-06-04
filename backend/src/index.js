@@ -5957,8 +5957,8 @@ app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFl
         SELECT a.id, a.scheduled_at, a.service_id, a.client_email, a.client_name,
                s.name AS service_name, b.name AS branch_name
         FROM appointments a
-        LEFT JOIN services s ON s.id = a.service_id AND s.user_id = $1
-        LEFT JOIN branches b ON b.id = a.branch_id AND b.user_id = $1
+        LEFT JOIN services s ON s.id = a.service_id
+        LEFT JOIN branches b ON b.id = a.branch_id
         WHERE a.user_id = $1 AND a.branch_id = $2
           AND a.status IN ('pending','confirmed')
           AND a.scheduled_at >= $3 AND a.scheduled_at < $4`;
@@ -6095,8 +6095,8 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
                 a.client_email, a.client_name,
                 s.name AS service_name, b.name AS branch_name
          FROM appointments a
-         LEFT JOIN services s ON s.id = a.service_id AND s.user_id = $2
-         LEFT JOIN branches b ON b.id = a.branch_id AND b.user_id = $2
+         LEFT JOIN services s ON s.id = a.service_id
+         LEFT JOIN branches b ON b.id = a.branch_id
          WHERE a.id = ANY($1::uuid[]) AND a.user_id = $2
            AND a.status IN ('pending','confirmed','pending_reschedule')
          FOR UPDATE OF a`,
