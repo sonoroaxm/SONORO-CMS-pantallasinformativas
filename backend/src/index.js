@@ -3106,7 +3106,7 @@ app.post('/api/queue/branches/:branchId/services', authenticateToken, async (req
 
 app.put('/api/queue/services/:id', authenticateToken, async (req, res) => {
   try {
-    const { name, description, color, icon, priority_level, avg_attention_min, max_queue_size, active } = req.body;
+    const { name, description, color, icon, priority_level, avg_attention_min, max_queue_size, active, price, currency } = req.body;
     const result = await pool.query(
       `UPDATE services SET
         name = COALESCE($1, name), description = COALESCE($2, description),
@@ -3114,10 +3114,19 @@ app.put('/api/queue/services/:id', authenticateToken, async (req, res) => {
         priority_level = COALESCE($5, priority_level),
         avg_attention_min = COALESCE($6, avg_attention_min),
         max_queue_size = COALESCE($7, max_queue_size),
-        active = COALESCE($8, active)
-       WHERE id = $9 RETURNING *`,
-      [name, description, color, icon, priority_level, avg_attention_min, max_queue_size, active, req.params.id]
+        active = COALESCE($8, active),
+        price = COALESCE($9::numeric, price),
+        currency = COALESCE($10, currency)
+       WHERE id = $11 RETURNING *`,
+      [name, description, color, icon, priority_level, avg_attention_min, max_queue_size, active,
+       price !== undefined ? price : null, currency !== undefined ? currency : null, req.params.id]
     );
+    // Telemetría service.price.updated (FRAMEWORK §6.1)
+    if (result.rows.length && (price !== undefined || currency !== undefined)) {
+      const svc = result.rows[0];
+      console.log(JSON.stringify({ event: 'service.price.updated', user_id: req.user.id,
+        service_id: svc.id, new_price: svc.price, new_currency: svc.currency, changed_by: req.user.id }));
+    }
     if (!result.rows.length) return res.status(404).json({ error: 'Servicio no encontrado' });
     res.json({ success: true, service: result.rows[0] });
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }

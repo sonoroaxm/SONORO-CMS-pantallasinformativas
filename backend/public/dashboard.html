@@ -3600,13 +3600,31 @@ async function loadServicesList(branchId) {
     }
 
     list.innerHTML = services.map(s => `
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div class="service-color-dot" style="background:${s.color};"></div>
-        <div style="flex:1;">
-          <div style="font-size:13px;font-weight:700;">${s.prefix} · ${s.name}</div>
-          <div style="font-size:11px;color:var(--text-muted);">~${s.avg_attention_min} min · ${s.waiting_count || 0} en espera hoy</div>
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="service-color-dot" style="background:${s.color};"></div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;">${s.prefix} · ${s.name}</div>
+            <div style="font-size:11px;color:var(--text-muted);">~${s.avg_attention_min} min · ${s.waiting_count || 0} en espera hoy${s.price != null ? ` · <span style='color:var(--text);font-weight:600'>$${Number(s.price).toLocaleString('es-CO')} ${s.currency || 'COP'}</span>` : ' · <span style="font-style:italic">sin precio</span>'}</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="toggleSvcPriceForm('${s.id}')">Precio</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleService('${s.id}', ${!s.active})">${s.active ? 'Desactivar' : 'Activar'}</button>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="toggleService('${s.id}', ${!s.active})">${s.active ? 'Desactivar' : 'Activar'}</button>
+        <div id="svcPriceForm_${s.id}" style="display:none;margin-top:8px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:11px;color:var(--text-muted);font-weight:700;white-space:nowrap;">Precio:</label>
+            <input type="number" id="svcPriceVal_${s.id}" value="${s.price != null ? s.price : ''}" placeholder="0.00" min="0" step="0.01"
+              style="width:110px;font-size:13px;">
+            <select id="svcCurrencyVal_${s.id}"
+              style="font-size:13px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);">
+              <option value="COP" ${(!s.currency || s.currency==='COP') ? 'selected' : ''}>COP</option>
+              <option value="USD" ${s.currency==='USD' ? 'selected' : ''}>USD</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="saveSvcPrice('${s.id}')">Guardar</button>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('svcPriceForm_${s.id}').style.display='none'">Cancelar</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">El precio se captura como snapshot al crear cada cita. Vacío = sin precio.</div>
+        </div>
       </div>
     `).join('');
   } catch(e) {
@@ -3636,6 +3654,32 @@ async function addService() {
       showStatus('Servicio agregado', 'success');
     } else {
       showStatus(data.error || 'Error', 'error');
+    }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+function toggleSvcPriceForm(svcId) {
+  const f = document.getElementById('svcPriceForm_' + svcId);
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveSvcPrice(svcId) {
+  const priceInput = document.getElementById('svcPriceVal_' + svcId).value;
+  const currency   = document.getElementById('svcCurrencyVal_' + svcId).value;
+  const price      = priceInput !== '' ? parseFloat(priceInput) : null;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/services/${svcId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ price, currency })
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('svcPriceForm_' + svcId).style.display = 'none';
+      await loadServicesList(currentBranchId);
+      showStatus('Precio actualizado', 'success');
+    } else {
+      showStatus(data.error || 'Error actualizando precio', 'error');
     }
   } catch(e) { showStatus('Error de conexión', 'error'); }
 }
