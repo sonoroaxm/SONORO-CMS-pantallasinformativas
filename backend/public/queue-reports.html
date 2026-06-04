@@ -138,6 +138,13 @@
     .kpi-card.blue    .kpi-value { color: var(--blue); }
     .kpi-card.amber   .kpi-value { color: var(--amber); }
 
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted);
+      margin: 8px 0 10px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
     /* ── CHARTS GRID ── */
     .charts-grid {
       display: grid; grid-template-columns: 1fr 1fr;
@@ -271,7 +278,32 @@
     </div>
   </div>
 
-  <!-- GRÁFICOS -->
+  <!-- KPIs CITAS (R3.5) -->
+  <div class="section-label">Citas programadas</div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Citas activas</div>
+      <div class="kpi-value" id="kpiApptTotal">—</div>
+      <div class="kpi-sub">en el período</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Ingresos activos</div>
+      <div class="kpi-value" id="kpiApptRevenue" style="font-size:20px;letter-spacing:-0.3px;">—</div>
+      <div class="kpi-sub">COP · pend. + conf. + atendido</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">No-show citas</div>
+      <div class="kpi-value" id="kpiApptNoShow">—</div>
+      <div class="kpi-sub" id="kpiApptNoShowPct">del total</div>
+    </div>
+    <div class="kpi-card magenta">
+      <div class="kpi-label">Sin tarifa</div>
+      <div class="kpi-value" id="kpiApptNoPrice">—</div>
+      <div class="kpi-sub">citas sin precio asignado</div>
+    </div>
+  </div>
+
+    <!-- GRÁFICOS -->
   <div class="charts-grid">
     <div class="chart-card full">
       <div class="chart-title">
@@ -332,7 +364,7 @@ let servicesChart = null;
 let ratingsChart  = null;
 
 // Datos en memoria para export
-let exportData = { agents: [], services: [], kpis: {}, from: '', to: '', branch: '' };
+let exportData = { agents: [], services: [], appointments: null, kpis: {}, from: '', to: '', branch: '' };
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
@@ -384,6 +416,7 @@ async function loadReport() {
     loadServicesCharts(bid, from, to),
     loadAgentsTable(bid, from, to),
     loadServicesTable(bid, from, to),
+    loadAppointmentsSummary(bid, from, to),
   ]);
 }
 
@@ -618,6 +651,32 @@ async function loadServicesTable(branchId, from, to) {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
+// -- CITAS SUMMARY (R3.5) --------------------------------------------
+async function loadAppointmentsSummary(branchId, from, to) {
+  try {
+    const res  = await fetch(
+      `${API_URL}/api/queue/reports/appointments-summary?branch_id=${branchId}&date_from=${from}&date_to=${to}`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } }
+    );
+    const data = await res.json();
+    exportData.appointments = data;
+
+    document.getElementById('kpiApptTotal').textContent   = data.total_active ?? '—';
+    const rev = parseFloat(data.revenue_active || 0);
+    document.getElementById('kpiApptRevenue').textContent =
+      rev.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+    document.getElementById('kpiApptNoShow').textContent  = data.no_show_count ?? '—';
+    const total = data.total_active || 0;
+    document.getElementById('kpiApptNoShowPct').textContent =
+      total > 0 ? `${Math.round((data.no_show_count / total) * 100)}% del total` : 'del total';
+    document.getElementById('kpiApptNoPrice').textContent = data.no_price_count ?? '—';
+  } catch(e) {
+    ['kpiApptTotal','kpiApptRevenue','kpiApptNoShow','kpiApptNoPrice'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  }
+}
+
 function renderStars(rating) {
   return Array.from({length: 5}, (_, i) => {
     const fill = i < Math.round(rating) ? '#FF8C00' : '#e0ddd8';
@@ -672,7 +731,20 @@ function exportCSV() {
     ]);
   });
 
-  const csv    = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const appt = exportData.appointments;
+  if (appt) {
+    rows.push([]);
+    rows.push(['CITAS PROGRAMADAS']);
+    rows.push(['Citas activas','Ingresos activos (COP)','No-show','Sin tarifa']);
+    rows.push([appt.total_active, appt.revenue_active, appt.no_show_count, appt.no_price_count]);
+    if (appt.by_service && appt.by_service.length) {
+      rows.push([]);
+      rows.push(['Servicio','Citas','Ingresos (COP)']);
+      appt.by_service.forEach(s => rows.push([s.name, s.total, s.revenue]));
+    }
+  }
+
+    const csv    = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(';')).join('\n');
   const blob   = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url    = URL.createObjectURL(blob);
   const link   = document.createElement('a');

@@ -4373,6 +4373,68 @@ app.get('/api/queue/reports/tokens', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
 });
 
+
+// R3.5 — Resumen de citas por período (panel de reportes)
+app.get('/api/queue/reports/appointments-summary', authenticateToken, async (req, res) => {
+  try {
+    const { branch_id, date_from, date_to } = req.query;
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const from  = date_from || today;
+    const to    = date_to   || today;
+
+    const params = [req.user.id, from, to];
+    let branchClause = '';
+    if (branch_id) { params.push(branch_id); branchClause = `AND a.branch_id = $${params.length}`; }
+
+    const [summary, byService] = await Promise.all([
+      pool.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE a.status NOT IN ('cancelled')) AS total_active,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('pending','confirmed','attended')), 0) AS revenue_active,
+          COUNT(*) FILTER (WHERE a.status = 'no_show') AS no_show_count,
+          COUNT(*) FILTER (WHERE a.price_at_booking IS NULL AND a.status NOT IN ('cancelled')) AS no_price_count
+         FROM appointments a
+         WHERE a.user_id = $1
+           AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $2 AND $3
+           ${branchClause}`,
+        params
+      ),
+      pool.query(
+        `SELECT
+          s.name, s.color,
+          COUNT(a.id) FILTER (WHERE a.status NOT IN ('cancelled')) AS total,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('pending','confirmed','attended')), 0) AS revenue
+         FROM appointments a
+         JOIN services s ON s.id = a.service_id
+         WHERE a.user_id = $1
+           AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $2 AND $3
+           ${branchClause}
+         GROUP BY s.id, s.name, s.color
+         ORDER BY revenue DESC`,
+        params
+      )
+    ]);
+
+    const row = summary.rows[0];
+    res.json({
+      total_active:   parseInt(row.total_active   || 0),
+      revenue_active: parseFloat(row.revenue_active || 0),
+      no_show_count:  parseInt(row.no_show_count  || 0),
+      no_price_count: parseInt(row.no_price_count || 0),
+      currency: 'COP',
+      by_service: byService.rows.map(r => ({
+        name:    r.name,
+        color:   r.color,
+        total:   parseInt(r.total   || 0),
+        revenue: parseFloat(r.revenue || 0),
+      }))
+    });
+  } catch (err) {
+    console.error('❌ /api/queue/reports/appointments-summary:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // ══════════════════════════════════════════════════════════════
 // R1 · CITAS — §2.1–§2.4 (POST / GET / PATCH / DELETE appointments)
 // ══════════════════════════════════════════════════════════════
