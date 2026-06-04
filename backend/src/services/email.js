@@ -549,4 +549,114 @@ async function sendAppointmentConfirmation(to, appt, citaUrl) {
   console.log(`✅ Email confirmación de cita enviado a ${to}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendAppointmentConfirmation, verifyConnection };
+
+// ── R2 §B — EMAIL DE REAGENDACIÓN DE CITA ─────────────────────
+async function sendAppointmentRescheduled(to, appt, oldScheduledAt, citaUrl) {
+  const fmtTs = (iso) => {
+    const d = new Date(iso);
+    const ds = d.toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long',
+    });
+    const ts = d.toLocaleTimeString('es-CO', {
+      timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+    return `${ds.charAt(0).toUpperCase() + ds.slice(1)}, ${ts}`;
+  };
+  const oldFmt = fmtTs(oldScheduledAt);
+  const newFmt = fmtTs(appt.scheduled_at);
+  const d = new Date(appt.scheduled_at);
+  const subjectDate = d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: 'numeric', month: 'long' });
+  const subjectTime = d.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true });
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">Tu cita ha sido reagendada</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${appt.client_name || 'cliente'}</strong>,
+      tu cita ha sido reprogramada. Aqui estan los nuevos detalles.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:28px;">
+      ${appt.branch_name ? `
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Sucursal</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.branch_name}</p>
+      </td></tr>` : ''}
+      ${appt.service_name ? `
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Servicio</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.service_name}</p>
+      </td></tr>` : ''}
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha anterior</p>
+        <p style="margin:0;font-size:15px;color:#999;font-weight:600;text-decoration:line-through;">${oldFmt}</p>
+      </td></tr>
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Nueva fecha</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${newFmt}</p>
+      </td></tr>
+    </table>
+    ${citaUrl ? `
+    <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">
+      Usa el siguiente enlace para ver o modificar tu cita:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr><td align="center">
+        <a href="${citaUrl}" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Ver mi cita
+        </a>
+      </td></tr>
+    </table>
+    <p style="font-size:11px;color:#bbb;margin:0;word-break:break-all;">O copia este enlace: <span style="color:#FF8C00;">${citaUrl}</span></p>` : ''}
+  `);
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Tu cita ha sido reagendada — ${subjectDate}, ${subjectTime}`,
+    html,
+  });
+  console.log(`✅ Email reagendacion enviado a ${to}`);
+}
+
+// ── R2 §B — EMAIL DE CANCELACIÓN DE CITA ──────────────────────
+async function sendAppointmentCancelled(to, appt) {
+  const d = new Date(appt.scheduled_at);
+  const dateStr = d.toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const timeStr = d.toLocaleTimeString('es-CO', {
+    timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+  const fmtDate = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">Tu cita ha sido cancelada</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${appt.client_name || 'cliente'}</strong>,
+      tu cita programada para el ${fmtDate} a las ${timeStr} ha sido cancelada.
+    </p>
+    ${appt.branch_name || appt.service_name ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:28px;">
+      ${appt.branch_name ? `
+      <tr><td style="padding:14px 20px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Sucursal</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.branch_name}</p>
+      </td></tr>` : ''}
+      ${appt.service_name ? `
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Servicio</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${appt.service_name}</p>
+      </td></tr>` : ''}
+    </table>` : ''}
+    <p style="margin:0;font-size:14px;color:#666;line-height:1.6;">
+      Para agendar una nueva cita contacta a tu proveedor de servicio.
+    </p>
+  `);
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Tu cita ha sido cancelada — ${fmtDate}`,
+    html,
+  });
+  console.log(`✅ Email cancelacion enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendAppointmentConfirmation, sendAppointmentRescheduled, sendAppointmentCancelled, verifyConnection };

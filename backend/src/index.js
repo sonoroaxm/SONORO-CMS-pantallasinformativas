@@ -5954,8 +5954,11 @@ app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFl
 
       const apptParams = [userId, block.branch_id, block.starts_at, block.ends_at];
       let apptSQL = `
-        SELECT a.id, a.scheduled_at, a.service_id
+        SELECT a.id, a.scheduled_at, a.service_id, a.client_email, a.client_name,
+               s.name AS service_name, b.name AS branch_name
         FROM appointments a
+        LEFT JOIN services s ON s.id = a.service_id AND s.user_id = $1
+        LEFT JOIN branches b ON b.id = a.branch_id AND b.user_id = $1
         WHERE a.user_id = $1 AND a.branch_id = $2
           AND a.status IN ('pending','confirmed')
           AND a.scheduled_at >= $3 AND a.scheduled_at < $4`;
@@ -5980,7 +5983,7 @@ app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFl
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [userId, appt.id, userId, appt.scheduled_at, nextSlot, `Bloqueo #${blockId}`]
           );
-          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: nextSlot, status: 'rescheduled' });
+          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: nextSlot, status: 'rescheduled', client_email: appt.client_email, client_name: appt.client_name, service_name: appt.service_name, branch_name: appt.branch_name, new_scheduled_at: nextSlot });
           rescheduled++;
         } else {
           await client.query(
@@ -5993,7 +5996,7 @@ app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFl
              VALUES ($1, $2, $3, $4, NULL, $5)`,
             [userId, appt.id, userId, appt.scheduled_at, `Bloqueo #${blockId} — sin slot disponible`]
           );
-          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: null, status: 'pending_reschedule' });
+          movements.push({ appointment_id: appt.id, from: appt.scheduled_at, to: null, status: 'pending_reschedule', client_email: appt.client_email, client_name: appt.client_name, service_name: appt.service_name, branch_name: appt.branch_name });
           pendingReschedule++;
         }
       }
@@ -6005,6 +6008,30 @@ app.post('/api/queue/time-blocks/:id/apply', authenticateToken, requireFeatureFl
       io.to(`user_${userId}`).emit('appointment.pending_reschedule', { count: result.summary.pending_reschedule });
     }
     console.log(`⛔ time_block.applied id=${blockId} rescheduled=${result.summary.rescheduled} pending=${result.summary.pending_reschedule}`);
+
+    // Enviar emails a clientes afectados (best-effort, no bloquea respuesta)
+    setImmediate(async () => {
+      const jobsWithEmail = result.movements.filter(m => m.client_email);
+      if (!jobsWithEmail.length) return;
+      const apptIds = jobsWithEmail.map(m => m.appointment_id);
+      const tokRes = await pool.query(
+        `SELECT DISTINCT ON (appointment_id) appointment_id, token
+         FROM public_appointment_tokens WHERE appointment_id = ANY($1::uuid[]) AND expires_at > NOW()
+         ORDER BY appointment_id, created_at DESC`, [apptIds]
+      ).catch(() => ({ rows: [] }));
+      const tokMap = new Map(tokRes.rows.map(r => [r.appointment_id, r.token]));
+      const BASE = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+      for (const m of jobsWithEmail) {
+        const tok = tokMap.get(m.appointment_id);
+        const citaUrl = tok ? `${BASE}/cita/${tok}` : null;
+        if (m.status === 'rescheduled' && m.new_scheduled_at) {
+          emailService.sendAppointmentRescheduled(m.client_email,
+            { client_name: m.client_name, scheduled_at: m.new_scheduled_at, service_name: m.service_name, branch_name: m.branch_name },
+            m.from, citaUrl
+          ).catch(e => console.warn('email reagendacion:', e.message));
+        }
+      }
+    });
 
     if (idKey) {
       await pool.query(
@@ -6064,11 +6091,15 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
 
     const result = await withTransaction(pool, async (client) => {
       const apptRes = await client.query(
-        `SELECT id, user_id, branch_id, service_id, scheduled_at, status
-         FROM appointments
-         WHERE id = ANY($1::uuid[]) AND user_id = $2
-           AND status IN ('pending','confirmed','pending_reschedule')
-         FOR UPDATE`,
+        `SELECT a.id, a.user_id, a.branch_id, a.service_id, a.scheduled_at, a.status,
+                a.client_email, a.client_name,
+                s.name AS service_name, b.name AS branch_name
+         FROM appointments a
+         LEFT JOIN services s ON s.id = a.service_id AND s.user_id = $2
+         LEFT JOIN branches b ON b.id = a.branch_id AND b.user_id = $2
+         WHERE a.id = ANY($1::uuid[]) AND a.user_id = $2
+           AND a.status IN ('pending','confirmed','pending_reschedule')
+         FOR UPDATE OF a`,
         [appointment_ids, userId]
       );
       if (!apptRes.rowCount) {
@@ -6090,7 +6121,7 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
              VALUES ($1, $2, $3, $4, NULL, 'Cancelación bulk', $5)`,
             [userId, appt.id, userId, appt.scheduled_at, batchId]
           );
-          movements.push({ appointment_id: appt.id, action: 'cancelled' });
+          movements.push({ appointment_id: appt.id, action: 'cancelled', client_email: appt.client_email, client_name: appt.client_name, service_name: appt.service_name, branch_name: appt.branch_name, prev_scheduled_at: appt.scheduled_at });
           processed++;
         } else if (action === 'move') {
           await client.query(
@@ -6103,7 +6134,7 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
              VALUES ($1, $2, $3, $4, $5, 'Movimiento bulk', $6)`,
             [userId, appt.id, userId, appt.scheduled_at, target.scheduled_at, batchId]
           );
-          movements.push({ appointment_id: appt.id, action: 'moved', to: target.scheduled_at });
+          movements.push({ appointment_id: appt.id, action: 'moved', to: target.scheduled_at, client_email: appt.client_email, client_name: appt.client_name, service_name: appt.service_name, branch_name: appt.branch_name, prev_scheduled_at: appt.scheduled_at });
           processed++;
         } else {
           const nextSlot = await findNextAvailableSlot(
@@ -6120,7 +6151,7 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
                VALUES ($1, $2, $3, $4, $5, 'Reasignación bulk', $6)`,
               [userId, appt.id, userId, appt.scheduled_at, nextSlot, batchId]
             );
-            movements.push({ appointment_id: appt.id, action: 'reassigned', to: nextSlot });
+            movements.push({ appointment_id: appt.id, action: 'reassigned', to: nextSlot, client_email: appt.client_email, client_name: appt.client_name, service_name: appt.service_name, branch_name: appt.branch_name, prev_scheduled_at: appt.scheduled_at });
             processed++;
           } else {
             await client.query(
@@ -6146,6 +6177,39 @@ app.post('/api/queue/appointments/bulk-move', authenticateToken, requireFeatureF
       io.to(`user_${userId}`).emit('appointment.pending_reschedule', { count: result.summary.skipped });
     }
     console.log(`📦 bulk_move.executed batch=${result.batch_id} action=${action} processed=${result.summary.processed} skipped=${result.summary.skipped}`);
+
+    // Enviar emails a clientes afectados (best-effort)
+    setImmediate(async () => {
+      const jobsWithEmail = result.movements.filter(m => m.client_email);
+      if (!jobsWithEmail.length) return;
+      const apptIds = jobsWithEmail.filter(m => m.action !== 'cancelled').map(m => m.appointment_id);
+      const tokMap = new Map();
+      if (apptIds.length) {
+        const tokRes = await pool.query(
+          `SELECT DISTINCT ON (appointment_id) appointment_id, token
+           FROM public_appointment_tokens WHERE appointment_id = ANY($1::uuid[]) AND expires_at > NOW()
+           ORDER BY appointment_id, created_at DESC`, [apptIds]
+        ).catch(() => ({ rows: [] }));
+        tokRes.rows.forEach(r => tokMap.set(r.appointment_id, r.token));
+      }
+      const BASE = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+      for (const m of jobsWithEmail) {
+        try {
+          const tok = tokMap.get(m.appointment_id);
+          const citaUrl = tok ? `${BASE}/cita/${tok}` : null;
+          if ((m.action === 'moved' || m.action === 'reassigned') && m.to) {
+            await emailService.sendAppointmentRescheduled(m.client_email,
+              { client_name: m.client_name, scheduled_at: m.to, service_name: m.service_name, branch_name: m.branch_name },
+              m.prev_scheduled_at, citaUrl
+            );
+          } else if (m.action === 'cancelled') {
+            await emailService.sendAppointmentCancelled(m.client_email,
+              { client_name: m.client_name, scheduled_at: m.prev_scheduled_at, service_name: m.service_name, branch_name: m.branch_name }
+            );
+          }
+        } catch (e) { console.warn('email bulk:', e.message); }
+      }
+    });
 
     if (idKey) {
       await pool.query(

@@ -1028,6 +1028,40 @@
       transition: all 0.15s; flex: 0 0 auto; font-family: inherit;
     }
     .tb-block-del:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+    /* ── R2: bulk + pending ── */
+    .appt-checkbox {
+      width: 15px; height: 15px; cursor: pointer;
+      accent-color: var(--magenta); flex-shrink: 0; margin-right: 4px;
+    }
+    .bulk-toolbar {
+      display: none; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 10px 14px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px;
+    }
+    .bulk-toolbar.visible { display: flex; }
+    .bulk-toolbar-count { color: var(--text-muted); font-size: 12px; font-weight: 600; flex: 1 1 auto; }
+    .pending-reschedule-banner {
+      display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;
+      font-size: 13px; line-height: 1.5;
+      background: rgba(255,140,0,0.10); border: 1px solid rgba(255,140,0,0.30); color: var(--text);
+    }
+    .pending-reschedule-banner.visible { display: block; }
+    .pending-badge {
+      display: none; background: var(--orange); color: #fff;
+      font-size: 10px; font-weight: 700; border-radius: 999px;
+      padding: 2px 7px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.5px;
+    }
+    .r2-step { display: block; }
+    .r2-step.hidden { display: none; }
+    .r2-preview-row {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .r2-preview-row:last-child { border-bottom: none; }
+    .r2-preview-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+    }
   </style>
   <script src="/auto-token-refresh.js"></script>
 </head>
@@ -1106,6 +1140,7 @@
       <div class="topbar-right">
         <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
         <div class="topbar-user">Sesión: <span id="userName"></span></div>
+        <span id="pendingRescheduleBadge" class="pending-badge"></span>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
       </div>
     </div>
@@ -1358,7 +1393,8 @@
         <div class="section-header">
           <div class="section-title">Gestión de Citas</div>
           <div style="display:flex;gap:8px;">
-            <button class="btn btn-outline btn-sm" onclick="loadAppointmentsData()">↻ Actualizar</button>
+            <button class="btn btn-outline btn-sm" onclick="loadAppointmentsData()">&#8635; Actualizar</button>
+            <button class="btn btn-outline btn-sm" onclick="openBlockPreviewModal()">Bloquear horario</button>
             <button class="btn btn-primary btn-sm" onclick="openCreateAppointmentModal()">+ Nueva cita</button>
           </div>
         </div>
@@ -1452,6 +1488,14 @@
           </div>
           <div id="apptWalkinNotice" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px;background:rgba(0,180,216,0.07);border:1px solid rgba(0,180,216,0.25);color:var(--text-muted);">
             Los turnos de kiosko se muestran porque esta sucursal opera en modo <strong>Cola y citas</strong>.
+          </div>
+          <div id="pendingRescheduleBanner" class="pending-reschedule-banner"></div>
+          <div id="bulkToolbar" class="bulk-toolbar">
+            <span class="bulk-toolbar-count" id="bulkCount"></span>
+            <button class="btn btn-outline btn-sm" onclick="openBulkModal('move')">Mover a fecha</button>
+            <button class="btn btn-outline btn-sm" onclick="openBulkModal('reassign')">Reasignar</button>
+            <button class="btn btn-danger btn-sm" onclick="openBulkModal('cancel')">Cancelar seleccion</button>
+            <button class="btn btn-outline btn-sm" onclick="_r2ClearBulk()">Deseleccionar</button>
           </div>
           <div id="appointmentsList">
             <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Selecciona una sucursal para ver las citas.</div>
@@ -3858,7 +3902,8 @@ function appointmentStatusLabel(s) {
     completed: 'Completada',
     cancelled: 'Cancelada',
     no_show: 'No asistió',
-    attended: 'En sitio'
+    attended: 'En sitio',
+    pending_reschedule: 'Por reagendar'
   };
   return map[s] || s || '—';
 }
@@ -3871,7 +3916,8 @@ function appointmentStatusColor(s) {
     completed:   { bg: '#1f2937', fg: '#9ca3af' },
     cancelled:   { bg: '#3a1414', fg: '#ff6b6b' },
     no_show:     { bg: '#2a1d3a', fg: '#c084fc' },
-    attended:     { bg: '#0d3a2d', fg: '#34d399' }
+    attended:          { bg: '#0d3a2d', fg: '#34d399' },
+    pending_reschedule: { bg: '#3a2200', fg: '#ff8c00' }
   };
   return map[s] || { bg: '#1f2937', fg: '#9ca3af' };
 }
@@ -4184,7 +4230,7 @@ function renderAppointmentsList(items, servicesMap, walkins) {
       ? `<span style="display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(0,180,216,0.12);color:#00B4D8;margin-left:6px;">Pública</span>`
       : '';
     return `
-      <div data-row-type="cita" data-appt-id="${a.id}" data-client-name="${(a.client_name||''). toLowerCase()}" data-client-id="${(a.client_id_number||''). toLowerCase()}" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-left:3px solid ${statusColor.fg};border-radius:8px;margin-bottom:8px;background:${statusColor.bg}18;">
+      <div data-row-type="cita" data-appt-id="${a.id}" data-status="${a.status}" data-client-name="${(a.client_name||''). toLowerCase()}" data-client-id="${(a.client_id_number||''). toLowerCase()}" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-left:3px solid ${statusColor.fg};border-radius:8px;margin-bottom:8px;background:${statusColor.bg}18;">
         <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text);text-align:center;">${_apptEscapeHtml(time)}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;color:var(--text);">${_apptEscapeHtml(clientName)}${clientIdNum}${originBadge}</div>
@@ -5036,9 +5082,404 @@ async function _tbDelete(id) {
   }
 }
 
+// ── R2: bulk operations ───────────────────────────────────────
+const _r2State = { selected: new Set(), action: null, blockId: null };
+
+function _r2ToggleAppt(apptId, checked) {
+  if (checked) _r2State.selected.add(apptId);
+  else _r2State.selected.delete(apptId);
+  _r2UpdateBulkToolbar();
+}
+
+function _r2ClearBulk() {
+  _r2State.selected.clear();
+  document.querySelectorAll('.appt-checkbox').forEach(cb => { cb.checked = false; });
+  _r2UpdateBulkToolbar();
+}
+
+function _r2UpdateBulkToolbar() {
+  const tb = document.getElementById('bulkToolbar');
+  const countEl = document.getElementById('bulkCount');
+  const n = _r2State.selected.size;
+  if (!tb) return;
+  tb.classList.toggle('visible', n > 0);
+  if (countEl) countEl.textContent = `${n} cita${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}`;
+}
+
+// Observador: inyecta checkboxes cada vez que se re-renderiza la lista
+(function _r2InitObserver() {
+  function _injectCbs() {
+    document.querySelectorAll('#appointmentsList [data-row-type="cita"]:not([data-r2cb])').forEach(row => {
+      row.dataset.r2cb = '1';
+      const apptId = row.dataset.apptId;
+      if (!apptId) return;
+      const cb = Object.assign(document.createElement('input'), { type: 'checkbox', className: 'appt-checkbox' });
+      cb.addEventListener('change', e => _r2ToggleAppt(apptId, e.target.checked));
+      row.insertBefore(cb, row.firstChild);
+    });
+    // Banner pending_reschedule
+    const pending = document.querySelectorAll('#appointmentsList [data-status="pending_reschedule"]').length;
+    const banner = document.getElementById('pendingRescheduleBanner');
+    if (banner) {
+      if (pending > 0) {
+        banner.textContent = `${pending} cita${pending !== 1 ? 's requieren' : ' requiere'} reagendacion manual. Usa "Reasignar" en el toolbar para buscar el proximo slot disponible.`;
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+    // Limpiar seleccion al re-renderizar
+    _r2State.selected.clear();
+    _r2UpdateBulkToolbar();
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const listEl = document.getElementById('appointmentsList');
+    if (!listEl) return;
+    new MutationObserver(_injectCbs).observe(listEl, { childList: true });
+  });
+})();
+
+// Socket: actualizar badge de pending_reschedule
+(function _r2SocketBadge() {
+  let _pendingTotal = 0;
+  function _updateBadge(n) {
+    const el = document.getElementById('pendingRescheduleBadge');
+    if (!el) return;
+    _pendingTotal = Math.max(0, n);
+    el.textContent = _pendingTotal > 0 ? String(_pendingTotal) : '';
+    el.style.display = _pendingTotal > 0 ? 'inline-block' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof socket === 'undefined') return;
+    socket.on('appointment.pending_reschedule', d => _updateBadge((d && d.count) || 0));
+    socket.on('time_block.applied', d => {
+      if (d && d.pending_reschedule > 0) _updateBadge(_pendingTotal + d.pending_reschedule);
+    });
+    socket.on('bulk_move.executed', () => { loadAppointmentsData && loadAppointmentsData(); });
+    socket.on('time_block.applied', () => { loadAppointmentsData && loadAppointmentsData(); });
+  });
+})();
+
+// ── R2: Modal "Bloquear horario con preview" ───────────────────
+const _bpState = { blockId: null };
+
+function _bpFmtLocal(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openBlockPreviewModal() {
+  const branchId = _apptState && _apptState.selectedBranchId;
+  if (!branchId) { showStatus('Selecciona una sucursal primero', 'warn'); return; }
+  // Pre-fill fechas
+  const now = new Date(); now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
+  const ends = new Date(now.getTime() + 60 * 60 * 1000);
+  document.getElementById('bpStartsAt').value = _bpFmtLocal(now);
+  document.getElementById('bpEndsAt').value   = _bpFmtLocal(ends);
+  // Poblar servicios
+  const sel = document.getElementById('bpServiceId');
+  if (sel && _apptState.servicesByBranch) {
+    const raw  = _apptState.servicesByBranch.get(branchId);
+    const svcs = raw instanceof Map ? Array.from(raw.values()) : (Array.isArray(raw) ? raw : []);
+    sel.innerHTML = '<option value="">Todos los servicios</option>' +
+      svcs.map(s => `<option value="${s.id}">${_apptEscapeHtml(s.name)}</option>`).join('');
+  }
+  const errEl = document.getElementById('bpFormError');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('bpReason').value = '';
+  _bpState.blockId = null;
+  document.getElementById('blockStep1').classList.remove('hidden');
+  document.getElementById('blockStep2').classList.add('hidden');
+  document.getElementById('blockModalTitle').textContent = 'Bloquear horario';
+  document.getElementById('blockPreviewModal').classList.add('active');
+}
+
+function closeBlockPreviewModal() {
+  document.getElementById('blockPreviewModal').classList.remove('active');
+}
+
+function _bpBackToForm() {
+  document.getElementById('blockStep1').classList.remove('hidden');
+  document.getElementById('blockStep2').classList.add('hidden');
+  document.getElementById('blockModalTitle').textContent = 'Bloquear horario';
+}
+
+async function _bpPreview() {
+  const branchId = _apptState && _apptState.selectedBranchId;
+  const startsAt = document.getElementById('bpStartsAt').value;
+  const endsAt   = document.getElementById('bpEndsAt').value;
+  const reason   = document.getElementById('bpReason').value.trim();
+  const serviceId = document.getElementById('bpServiceId').value || null;
+  const errEl = document.getElementById('bpFormError');
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+
+  if (!startsAt) return showErr('Ingresa la fecha y hora de inicio.');
+  if (!endsAt)   return showErr('Ingresa la fecha y hora de fin.');
+  if (new Date(endsAt) <= new Date(startsAt)) return showErr('La fecha de fin debe ser posterior al inicio.');
+
+  const btn = document.getElementById('bpPreviewBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando bloqueo...'; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    // Crear el bloqueo
+    const createRes = await fetch(`${API_URL}/api/queue/time-blocks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ branch_id: branchId, service_id: serviceId, starts_at: new Date(startsAt).toISOString(), ends_at: new Date(endsAt).toISOString(), reason: reason || null }),
+    });
+    const createData = await createRes.json();
+    if (!createRes.ok) return showErr(createData.error || createData.message || 'Error al crear el bloqueo.');
+    _bpState.blockId = createData.id;
+    await _tbLoadBlocks();
+
+    // Preview de citas afectadas
+    if (btn) btn.textContent = 'Analizando citas...';
+    const prevRes = await fetch(`${API_URL}/api/queue/time-blocks/${_bpState.blockId}/preview`, {
+      method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const prevData = await prevRes.json();
+    if (!prevRes.ok) {
+      document.getElementById('blockStep1').classList.remove('hidden');
+      document.getElementById('blockStep2').classList.add('hidden');
+      return;
+    }
+
+    // Renderizar preview
+    const affected = prevData.affected || [];
+    const el = document.getElementById('bpPreviewContent');
+    if (affected.length === 0) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">No hay citas agendadas en este horario. El bloqueo fue creado.</p>';
+      document.getElementById('bpApplyBtn').textContent = 'Aplicar (reagendar)';
+    } else {
+      el.innerHTML = `
+        <p style="font-size:13px;color:var(--text);margin:0 0 12px;">
+          <strong>${affected.length}</strong> cita${affected.length !== 1 ? 's' : ''} en el horario bloqueado.
+          Al aplicar se buscara el proximo slot disponible para cada una.
+        </p>
+        <div style="max-height:220px;overflow-y:auto;">
+          ${affected.map(a => {
+            const dt = new Date(a.scheduled_at);
+            const t = dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+            const has = a.next_slot != null;
+            return `<div class="r2-preview-row">
+              <div class="r2-preview-dot" style="background:${has ? '#5fb1ff' : '#ff8c00'};"></div>
+              <div>
+                <div style="font-weight:600;">${_apptEscapeHtml(a.client_name || '(sin nombre)')} &middot; ${t}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${has ? 'Proximo slot disponible encontrado' : 'Sin slot disponible — quedara pendiente de reagendacion'}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      document.getElementById('bpApplyBtn').textContent = 'Aplicar bloqueo';
+    }
+
+    const applyErr = document.getElementById('bpApplyError');
+    if (applyErr) applyErr.style.display = 'none';
+    document.getElementById('blockModalTitle').textContent = 'Confirmar bloqueo';
+    document.getElementById('blockStep1').classList.add('hidden');
+    document.getElementById('blockStep2').classList.remove('hidden');
+  } catch (e) {
+    showErr('Error de conexion. Intenta de nuevo.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Ver citas afectadas'; }
+  }
+}
+
+async function _bpApply() {
+  if (!_bpState.blockId) return;
+  const btn = document.getElementById('bpApplyBtn');
+  const errEl = document.getElementById('bpApplyError');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
+  if (errEl) errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${API_URL}/api/queue/time-blocks/${_bpState.blockId}/apply`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}`, 'Idempotency-Key': _r2UUID() },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Error al aplicar el bloqueo.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeBlockPreviewModal();
+    await loadAppointmentsData();
+    const { rescheduled = 0, pending_reschedule = 0 } = data.summary || {};
+    const msg = rescheduled > 0
+      ? `Bloqueo aplicado. ${rescheduled} cita${rescheduled !== 1 ? 's' : ''} reagendada${rescheduled !== 1 ? 's' : ''}.`
+      : pending_reschedule > 0
+      ? `Bloqueo aplicado. ${pending_reschedule} cita${pending_reschedule !== 1 ? 's' : ''} sin slot — revision manual requerida.`
+      : 'Bloqueo aplicado. Sin citas afectadas.';
+    showStatus(msg, 'success');
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error de conexion.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Aplicar bloqueo'; }
+  }
+}
+
+// ── R2: Modal bulk-move ────────────────────────────────────────
+function openBulkModal(action) {
+  if (_r2State.selected.size === 0) return;
+  _r2State.action = action;
+  const n = _r2State.selected.size;
+  const titles = { move: 'Mover citas a nueva fecha', reassign: 'Reasignar citas', cancel: 'Cancelar citas' };
+  document.getElementById('bulkMoveTitle').textContent = titles[action] || 'Operacion en lote';
+  const bodyEl = document.getElementById('bulkMoveBody');
+  const errEl  = document.getElementById('bulkMoveError');
+  if (errEl) errEl.style.display = 'none';
+  if (action === 'move') {
+    const now = new Date(); now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
+    const pad = x => String(x).padStart(2, '0');
+    const defVal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">${n} cita${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''} seran movidas a la nueva fecha y hora.</p>
+      <div class="form-group">
+        <label>Nueva fecha y hora</label>
+        <input type="datetime-local" id="bulkTargetDate" value="${defVal}" style="width:100%;">
+      </div>`;
+  } else if (action === 'reassign') {
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">${n} cita${n !== 1 ? 's' : ''} seran reasignadas al proximo slot disponible (hasta 14 dias adelante).</p>
+      <p style="font-size:12px;color:var(--orange);margin:0;">Las citas sin slot disponible quedaran marcadas como "Por reagendar".</p>`;
+  } else if (action === 'cancel') {
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">Se cancelaran ${n} cita${n !== 1 ? 's' : ''}. Esta accion no se puede deshacer.</p>
+      <p style="font-size:12px;color:#ff6b6b;margin:0;">Los clientes con email registrado recibiran notificacion de cancelacion.</p>`;
+    document.getElementById('bulkConfirmBtn').className = 'btn btn-danger btn-sm';
+    document.getElementById('bulkConfirmBtn').textContent = 'Confirmar cancelacion';
+  }
+  if (action !== 'cancel') {
+    document.getElementById('bulkConfirmBtn').className = 'btn btn-primary btn-sm';
+    document.getElementById('bulkConfirmBtn').textContent = 'Confirmar';
+  }
+  document.getElementById('bulkMoveModal').classList.add('active');
+}
+
+async function _r2ConfirmBulk() {
+  const action = _r2State.action;
+  const ids = Array.from(_r2State.selected);
+  if (!ids.length || !action) return;
+
+  let target;
+  if (action === 'move') {
+    const val = document.getElementById('bulkTargetDate')?.value;
+    if (!val) return;
+    const d = new Date(val);
+    if (isNaN(d.getTime()) || d < new Date()) {
+      const errEl = document.getElementById('bulkMoveError');
+      if (errEl) { errEl.textContent = 'La fecha debe ser futura.'; errEl.style.display = 'block'; }
+      return;
+    }
+    target = { scheduled_at: d.toISOString() };
+  }
+
+  const btn = document.getElementById('bulkConfirmBtn');
+  const errEl = document.getElementById('bulkMoveError');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments/bulk-move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}`, 'Idempotency-Key': _r2UUID() },
+      body: JSON.stringify({ appointment_ids: ids, action, ...(target ? { target } : {}) }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (errEl) { errEl.textContent = data.error || 'Error al procesar.'; errEl.style.display = 'block'; }
+      return;
+    }
+    document.getElementById('bulkMoveModal').classList.remove('active');
+    _r2ClearBulk();
+    await loadAppointmentsData();
+    const { processed = 0, skipped = 0 } = data.summary || {};
+    const msg = `${processed} cita${processed !== 1 ? 's' : ''} procesada${processed !== 1 ? 's' : ''}` +
+      (skipped > 0 ? `, ${skipped} sin slot (revision manual requerida)` : '') + '.';
+    showStatus(msg, 'success');
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error de conexion.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+function _r2UUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
 // ══ FIN CITAS ══
 
 </script>
+<!-- ══ R2: MODAL BLOQUEO CON PREVIEW ══ -->
+<div id="blockPreviewModal" class="modal">
+  <div class="modal-content" style="max-width:560px;">
+    <div class="modal-header">
+      <h2 id="blockModalTitle">Bloquear horario</h2>
+      <button class="modal-close" onclick="closeBlockPreviewModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <!-- Paso 1: formulario -->
+      <div id="blockStep1" class="r2-step">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;flex:1 1 180px;">
+            <label>Desde</label>
+            <input type="datetime-local" id="bpStartsAt" style="width:100%;">
+          </div>
+          <div class="form-group" style="margin:0;flex:1 1 180px;">
+            <label>Hasta</label>
+            <input type="datetime-local" id="bpEndsAt" style="width:100%;">
+          </div>
+          <div class="form-group" style="margin:0;flex:1 1 200px;">
+            <label>Alcance</label>
+            <select id="bpServiceId" style="width:100%;"></select>
+          </div>
+          <div class="form-group" style="margin:0;flex:2 1 220px;">
+            <label>Motivo (opcional)</label>
+            <input type="text" id="bpReason" placeholder="Ej: Festivo, Mantenimiento..." style="width:100%;">
+          </div>
+        </div>
+        <div id="bpFormError" style="color:#ff6b6b;font-size:12px;margin-top:10px;display:none;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+          <button class="btn btn-outline btn-sm" onclick="closeBlockPreviewModal()">Cancelar</button>
+          <button class="btn btn-primary btn-sm" id="bpPreviewBtn" onclick="_bpPreview()">Ver citas afectadas</button>
+        </div>
+      </div>
+      <!-- Paso 2: preview -->
+      <div id="blockStep2" class="r2-step hidden">
+        <div id="bpPreviewContent"></div>
+        <div id="bpApplyError" style="color:#ff6b6b;font-size:12px;margin-top:10px;display:none;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+          <button class="btn btn-outline btn-sm" onclick="_bpBackToForm()">Volver</button>
+          <button class="btn btn-primary btn-sm" id="bpApplyBtn" onclick="_bpApply()">Aplicar bloqueo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ R2: MODAL BULK MOVE ══ -->
+<div id="bulkMoveModal" class="modal">
+  <div class="modal-content" style="max-width:460px;">
+    <div class="modal-header">
+      <h2 id="bulkMoveTitle">Operacion en lote</h2>
+      <button class="modal-close" onclick="document.getElementById('bulkMoveModal').classList.remove('active')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div id="bulkMoveBody"></div>
+      <div id="bulkMoveError" style="color:#ff6b6b;font-size:12px;margin-top:10px;display:none;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulkMoveModal').classList.remove('active')">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="bulkConfirmBtn" onclick="_r2ConfirmBulk()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL SCREENSHOT ══ -->
 <div id="screenshotModal" class="modal">
   <div class="modal-content" style="max-width:860px;">
