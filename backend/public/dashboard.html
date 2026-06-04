@@ -5112,7 +5112,8 @@ function _r2UpdateBulkToolbar() {
     document.querySelectorAll('#appointmentsList [data-row-type="cita"]:not([data-r2cb])').forEach(row => {
       row.dataset.r2cb = '1';
       const apptId = row.dataset.apptId;
-      if (!apptId) return;
+      const status = row.dataset.status;
+      if (!apptId || !['pending','confirmed','pending_reschedule'].includes(status)) return;
       const cb = Object.assign(document.createElement('input'), { type: 'checkbox', className: 'appt-checkbox' });
       cb.addEventListener('change', e => _r2ToggleAppt(apptId, e.target.checked));
       row.insertBefore(cb, row.firstChild);
