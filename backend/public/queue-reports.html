@@ -11,6 +11,7 @@
       --magenta: #FF1B8D;
       --orange:  #FF8C00;
       --yellow:  #FFE566;
+      --cyan:    #00B4D8;
       --black:   #f8f7f5;
       --surface: #ffffff;
       --surface2:#f3f2ef;
@@ -22,6 +23,24 @@
       --amber:   #f59e0b;
       --red:     #ef4444;
       --blue:    #3b82f6;
+    }
+    body.dark-mode {
+      --black:   #0d0f14;
+      --surface: #161920;
+      --surface2:#1c2028;
+      --border:  #2a2f3a;
+      --text:    #e8eaf0;
+      --muted:   #6b7280;
+    }
+    body.dark-mode .kpi-card,
+    body.dark-mode .chart-card,
+    body.dark-mode .table-card { box-shadow: none; }
+    body.dark-mode select { background: var(--surface2); color: var(--text); border-color: var(--border); }
+    @media (max-width: 640px) {
+      .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+      .kpi-grid[style*='1fr 1fr'] { grid-template-columns: 1fr !important; }
+      .charts-grid { grid-template-columns: 1fr !important; }
+      .chart-card.full { grid-column: 1 !important; }
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -79,6 +98,15 @@
       font-weight: 700; cursor: pointer; transition: opacity 0.2s;
     }
     .btn-filter:hover { opacity: 0.9; }
+    .btn-range {
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font-family: 'Montserrat', sans-serif;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-range:hover { background: var(--surface); border-color: var(--magenta); }
+    .btn-range.active { background: var(--grad); color: #fff; border-color: transparent; }
     .btn-export {
       padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--surface); color: var(--text);
@@ -231,9 +259,14 @@
   <select class="filter-select" id="branchFilter" onchange="loadReport()">
     <option value="">Todas las sucursales</option>
   </select>
-  <input type="date" class="filter-input" id="dateFrom">
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button class="btn-range active" id="rangeHoy" onclick="setRange('hoy')">Hoy</button>
+    <button class="btn-range" id="rangeSemana" onclick="setRange('semana')">Esta semana</button>
+    <button class="btn-range" id="rangeMes" onclick="setRange('mes')">Este mes</button>
+  </div>
+  <input type="date" class="filter-input" id="dateFrom" onchange="loadReport()">
   <span style="font-size:12px;color:var(--muted);">hasta</span>
-  <input type="date" class="filter-input" id="dateTo">
+  <input type="date" class="filter-input" id="dateTo" onchange="loadReport()">
   <button class="btn-filter" onclick="loadReport()">Actualizar</button>
   <div class="export-sep"></div>
   <button class="btn-export" onclick="exportCSV()" title="Descargar Excel/CSV">
@@ -249,7 +282,65 @@
 <!-- CONTENIDO -->
 <div class="content">
 
-  <!-- KPIs -->
+  <!-- ══ CITAS PROGRAMADAS (va primero — S89) ══ -->
+  <div class="section-label" style="color:var(--cyan);">Citas programadas</div>
+
+  <!-- Bloque A: conteo -->
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Citas programadas</div>
+      <div class="kpi-value" id="kpiApptActive">—</div>
+      <div class="kpi-sub">pendientes + confirmadas</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Citas atendidas</div>
+      <div class="kpi-value" id="kpiApptAttended">—</div>
+      <div class="kpi-sub">status atendida</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">No se presentan</div>
+      <div class="kpi-value" id="kpiApptNoShow">—</div>
+      <div class="kpi-sub" id="kpiApptNoShowPct">del total</div>
+    </div>
+  </div>
+
+  <!-- Bloque B: ingresos -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+    <div class="kpi-card green">
+      <div class="kpi-label">Ingresos realizados</div>
+      <div class="kpi-value" id="kpiApptRevAttended" style="font-size:18px;letter-spacing:-.4px;">—</div>
+      <div class="kpi-sub">citas ya atendidas · COP</div>
+    </div>
+    <div class="kpi-card" style="border-left:3px solid var(--cyan);">
+      <div class="kpi-label">Ingresos esperados</div>
+      <div class="kpi-value" id="kpiApptRevExpected" style="font-size:18px;letter-spacing:-.4px;color:var(--cyan);">—</div>
+      <div class="kpi-sub">pendientes + confirmadas · COP</div>
+    </div>
+  </div>
+
+  <!-- Gráficas de citas -->
+  <div class="charts-grid" style="margin-top:16px;">
+    <div class="chart-card">
+      <div class="chart-title">Ingresos realizados por servicio<span>solo atendidas · COP</span></div>
+      <div class="chart-wrap"><canvas id="apptRevAttendedChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Ingresos esperados por servicio<span>pend. + confirmadas · COP</span></div>
+      <div class="chart-wrap"><canvas id="apptRevExpectedChart"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-title">Citas del día por hora<span>distribución por estado en el período</span></div>
+      <div class="chart-wrap"><canvas id="apptHourlyChart"></canvas></div>
+      <div id="apptHourlyLegend" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:10px;font-weight:700;color:var(--muted);"></div>
+    </div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0 20px;">
+
+  <!-- ══ ESTADÍSTICAS DE TURNOS ══ -->
+  <div class="section-label">Estadísticas de turnos</div>
+
+  <!-- KPIs turnos -->
   <div class="kpi-grid">
     <div class="kpi-card magenta">
       <div class="kpi-label">Turnos atendidos</div>
@@ -278,33 +369,8 @@
     </div>
   </div>
 
-  <!-- KPIs CITAS (R3.5) -->
-  <div class="section-label">Citas programadas</div>
-  <div class="kpi-grid">
-    <div class="kpi-card blue">
-      <div class="kpi-label">Citas activas</div>
-      <div class="kpi-value" id="kpiApptTotal">—</div>
-      <div class="kpi-sub">en el período</div>
-    </div>
-    <div class="kpi-card green">
-      <div class="kpi-label">Ingresos activos</div>
-      <div class="kpi-value" id="kpiApptRevenue" style="font-size:20px;letter-spacing:-0.3px;">—</div>
-      <div class="kpi-sub">COP · pend. + conf. + atendido</div>
-    </div>
-    <div class="kpi-card amber">
-      <div class="kpi-label">No-show citas</div>
-      <div class="kpi-value" id="kpiApptNoShow">—</div>
-      <div class="kpi-sub" id="kpiApptNoShowPct">del total</div>
-    </div>
-    <div class="kpi-card magenta">
-      <div class="kpi-label">Sin tarifa</div>
-      <div class="kpi-value" id="kpiApptNoPrice">—</div>
-      <div class="kpi-sub">citas sin precio asignado</div>
-    </div>
-  </div>
-
-    <!-- GRÁFICOS -->
-  <div class="charts-grid">
+  <!-- Gráficas turnos -->
+  <div class="charts-grid" style="margin-top:16px;">
     <div class="chart-card full">
       <div class="chart-title">
         Turnos por hora del día
@@ -356,12 +422,18 @@
 </div>
 
 <script>
+// Restaurar tema guardado en dashboard
+if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+
 const API_URL   = window.location.origin;
 const authToken = localStorage.getItem('authToken');
 
-let hourlyChart   = null;
-let servicesChart = null;
-let ratingsChart  = null;
+let hourlyChart          = null;
+let servicesChart        = null;
+let ratingsChart         = null;
+let apptHourlyChart      = null;
+let apptRevAttChart      = null;
+let apptRevExpChart      = null;
 
 // Datos en memoria para export
 let exportData = { agents: [], services: [], appointments: null, kpis: {}, from: '', to: '', branch: '' };
@@ -394,6 +466,31 @@ async function loadBranches() {
 }
 
 // ── CARGAR REPORTE ────────────────────────────────────────────
+function setRange(range) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  let from, to;
+  if (range === 'hoy') {
+    from = to = fmt(now);
+  } else if (range === 'semana') {
+    const day = now.getDay() || 7;
+    const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from = fmt(mon); to = fmt(sun);
+  } else if (range === 'mes') {
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    from = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-01';
+    to = fmt(lastDay);
+  }
+  document.getElementById('dateFrom').value = from;
+  document.getElementById('dateTo').value   = to;
+  document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+  const ids = { hoy: 'rangeHoy', semana: 'rangeSemana', mes: 'rangeMes' };
+  document.getElementById(ids[range]).classList.add('active');
+  loadReport();
+}
+
 async function loadReport() {
   const branchId = document.getElementById('branchFilter').value;
   const from     = document.getElementById('dateFrom').value;
@@ -653,6 +750,8 @@ async function loadServicesTable(branchId, from, to) {
 // ── HELPERS ───────────────────────────────────────────────────
 // -- CITAS SUMMARY (R3.5) --------------------------------------------
 async function loadAppointmentsSummary(branchId, from, to) {
+  const fmtCOP = v => parseFloat(v||0).toLocaleString('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0});
+  const gridColor = document.body.classList.contains('dark-mode') ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
   try {
     const res  = await fetch(
       `${API_URL}/api/queue/reports/appointments-summary?branch_id=${branchId}&date_from=${from}&date_to=${to}`,
@@ -661,18 +760,108 @@ async function loadAppointmentsSummary(branchId, from, to) {
     const data = await res.json();
     exportData.appointments = data;
 
-    document.getElementById('kpiApptTotal').textContent   = data.total_active ?? '—';
-    const rev = parseFloat(data.revenue_active || 0);
-    document.getElementById('kpiApptRevenue').textContent =
-      rev.toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
-    document.getElementById('kpiApptNoShow').textContent  = data.no_show_count ?? '—';
-    const total = data.total_active || 0;
+    // ── KPIs conteo ────────────────────────────────────────────────
+    document.getElementById('kpiApptActive').textContent    = data.active_count   ?? '—';
+    document.getElementById('kpiApptAttended').textContent  = data.attended_count ?? '—';
+    document.getElementById('kpiApptNoShow').textContent    = data.no_show_count  ?? '—';
+    const totalAppt = (data.active_count||0) + (data.attended_count||0) + (data.no_show_count||0);
     document.getElementById('kpiApptNoShowPct').textContent =
-      total > 0 ? `${Math.round((data.no_show_count / total) * 100)}% del total` : 'del total';
-    document.getElementById('kpiApptNoPrice').textContent = data.no_price_count ?? '—';
+      totalAppt > 0 ? Math.round((data.no_show_count/totalAppt)*100)+'% del total' : 'del total';
+
+    // ── KPIs ingresos ───────────────────────────────────────────────
+    document.getElementById('kpiApptRevAttended').textContent = fmtCOP(data.revenue_attended);
+    document.getElementById('kpiApptRevExpected').textContent = fmtCOP(data.revenue_expected);
+
+    // ── Chart: Citas del día por hora ───────────────────────────────
+    const hours = Array.from({length:24},(_,i)=>i);
+    const mk = (status) => hours.map(h => {
+      const r = (data.by_hour||[]).find(x=>x.hour===h); return r ? (r[status]||0) : 0;
+    });
+    const attendedH  = mk('attended');
+    const confirmedH = mk('confirmed');
+    const pendingH   = mk('pending');
+    const noshowH    = mk('no_show');
+    const hasAppt    = hours.some(h => (attendedH[h]||0)+(confirmedH[h]||0)+(pendingH[h]||0)+(noshowH[h]||0) > 0);
+    const hLabels    = hours.map(h => h===0?'12am':h<12?h+'am':h===12?'12pm':(h-12)+'pm');
+    if (apptHourlyChart) apptHourlyChart.destroy();
+    apptHourlyChart = new Chart(document.getElementById('apptHourlyChart'), {
+      type: 'bar',
+      data: {
+        labels: hLabels,
+        datasets: [
+          {label:'Atendida',  data:attendedH,  backgroundColor:'rgba(16,185,129,.8)',  borderRadius:3,borderSkipped:false},
+          {label:'Confirmada',data:confirmedH, backgroundColor:'rgba(59,130,246,.75)', borderRadius:3,borderSkipped:false},
+          {label:'Pendiente', data:pendingH,   backgroundColor:'rgba(0,180,216,.55)',   borderRadius:3,borderSkipped:false},
+          {label:'No-show',   data:noshowH,    backgroundColor:'rgba(245,158,11,.7)',   borderRadius:3,borderSkipped:false},
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:'top',labels:{font:{family:'Montserrat',size:11},boxWidth:10,padding:12}},
+          tooltip:{mode:'index',callbacks:{footer:items=>'Total: '+items.reduce((s,i)=>s+i.parsed.y,0)}}
+        },
+        scales:{
+          x:{stacked:true,grid:{display:false},ticks:{font:{family:'Montserrat',size:9}}},
+          y:{stacked:true,beginAtZero:true,grid:{color:gridColor},ticks:{font:{family:'Montserrat',size:10},stepSize:1}}
+        }
+      }
+    });
+
+    // ── Chart: Ingresos realizados por servicio ─────────────────────
+    const svcNames = (data.by_service||[]).map(s=>s.name);
+    const revAtt   = (data.by_service||[]).map(s=>s.revenue_attended||0);
+    const revExp   = (data.by_service||[]).map(s=>s.revenue_expected||0);
+    const svcColors= (data.by_service||[]).map(s=>s.color||'#FF1B8D');
+    const isDark    = document.body.classList.contains('dark-mode');
+    const isMobile  = window.innerWidth <= 640;
+    const borderClr = isDark ? '#161920' : '#ffffff';
+    const legendClr = isDark ? '#9ca3af' : '#6b7280';
+    const doughnutOpts = {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: {
+          display: true,
+          position: isMobile ? 'bottom' : 'right',
+          labels: { boxWidth: 10, padding: isMobile ? 10 : 14,
+            font: { family: 'Montserrat', size: 10, weight: '700' }, color: legendClr }
+        },
+        tooltip: { callbacks: { label: c => {
+          const total = c.dataset.data.reduce((a,b)=>a+b,0);
+          const pct = total > 0 ? Math.round(c.parsed/total*100) : 0;
+          return ' ' + fmtCOP(c.parsed) + ' (' + pct + '%)';
+        }}}
+      }
+    };
+    if (apptRevAttChart) apptRevAttChart.destroy();
+    apptRevAttChart = new Chart(document.getElementById('apptRevAttendedChart'), {
+      type: 'doughnut',
+      data: {
+        labels: svcNames.length ? svcNames : ['Sin datos'],
+        datasets: [{ data: revAtt.length ? revAtt : [0],
+          backgroundColor: svcColors.length ? svcColors : ['#FF1B8D'],
+          borderWidth: 2, borderColor: borderClr, hoverOffset: 6 }]
+      },
+      options: doughnutOpts
+    });
+
+    // ── Chart: Ingresos esperados por servicio — doughnut ────────────
+    if (apptRevExpChart) apptRevExpChart.destroy();
+    apptRevExpChart = new Chart(document.getElementById('apptRevExpectedChart'), {
+      type: 'doughnut',
+      data: {
+        labels: svcNames.length ? svcNames : ['Sin datos'],
+        datasets: [{ data: revExp.length ? revExp : [0],
+          backgroundColor: svcColors.length ? svcColors : ['#FF1B8D'],
+          borderWidth: 2, borderColor: borderClr, hoverOffset: 6 }]
+      },
+      options: doughnutOpts
+    });
+
   } catch(e) {
-    ['kpiApptTotal','kpiApptRevenue','kpiApptNoShow','kpiApptNoPrice'].forEach(id => {
-      document.getElementById(id).textContent = '—';
+    ['kpiApptActive','kpiApptAttended','kpiApptNoShow',
+     'kpiApptRevAttended','kpiApptRevExpected'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.textContent = '—';
     });
   }
 }
@@ -736,7 +925,7 @@ function exportCSV() {
     rows.push([]);
     rows.push(['CITAS PROGRAMADAS']);
     rows.push(['Citas activas','Ingresos activos (COP)','No-show','Sin tarifa']);
-    rows.push([appt.total_active, appt.revenue_active, appt.no_show_count, appt.no_price_count]);
+    rows.push([appt.active_count, appt.attended_count, appt.revenue_attended, appt.revenue_expected, appt.no_show_count, appt.no_price_count]);
     if (appt.by_service && appt.by_service.length) {
       rows.push([]);
       rows.push(['Servicio','Citas','Ingresos (COP)']);

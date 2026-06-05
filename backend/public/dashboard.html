@@ -453,6 +453,15 @@
       color: var(--text-muted);
     }
     .btn-outline:hover { border-color: var(--magenta); color: var(--magenta); }
+    .btn-range-appt {
+      padding: 5px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-range-appt:hover { border-color: var(--magenta); color: var(--magenta); }
+    .btn-range-appt.active { background: var(--magenta); color: #fff; border-color: transparent; }
 
     .btn-danger {
       background: rgba(255,23,68,0.12);
@@ -1400,18 +1409,27 @@
         </div>
 
         <div class="card" style="padding:20px;">
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:20px;">
-            <div class="form-group" style="margin:0;flex:1 1 220px;min-width:200px;">
-              <label>Sucursal</label>
-              <select id="apptBranchFilter" onchange="onAppointmentFilterChange()"></select>
+          <div class="form-group" style="margin:0 0 14px 0;">
+            <label>Sucursal</label>
+            <select id="apptBranchFilter" onchange="onAppointmentFilterChange()"></select>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input type="date" id="apptDateFilter" onchange="onAppointmentFilterChange()"
+                style="flex:0 0 auto;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);font-size:13px;color:var(--text);" />
+              <div style="display:flex;gap:4px;flex:1;min-width:200px;">
+                <button class="btn-range-appt active" id="apptRangeHoy" onclick="setApptRange('hoy')" style="flex:1;text-align:center;">Hoy</button>
+                <button class="btn-range-appt" id="apptRangeSemana" onclick="setApptRange('semana')" style="flex:1;text-align:center;">Esta semana</button>
+                <button class="btn-range-appt" id="apptRangeMes" onclick="setApptRange('mes')" style="flex:1;text-align:center;">Este mes</button>
+              </div>
             </div>
-            <div class="form-group" style="margin:0;flex:0 0 180px;">
-              <label>Fecha</label>
-              <input type="date" id="apptDateFilter" onchange="onAppointmentFilterChange()" />
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="resetAppointmentFilters()" style="margin-bottom:2px;">Hoy</button>
-            <div class="form-group" style="margin:0;flex:0 0 240px;">
-              <label>Modo de operación</label>
+            <div id="apptRangeDisplay" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted);padding-left:2px;letter-spacing:0.2px;"></div>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-top:14px;margin-bottom:16px;border-top:1px solid var(--border);">
+            <div class="form-group" style="margin:0;flex:0 0 220px;">
+              <label style="font-size:11px;color:var(--text-muted);">Modo de operación</label>
               <select id="apptOperationMode" onchange="submitOperationModeChange()" disabled>
                 <option value="">—</option>
                 <option value="queue_only">Solo turnos (walk-in)</option>
@@ -1419,11 +1437,11 @@
                 <option value="queue_and_appointments">Turnos + citas</option>
               </select>
             </div>
-            <div class="form-group" style="margin:0;flex:1 1 320px;">
-              <label>Token de kiosko</label>
-              <div style="display:flex;gap:6px;align-items:center;">
+            <div class="form-group" style="margin:0;flex:1 1 300px;">
+              <label style="font-size:11px;color:var(--text-muted);">Token de kiosko</label>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <input type="text" id="apptKioskTokenInput" readonly
-                  style="font-family:monospace;font-size:12px;width:230px;background:var(--bg-secondary);border:1px solid var(--border);padding:8px 10px;border-radius:6px;color:var(--text);"
+                  style="font-family:monospace;font-size:12px;flex:1;min-width:160px;max-width:260px;background:var(--bg-secondary);border:1px solid var(--border);padding:8px 10px;border-radius:6px;color:var(--text);"
                   placeholder="—">
                 <button id="apptKioskTokenToggle" class="btn btn-outline btn-sm" onclick="toggleKioskTokenVisibility()" disabled>Mostrar</button>
                 <button id="apptKioskTokenCopy" class="btn btn-outline btn-sm" onclick="copyKioskTokenToClipboard()" disabled>Copiar</button>
@@ -2085,6 +2103,31 @@ function connectWebSocket() {
     if (data.branch_id === _apptState.selectedBranchId) {
       _tbState.blocks = _tbState.blocks.filter(b => b.id !== data.id);
       _tbRenderBlocks();
+    }
+  });
+  socket.on('appointment.completed', d => {
+    if (!d || !d.id) return;
+    const row = document.querySelector(`[data-appt-id="${d.id}"]`);
+    if (row) {
+      row.dataset.status = 'completed';
+      const col = (typeof appointmentStatusColor === 'function')
+        ? appointmentStatusColor('completed')
+        : { bg: '#003d28', fg: '#00e676' };
+      row.style.borderLeftColor = col.fg;
+      row.style.background = col.bg + '30';
+      const pill = row.querySelector('span[style*="border-radius:999px"]');
+      if (pill) {
+        pill.style.background = col.bg;
+        pill.style.color = col.fg;
+        pill.innerHTML = d.agent_name
+          ? `Atendido <span style="font-weight:400;opacity:0.85;">\xb7 ${d.agent_name}</span>`
+          : 'Atendido';
+      }
+      row.querySelectorAll('button').forEach(b => {
+        if (b.textContent.includes('Confirmar') || b.textContent.includes('c\xe9dula')) b.style.display = 'none';
+      });
+    } else {
+      if (typeof loadAppointmentsData === 'function') loadAppointmentsData();
     }
   });
 }
@@ -3916,6 +3959,7 @@ const _apptState = {
   servicesByBranch: new Map(),
   selectedBranchId: null,
   selectedDate: null,
+  selectedDateTo: null,
   kioskTokenVisible: false,
   tenantPublicSlug: null,
 };
@@ -3943,7 +3987,7 @@ function appointmentStatusLabel(s) {
     pending: 'Pendiente',
     confirmed: 'Confirmada',
     in_progress: 'En atención',
-    completed: 'Completada',
+    completed: 'Atendido',
     cancelled: 'Cancelada',
     no_show: 'No asistió',
     attended: 'En sitio',
@@ -3954,14 +3998,14 @@ function appointmentStatusLabel(s) {
 
 function appointmentStatusColor(s) {
   const map = {
-    pending:     { bg: '#3a2d00', fg: '#ffc857' },
-    confirmed:   { bg: '#0d2a4d', fg: '#5fb1ff' },
-    in_progress: { bg: '#1b3a1b', fg: '#7ed957' },
-    completed:   { bg: '#1f2937', fg: '#9ca3af' },
-    cancelled:   { bg: '#3a1414', fg: '#ff6b6b' },
-    no_show:     { bg: '#2a1d3a', fg: '#c084fc' },
-    attended:          { bg: '#0d3a2d', fg: '#34d399' },
-    pending_reschedule: { bg: '#3a2200', fg: '#ff8c00' }
+    pending:            { bg: '#3a2800', fg: '#ffd000' },
+    confirmed:          { bg: '#00273d', fg: '#00c8e6' },
+    in_progress:        { bg: '#1b3a1b', fg: '#7ed957' },
+    completed:          { bg: '#003d28', fg: '#00e676' },
+    cancelled:          { bg: '#3a1414', fg: '#ff5252' },
+    no_show:            { bg: '#3d0020', fg: '#ff4d8f' },
+    attended:           { bg: '#003d1a', fg: '#22c55e' },
+    pending_reschedule: { bg: '#3a1d00', fg: '#ff8c00' }
   };
   return map[s] || { bg: '#1f2937', fg: '#9ca3af' };
 }
@@ -4075,13 +4119,56 @@ async function ensureBranchServices(branchId) {
   }
 }
 
+function setApptRange(range) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  let from, to;
+  if (range === 'hoy') {
+    from = to = fmt(now);
+  } else if (range === 'semana') {
+    const day = now.getDay() || 7;
+    const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from = fmt(mon); to = fmt(sun);
+  } else if (range === 'mes') {
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    from = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-01';
+    to = fmt(lastDay);
+  }
+  const dfInput = document.getElementById('apptDateFilter');
+  if (dfInput) dfInput.value = from;
+  _apptState.selectedDate   = from;
+  _apptState.selectedDateTo = to;
+  document.querySelectorAll('.btn-range-appt').forEach(b => b.classList.remove('active'));
+  const ids = { hoy: 'apptRangeHoy', semana: 'apptRangeSemana', mes: 'apptRangeMes' };
+  const el = document.getElementById(ids[range]);
+  if (el) el.classList.add('active');
+  // Mostrar rango de fechas cuando no es 'hoy'
+  const rdEl = document.getElementById('apptRangeDisplay');
+  if (rdEl) {
+    if (range !== 'hoy' && from !== to) {
+      const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+      rdEl.textContent = fmtDisp(from) + '  →  ' + fmtDisp(to);
+      rdEl.style.display = 'block';
+    } else {
+      rdEl.style.display = 'none';
+    }
+  }
+  loadAppointmentsData();
+}
+
 async function onAppointmentFilterChange() {
   const si = document.getElementById('apptSearchInput');
   if (si) si.value = '';
   const sel = document.getElementById('apptBranchFilter');
   const dateInput = document.getElementById('apptDateFilter');
   _apptState.selectedBranchId = sel?.value || null;
-  _apptState.selectedDate = dateInput?.value || _apptTodayLocalISO();
+  _apptState.selectedDate   = dateInput?.value || _apptTodayLocalISO();
+  _apptState.selectedDateTo = _apptState.selectedDate;
+  document.querySelectorAll('.btn-range-appt').forEach(b => b.classList.remove('active'));
+  const _rdEl = document.getElementById('apptRangeDisplay');
+  if (_rdEl) _rdEl.style.display = 'none';
   _apptRenderOperationModeSelect();
   _apptRenderKioskTokenPanel();
   _apptRenderPublicBookingPanel();
@@ -4090,11 +4177,7 @@ async function onAppointmentFilterChange() {
 }
 
 function resetAppointmentFilters() {
-  const dateInput = document.getElementById('apptDateFilter');
-  const today = _apptTodayLocalISO();
-  if (dateInput) dateInput.value = today;
-  _apptState.selectedDate = today;
-  loadAppointmentsData();
+  setApptRange('hoy');
 }
 
 async function toggleApptNotes(apptId, btn) {
@@ -4136,9 +4219,12 @@ async function loadAppointmentsData() {
   }
   hideAppointmentBanner();
   listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Cargando…</div>';
+  const _apptFrom = _apptState.selectedDate   || _apptTodayLocalISO();
+  const _apptTo   = _apptState.selectedDateTo || _apptFrom;
   const params = new URLSearchParams({
     branch_id: _apptState.selectedBranchId,
-    date: _apptState.selectedDate || _apptTodayLocalISO(),
+    date_from: _apptFrom,
+    date_to:   _apptTo,
     page_size: '200'
   });
   try {
@@ -4172,7 +4258,7 @@ async function loadAppointmentsData() {
     const _branchData = _apptState.branchesById?.get(_apptState.selectedBranchId);
     if (_branchData?.operation_mode === 'queue_and_appointments') {
       try {
-        const wDate = _apptState.selectedDate || _apptTodayLocalISO();
+        const wDate = _apptFrom;
         const wRes = await fetch(
           `${API_URL}/api/queue/branches/${_apptState.selectedBranchId}/walkins?date=${wDate}`,
           { headers: { 'Authorization': `Bearer ${authToken}` } }
@@ -4235,20 +4321,34 @@ function renderAppointmentsList(items, servicesMap, walkins) {
   const todayLocal = _apptTodayLocalISO();
   const filterDate = _apptState.selectedDate || todayLocal;
   const isTodayView = (filterDate === todayLocal);
+  const _isMultiDay = !!(_apptState.selectedDateTo && _apptState.selectedDateTo !== filterDate);
+  let _lastApptDay = null;
   const rows = sorted.map(a => {
     const dt = a.scheduled_at ? new Date(a.scheduled_at) : null;
     const time = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }) : '--:--';
+    const dateShort = (_isMultiDay && dt)
+      ? dt.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
+      : null;
+    let _hdr = '';
+    if (_isMultiDay && dt) {
+      const _dk = dt.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' });
+      if (_dk !== _lastApptDay) {
+        _lastApptDay = _dk;
+        const _lbl = dt.toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
+        _hdr = `<div style="padding:10px 4px 4px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">${_lbl.charAt(0).toUpperCase()+_lbl.slice(1)}</div>`;
+      }
+    }
 
     if (a._rowType === 'kiosko') {
       // Walk-in token row (muted, no client data)
-      return `
-        <div data-row-type="kiosko" style="display:flex;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg-card);opacity:0.75;">
-          <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text-muted);text-align:center;">${_apptEscapeHtml(time)}</div>
+      return _hdr + `
+        <div data-row-type="kiosko" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg-card);opacity:0.75;">
+          <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text-muted);text-align:center;">${_apptEscapeHtml(time)}${dateShort ? `<div style='font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;'>${_apptEscapeHtml(dateShort)}</div>` : ''}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;color:var(--text-muted);">Turno ${_apptEscapeHtml(String(a._tokenNumber || ''))}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${_apptEscapeHtml(a._serviceNameWk || '—')}</div>
           </div>
-          <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;">
+          <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.5px;background:rgba(138,138,138,0.12);color:#8a8a8a;border:1px solid rgba(138,138,138,0.25);">KIOSKO</span>
           </div>
         </div>`;
@@ -4262,8 +4362,10 @@ function renderAppointmentsList(items, servicesMap, walkins) {
     const clientIdNum = a.client_id_number ? ` · CC ${_apptEscapeHtml(a.client_id_number)}` : '';
     const clientPhone = a.client_phone ? ` · ${_apptEscapeHtml(a.client_phone)}` : '';
     const origin = a.origin ? a.origin : '';
-    const canArrival = isTodayView && (a.status === 'pending' || a.status === 'confirmed') && a.id && a.branch_id;
-    const canPresence = isTodayView && a.status === 'confirmed' && a.id && a.branch_id;
+    const _apptDayISO = dt ? dt.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' }) : null;
+    const _isApptToday = _apptDayISO === todayLocal;
+    const canArrival  = _isApptToday && (a.status === 'pending' || a.status === 'confirmed') && a.id && a.branch_id;
+    const canPresence = _isApptToday && a.status === 'confirmed' && a.id && a.branch_id;
     const confirmBtn = canArrival
       ? `<button class="btn btn-primary btn-sm" style="margin-left:8px;white-space:nowrap;" onclick='confirmArrival(${JSON.stringify(a.id)}, ${JSON.stringify(a.branch_id)}, ${JSON.stringify(clientName)}, this)'>Confirmar llegada</button>`
         + (canPresence
@@ -4273,9 +4375,9 @@ function renderAppointmentsList(items, servicesMap, walkins) {
     const originBadge = origin === 'public'
       ? `<span style="display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(0,180,216,0.12);color:#00B4D8;margin-left:6px;">Pública</span>`
       : '';
-    return `
-      <div data-row-type="cita" data-appt-id="${a.id}" data-status="${a.status}" data-client-name="${(a.client_name||''). toLowerCase()}" data-client-id="${(a.client_id_number||''). toLowerCase()}" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-left:3px solid ${statusColor.fg};border-radius:8px;margin-bottom:8px;background:${statusColor.bg}18;">
-        <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text);text-align:center;">${_apptEscapeHtml(time)}</div>
+    return _hdr + `
+      <div data-row-type="cita" data-appt-id="${a.id}" data-status="${a.status}" data-client-name="${(a.client_name||''). toLowerCase()}" data-client-id="${(a.client_id_number||''). toLowerCase()}" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-left:4px solid ${statusColor.fg};border-radius:8px;margin-bottom:8px;background:${statusColor.bg}30;">
+        <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text);text-align:center;">${_apptEscapeHtml(time)}${dateShort ? `<div style='font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;'>${_apptEscapeHtml(dateShort)}</div>` : ''}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:600;color:var(--text);">${_apptEscapeHtml(clientName)}${clientIdNum}${originBadge}</div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
@@ -4284,7 +4386,7 @@ function renderAppointmentsList(items, servicesMap, walkins) {
         </div>
         <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;">
           <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;background:${statusColor.bg};color:${statusColor.fg};">
-            ${_apptEscapeHtml(appointmentStatusLabel(a.status))}
+            ${_apptEscapeHtml(appointmentStatusLabel(a.status))}${a.agent_name ? ` · <span style="font-weight:400;opacity:0.85;">${_apptEscapeHtml(a.agent_name)}</span>` : ''}
           </span>
           ${confirmBtn}
           <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick='toggleApptNotes(${JSON.stringify(a.id)}, this)'>Notas</button>
@@ -5202,6 +5304,29 @@ function _r2UpdateBulkToolbar() {
     });
     socket.on('bulk_move.executed', () => { loadAppointmentsData && loadAppointmentsData(); });
     socket.on('time_block.applied', () => { loadAppointmentsData && loadAppointmentsData(); });
+    socket.on('appointment.completed', d => {
+      if (!d || !d.id) return;
+      const row = document.querySelector(`[data-appt-id="${d.id}"]`);
+      if (row) {
+        row.dataset.status = 'completed';
+        const col = (typeof appointmentStatusColor === 'function') ? appointmentStatusColor('completed') : { bg: '#003d28', fg: '#00e676' };
+        row.style.borderLeftColor = col.fg;
+        row.style.background = col.bg + '30';
+        const pill = row.querySelector('span[style*="border-radius:999px"]');
+        if (pill) {
+          pill.style.background = col.bg;
+          pill.style.color = col.fg;
+          pill.innerHTML = d.agent_name
+            ? `Atendido <span style="font-weight:400;opacity:0.85;">· ${d.agent_name}</span>`
+            : 'Atendido';
+        }
+        row.querySelectorAll('button').forEach(b => {
+          if (b.textContent.includes('Confirmar') || b.textContent.includes('cédula')) b.style.display = 'none';
+        });
+      } else {
+        if (typeof loadAppointmentsData === 'function') loadAppointmentsData();
+      }
+    });
   });
 })();
 

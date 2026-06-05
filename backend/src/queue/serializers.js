@@ -45,6 +45,7 @@ function serializeForAdmin(row) {
     client_email:         row.client_email ?? null,
     client_id_number:     row.client_id_number,
     agent_id:             row.agent_id ?? null,
+    agent_name:           row.agent_name ?? null,
     parent_token_id:      row.parent_token_id ?? null,
     created_by:           row.created_by ?? null,
     price_at_booking:     row.price_at_booking !== null && row.price_at_booking !== undefined

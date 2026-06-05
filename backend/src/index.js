@@ -3946,6 +3946,29 @@ app.post('/api/queue/tokens/:tokenId/finish', authenticateAgentOrUser, async (re
       [session_id]
     );
 
+    // Si el turno tiene cita vinculada → marcarla como completed + registrar agente
+    const token = result.rows[0];
+    if (token.appointment_id) {
+      const apptUp = await pool.query(
+        `UPDATE appointments SET status = 'completed', agent_id = COALESCE($2::uuid, agent_id)
+          WHERE id = $1
+          RETURNING id, user_id, branch_id, client_name, agent_id`,
+        [token.appointment_id, agent_id || null]
+      );
+      if (apptUp.rowCount) {
+        const appt = apptUp.rows[0];
+        let agentName = null;
+        if (appt.agent_id) {
+          const agRow = await pool.query(`SELECT name FROM agents WHERE id = $1`, [appt.agent_id]);
+          if (agRow.rowCount) agentName = agRow.rows[0].name;
+        }
+        const completedPayload = { id: appt.id, status: 'completed', agent_id: appt.agent_id, agent_name: agentName };
+        io.to(`user_${appt.user_id}`).emit('appointment.completed', completedPayload);
+        io.to(`branch_${appt.branch_id}`).emit('appointment.completed', completedPayload);
+        console.log(JSON.stringify({ event: 'appointment.completed', appt_id: appt.id, agent_id: appt.agent_id, agent_name: agentName }));
+      }
+    }
+
     // Emitir para actualizar pantalla y panel
     io.to(`branch_${branch_id}`).emit('token_finished', {
       token_id: req.params.tokenId,
@@ -4395,12 +4418,17 @@ app.get('/api/queue/reports/appointments-summary', authenticateToken, async (req
     let branchClause = '';
     if (branch_id) { params.push(branch_id); branchClause = `AND a.branch_id = $${params.length}`; }
 
-    const [summary, byService] = await Promise.all([
+    const [summary, byService, byHour] = await Promise.all([
       pool.query(
         `SELECT
+          COUNT(*) FILTER (WHERE a.status IN ('pending','confirmed')) AS active_count,
+          COUNT(*) FILTER (WHERE a.status IN ('attended','completed')) AS attended_count,
           COUNT(*) FILTER (WHERE a.status NOT IN ('cancelled')) AS total_active,
-          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('pending','confirmed','attended')), 0) AS revenue_active,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('attended','completed')), 0) AS revenue_attended,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status NOT IN ('cancelled')), 0) AS revenue_expected,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('pending','confirmed','attended','completed')), 0) AS revenue_active,
           COUNT(*) FILTER (WHERE a.status = 'no_show') AS no_show_count,
+          COUNT(*) FILTER (WHERE a.status = 'completed') AS completed_count,
           COUNT(*) FILTER (WHERE a.price_at_booking IS NULL AND a.status NOT IN ('cancelled')) AS no_price_count
          FROM appointments a
          WHERE a.user_id = $1
@@ -4412,30 +4440,65 @@ app.get('/api/queue/reports/appointments-summary', authenticateToken, async (req
         `SELECT
           s.name, s.color,
           COUNT(a.id) FILTER (WHERE a.status NOT IN ('cancelled')) AS total,
-          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('pending','confirmed','attended')), 0) AS revenue
+          COUNT(a.id) FILTER (WHERE a.status IN ('attended','completed')) AS total_attended,
+          COUNT(a.id) FILTER (WHERE a.status IN ('pending','confirmed')) AS total_expected,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('attended','completed')), 0) AS revenue_attended,
+          COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status NOT IN ('cancelled')), 0) AS revenue_expected
          FROM appointments a
          JOIN services s ON s.id = a.service_id
          WHERE a.user_id = $1
            AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $2 AND $3
            ${branchClause}
          GROUP BY s.id, s.name, s.color
-         ORDER BY revenue DESC`,
+         ORDER BY (
+           COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status IN ('attended','completed')), 0) +
+           COALESCE(SUM(a.price_at_booking) FILTER (WHERE a.status NOT IN ('cancelled')), 0)
+         ) DESC`,
+        params
+      ),
+      pool.query(
+        `SELECT
+          EXTRACT(HOUR FROM a.scheduled_at AT TIME ZONE 'America/Bogota') AS hour,
+          COUNT(*) FILTER (WHERE a.status IN ('attended','completed')) AS attended,
+          COUNT(*) FILTER (WHERE a.status = 'confirmed') AS confirmed,
+          COUNT(*) FILTER (WHERE a.status = 'pending') AS pending,
+          COUNT(*) FILTER (WHERE a.status = 'no_show') AS no_show
+         FROM appointments a
+         WHERE a.user_id = $1
+           AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $2 AND $3
+           AND a.status NOT IN ('cancelled')
+           ${branchClause}
+         GROUP BY hour ORDER BY hour`,
         params
       )
     ]);
 
     const row = summary.rows[0];
     res.json({
-      total_active:   parseInt(row.total_active   || 0),
-      revenue_active: parseFloat(row.revenue_active || 0),
-      no_show_count:  parseInt(row.no_show_count  || 0),
-      no_price_count: parseInt(row.no_price_count || 0),
+      active_count:     parseInt(row.active_count    || 0),
+      attended_count:   parseInt(row.attended_count  || 0),
+      total_active:     parseInt(row.total_active    || 0),
+      revenue_attended: parseFloat(row.revenue_attended || 0),
+      revenue_expected: parseFloat(row.revenue_expected || 0),
+      revenue_active:   parseFloat(row.revenue_active   || 0),
+      no_show_count:    parseInt(row.no_show_count   || 0),
+      no_price_count:   parseInt(row.no_price_count  || 0),
       currency: 'COP',
+      by_hour: byHour.rows.map(r => ({
+        hour:     parseInt(r.hour),
+        attended: parseInt(r.attended || 0),
+        confirmed:parseInt(r.confirmed|| 0),
+        pending:  parseInt(r.pending  || 0),
+        no_show:  parseInt(r.no_show  || 0),
+      })),
       by_service: byService.rows.map(r => ({
-        name:    r.name,
-        color:   r.color,
-        total:   parseInt(r.total   || 0),
-        revenue: parseFloat(r.revenue || 0),
+        name:             r.name,
+        color:            r.color,
+        total:            parseInt(r.total          || 0),
+        total_attended:   parseInt(r.total_attended  || 0),
+        total_expected:   parseInt(r.total_expected  || 0),
+        revenue_attended: parseFloat(r.revenue_attended || 0),
+        revenue_expected: parseFloat(r.revenue_expected || 0),
       }))
     });
   } catch (err) {
@@ -4671,15 +4734,17 @@ app.post('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue
 app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
   try {
     const userId = req.user.id;
-    const { branch_id, date, status } = req.query;
+    const { branch_id, date, date_from, date_to, status } = req.query;
 
     if (!branch_id || !UUID_RE.test(branch_id)) {
       return res.status(400).json({ error: 'branch_id inválido' });
     }
 
-    const dayKey = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
-      ? date
-      : new Date().toISOString().slice(0, 10);
+    const _dateRE = /^\d{4}-\d{2}-\d{2}$/;
+    const _today  = new Date().toISOString().slice(0, 10);
+    const fromKey = (date_from && _dateRE.test(date_from)) ? date_from
+                  : (date && _dateRE.test(date)) ? date : _today;
+    const toKey   = (date_to && _dateRE.test(date_to)) ? date_to : fromKey;
 
     let statusList;
     if (status) {
@@ -4687,7 +4752,7 @@ app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_
       const invalid = statusList.find(s => !APPT_STATUS_VALID.has(s));
       if (invalid) return res.status(400).json({ error: `status inválido: ${invalid}` });
     } else {
-      statusList = ['pending','confirmed','attended','no_show','pending_reschedule'];
+      statusList = ['pending','confirmed','attended','no_show','pending_reschedule','completed'];
     }
 
     let page     = parseInt(req.query.page, 10);
@@ -4697,26 +4762,28 @@ app.get('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue_
     if (pageSize > 200) pageSize = 200;
     const offset = (page - 1) * pageSize;
 
-    const baseParams = [userId, branch_id, dayKey, statusList];
+    const baseParams = [userId, branch_id, fromKey, toKey, statusList];
 
     const totalRes = await pool.query(
       `SELECT COUNT(*) FROM appointments
         WHERE user_id = $1
           AND branch_id = $2
-          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $3::date
-          AND status = ANY($4)`,
+          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $3::date AND $4::date
+          AND status = ANY($5)`,
       baseParams
     );
     const total = parseInt(totalRes.rows[0].count, 10);
 
     const rowsRes = await pool.query(
-      `SELECT * FROM appointments
-        WHERE user_id = $1
-          AND branch_id = $2
-          AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = $3::date
-          AND status = ANY($4)
-        ORDER BY scheduled_at ASC, id ASC
-        LIMIT $5 OFFSET $6`,
+      `SELECT a.*, ag.name AS agent_name
+       FROM appointments a
+       LEFT JOIN agents ag ON ag.id = a.agent_id
+       WHERE a.user_id = $1
+         AND a.branch_id = $2
+         AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date BETWEEN $3::date AND $4::date
+         AND a.status = ANY($5)
+       ORDER BY a.scheduled_at ASC, a.id ASC
+       LIMIT $6 OFFSET $7`,
       [...baseParams, pageSize, offset]
     );
 
@@ -4952,9 +5019,11 @@ app.get('/api/queue/appointments/slots', authenticateToken, requireFeatureFlag('
     if (!service_id || !UUID_RE.test(service_id)) {
       return res.status(400).json({ error: 'service_id inválido' });
     }
-    const dayKey = (date && /^\d{4}-\d{2}-\d{2}$/.test(date))
-      ? date
-      : new Date().toISOString().slice(0, 10);
+    const _dateRE = /^\d{4}-\d{2}-\d{2}$/;
+    const _today  = new Date().toISOString().slice(0, 10);
+    const fromKey = (date_from && _dateRE.test(date_from)) ? date_from
+                  : (date && _dateRE.test(date)) ? date : _today;
+    const toKey   = (date_to && _dateRE.test(date_to)) ? date_to : fromKey;
 
     // Branch + service: ownership + horario + duración.
     const branchRes = await pool.query(
@@ -5346,11 +5415,153 @@ app.post('/api/queue/appointments/:id/confirm-arrival',
         action: 'arrival_confirmed',
         token_number: result.token_number,
       });
+      io.to(`branch_${result.branch_id}`).emit('appointment.attended', {
+        id: req.params.id, token_number: result.token_number, branch_id: result.branch_id,
+      });
 
       return res.json(result);
     } catch (err) {
       if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
       console.error('❌ /api/queue/appointments/:id/confirm-arrival:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// R1 §2.6c — POST /api/queue/agent/appointments/:id/confirm-arrival
+// Agente confirma llegada física de un cliente con cita.
+// Usa authenticateAgentOrUser (token de agente, no admin).
+// Deriva user_id del owner desde la sucursal (igual que §A agenda).
+// P1: withTransaction | P2: user_id del owner | P4: telemetría.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/agent/appointments/:id/confirm-arrival',
+  authenticateAgentOrUser,
+  async (req, res) => {
+    const agentId  = req.user.agent_id || null;
+    const branchId = req.user.branch_id;
+    const apptId   = req.params.id;
+
+    if (!branchId || !UUID_RE.test(branchId)) {
+      return res.status(400).json({ error: 'branch_id requerido en el token del agente' });
+    }
+    if (!UUID_RE.test(apptId)) {
+      return res.status(400).json({ error: 'ID de cita inválido' });
+    }
+
+    try {
+      const branchRow = await pool.query(
+        `SELECT b.user_id AS owner_id, u.features->>'queue_v2_appointments' AS enabled
+         FROM branches b JOIN users u ON u.id = b.user_id WHERE b.id = $1`,
+        [branchId]
+      );
+      if (!branchRow.rowCount || branchRow.rows[0].enabled !== 'true') {
+        return res.status(403).json({ error: 'FEATURE_DISABLED' });
+      }
+      const userId = branchRow.rows[0].owner_id;
+
+      const result = await withTransaction(pool, async (client) => {
+        const apptRes = await client.query(
+          `SELECT a.*, s.prefix, s.avg_attention_min, s.slot_duration_minutes
+           FROM appointments a
+           JOIN services s ON s.id = a.service_id
+           WHERE a.id = $1
+             AND a.user_id = $2
+             AND a.branch_id = $3
+             AND a.status IN ('pending','confirmed')
+             AND (a.scheduled_at AT TIME ZONE 'America/Bogota')::date
+                 = (NOW() AT TIME ZONE 'America/Bogota')::date
+           FOR UPDATE OF a`,
+          [apptId, userId, branchId]
+        );
+        if (!apptRes.rowCount) {
+          const e = new Error('Cita no encontrada, ya atendida o no es de hoy');
+          e.httpStatus = 404; throw e;
+        }
+        const appt = apptRes.rows[0];
+
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+          [appt.branch_id, appt.service_id]
+        );
+
+        const nextNum = await generateNextTokenNumber(client, appt.branch_id, appt.service_id);
+        const tokenNumber = `${appt.prefix}${String(nextNum).padStart(3, '0')}`;
+        const slotMin = appt.slot_duration_minutes || appt.avg_attention_min || 30;
+        const slotMs  = slotMin * 60 * 1000;
+
+        const occupiedRes = await client.query(
+          `SELECT scheduled_at AS t FROM appointments
+            WHERE branch_id = $1 AND service_id = $2
+              AND (scheduled_at AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date
+              AND status IN ('pending','confirmed','attended') AND id <> $3
+           UNION ALL
+           SELECT estimated_call_at AS t FROM queue_tokens
+            WHERE branch_id = $1 AND service_id = $2
+              AND date_key = CURRENT_DATE AND status IN ('waiting','called','attending')
+              AND estimated_call_at IS NOT NULL
+           ORDER BY t ASC`,
+          [appt.branch_id, appt.service_id, apptId]
+        );
+        const occupied = occupiedRes.rows.map(r => new Date(r.t).getTime());
+        let candidate = Math.ceil(Date.now() / slotMs) * slotMs;
+        for (const occ of occupied) {
+          if (candidate >= occ && candidate < occ + slotMs) candidate = occ + slotMs;
+        }
+        const estimatedCallAt = new Date(candidate);
+
+        const tokenRes = await client.query(
+          `INSERT INTO queue_tokens
+             (branch_id, service_id, token_number, display_number,
+              is_priority, is_appointment, channel,
+              client_name, client_phone, appointment_id, estimated_call_at)
+           VALUES ($1,$2,$3,$3,false,true,'appointment',$4,$5,$6,$7)
+           RETURNING *`,
+          [appt.branch_id, appt.service_id, tokenNumber,
+           appt.client_name, appt.client_phone, apptId, estimatedCallAt]
+        );
+        const token = tokenRes.rows[0];
+
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, metadata)
+           VALUES ($1,'appointment_confirmed',$2)`,
+          [token.id, JSON.stringify({ appointment_id: apptId, method: 'agent_arrival', agent_id: agentId })]
+        );
+
+        await client.query(
+          `UPDATE appointments SET status = 'attended', agent_id = $2 WHERE id = $1`,
+          [apptId, agentId]
+        );
+
+        const waitRes = await client.query(
+          `SELECT COUNT(*)::int AS n FROM queue_tokens
+            WHERE branch_id = $1 AND service_id = $2
+              AND date_key = CURRENT_DATE AND status = 'waiting'`,
+          [appt.branch_id, appt.service_id]
+        );
+
+        return {
+          confirmed: true,
+          token_number: tokenNumber,
+          queue_position: waitRes.rows[0].n,
+          estimated_call_at: estimatedCallAt,
+          branch_id: appt.branch_id,
+        };
+      });
+
+      io.to(`branch_${result.branch_id}`).emit('queue_updated', {
+        branch_id: result.branch_id, action: 'arrival_confirmed', token_number: result.token_number,
+      });
+      io.to(`branch_${result.branch_id}`).emit('appointment.attended', {
+        id: apptId, token_number: result.token_number, branch_id: result.branch_id,
+      });
+
+      console.log(JSON.stringify({ event: 'appointment.confirmed', appt_id: apptId,
+        agent_id: agentId, token_number: result.token_number }));
+      return res.json(result);
+    } catch (err) {
+      if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+      console.error('❌ /api/queue/agent/appointments/:id/confirm-arrival:', err);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   }
@@ -6391,9 +6602,9 @@ app.get('/api/queue/branches/:branchId/walkins', authenticateToken, requireFeatu
     let dateFilter;
     if (queryDate) {
       params.push(queryDate);
-      dateFilter = `(t.created_at AT TIME ZONE 'America/Bogota')::date = $${params.length}::date`;
+      dateFilter = `(t.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota')::date = $${params.length}::date`;
     } else {
-      dateFilter = `(t.created_at AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date`;
+      dateFilter = `(t.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota')::date = (NOW() AT TIME ZONE 'America/Bogota')::date`;
     }
 
     const result = await pool.query(

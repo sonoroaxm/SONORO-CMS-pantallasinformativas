@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO CMS — Plataforma de gestión de pantallas y atención al cliente</title>
+  <meta name="description" content="SONORO CMS es una plataforma SaaS desarrollada por SONORO AV SAS para gestionar pantallas de señalización digital, turnos, citas y calendarios en sucursales.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1a1a1a;
+      background: #f9f9f9;
+    }
+    .page {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 48px 56px 72px;
+      min-height: 100vh;
+    }
+    header {
+      border-bottom: 2px solid #f0a500;
+      padding-bottom: 28px;
+      margin-bottom: 40px;
+    }
+    .logo-area { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .logo-box {
+      width: 52px; height: 52px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-box span { color: #f0a500; font-weight: 800; font-size: 11px; line-height: 1.2; text-align: center; }
+    .brand { }
+    .brand h1 { font-size: 26px; font-weight: 800; color: #1a1a1a; letter-spacing: -0.5px; }
+    .brand p { font-size: 13px; color: #666; margin-top: 2px; }
+    .tagline {
+      font-size: 18px;
+      color: #333;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 36px 0 14px;
+    }
+    p { margin-bottom: 14px; color: #333; }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .feature {
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid #eee;
+    }
+    .feature strong { display: block; font-size: 14px; margin-bottom: 4px; color: #1a1a1a; }
+    .feature span { font-size: 13px; color: #555; line-height: 1.5; }
+    .oauth-box {
+      background: #fffbf0;
+      border: 1px solid #f0a500;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 28px 0;
+    }
+    .oauth-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #1a1a1a; }
+    .oauth-box p { font-size: 13px; margin: 0; color: #444; }
+    .contact-block {
+      background: #f5f5f5;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: #333;
+    }
+    a { color: #b07d00; }
+    footer {
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+    }
+    @media (max-width: 640px) {
+      .page { padding: 28px 20px 48px; }
+      .features { grid-template-columns: 1fr; }
+      .brand h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo-area">
+      <div class="logo-box"><span>SO<br>NO<br>RO</span></div>
+      <div class="brand">
+        <h1>SONORO CMS</h1>
+        <p>Desarrollado por SONORO AV SAS · NIT 901.641.013-4</p>
+      </div>
+    </div>
+    <p class="tagline">Plataforma SaaS para gestión de pantallas de señalización digital, turnos, citas y calendarios en sucursales de atención al cliente.</p>
+  </header>
+
+  <h2>¿Qué es SONORO CMS?</h2>
+  <p>SONORO CMS es una plataforma de Software como Servicio (SaaS) desarrollada por SONORO AV SAS que permite a empresas y organizaciones colombianas gestionar de forma centralizada sus operaciones de atención al público y comunicación visual.</p>
+  <p>La plataforma es utilizada por administradores de sucursales, agentes de atención y clientes finales para coordinar turnos, agendar citas, visualizar información en pantallas y sincronizar agendas con servicios de calendario externo.</p>
+
+  <h2>Funcionalidades principales</h2>
+  <div class="features">
+    <div class="feature">
+      <strong>Gestión de pantallas</strong>
+      <span>Control remoto de pantallas de señalización digital (digital signage) en múltiples sucursales desde un panel centralizado.</span>
+    </div>
+    <div class="feature">
+      <strong>Sistema de turnos</strong>
+      <span>Módulo de atención al público con generación de turnos, llamado en pantalla y estadísticas de atención por sucursal.</span>
+    </div>
+    <div class="feature">
+      <strong>Agenda de citas</strong>
+      <span>Agendamiento de citas por servicio y sucursal, con confirmación en kiosko, seguimiento en tiempo real y reportes de ingresos.</span>
+    </div>
+    <div class="feature">
+      <strong>Integración con calendarios</strong>
+      <span>Sincronización opcional con Google Calendar y Microsoft Outlook para agentes y administradores, mediante autorización OAuth 2.0.</span>
+    </div>
+  </div>
+
+  <div class="oauth-box">
+    <h3>Sobre la integración con Google Calendar</h3>
+    <p>SONORO CMS solicita acceso al calendario del agente o administrador únicamente cuando este activa voluntariamente la integración desde su panel de configuración. El acceso se otorga mediante el flujo OAuth 2.0 de Google y se limita al scope <code>calendar.events</code> — solo lectura y escritura de eventos, sin acceso a correo, contactos u otros datos. Los tokens se almacenan cifrados y pueden revocarse en cualquier momento.</p>
+  </div>
+
+  <h2>Empresa desarrolladora</h2>
+  <p>SONORO AV SAS es una empresa colombiana con sede en Armenia, Quindío, especializada en integración de tecnologías audiovisuales y soluciones de software para la gestión de espacios comerciales e institucionales.</p>
+  <div class="contact-block">
+    <strong>SONORO AV SAS</strong><br>
+    NIT: 901.641.013-4<br>
+    Carrera 18 # 29 Norte - 10, Armenia, Quindío, Colombia<br>
+    Correo: cms@sonoro.com.co · Teléfono: 3144460990<br>
+    Web: <a href="https://sonoro.com.co/">https://sonoro.com.co/</a>
+  </div>
+
+  <h2>Acceso a la plataforma</h2>
+  <p>SONORO CMS es una plataforma de uso privado contratada por empresas clientes. El acceso requiere credenciales proporcionadas por el administrador del tenant. <a href="https://cms.sonoro.com.co/">Iniciar sesión →</a></p>
+
+  <footer>
+    SONORO AV SAS — Armenia, Quindío, Colombia<br>
+    <a href="https://cms.sonoro.com.co/politica-datos/">Política de datos</a> ·
+    <a href="https://cms.sonoro.com.co/terminos/">Términos de servicio</a> ·
+    <a href="https://cms.sonoro.com.co/acerca/">https://cms.sonoro.com.co/acerca/</a>
+  </footer>
+
+</div>
+</body>
+</html>
