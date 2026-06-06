@@ -741,6 +741,65 @@
     .sidebar-group.contenido .sidebar-btn.active { background: rgba(0,245,212,0.08); color: var(--magenta); border-left-color: var(--magenta); }
     .sidebar-group.contenido .sidebar-btn:hover { color: var(--magenta); }
 
+    /* ── SIDEBAR FIDS GROUP ── */
+    .sidebar-group.fids .sidebar-group-label { color: #3b82f6; }
+    .sidebar-group.fids .sidebar-group-header:hover { background: rgba(59,130,246,0.06); }
+    .sidebar-group.fids .sidebar-children-inner { border-color: rgba(59,130,246,0.25); }
+    .sidebar-group.fids .sidebar-btn.active { background: rgba(59,130,246,0.1); color: #3b82f6; border-left-color: #3b82f6; }
+    .sidebar-group.fids .sidebar-btn:hover { color: #3b82f6; }
+
+    /* ── FIDS PANEL STYLES ── */
+    .fids-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 16px; margin-top: 4px; }
+    .fids-group-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .2s; }
+    .fids-group-card:hover { border-color: rgba(59,130,246,.4); }
+    .fids-group-card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .fids-group-card-body { padding: 14px 18px; }
+    .fids-group-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 9px; }
+    .fids-group-row-label { color: var(--muted); }
+    .fids-group-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .fids-slaves-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .fids-slaves-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; }
+    .fids-slave-row { display:flex; align-items:center; gap:6px; padding:4px 0; }
+    .fids-slave-name { flex:1; font-size:11px; color:var(--text-sec); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .fids-cache-bar { width: 90px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; }
+    .fids-cache-fill { height: 100%; border-radius: 2px; }
+    .fids-mode-selector { display: flex; gap: 8px; }
+    .fids-mode-opt { flex: 1; padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    .fids-mode-opt:hover { border-color: #3b82f6; }
+    .fids-mode-opt.selected { border-color: #3b82f6; background: rgba(59,130,246,.1); }
+    .fids-mode-icon { font-size: 16px; margin-bottom: 3px; }
+    .fids-mode-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+    .fids-mode-opt.selected .fids-mode-label { color: #3b82f6; }
+    .fids-mode-config { display: none; margin-top: 12px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+    .fids-mode-config.visible { display: block; }
+    .fids-iata-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fids-iata-chip { padding: 7px 12px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .5px; transition: all .15s; text-align: center; }
+    .fids-iata-chip:hover { border-color: #3b82f6; }
+    .fids-iata-chip.selected { background: rgba(59,130,246,.12); border-color: #3b82f6; color: #3b82f6; }
+    .fids-iata-sublabel { font-size: 9px; font-weight: 500; color: var(--muted); display: block; letter-spacing: 0; margin-top: 1px; }
+    .fids-type-toggle { display: flex; border-radius: 7px; overflow: hidden; border: 1px solid var(--border); width: fit-content; }
+    .fids-type-btn { padding: 8px 14px; background: var(--surface2); border: none; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; font-family: inherit; }
+    .fids-type-btn:hover { background: var(--surface3); color: var(--text); }
+    .fids-type-btn.active { background: #3b82f6; color: #fff; }
+
+    /* ── FIDS MEDIA LIBRARY ── */
+    .fids-file-item { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:10px; transition:border-color .2s; }
+    .fids-file-item:hover { border-color: var(--border2); }
+    .fids-file-info { flex:1; min-width:0; }
+    .fids-file-info strong { display:block; font-size:14px; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fids-file-info small { font-size:11px; color:var(--muted); display:inline-block; margin-right:10px; }
+    .fids-type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-right:8px; }
+    .fids-badge-video { background:rgba(255,140,0,.15); color:#FF8C00; }
+    .fids-badge-image { background:rgba(59,130,246,.12); color:#3b82f6; }
+    .fids-pl-content-list { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:8px; min-height:60px; }
+    .fids-pl-content-item { display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--surface3); border-radius:6px; margin-bottom:6px; }
+    .fids-pl-content-item:last-child { margin-bottom:0; }
+    .fids-pci-name { flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fids-pci-order { display:flex; gap:2px; }
+    .fids-pci-order button { background:var(--surface2); border:1px solid var(--border); color:var(--muted); border-radius:4px; padding:2px 6px; font-size:11px; cursor:pointer; }
+    .fids-pci-order button:hover { color:var(--text); }
+    .fids-dur-input { width:54px; padding:4px 6px; font-size:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:monospace; text-align:center; }
+
     /* ── HDMI PORT PILLS ── */
     .hdmi-ports { display: flex; gap: 4px; align-items: center; }
     .hdmi-pill-wrap {
@@ -947,6 +1006,25 @@
           <button class="sidebar-btn" onclick="showTab('users', this)">Usuarios y Licencias</button>
           <button class="sidebar-btn" onclick="showTab('alldevices', this)">Todos los Dispositivos</button>
           <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- FIDS -->
+    <div class="sidebar-group fids open admin-only" id="sg-fids">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-fids')">
+        <div class="sidebar-group-label">FIDS</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('fids-grupos',this)">Grupos de Vuelos</button>
+          <button class="sidebar-btn" onclick="showTab('fids-devices',this)">Dispositivos</button>
+          <button class="sidebar-btn" onclick="showTab('fids-cache',this)">Estado Caché</button>
+          <button class="sidebar-btn" onclick="showTab('fids-media',this)">Contenido FIDS</button>
+          <button class="sidebar-btn" onclick="showTab('fids-listas',this)">Playlist FIDS</button>
         </div>
       </div>
     </div>
@@ -1313,7 +1391,132 @@
       </div>
     </div>
 
+    <!-- ═══════════════ FIDS — GRUPOS ═══════════════ -->
+    <div id="tab-fids-grupos" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Grupos de Vuelos</div>
+          <div class="section-sub">Configuración de aeropuertos y tipos por pantalla FIDS</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openFidsModal()">+ Nuevo Grupo</button>
+      </div>
+      <div class="stats-grid" style="margin-bottom:24px;" id="fids-kpis">
+        <div class="stat-card"><div class="stat-label">Grupos activos</div><div class="stat-value" id="fids-kpi-groups" style="color:#3b82f6">—</div><div class="stat-sub" id="fids-kpi-airports">—</div></div>
+        <div class="stat-card"><div class="stat-label">Dispositivos FIDS</div><div class="stat-value ok" id="fids-kpi-devices">—</div><div class="stat-sub" id="fids-kpi-online">—</div></div>
+        <div class="stat-card"><div class="stat-label">Modo datos</div><div class="stat-value" id="fids-kpi-mode" style="font-size:14px;margin-top:4px;">—</div><div class="stat-sub">FIDS_DEV_MOCK env</div></div>
+      </div>
+      <div class="fids-group-grid" id="fids-grupos-grid">
+        <div class="loading">Cargando grupos...</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — DISPOSITIVOS ═══════════════ -->
+    <div id="tab-fids-devices" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dispositivos FIDS</div>
+          <div class="section-sub">Asignación de RPis a grupos de vuelos</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;" id="fids-devices-card">
+        <div class="loading" style="padding:20px;">Cargando dispositivos...</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — CACHÉ ═══════════════ -->
+    <div id="tab-fids-cache" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Estado de Caché</div>
+          <div class="section-sub">Datos almacenados en <code style="font-size:11px;color:#3b82f6">fids_cache</code> — TTL dev 300s</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadFidsCache()">↻ Actualizar</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;" id="fids-cache-card">
+        <div class="loading" style="padding:20px;">Cargando caché...</div>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);" id="fids-cache-note"></div>
+    </div>
+
+    <!-- ═══════════════ FIDS — ARCHIVOS ═══════════════ -->
+    <div id="tab-fids-media" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Contenido FIDS</div>
+          <div class="section-sub">Contenido exclusivo para publicidad en pantallas de vuelos</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadFidsMedia()">↻ Actualizar</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Subir archivo FIDS</div>
+        <input type="file" id="fidsFileInput" accept="video/*,image/*">
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="uploadFidsMedia()">↑ Subir</button>
+        </div>
+        <div style="display:none;margin:10px 0;" id="fidsUploadProgress">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;">Subiendo: <strong id="fidsUploadName"></strong></div>
+          <div class="progress-bar-bg" style="height:6px;border-radius:6px;overflow:hidden;">
+            <div id="fidsProgressBar" class="progress-bar-fill" style="width:0%;height:100%;transition:width .3s;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Vista previa</div>
+        <video id="fids-player" controls style="display:none;width:100%;max-height:280px;background:#000;border-radius:10px;border:1px solid var(--border);margin-top:10px;"></video>
+        <img id="fids-image-display" style="display:none;width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--border);margin-top:10px;" alt="Vista previa">
+      </div>
+      <div class="card">
+        <div class="card-title">Archivos</div>
+        <div id="fids-file-list"><div class="loading" style="padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — LISTAS ═══════════════ -->
+    <div id="tab-fids-listas" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Playlist FIDS</div>
+          <div class="section-sub">Listas de reproducción para el overlay publicitario en pantallas de vuelos</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateFidsPlaylist()">+ Nueva lista</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="fids-playlists-list" style="padding:8px 0;"><div class="loading" style="padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- MODAL FIDS — LIBRERIA PLAYLIST -->
+<div class="modal-overlay" id="modal-fids-playlist">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title" id="fidsPlModalTitle">Nueva lista FIDS</div>
+      <button class="modal-close" onclick="closeFidsPlaylistModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Nombre de la lista</label>
+        <input class="renew-input" type="text" id="fidsPlName" placeholder="ej. Publicidad AXM · Temporada Alta" style="width:100%;">
+      </div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:18px 0 10px;">Archivos en esta lista</div>
+      <div class="fids-pl-content-list" id="fidsPlContentList">
+        <p style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0;">Vacio</p>
+      </div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:20px 0 10px;">Agregar archivo</div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <select id="fidsContentSelector" class="renew-select" style="flex:1;padding:9px 12px;font-size:13px;">
+          <option value="">-- Seleccionar archivo FIDS --</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="addToFidsPlaylist()">Agregar</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <button class="btn btn-outline btn-sm" onclick="closeFidsPlaylistModal()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="saveFidsPlaylist()">Guardar lista</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL LOGS -->
@@ -1353,6 +1556,184 @@
       <div style="font-size:11px;color:var(--muted);margin-bottom:12px;" id="screenshot-ts"></div>
       <img id="modal-screenshot-img" src="" style="max-width:100%;border-radius:8px;display:none;" alt="Screenshot">
       <div id="screenshot-error" style="color:var(--offline);font-size:12px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FIDS — CREAR/EDITAR GRUPO -->
+<div class="modal-overlay" id="modal-fids-grupo">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="fids-modal-title">Nuevo Grupo FIDS</div>
+      <button class="modal-close" onclick="closeModal('modal-fids-grupo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fids-grupo-id">
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Nombre del grupo</div>
+        <input class="renew-input" type="text" id="fids-grupo-name" placeholder="Ej: AXM Combinado, BOG Salidas…" style="width:100%;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Aeropuerto (IATA)</div>
+        <div class="fids-iata-chips" id="fids-iata-chips">
+          <div class="fids-iata-chip selected" data-iata="AXM" onclick="fidsSelectIata(this)">AXM<span class="fids-iata-sublabel">El Edén</span></div>
+          <div class="fids-iata-chip" data-iata="BOG" onclick="fidsSelectIata(this)">BOG<span class="fids-iata-sublabel">El Dorado</span></div>
+          <div class="fids-iata-chip" data-iata="MDE" onclick="fidsSelectIata(this)">MDE<span class="fids-iata-sublabel">J.M. Córdova</span></div>
+          <div class="fids-iata-chip" data-iata="CLO" onclick="fidsSelectIata(this)">CLO<span class="fids-iata-sublabel">A. Bonilla</span></div>
+          <div class="fids-iata-chip" data-iata="PEI" onclick="fidsSelectIata(this)">PEI<span class="fids-iata-sublabel">Matecaña</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Solo aeropuertos validados en AviationStack.</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Tipo de vuelos</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn" data-type="departures" onclick="fidsSelectType(this)">Salidas</button>
+          <button class="fids-type-btn" data-type="arrivals" onclick="fidsSelectType(this)">Llegadas</button>
+          <button class="fids-type-btn active" data-type="combined" onclick="fidsSelectType(this)">Combinado</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Combinado muestra salidas y llegadas lado a lado.</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Máximo de vuelos por panel</div>
+        <input class="renew-input" type="number" id="fids-grupo-maxflights" value="12" min="4" max="30" style="width:100px;">
+        <span style="font-size:11px;color:var(--muted);margin-left:8px;">vuelos (en combinado aplica por separado)</span>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Tema de pantalla</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn fids-theme-btn active" data-theme="dark" onclick="fidsSelectTheme(this)">Oscuro</button>
+          <button class="fids-type-btn fids-theme-btn" data-theme="light" onclick="fidsSelectTheme(this)">Claro</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Publicidad / Lower thirds</div>
+        <div class="fids-mode-selector">
+          <div class="fids-mode-opt selected" data-mode="off" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">○</div>
+            <div class="fids-mode-label">Apagado</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="ticker" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">≡</div>
+            <div class="fids-mode-label">Ticker</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="overlay_ad" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">▶</div>
+            <div class="fids-mode-label">Pauta</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="lower_bar" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">▬</div>
+            <div class="fids-mode-label">Banda inf.</div>
+          </div>
+        </div>
+
+        <div class="fids-mode-config" id="fids-config-ticker">
+          <div class="form-label">Mensajes del ticker <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(uno por línea)</span></div>
+          <textarea id="fids-ticker-messages" style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:12px;font-family:inherit;resize:vertical;min-height:70px;outline:none;" placeholder="Vuele con Avianca desde AXM&#10;Información sujeta a cambios"></textarea>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+            <div>
+              <div class="form-label">Velocidad <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(seg por ciclo — menor = más rápido)</span></div>
+              <input class="renew-input" type="number" id="fids-ticker-speed" value="35" min="8" max="120" style="width:80px;">
+            </div>
+            <div>
+              <div class="form-label">Color del texto</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input type="color" id="fids-ticker-color" value="#ffe566" style="width:40px;height:36px;border:1px solid var(--border);border-radius:6px;padding:2px;background:var(--surface3);cursor:pointer;">
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('fids-ticker-color').value='#ffe566'" style="font-size:10px;">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fids-mode-config" id="fids-config-overlay">
+          <div style="margin-bottom:12px;">
+            <div class="form-label">Playlist de publicidad</div>
+            <select id="fids-overlay-playlist" class="renew-select" style="width:100%;">
+              <option value="">— Seleccionar playlist —</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Gestionadas en <strong>Playlist FIDS</strong> del sidebar.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="form-label">Intervalo</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input class="renew-input" type="number" id="fids-overlay-interval" value="10" min="1" max="120" style="width:70px;">
+                <span style="font-size:11px;color:var(--muted);">minutos</span>
+              </div>
+            </div>
+            <div>
+              <div class="form-label">Duración</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input class="renew-input" type="number" id="fids-overlay-duration" value="20" min="5" max="120" style="width:70px;">
+                <span style="font-size:11px;color:var(--muted);">segundos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <div class="fids-mode-config" id="fids-config-lowerbar">
+          <div style="margin-bottom:12px;">
+            <div class="form-label">Playlist de contenido</div>
+            <select id="fids-lowerbar-playlist" class="renew-select" style="width:100%;">
+              <option value="">— Seleccionar playlist FIDS —</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Gestionada en <strong>Playlist FIDS</strong> del sidebar. Se reproduce en bucle continuo.</div>
+          </div>
+          <div>
+            <div class="form-label">Alto de la banda</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="renew-input" type="number" id="fids-lowerbar-height" value="200" min="80" max="400" style="width:80px;">
+              <span style="font-size:11px;color:var(--muted);">px (recomendado 160–240)</span>
+            </div>
+          </div>
+        </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('modal-fids-grupo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFidsGrupo()">Guardar Grupo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FIDS — ASIGNAR DISPOSITIVO -->
+<div class="modal-overlay" id="modal-fids-assign">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">Asignar Dispositivo a Grupo FIDS</div>
+      <button class="modal-close" onclick="closeModal('modal-fids-assign')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fids-assign-device-id">
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Dispositivo</div>
+        <div id="fids-assign-device-name" style="font-size:13px;font-weight:700;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;"></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Grupo FIDS</div>
+        <select id="fids-assign-group" class="renew-select" style="width:100%;">
+          <option value="">— Sin asignar —</option>
+        </select>
+      </div>
+      <div style="margin-bottom:0;">
+        <div class="form-label">Rol</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn active" data-role="master" onclick="fidsSelectRole(this)">Master</button>
+          <button class="fids-type-btn" data-role="slave" onclick="fidsSelectRole(this)">Slave</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Master: pantalla principal. Slave: pantalla adicional en el mismo grupo.</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('modal-fids-assign')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFidsAssign()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1479,7 +1860,264 @@ function showTab(name, btn) {
     case 'client-overview': loadClientOverview(); autoRefreshInterval = setInterval(loadClientOverview, 30000); break;
     case 'mis-dispositivos': loadMisDispositivos(); autoRefreshInterval = setInterval(loadMisDispositivos, 30000); break;
     case 'mis-sedes':        loadMisSedes(); break;
+    case 'fids-grupos':  loadFidsGrupos(); break;
+    case 'fids-devices': loadFidsDevices(); break;
+    case 'fids-cache':   loadFidsCache(); break;
+    case 'fids-media':  loadFidsMedia(); break;
+    case 'fids-listas': loadFidsPlaylists(); break;
   }
+}
+
+// ── FIDS MEDIA LIBRARY ────────────────────────────────────────────────────────
+let _fidsMedia = [];
+let _fidsPlItems = [];
+let _currentFidsPlId = null;
+
+async function loadFidsMedia() {
+  const list = document.getElementById('fids-file-list');
+  if (!list) return;
+  list.innerHTML = '<div class="loading" style="padding:12px;">Cargando...</div>';
+  const data = await api('/api/admin/fids/media');
+  if (!data) return;
+  _fidsMedia = data;
+  if (!data.length) {
+    list.innerHTML = '<p style="padding:16px;color:var(--muted);font-size:13px;">No hay archivos FIDS. Sube el primero arriba.</p>';
+    return;
+  }
+  list.innerHTML = data.map(f => {
+    const mb = (f.size_bytes / 1024 / 1024).toFixed(2);
+    const dur = f.type === 'video' && f.duration_ms ? fidsFmtDur(f.duration_ms) : '';
+    return `<div class="fids-file-item">
+      <div class="fids-file-info">
+        <strong>${escHtml(f.title)}</strong>
+        <span class="fids-type-badge ${f.type === 'image' ? 'fids-badge-image' : 'fids-badge-video'}">${f.type}</span>
+        <small>${mb} MB</small>
+        ${dur ? `<small>${dur}</small>` : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="previewFidsFile('${escHtml(f.file_path)}','${f.type}')">&#9654;</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsMedia(${f.id},'${escHtml(f.title)}')">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function fidsFmtDur(ms) {
+  const s = Math.round(ms / 1000);
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function previewFidsFile(path, type) {
+  const video = document.getElementById('fids-player');
+  const img   = document.getElementById('fids-image-display');
+  if (!video || !img) return;
+  if (type === 'image') {
+    video.style.display = 'none'; img.style.display = 'block'; img.src = path;
+  } else {
+    img.style.display = 'none'; video.style.display = 'block';
+    video.src = path; video.play().catch(() => {});
+  }
+}
+
+async function uploadFidsMedia() {
+  const input = document.getElementById('fidsFileInput');
+  const file  = input ? input.files[0] : null;
+  if (!file) { toast('Selecciona un archivo', 'error'); return; }
+  const progressDiv = document.getElementById('fidsUploadProgress');
+  const bar         = document.getElementById('fidsProgressBar');
+  const nameEl      = document.getElementById('fidsUploadName');
+  if (nameEl) nameEl.textContent = file.name;
+  if (progressDiv) progressDiv.style.display = 'block';
+  if (bar) bar.style.width = '0%';
+  const fd = new FormData();
+  fd.append('file', file);
+  const xhr = new XMLHttpRequest();
+  xhr.upload.addEventListener('progress', e => {
+    if (e.lengthComputable && bar) bar.style.width = Math.round(e.loaded / e.total * 100) + '%';
+  });
+  xhr.addEventListener('load', () => {
+    if (progressDiv) progressDiv.style.display = 'none';
+    if (bar) bar.style.width = '0%';
+    if (input) input.value = '';
+    try {
+      const res = JSON.parse(xhr.responseText);
+      if (xhr.status === 200 || xhr.status === 201) {
+        toast('Archivo subido', 'success');
+        loadFidsMedia();
+        updateFidsSelector();
+      } else {
+        toast(res.error || 'Error al subir', 'error');
+      }
+    } catch(e2) { toast('Error al subir', 'error'); }
+  });
+  xhr.addEventListener('error', () => {
+    if (progressDiv) progressDiv.style.display = 'none';
+    toast('Error de red', 'error');
+  });
+  xhr.open('POST', API_URL + '/api/admin/fids/media');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+  xhr.send(fd);
+}
+
+async function deleteFidsMedia(id, title) {
+  if (!confirm('Eliminar "' + title + '"?')) return;
+  const ok = await api('/api/admin/fids/media/' + id, { method: 'DELETE' });
+  if (ok && ok.success) { toast('Archivo eliminado', ''); loadFidsMedia(); }
+  else toast('Error al eliminar', 'error');
+}
+
+async function loadFidsPlaylists() {
+  const container = document.getElementById('fids-playlists-list');
+  if (!container) return;
+  container.innerHTML = '<div class="loading" style="padding:16px;">Cargando...</div>';
+  const data = await api('/api/admin/fids/playlists');
+  if (!data) return;
+  if (!data.length) {
+    container.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px;">No hay listas FIDS. Crea la primera con el boton de arriba.</div>';
+    return;
+  }
+  container.innerHTML = data.map(pl => `
+    <div class="fids-file-item" style="margin:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
+      <div class="fids-file-info">
+        <strong>${escHtml(pl.name)}</strong>
+        <small>${pl.item_count || 0} elemento${pl.item_count !== 1 ? 's' : ''}</small>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="editFidsPlaylist(${pl.id})">&#x270F; Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsPlaylist(${pl.id},'${escHtml(pl.name)}')">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+async function openCreateFidsPlaylist() {
+  _currentFidsPlId = null;
+  _fidsPlItems = [];
+  document.getElementById('fidsPlModalTitle').textContent = 'Nueva lista FIDS';
+  document.getElementById('fidsPlName').value = '';
+  renderFidsPlContent();
+  await updateFidsSelector();
+  openModal('modal-fids-playlist');
+}
+
+async function editFidsPlaylist(plId) {
+  _currentFidsPlId = plId;
+  const items = await api('/api/admin/fids/playlists/' + plId + '/items');
+  if (!items) return;
+  _fidsPlItems = items.map(it => ({
+    media_id: it.media_id, title: it.title, type: it.type,
+    display_order: it.display_order, duration_override_ms: it.duration_override_ms
+  }));
+  const plData = await api('/api/admin/fids/playlists');
+  const pl = plData ? plData.find(p => p.id === plId) : null;
+  document.getElementById('fidsPlModalTitle').textContent = 'Editar lista FIDS';
+  document.getElementById('fidsPlName').value = pl ? pl.name : '';
+  renderFidsPlContent();
+  await updateFidsSelector();
+  openModal('modal-fids-playlist');
+}
+
+function closeFidsPlaylistModal() { closeModal('modal-fids-playlist'); }
+
+async function updateFidsSelector() {
+  if (!_fidsMedia.length) {
+    const data = await api('/api/admin/fids/media');
+    if (data) _fidsMedia = data;
+  }
+  const sel = document.getElementById('fidsContentSelector');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Seleccionar archivo FIDS --</option>';
+  _fidsMedia.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = (m.type === 'video' ? '▶ ' : '🖼 ') + m.title;
+    opt.dataset.type = m.type;
+    sel.appendChild(opt);
+  });
+}
+
+function addToFidsPlaylist() {
+  const sel = document.getElementById('fidsContentSelector');
+  const id  = parseInt(sel ? sel.value : '');
+  if (!id) { toast('Selecciona un archivo', 'error'); return; }
+  if (_fidsPlItems.find(it => it.media_id === id)) { toast('Ya esta en la lista', 'error'); return; }
+  const m = _fidsMedia.find(x => x.id === id);
+  if (!m) return;
+  _fidsPlItems.push({
+    media_id: id, title: m.title, type: m.type,
+    display_order: _fidsPlItems.length + 1,
+    duration_override_ms: m.type === 'image' ? 5000 : null
+  });
+  if (sel) sel.value = '';
+  renderFidsPlContent();
+}
+
+function renderFidsPlContent() {
+  const container = document.getElementById('fidsPlContentList');
+  if (!container) return;
+  if (!_fidsPlItems.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0;">Vacio — agrega archivos abajo</p>';
+    return;
+  }
+  container.innerHTML = _fidsPlItems.map((item, idx) => `
+    <div class="fids-pl-content-item">
+      <span style="color:var(--muted);font-size:12px;width:18px;text-align:center;">${idx + 1}</span>
+      <span class="fids-type-badge ${item.type === 'image' ? 'fids-badge-image' : 'fids-badge-video'}" style="margin:0">${item.type === 'video' ? 'VIDEO' : 'IMG'}</span>
+      <span class="fids-pci-name">${escHtml(item.title)}</span>
+      ${item.type !== 'video' ? `
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          <input type="number" class="fids-dur-input" value="${Math.round((item.duration_override_ms || 5000) / 1000)}"
+            min="1" max="300" title="Duracion en segundos"
+            onchange="_fidsPlItems[${idx}].duration_override_ms=parseInt(this.value)*1000">
+          <small style="color:var(--muted);font-size:11px;">seg</small>
+        </div>` : ''}
+      <div class="fids-pci-order">
+        <button onclick="moveFidsPlItem(${idx},-1)">&#x25B2;</button>
+        <button onclick="moveFidsPlItem(${idx},1)">&#x25BC;</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="_fidsPlItems.splice(${idx},1);renderFidsPlContent()">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+function moveFidsPlItem(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _fidsPlItems.length) return;
+  const tmp = _fidsPlItems[idx];
+  _fidsPlItems[idx] = _fidsPlItems[newIdx];
+  _fidsPlItems[newIdx] = tmp;
+  renderFidsPlContent();
+}
+
+async function saveFidsPlaylist() {
+  const name = document.getElementById('fidsPlName').value.trim();
+  if (!name) { toast('Escribe un nombre para la lista', 'error'); return; }
+  if (!_fidsPlItems.length) { toast('Agrega al menos un archivo', 'error'); return; }
+  const body = JSON.stringify({
+    name,
+    items: _fidsPlItems.map((it, i) => ({
+      media_id: it.media_id,
+      display_order: i + 1,
+      duration_override_ms: it.duration_override_ms
+    }))
+  });
+  let ok;
+  if (_currentFidsPlId) {
+    ok = await api('/api/admin/fids/playlists/' + _currentFidsPlId, { method: 'PUT', body });
+  } else {
+    ok = await api('/api/admin/fids/playlists', { method: 'POST', body });
+  }
+  if (ok && (ok.id || ok.success)) {
+    closeFidsPlaylistModal();
+    loadFidsPlaylists();
+    toast('Lista guardada', 'success');
+    _fidsPlaylists = [];
+  } else {
+    toast('Error al guardar', 'error');
+  }
+}
+
+async function deleteFidsPlaylist(plId, name) {
+  if (!confirm('Eliminar "' + name + '"?')) return;
+  const ok = await api('/api/admin/fids/playlists/' + plId, { method: 'DELETE' });
+  if (ok && ok.success) { loadFidsPlaylists(); toast('Lista eliminada', ''); _fidsPlaylists = []; }
+  else toast('Error al eliminar', 'error');
 }
 
 // ── API HELPER ───────────────────────────────────────
@@ -2793,6 +3431,401 @@ function row(label, val, cls = '') {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════════════════
+// FIDS — F2 Admin Panel
+// ══════════════════════════════════════════════════════════
+
+const FIDS_IATA_NAMES = { AXM:'El Edén', BOG:'El Dorado', MDE:'J.M. Córdova', CLO:'A. Bonilla', PEI:'Matecaña' };
+const FIDS_TTL_DEV = 300;
+
+function fidsTypeBadge(type) {
+  if (type === 'combined')   return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">COMBINADO</span>';
+  if (type === 'departures') return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">SALIDAS</span>';
+  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">LLEGADAS</span>';
+}
+function fidsModeBadge(lt) {
+  const mode = lt?.mode || 'off';
+  if (mode === 'ticker')     return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25);">Ticker</span>';
+  if (mode === 'overlay_ad') return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">Pauta</span>';
+  if (mode === 'lower_bar')  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);">Banda inf.</span>';
+  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Apagado</span>';
+}
+function fidsCacheBar(ageSec) {
+  if (!ageSec && ageSec !== 0) return '—';
+  const pct = Math.min(100, Math.round(ageSec / FIDS_TTL_DEV * 100));
+  const color = pct < 40 ? '#00e676' : pct < 80 ? '#ff8c00' : '#ff4444';
+  return `<div class="fids-cache-bar"><div class="fids-cache-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span style="font-size:10px;color:var(--muted);margin-left:6px;">${ageSec}s</span>`;
+}
+
+// ── GRUPOS ────────────────────────────────────────────────
+async function loadFidsGrupos() {
+  const grid = document.getElementById('fids-grupos-grid');
+  grid.innerHTML = '<div class="loading">Cargando grupos...</div>';
+  const [groups, cacheData] = await Promise.all([
+    api('/api/admin/fids/groups'),
+    api('/api/admin/fids/cache'),
+  ]);
+  if (!groups) return;
+
+  // KPIs
+  const airports = [...new Set(groups.map(g => g.airport))];
+  document.getElementById('fids-kpi-groups').textContent  = groups.length;
+  document.getElementById('fids-kpi-airports').textContent = airports.length + ' aeropuerto' + (airports.length !== 1 ? 's' : '');
+  const totalDev = groups.reduce((s, g) => s + parseInt(g.device_count || 0), 0);
+  const onlineDev = groups.reduce((s, g) => s + parseInt(g.online_count || 0), 0);
+  document.getElementById('fids-kpi-devices').textContent  = totalDev;
+  document.getElementById('fids-kpi-online').textContent   = onlineDev + ' online ahora';
+  document.getElementById('fids-kpi-mode').innerHTML = cacheData?.mock_mode
+    ? '<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">MOCK</span>'
+    : '<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">LIVE</span>';
+
+  if (!groups.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);">
+      <div style="font-size:32px;margin-bottom:12px;opacity:.3;">✈</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Sin grupos configurados</div>
+      <div style="font-size:12px;">Crea un grupo para empezar a mostrar vuelos en pantallas.</div>
+    </div>`;
+    return;
+  }
+
+  const cacheMap = {};
+  if (cacheData?.entries) cacheData.entries.forEach(e => { cacheMap[`${e.airport}:${e.type}`] = e; });
+
+  grid.innerHTML = groups.map(g => {
+    const lt = g.lower_thirds || {};
+    const depEntry = cacheMap[`${g.airport}:departures`];
+    const arrEntry = cacheMap[`${g.airport}:arrivals`];
+    const singleEntry = cacheMap[`${g.airport}:${g.type}`];
+    const flightInfo = g.type === 'combined'
+      ? `${depEntry?.flight_count ?? '—'} / ${arrEntry?.flight_count ?? '—'} vuelos (sal/lle)`
+      : `${singleEntry?.flight_count ?? '—'} vuelos`;
+    const ageEntry = g.type === 'combined' ? (depEntry || arrEntry) : singleEntry;
+    const ageDisplay = ageEntry ? fidsCacheBar(ageEntry.age_sec) : '—';
+    const devCount = parseInt(g.device_count || 0);
+    const devBadge = devCount > 0
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">● ${devCount} dispositivo${devCount !== 1 ? 's' : ''}</span>`
+      : `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Sin dispositivos</span>`;
+    const previewDevice = g.sample_device_id;
+    const previewBtn = previewDevice
+      ? `<button class="btn btn-outline btn-sm" onclick="window.open('/fids?device_id=${escHtml(previewDevice)}','_blank')">Ver pantalla</button>`
+      : `<button class="btn btn-outline btn-sm" style="opacity:.4;" title="Asigna un dispositivo primero" disabled>Ver pantalla</button>`;
+    return `
+    <div class="fids-group-card">
+      <div class="fids-group-card-header">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${escHtml(g.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">grupo #${g.id} · ${escHtml(g.airport)} ${FIDS_IATA_NAMES[g.airport] ? '· ' + FIDS_IATA_NAMES[g.airport] : ''}</div>
+        </div>
+        ${fidsTypeBadge(g.type)}
+      </div>
+      <div class="fids-group-card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${devBadge}</div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Vuelos en caché</span><span>${flightInfo}</span></div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Age caché</span><span>${ageDisplay}</span></div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Publicidad</span><span>${fidsModeBadge(lt)}</span></div>
+        ${lt.playlist_name ? `<div class="fids-group-row"><span class="fids-group-row-label">Playlist</span><span style="font-size:11px;color:#3b82f6;">${escHtml(lt.playlist_name)}</span></div>` : ''}
+        <div class="fids-group-actions">
+          <button class="btn btn-outline btn-sm" onclick="openFidsModal(${g.id})">Editar</button>
+          ${previewBtn}
+          <button class="btn btn-outline btn-sm" onclick="generateFidsSlave(${g.id}, this)">+ Enlace</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="deleteFidsGrupo(${g.id},'${escHtml(g.name)}')">Eliminar</button>
+        </div>
+        ${fidsSlavesHtml(g.slaves, g.id)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── DISPOSITIVOS ──────────────────────────────────────────
+async function loadFidsDevices() {
+  const card = document.getElementById('fids-devices-card');
+  card.innerHTML = '<div class="loading" style="padding:20px;">Cargando dispositivos...</div>';
+  const devices = await api('/api/admin/fids/devices');
+  if (!devices) return;
+  if (!devices.length) {
+    card.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">Sin dispositivos registrados</div>';
+    return;
+  }
+  card.innerHTML = `
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Dispositivo</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Grupo FIDS</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Rol</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Estado</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${devices.map(d => {
+        const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+        const statusDot = isOnline
+          ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00e676;margin-right:5px;"></span>'
+          : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#888;margin-right:5px;"></span>';
+        const groupBadge = d.group_name
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">${escHtml(d.group_name)}</span>`
+          : `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Sin asignar</span>`;
+        const roleBadge = d.fids_role === 'master'
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">MASTER</span>`
+          : d.fids_role === 'slave'
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25);">SLAVE</span>`
+          : `<span style="color:var(--muted);font-size:11px;">—</span>`;
+        return `<tr>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+            <div style="font-weight:600">${escHtml(d.name || d.device_id)}</div>
+            <div style="font-size:11px;color:var(--muted);">${escHtml(d.device_id)}</div>
+          </td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${groupBadge}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${roleBadge}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${statusDot}${isOnline ? 'Online' : 'Offline'}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+            <button class="btn btn-outline btn-sm" onclick="openFidsAssignModal('${escHtml(d.device_id)}','${escHtml(d.name || d.device_id)}',${d.fids_group_id || 'null'},'${d.fids_role || ''}')">
+              ${d.fids_group_id ? 'Reasignar' : 'Asignar a grupo'}
+            </button>
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── CACHÉ ──────────────────────────────────────────────────
+async function loadFidsCache() {
+  const card = document.getElementById('fids-cache-card');
+  const note = document.getElementById('fids-cache-note');
+  card.innerHTML = '<div class="loading" style="padding:20px;">Cargando caché...</div>';
+  const data = await api('/api/admin/fids/cache');
+  if (!data) return;
+  note.innerHTML = `La caché es compartida entre todos los grupos del mismo aeropuerto+tipo. Modo: <strong style="color:${data.mock_mode ? '#ff8c00' : '#00e676'}">${data.mock_mode ? 'FIDS_DEV_MOCK=true (datos estáticos)' : 'LIVE — AviationStack activo'}</strong>. TTL: <strong>${FIDS_TTL_DEV}s</strong>.`;
+  if (!data.entries?.length) {
+    card.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">Caché vacía — el cron actualizará en el próximo tick (60s).</div>';
+    return;
+  }
+  card.innerHTML = `
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Aeropuerto</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Tipo</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Vuelos</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Vigencia</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Último fetch</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${data.entries.map(e => `<tr>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);"><strong>${escHtml(e.airport)}</strong> <span style="color:var(--muted);font-size:11px">${FIDS_IATA_NAMES[e.airport] || ''}</span></td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${e.type === 'departures' ? '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">SALIDAS</span>' : '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">LLEGADAS</span>'}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${e.flight_count}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${fidsCacheBar(e.age_sec)}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;">${e.fetched_at ? new Date(e.fetched_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true}) : '—'}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+          <button class="btn btn-outline btn-sm" onclick="fidsRefreshCache('${escHtml(e.airport)}','${escHtml(e.type)}')">Refresh</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function fidsRefreshCache(airport, type) {
+  const ok = await api(`/api/admin/fids/cache/${airport}/${type}`, { method: 'DELETE' });
+  if (ok?.success) { toast('Caché invalidada — el cron la refrescará en el próximo tick', 'success'); loadFidsCache(); }
+  else toast('Error al invalidar caché', 'error');
+}
+
+// ── MODAL GRUPO — abrir ────────────────────────────────────
+let _fidsPlaylists = [];
+async function openFidsModal(groupId) {
+  document.getElementById('fids-grupo-id').value = groupId || '';
+  document.getElementById('fids-modal-title').textContent = groupId ? 'Editar Grupo FIDS' : 'Nuevo Grupo FIDS';
+
+  // Cargar playlists
+  if (!_fidsPlaylists.length) {
+    const pl = await api('/api/admin/fids/playlists');
+    _fidsPlaylists = pl || [];
+  }
+  const sel = document.getElementById('fids-overlay-playlist');
+  sel.innerHTML = '<option value="">— Seleccionar playlist —</option>' +
+    _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  const selLb = document.getElementById('fids-lowerbar-playlist');
+  selLb.innerHTML = '<option value="">— Seleccionar playlist FIDS —</option>' +
+    _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+
+  if (groupId) {
+    const groups = await api('/api/admin/fids/groups');
+    const g = groups?.find(x => x.id === groupId);
+    if (g) {
+      document.getElementById('fids-grupo-name').value = g.name;
+      document.getElementById('fids-grupo-maxflights').value = g.filters?.max_flights || 12;
+      document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === (g.filters?.theme || 'dark')));
+      // IATA
+      document.querySelectorAll('.fids-iata-chip').forEach(c => c.classList.toggle('selected', c.dataset.iata === g.airport));
+      // Type
+      document.querySelectorAll('.fids-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === g.type));
+      // Mode
+      const lt = g.lower_thirds || {};
+      document.querySelectorAll('.fids-mode-opt').forEach(o => o.classList.toggle('selected', o.dataset.mode === (lt.mode || 'off')));
+      document.getElementById('fids-config-ticker').classList.toggle('visible', lt.mode === 'ticker');
+      document.getElementById('fids-config-overlay').classList.toggle('visible', lt.mode === 'overlay_ad');
+      if (lt.mode === 'ticker') {
+        document.getElementById('fids-ticker-messages').value = (lt.messages || []).join('\n');
+        document.getElementById('fids-ticker-speed').value = lt.scroll_speed || 35;
+        document.getElementById('fids-ticker-color').value = lt.text_color || '#ffe566';
+      }
+      if (lt.mode === 'overlay_ad') {
+        sel.value = lt.playlist_id || '';
+        document.getElementById('fids-overlay-interval').value = lt.interval_min || 10;
+        document.getElementById('fids-overlay-duration').value = lt.duration_sec || 20;
+      }
+      if (lt.mode === 'lower_bar') {
+        selLb.value = lt.playlist_id || '';
+        document.getElementById('fids-lowerbar-height').value = lt.bar_height || 200;
+        document.getElementById('fids-config-lowerbar').classList.add('visible');
+      }
+    }
+  } else {
+    document.getElementById('fids-grupo-name').value = '';
+    document.getElementById('fids-grupo-maxflights').value = 12;
+    document.querySelectorAll('.fids-iata-chip').forEach((c,i) => c.classList.toggle('selected', i === 0));
+    document.querySelectorAll('.fids-type-btn').forEach((b,i) => b.classList.toggle('active', b.dataset.type === 'combined'));
+    document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'dark'));
+    document.querySelectorAll('.fids-mode-opt').forEach((o,i) => o.classList.toggle('selected', i === 0));
+    document.getElementById('fids-config-ticker').classList.remove('visible');
+    document.getElementById('fids-config-overlay').classList.remove('visible');
+    document.getElementById('fids-config-lowerbar').classList.remove('visible');
+  }
+  openModal('modal-fids-grupo');
+}
+
+async function saveFidsGrupo() {
+  const id = document.getElementById('fids-grupo-id').value;
+  const name = document.getElementById('fids-grupo-name').value.trim();
+  if (!name) { toast('El nombre es obligatorio', 'error'); return; }
+  const airport = document.querySelector('.fids-iata-chip.selected')?.dataset.iata;
+  if (!airport) { toast('Selecciona un aeropuerto', 'error'); return; }
+  const type = document.querySelector('.fids-type-btn.active')?.dataset.type;
+  const maxFlights = parseInt(document.getElementById('fids-grupo-maxflights').value) || 12;
+  const mode = document.querySelector('.fids-mode-opt.selected')?.dataset.mode || 'off';
+  let lower_thirds = { mode };
+  if (mode === 'ticker') {
+    lower_thirds.messages    = document.getElementById('fids-ticker-messages').value.split('\n').filter(l => l.trim());
+    lower_thirds.scroll_speed = parseInt(document.getElementById('fids-ticker-speed').value) || 35;
+    lower_thirds.text_color   = document.getElementById('fids-ticker-color').value || '#ffe566';
+  }
+  if (mode === 'overlay_ad') {
+    lower_thirds.playlist_id = parseInt(document.getElementById('fids-overlay-playlist').value) || null;
+    lower_thirds.interval_min = parseInt(document.getElementById('fids-overlay-interval').value) || 10;
+    lower_thirds.duration_sec = parseInt(document.getElementById('fids-overlay-duration').value) || 20;
+    const pl = _fidsPlaylists.find(p => p.id == lower_thirds.playlist_id);
+    if (pl) lower_thirds.playlist_name = pl.name;
+  }
+  if (mode === 'lower_bar') {
+    lower_thirds.playlist_id = parseInt(document.getElementById('fids-lowerbar-playlist').value) || null;
+    lower_thirds.bar_height  = parseInt(document.getElementById('fids-lowerbar-height').value) || 200;
+    const pl = _fidsPlaylists.find(p => p.id == lower_thirds.playlist_id);
+    if (pl) lower_thirds.playlist_name = pl.name;
+  }
+  const theme = document.querySelector('.fids-theme-btn.active')?.dataset.theme || 'dark';
+  const body = { name, airport, type, filters: { max_flights: maxFlights, theme }, lower_thirds };
+  const result = id
+    ? await api(`/api/admin/fids/groups/${id}`, { method:'PUT', body: JSON.stringify(body) })
+    : await api('/api/admin/fids/groups', { method:'POST', body: JSON.stringify(body) });
+  if (result?.id || result?.success) {
+    toast(id ? 'Grupo actualizado' : 'Grupo creado', 'success');
+    closeModal('modal-fids-grupo');
+    loadFidsGrupos();
+  } else {
+    toast(result?.error || 'Error al guardar', 'error');
+  }
+}
+
+async function deleteFidsGrupo(id, name) {
+  if (!confirm(`¿Eliminar el grupo "${name}"?\nLos dispositivos asignados quedarán sin grupo.`)) return;
+  const r = await api(`/api/admin/fids/groups/${id}`, { method: 'DELETE' });
+  if (r?.success) { toast('Grupo eliminado', 'success'); loadFidsGrupos(); }
+  else toast(r?.error || 'Error al eliminar', 'error');
+}
+
+// ── MODAL ASIGNAR ──────────────────────────────────────────
+async function openFidsAssignModal(deviceId, deviceName, currentGroupId, currentRole) {
+  document.getElementById('fids-assign-device-id').value = deviceId;
+  document.getElementById('fids-assign-device-name').textContent = deviceName + ' (' + deviceId + ')';
+  const groups = await api('/api/admin/fids/groups');
+  const sel = document.getElementById('fids-assign-group');
+  sel.innerHTML = '<option value="">— Sin asignar —</option>' +
+    (groups || []).map(g => `<option value="${g.id}" ${g.id == currentGroupId ? 'selected' : ''}>${escHtml(g.name)} (${g.airport} ${g.type})</option>`).join('');
+  document.querySelectorAll('#modal-fids-assign .fids-type-btn').forEach(b => b.classList.toggle('active', b.dataset.role === (currentRole || 'master')));
+  openModal('modal-fids-assign');
+}
+
+async function saveFidsAssign() {
+  const deviceId  = document.getElementById('fids-assign-device-id').value;
+  const groupId   = document.getElementById('fids-assign-group').value || null;
+  const role      = document.querySelector('#modal-fids-assign .fids-type-btn.active')?.dataset.role || null;
+  const r = await api(`/api/admin/fids/devices/${deviceId}`, {
+    method: 'PUT', body: JSON.stringify({ fids_group_id: groupId ? parseInt(groupId) : null, fids_role: groupId ? role : null })
+  });
+  if (r?.success) { toast('Dispositivo actualizado', 'success'); closeModal('modal-fids-assign'); loadFidsDevices(); }
+  else toast(r?.error || 'Error al guardar', 'error');
+}
+
+// ── FORM HELPERS ───────────────────────────────────────────
+function fidsSelectIata(el)  { document.querySelectorAll('.fids-iata-chip').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); }
+function fidsSelectType(el)  { document.querySelectorAll('.fids-type-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+function fidsSelectRole(el)  { document.querySelectorAll('#modal-fids-assign .fids-type-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+function fidsSelectTheme(el) { document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+
+function fidsSlavesHtml(slaves, groupId) {
+  const s = (slaves || [])[0];
+  if (!s) return '';
+  const url = window.location.origin + '/fids?device_id=' + s.device_id;
+  const shortId = s.device_id.slice(5, 17) + '…';
+  return '<div class="fids-slaves-section">'
+    + '<div class="fids-slaves-label">Enlace esclavo activo</div>'
+    + '<div class="fids-slave-row">'
+    + '<span class="fids-slave-name" style="font-family:monospace;font-size:10px;color:var(--accent);">' + shortId + '</span>'
+    + '<button class="btn btn-outline btn-sm" onclick="copyFidsSlaveUrl(\'' + url + '\')">Copiar URL</button>'
+    + '<button class="btn btn-danger btn-sm" onclick="revokeFidsSlave(\'' + s.device_id + '\',' + groupId + ')">Revocar</button>'
+    + '</div></div>';
+}
+
+async function generateFidsSlave(groupId, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '...';
+  const result = await api('/api/admin/fids/groups/' + groupId + '/slave', { method: 'POST' });
+  btn.disabled = false; btn.textContent = orig;
+  if (!result) return;
+  const url = window.location.origin + '/fids?device_id=' + result.device_id;
+  await navigator.clipboard.writeText(url).catch(() => {});
+  toast(result.reused ? 'URL copiada (enlace ya existia)' : 'Enlace generado y copiado', 'success');
+  loadFidsGrupos();
+}
+
+async function revokeFidsSlave(deviceId, groupId) {
+  if (!confirm('¿Revocar este enlace? Las pantallas que lo usen dejarán de cargar.')) return;
+  const result = await api('/api/admin/fids/slaves/' + deviceId, { method: 'DELETE' });
+  if (!result) return;
+  toast('Enlace revocado', 'success');
+  loadFidsGrupos();
+}
+
+function copyFidsSlaveUrl(url) {
+  navigator.clipboard.writeText(url)
+    .then(() => toast('URL copiada al portapapeles', 'success'))
+    .catch(() => prompt('Copia esta URL:', url));
+}
+function fidsSelectMode(el) {
+  document.querySelectorAll('.fids-mode-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  const m = el.dataset.mode;
+  document.getElementById('fids-config-ticker').classList.toggle('visible', m === 'ticker');
+  document.getElementById('fids-config-overlay').classList.toggle('visible', m === 'overlay_ad');
+  document.getElementById('fids-config-lowerbar').classList.toggle('visible', m === 'lower_bar');
 }
 </script>
 </body>
