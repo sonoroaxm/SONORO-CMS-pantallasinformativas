@@ -13,6 +13,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
+const eventsRouter       = require('./routes/events');
+const eventsPublicRouter = require('./routes/events-public');
+const eventsStaffRouter  = require('./routes/events-staff');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
@@ -2442,7 +2445,7 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
 app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
   const { feature, enabled } = req.body;
-  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars'];
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars', 'events_v1'];
   if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
   try {
     const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
@@ -2615,11 +2618,11 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
     // El admin puede sobreescribir después con los checkboxes.
     // Se hace MERGE (||) para no borrar features que ya tenía.
     const LICENSE_FEATURES = {
-      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
-      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
-      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
-      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
-      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
     };
     const finalType = license_type || updateResult.rows[0].license_type;
     if (finalType && LICENSE_FEATURES[finalType]) {
@@ -2655,7 +2658,7 @@ app.post('/api/admin/users/:userId/license/suspend', authenticateToken, requireA
     await pool.query("UPDATE users SET license_status = 'suspended' WHERE id = $1", [userId]);
 
     // Al suspender: apagar todos los flags Queue v2 en la BD
-    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
+    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false };
     await pool.query(
       "UPDATE users SET features = COALESCE(features, '{}'::jsonb) || $1::jsonb WHERE id = $2",
       [JSON.stringify(Q2_OFF), userId]
@@ -7126,6 +7129,25 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // ─────────────────────────────────────────────────────────────
 // R1.5 §1 — GET /agendar/:slug  →  booking.html
 // ─────────────────────────────────────────────────────────────
+// ── Events v1 — Routers (E0) ────────────────────────────────────────────
+app.use('/api/events/public', eventsPublicRouter);
+app.use('/api/events/staff',  eventsStaffRouter);
+app.use('/api/events',        eventsRouter);
+
+// ── Events v1 — Rutas HTML ───────────────────────────────────────────────
+app.get('/evento/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug/staff', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-staff.html'));
+});
+app.get('/evento/:slug/produccion', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-produccion.html'));
+});
+app.get('/evento/:slug/kiosko', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
+});
+
 app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
 });
