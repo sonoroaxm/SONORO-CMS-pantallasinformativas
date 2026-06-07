@@ -7130,6 +7130,14 @@ app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
 });
 
+app.get('/politica-datos/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'politica-datos.html'));
+});
+
+app.get('/terminos/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'terminos.html'));
+});
+
 // ─────────────────────────────────────────────────────────────
 // R1.5 §2 — GET /api/queue/public/:slug
 // Devuelve tenant + sucursales activas + servicios. Sin auth.
