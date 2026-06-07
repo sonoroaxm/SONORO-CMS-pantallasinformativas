@@ -2257,14 +2257,16 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
       SELECT
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
-        u.created_at, u.features,
+        u.created_at, u.features, u.notification_emails,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
-        COUNT(DISTINCT p.id) as playlist_count
+        COUNT(DISTINCT p.id) as playlist_count,
+        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count
       FROM users u
       LEFT JOIN devices d ON d.user_id = u.id
       LEFT JOIN content c ON c.user_id = u.id
       LEFT JOIN playlists p ON p.user_id = u.id
+      WHERE u.role NOT IN ('agent')
       GROUP BY u.id
       ORDER BY u.created_at DESC
     `);
@@ -2408,7 +2410,7 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
 app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
   const { feature, enabled } = req.body;
-  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede'];
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars'];
   if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
   try {
     const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
@@ -2426,6 +2428,25 @@ app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, require
 });
 
 // ── ADMIN: Ver dispositivos de un usuario específico ─────────
+// ── ADMIN: Agentes de un usuario (tenant) ──────────────────
+app.get('/api/admin/users/:userId/agents', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT a.id, a.name, a.active, a.avatar_color,
+             b.id as branch_id, b.name as branch_name,
+             u.email as user_email, u.id as user_id
+      FROM agents a
+      JOIN branches b ON b.id = a.branch_id
+      JOIN users u ON u.id = a.user_id
+      WHERE b.user_id = $1
+      ORDER BY b.name, a.name
+    `, [req.params.userId]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -2562,11 +2583,11 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
     // El admin puede sobreescribir después con los checkboxes.
     // Se hace MERGE (||) para no borrar features que ya tenía.
     const LICENSE_FEATURES = {
-      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
-      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
-      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
     };
     const finalType = license_type || updateResult.rows[0].license_type;
     if (finalType && LICENSE_FEATURES[finalType]) {
@@ -2600,6 +2621,14 @@ app.post('/api/admin/users/:userId/license/suspend', authenticateToken, requireA
     const user = userResult.rows[0];
 
     await pool.query("UPDATE users SET license_status = 'suspended' WHERE id = $1", [userId]);
+
+    // Al suspender: apagar todos los flags Queue v2 en la BD
+    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
+    await pool.query(
+      "UPDATE users SET features = COALESCE(features, '{}'::jsonb) || $1::jsonb WHERE id = $2",
+      [JSON.stringify(Q2_OFF), userId]
+    );
+    io.to(`user_${userId}`).emit('features_updated', Q2_OFF);
 
     await pool.query(`
       INSERT INTO license_history (user_id, action, note, created_by)
@@ -4264,9 +4293,11 @@ app.get('/api/queue/display/:branchId', async (req, res) => {
 
     // Config de la sucursal
     const branch = await pool.query(
-      `SELECT b.*, p.name as playlist_name FROM branches b
-       LEFT JOIN playlists p ON p.id = b.display_playlist_id
-       WHERE b.id = $1`,
+      `SELECT b.*, p.name as playlist_name, u.public_slug as booking_slug
+         FROM branches b
+         LEFT JOIN playlists p ON p.id = b.display_playlist_id
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1`,
       [branchId]
     );
 
@@ -4711,6 +4742,41 @@ app.post('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue
         `📅 appointment.created id=${created.id} branch=${branch_id} ` +
         `service=${service_id}` + (attempt > 0 ? ` (retry ${attempt})` : '')
       );
+
+      // Fire-and-forget: token publico + email (mismo flujo que booking publico)
+      (async () => {
+        try {
+          const tokRes = await pool.query(
+            `INSERT INTO public_appointment_tokens
+               (user_id, appointment_id, action_allowed, expires_at)
+             VALUES ($1, $2, 'both', NOW() + INTERVAL '7 days')
+             ON CONFLICT DO NOTHING
+             RETURNING token`,
+            [created.user_id, created.id]
+          );
+          const pubTok = tokRes.rows[0]?.token;
+          if (pubTok && created.client_email) {
+            const namesRes = await pool.query(
+              `SELECT b.name AS branch_name, s.name AS service_name
+                 FROM branches b LEFT JOIN services s ON s.id = $2
+                WHERE b.id = $1`,
+              [created.branch_id, created.service_id]
+            );
+            const names    = namesRes.rows[0] || {};
+            const BASE_URL = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+            const citaUrl  = `${BASE_URL}/cita/${pubTok}`;
+            await emailService.sendAppointmentConfirmation(
+              created.client_email,
+              { ...created, branch_name: names.branch_name || '', service_name: names.service_name || '' },
+              citaUrl
+            );
+            console.log(`[admin] email -> ${created.client_email} (cita ${created.id})`);
+          }
+        } catch (emailErr) {
+          console.error('email/token fire-and-forget (admin):', emailErr.message);
+        }
+      })();
+
       return res.status(201).json(queueSerializers.serializeForAdmin(created));
 
     } catch (err) {
@@ -5891,6 +5957,321 @@ app.post('/api/queue/kiosk/confirm-presence', validateKioskToken, async (req, re
 
   } catch (err) {
     console.error('❌ POST /api/queue/kiosk/confirm-presence:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// R1 ext. — POST /api/queue/appointments/confirm-by-qr
+// Confirmación de presencia escaneando el QR del cliente
+// desde el counter del agente (lector HID externo).
+// Auth: authenticateAgentOrUser. Multi-tenancy: user_id check.
+// El token public_appointment_tokens NO se marca used_at:
+// action_allowed cubre reschedule/cancel; confirmar presencia
+// es acción del agente, no acción del cliente.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments/confirm-by-qr', authenticateAgentOrUser, async (req, res) => {
+  const { token } = req.body || {};
+  const userId    = req.user.id;
+
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!token || !uuidRe.test(token)) {
+    return res.status(400).json({ error: 'Token QR inválido' });
+  }
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // 1. Lookup cita via public token (sin expiración — el agente confirma físicamente)
+      const patRes = await client.query(
+        `SELECT pat.appointment_id, a.user_id AS appt_user_id,
+                a.branch_id, a.service_id, a.status,
+                a.client_name, a.client_phone
+           FROM public_appointment_tokens pat
+           JOIN appointments a ON a.id = pat.appointment_id
+          WHERE pat.token = $1`,
+        [token]
+      );
+      if (!patRes.rowCount) {
+        const e = new Error('Cita no encontrada para este código QR');
+        e.httpStatus = 404; throw e;
+      }
+
+      const { appointment_id, appt_user_id, branch_id, service_id,
+              status, client_name, client_phone } = patRes.rows[0];
+
+      // 2. Multi-tenancy: agents.user_id es la cuenta del agente, no del tenant.
+      //    El tenant real es branches.user_id (ownerUserId).
+      let ownerUserId = userId;
+      if (req.user.branch_id) {
+        const ownerRes = await client.query(
+          'SELECT user_id AS owner_id FROM branches WHERE id = $1',
+          [req.user.branch_id]
+        );
+        if (ownerRes.rowCount) ownerUserId = ownerRes.rows[0].owner_id;
+      }
+      if (appt_user_id !== ownerUserId) {
+        const e = new Error('No autorizado'); e.httpStatus = 403; throw e;
+      }
+
+      // 3. Estado válido para confirmar
+      if (status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+      if (!['pending', 'confirmed'].includes(status)) {
+        const e = new Error(`La cita no puede confirmarse (estado: ${status})`);
+        e.httpStatus = 409; throw e;
+      }
+
+      // 4. Advisory lock anti-doble-scan
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [branch_id, service_id]
+      );
+
+      // 5. Re-check dentro del lock
+      const recheck = await client.query(
+        `SELECT status FROM appointments WHERE id = $1`, [appointment_id]
+      );
+      if (recheck.rows[0]?.status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+
+      // 6. Info del servicio
+      const svcRes = await client.query(
+        `SELECT id, prefix, avg_attention_min FROM services WHERE id = $1`, [service_id]
+      );
+      if (!svcRes.rowCount) {
+        const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const svc = svcRes.rows[0];
+
+      // 7. Número de turno
+      const nextNum     = await generateNextTokenNumber(client, branch_id, service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      // 8. INSERT queue_token (channel='agent')
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'agent',$4,$5,$6)
+         RETURNING *`,
+        [branch_id, service_id, tokenNumber, client_name, client_phone, appointment_id]
+      );
+      const queueToken = tokenRes.rows[0];
+
+      // 9. token_event
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, metadata)
+         VALUES ($1,'appointment_confirmed',$2,$3)`,
+        [queueToken.id,
+         req.user.agent_id || null,
+         JSON.stringify({ appointment_id, method: 'qr', via: 'agent_counter' })]
+      );
+
+      // 10. appointment → attended
+      await client.query(
+        `UPDATE appointments SET status = 'attended' WHERE id = $1`, [appointment_id]
+      );
+
+      // 11. Posición + espera estimada
+      const waitRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE AND status = 'waiting'`,
+        [branch_id, service_id]
+      );
+      const queuePosition        = waitRes.rows[0].n;
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return { appointment_id, branch_id, queueToken, tokenNumber,
+               client_name, queuePosition, estimatedWaitMinutes };
+    });
+
+    const payload = {
+      id: outcome.appointment_id, branch_id: outcome.branch_id,
+      token_id: outcome.queueToken.id, token_number: outcome.tokenNumber,
+      method: 'qr', via: 'agent_counter',
+    };
+    io.to(`user_${userId}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.branch_id}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.branch_id}`).emit('new_token', {
+      token:          outcome.queueToken,
+      is_appointment: true,
+      waiting_count:  outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(`📅 agent.qr.confirmed id=${outcome.appointment_id} token=${outcome.tokenNumber}`);
+    return res.json({
+      confirmed:              true,
+      token_number:           outcome.tokenNumber,
+      client_name:            outcome.client_name,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position:         outcome.queuePosition,
+    });
+
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message, code: err.code });
+    console.error('❌ POST /api/queue/appointments/confirm-by-qr:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+
+// ─────────────────────────────────────────────────────────────
+// R1 ext. — POST /api/queue/kiosk/confirm-by-qr
+// Confirmacion de presencia por QR desde kiosko de autoservicio.
+// Auth: validateKioskToken. Multi-tenancy: branch check.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/kiosk/confirm-by-qr', validateKioskToken, async (req, res) => {
+  const { token } = req.body || {};
+  const branchId    = req.branch.id;
+  const ownerUserId = req.branch.user_id;
+
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!token || !uuidRe.test(token)) {
+    return res.status(400).json({ error: 'Token QR invalido' });
+  }
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // 1. Lookup cita via public token
+      const patRes = await client.query(
+        `SELECT pat.appointment_id, a.user_id AS appt_user_id,
+                a.branch_id AS appt_branch_id,
+                a.service_id, a.status,
+                a.client_name, a.client_phone
+           FROM public_appointment_tokens pat
+           JOIN appointments a ON a.id = pat.appointment_id
+          WHERE pat.token = $1`,
+        [token]
+      );
+      if (!patRes.rowCount) {
+        const e = new Error('Cita no encontrada para este codigo QR');
+        e.httpStatus = 404; throw e;
+      }
+
+      const { appointment_id, appt_user_id, appt_branch_id,
+              service_id, status, client_name, client_phone } = patRes.rows[0];
+
+      // 2. Multi-tenancy: el kiosko solo confirma citas de su sucursal
+      if (appt_branch_id !== branchId || appt_user_id !== ownerUserId) {
+        const e = new Error('Esta cita no pertenece a esta sucursal');
+        e.httpStatus = 403; throw e;
+      }
+
+      // 3. Estado valido para confirmar
+      if (status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+      if (!['pending', 'confirmed'].includes(status)) {
+        const e = new Error(`La cita no puede confirmarse (estado: ${status})`);
+        e.httpStatus = 409; throw e;
+      }
+
+      // 4. Advisory lock anti-doble-scan
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [branchId, service_id]
+      );
+
+      // 5. Re-check dentro del lock
+      const recheck = await client.query(
+        `SELECT status FROM appointments WHERE id = $1`, [appointment_id]
+      );
+      if (recheck.rows[0]?.status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+
+      // 6. Info del servicio (name y color para la pantalla de confirmacion)
+      const svcRes = await client.query(
+        `SELECT id, name, prefix, avg_attention_min, color FROM services WHERE id = $1`,
+        [service_id]
+      );
+      if (!svcRes.rowCount) {
+        const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const svc = svcRes.rows[0];
+
+      // 7. Numero de turno
+      const nextNum     = await generateNextTokenNumber(client, branchId, service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      // 8. INSERT queue_token (channel=kiosk)
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'kiosk',$4,$5,$6)
+         RETURNING *`,
+        [branchId, service_id, tokenNumber, client_name, client_phone, appointment_id]
+      );
+      const queueToken = tokenRes.rows[0];
+
+      // 9. token_event
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, metadata)
+         VALUES ($1,'appointment_confirmed',NULL,$2)`,
+        [queueToken.id,
+         JSON.stringify({ appointment_id, method: 'qr', via: 'kiosk' })]
+      );
+
+      // 10. appointment -> attended
+      await client.query(
+        `UPDATE appointments SET status = 'attended' WHERE id = $1`, [appointment_id]
+      );
+
+      // 11. Posicion + espera estimada
+      const waitRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE AND status = 'waiting'`,
+        [branchId, service_id]
+      );
+      const queuePosition        = waitRes.rows[0].n;
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return { appointment_id, branchId, queueToken, tokenNumber,
+               client_name, queuePosition, estimatedWaitMinutes,
+               service_name: svc.name, service_color: svc.color || '#7c3aed' };
+    });
+
+    io.to(`branch_${outcome.branchId}`).emit('appointment.confirmed', {
+      id: outcome.appointment_id, branch_id: outcome.branchId,
+      token_id: outcome.queueToken.id, token_number: outcome.tokenNumber,
+      method: 'qr', via: 'kiosk',
+    });
+    io.to(`branch_${outcome.branchId}`).emit('new_token', {
+      token:          outcome.queueToken,
+      is_appointment: true,
+      waiting_count:  outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(`[kiosk.qr] confirmed id=${outcome.appointment_id} token=${outcome.tokenNumber}`);
+    return res.json({
+      confirmed:              true,
+      token_number:           outcome.tokenNumber,
+      client_name:            outcome.client_name,
+      service_name:           outcome.service_name,
+      service_color:          outcome.service_color,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position:         outcome.queuePosition,
+    });
+
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message, code: err.code });
+    console.error('POST /api/queue/kiosk/confirm-by-qr:', err);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

@@ -685,6 +685,22 @@
     .feat-confirm-warn { margin-top:10px;padding:9px 12px;border-radius:8px;font-size:11px;line-height:1.5; }
     .feat-confirm-warn.danger  { background:rgba(255,23,68,0.08);color:#ff6b6b;border:1px solid rgba(255,23,68,0.2); }
     .feat-confirm-warn.caution { background:rgba(255,140,0,0.08);color:var(--warning);border:1px solid rgba(255,140,0,0.2); }
+    .role-badge { display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.8px;padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:6px;text-transform:uppercase; }
+    .role-badge.super  { background:rgba(0,245,212,0.15);color:var(--magenta);border:1px solid rgba(0,245,212,0.3); }
+    .role-badge.client { background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3); }
+    .agent-count-badge { display:inline-flex;align-items:center;padding:3px 9px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:12px;font-size:10px;font-weight:700;color:#f59e0b;cursor:pointer;letter-spacing:0.5px; }
+    .agent-count-badge:hover { background:rgba(245,158,11,0.2); }
+    .agents-section { border-top:0.5px solid var(--border); }
+    .agents-section-header { display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px; }
+    .agent-row { display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04); }
+    .agent-row:last-child { border-bottom:none; }
+    .agent-avatar { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0; }
+    .agent-info { flex:1;min-width:0; }
+    .agent-name { font-size:12px;font-weight:600;color:var(--text); }
+    .agent-branch { font-size:10px;color:var(--muted); }
+    .agent-status { font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;flex-shrink:0; }
+    .agent-status.on  { background:rgba(0,230,118,0.12);color:#00e676; }
+    .agent-status.off { background:rgba(255,23,68,0.10);color:#ff4569; }
     .user-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; margin-bottom: 12px; overflow: hidden;
@@ -2923,21 +2939,23 @@ async function loadUsers() {
       const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
       const typeLabels = { cms:'CMS', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
       const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS';
-      const isAdmin   = u.role === 'admin';
-      const isStaffUser = u.role === 'staff';
+      const isAdmin  = u.role === 'admin';
+      const isClient = u.role === 'client';
       const _safeName = (u.name || u.email).replace(/'/g, '');
-      const promoteBtn = isAdmin ? '' : isStaffUser
-        ? `<button class="btn btn-outline btn-sm super-only" style="color:var(--warning);border-color:rgba(255,140,0,0.4);" onclick="event.stopPropagation();changeUserRole(${u.id}, 'user', '${_safeName}')">Bajar a usuario</button>`
-        : `<button class="btn btn-outline btn-sm super-only" onclick="event.stopPropagation();changeUserRole(${u.id}, 'staff', '${_safeName}')">Subir a admin</button>`;
+      const agentCount = parseInt(u.agent_count) || 0;
+      const agentCountBadge = isClient && agentCount > 0
+        ? `<span class="agent-count-badge" onclick="event.stopPropagation();loadUserAgents(${u.id})">${agentCount} agente${agentCount !== 1 ? 's' : ''}</span>`
+        : '';
       return `
       <div class="user-card card-collapsed" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
         <div class="user-card-header" onclick="toggleCard(this.closest('.user-card'))">
           <div>
-            <div class="user-name">${u.name || u.email}${isAdmin ? ' <span style="font-size:10px;color:var(--magenta);font-weight:700;margin-left:6px;">SUPER ADMIN</span>' : isStaffUser ? ' <span style="font-size:10px;color:#a78bfa;font-weight:700;margin-left:6px;">ADMIN</span>' : ''}</div>
+            <div class="user-name">${u.name || u.email}${isAdmin ? '<span class="role-badge super">Super Admin</span>' : isClient ? '<span class="role-badge client">Titular</span>' : ''}</div>
             <div class="user-email">${u.email}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:11px;color:var(--muted);">${typeLabel}</span>
+            ${agentCountBadge}
             <span class="license-badge ${licStatus}">${licLabel}</span>
             <span class="card-chevron">▶</span>
           </div>
@@ -2967,7 +2985,6 @@ async function loadUsers() {
             <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
             ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();renewLicense(${u.id})">Reactivar</button>`}
             <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
-            ${promoteBtn}
           </div>
           ${renderBaseFeatures(u)}
           ${renderQ2Features(u)}
@@ -2985,11 +3002,46 @@ async function loadUsers() {
               <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();saveNotifEmails(${u.id})">Guardar</button>
             </div>
             <div style="margin-top:5px;font-size:10px;color:var(--muted);opacity:0.7;">Reciben resumen tras cada Bulk Push y alertas de pantallas.</div>
-          </div>` : ''}
+          </div>
+          ${isClient ? `<div class="agents-section" id="agents-section-${u.id}">
+            <div class="agents-section-header">
+              <span>Agentes (${agentCount})</span>
+              ${agentCount > 0 ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();loadUserAgents(${u.id})">Ver agentes</button>` : '<span style="font-size:10px;font-weight:400;color:var(--muted);">Sin agentes</span>'}
+            </div>
+            <div id="agents-list-${u.id}"></div>
+          </div>` : ''}` : ''}
         </div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
+}
+
+async function loadUserAgents(userId) {
+  const listEl = document.getElementById(`agents-list-${userId}`);
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:var(--muted);">Cargando...</div>';
+  try {
+    const agents = await api(`/api/admin/users/${userId}/agents`);
+    if (!agents || !agents.length) {
+      listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:var(--muted);">Sin agentes registrados.</div>';
+      return;
+    }
+    listEl.innerHTML = agents.map(a => {
+      const initials = (a.name || '?').slice(0, 2).toUpperCase();
+      const color    = a.avatar_color || '#7b61ff';
+      const on       = a.active !== false;
+      return `<div class="agent-row">
+        <div class="agent-avatar" style="background:${color};">${initials}</div>
+        <div class="agent-info">
+          <div class="agent-name">${escHtml(a.name || '—')}</div>
+          <div class="agent-branch">${escHtml(a.branch_name || '—')}</div>
+        </div>
+        <span class="agent-status ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:#ff4569;">Error cargando agentes</div>';
+  }
 }
 
 // Mapa de features por tipo de licencia (mirror del backend)
