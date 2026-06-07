@@ -2969,39 +2969,7 @@ async function loadUsers() {
             <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
             ${promoteBtn}
           </div>
-          <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
-            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos activos</div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;">
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
-                🎟 Puntos de Atención
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
-                📊 Reportes / Analytics
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-dual-${u.id}" ${(u.features?.dual_hdmi) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'dual_hdmi', this.checked)">
-                🖥 Dual HDMI Premium
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
-                On-Premise / Red local
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-multisede-${u.id}" ${(u.features?.multisede) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'multisede', this.checked)">
-                Multi-sede / Panel cliente
-              </label>
-            </div>
-            <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
-              Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
-            </div>
-          </div>
+          ${renderBaseFeatures(u)}
           ${renderQ2Features(u)}
           <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
             <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Correos de notificación (máx. 2)</div>
@@ -3033,6 +3001,14 @@ const LICENSE_FEATURES_MAP = {
   windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
 };
 
+const BASE_FEATURE_DEFS = [
+  { key: 'turnos',    label: 'Puntos de Atención',      desc: 'Acceso al módulo de turnos y atención al público (Queue v1).' },
+  { key: 'analytics', label: 'Reportes / Analytics',    desc: 'Reportes de operación, métricas y análisis de uso.' },
+  { key: 'dual_hdmi', label: 'Dual HDMI Premium',       desc: 'Reproducción simultánea en dos salidas HDMI (Dual / Videowall).' },
+  { key: 'onpremise', label: 'On-Premise / Red local',  desc: 'Instalación y operación en red corporativa (Windows On-Premise).' },
+  { key: 'multisede', label: 'Multi-sede',               desc: 'Panel multi-sede para clientes con múltiples ubicaciones.' },
+];
+
 const Q2_FEATURE_DEFS = [
   { key: 'queue_v2_appointments',   label: 'Citas & Bloqueos',        desc: 'Gestión de citas programadas, bloqueos de horario y confirmación de presencia.' },
   { key: 'queue_v2_public_booking', label: 'Booking público',          desc: 'Página /agendar/{slug} para que clientes reserven su cita sin login.' },
@@ -3041,10 +3017,10 @@ const Q2_FEATURE_DEFS = [
   { key: 'queue_v2_calendars',      label: 'Integración calendarios',  desc: 'Sincronización con Google Calendar y Outlook.', soon: true },
 ];
 
-function renderQ2Features(u) {
-  const licEndRaw  = u.license_end || '';
-  const licStatus  = u.is_expired ? 'expired' : (u.license_status || 'active');
-  const rows = Q2_FEATURE_DEFS.map(f => {
+function renderFeatureRows(defs, u) {
+  const licEndRaw = u.license_end || '';
+  const licStatus = u.is_expired ? 'expired' : (u.license_status || 'active');
+  return defs.map(f => {
     const on = !!(u.features && u.features[f.key]);
     if (f.soon) {
       return `<div class="q2-feat-row">
@@ -3056,17 +3032,28 @@ function renderQ2Features(u) {
     const safeUser = (u.name || u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `<div class="q2-feat-row">
       <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
-      <span class="q2-badge ${on ? 'on' : 'off'}" id="q2badge-${f.key}-${u.id}">${on ? 'Activo' : 'Inactivo'}</span>
-      <button class="q2-act-btn ${on ? 'deactivate' : 'activate'}" id="q2btn-${f.key}-${u.id}"
+      <span class="q2-badge ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
+      <button class="q2-act-btn ${on ? 'deactivate' : 'activate'}"
         onclick="event.stopPropagation();confirmFeatureChange(${u.id},'${f.key}',${!on},'${safeUser}','${licEndRaw}','${licStatus}')">
         ${on ? 'Desactivar' : 'Activar'}
       </button>
     </div>`;
   }).join('');
+}
+
+function renderBaseFeatures(u) {
+  return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Módulos activos</div>
+    ${renderFeatureRows(BASE_FEATURE_DEFS, u)}
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.</div>
+  </div>`;
+}
+
+function renderQ2Features(u) {
   return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
     <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Queue v2 — Citas &amp; Agendamiento</div>
-    ${rows}
-    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Requiere licencia activa. Los módulos se desactivan automáticamente al suspender la licencia.</div>
+    ${renderFeatureRows(Q2_FEATURE_DEFS, u)}
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Requiere licencia activa. Se desactivan automáticamente al suspender la licencia.</div>
   </div>`;
 }
 
@@ -3886,8 +3873,13 @@ function fidsSelectMode(el) {
   document.getElementById('fids-config-lowerbar').classList.toggle('visible', m === 'lower_bar');
 }
 
-// ── QUEUE v2 FEATURE CONFIRMATION ─────────────────────────────
-const Q2_FEATURE_LABELS = {
+// ── FEATURE CONFIRMATION ───────────────────────────────────────
+const ALL_FEATURE_LABELS = {
+  turnos:                  'Puntos de Atención',
+  analytics:               'Reportes / Analytics',
+  dual_hdmi:               'Dual HDMI Premium',
+  onpremise:               'On-Premise / Red local',
+  multisede:               'Multi-sede',
   queue_v2_appointments:   'Citas & Bloqueos',
   queue_v2_public_booking: 'Booking público',
   queue_v2_bulk:           'Operaciones masivas',
@@ -3899,7 +3891,7 @@ let _pendingFeatChange = null;
 
 function confirmFeatureChange(userId, feature, enable, userName, licenseEnd, licenseStatus) {
   _pendingFeatChange = { userId, feature, enable };
-  const label     = Q2_FEATURE_LABELS[feature] || feature;
+  const label     = ALL_FEATURE_LABELS[feature] || feature;
   const actionCap = enable ? 'Activar' : 'Desactivar';
 
   document.getElementById('feat-confirm-title').textContent = actionCap + ' módulo';
