@@ -152,6 +152,22 @@ const publicLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes, reintenta en un momento' },
 });
 
+const publicBookingCreateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes de agendamiento, reintenta en un momento' },
+});
+
+const publicBookingDayLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Límite diario de agendamientos alcanzado, reintenta mañana' },
+});
+
 const playerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -7255,7 +7271,7 @@ app.get('/api/queue/public/:slug/slots', publicLimiter, async (req, res) => {
 // Anti-bot: hp_field vacío + timing ≥2 s + habeas_data aceptado.
 // public_booking_mode 'auto' → confirmed, 'manual' → pending.
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/public/:slug/appointments', publicLimiter, async (req, res) => {
+app.post('/api/queue/public/:slug/appointments', publicBookingCreateLimiter, publicBookingDayLimiter, async (req, res) => {
   const { slug } = req.params;
   if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
     return res.status(400).json({ error: 'slug inválido' });
