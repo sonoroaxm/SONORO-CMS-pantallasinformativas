@@ -168,6 +168,14 @@ const publicBookingDayLimiter = rateLimit({
   message: { error: 'Límite diario de agendamientos alcanzado, reintenta mañana' },
 });
 
+const publicTokenActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos, reintenta en un momento' },
+});
+
 const playerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -7557,7 +7565,7 @@ app.get('/api/queue/cita/:token', publicLimiter, async (req, res) => {
 // R1.5 §10 — DELETE /api/queue/cita/:token
 // Cancela la cita y marca el token como usado.
 // ─────────────────────────────────────────────────────────────
-app.delete('/api/queue/cita/:token', publicLimiter, async (req, res) => {
+app.delete('/api/queue/cita/:token', publicTokenActionLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   try {
@@ -7597,7 +7605,7 @@ app.delete('/api/queue/cita/:token', publicLimiter, async (req, res) => {
 // Reprograma la cita. El token NO se consume (permite re-agendar).
 // Body: { scheduled_at: ISO8601 }
 // ─────────────────────────────────────────────────────────────
-app.patch('/api/queue/cita/:token', publicLimiter, async (req, res) => {
+app.patch('/api/queue/cita/:token', publicTokenActionLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   const vAt = parseScheduledAt(req.body?.scheduled_at);
