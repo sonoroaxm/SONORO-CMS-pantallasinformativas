@@ -144,6 +144,14 @@ const activateLimiter = rateLimit({
 
 // Limiter para endpoints públicos del player (sin JWT) — generoso para sync legítimo,
 // restrictivo para enumeración de IDs
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes, reintenta en un momento' },
+});
+
 const playerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -3892,21 +3900,23 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
         return { ...ins.rows[0], service_name: candidate.service_name, service_color: candidate.service_color };
       });
     } else {
-      // Token existente: actualizar igual que antes
-      await pool.query(
-        `UPDATE queue_tokens SET
-          status = 'called', counter_id = $1, agent_id = $2,
-          agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
-          wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
-         WHERE id = $4`,
-        [counter_id, session.agent_id, session_id, candidate.token_id]
-      );
-      await pool.query(
-        `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
-         VALUES ($1, 'called', $2, $3)`,
-        [candidate.token_id, session.agent_id, counter_id]
-      );
-      token = { ...candidate, id: candidate.token_id };
+      // Token existente: envolver en transacción (A-2)
+      token = await withTransaction(pool, async (client) => {
+        await client.query(
+          `UPDATE queue_tokens SET
+            status = 'called', counter_id = $1, agent_id = $2,
+            agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
+            wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
+           WHERE id = $4`,
+          [counter_id, session.agent_id, session_id, candidate.token_id]
+        );
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
+           VALUES ($1, 'called', $2, $3)`,
+          [candidate.token_id, session.agent_id, counter_id]
+        );
+        return { ...candidate, id: candidate.token_id };
+      });
     }
 
     // Obtener nombre del agente y ventanilla para mostrar en pantalla
@@ -3957,89 +3967,94 @@ app.post('/api/queue/tokens/:tokenId/attend', authenticateAgentOrUser, async (re
 app.post('/api/queue/tokens/:tokenId/finish', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id } = req.body;
-    const result = await pool.query(
-      `UPDATE queue_tokens SET
-        status = 'finished', finished_at = CURRENT_TIMESTAMP,
-        attention_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(attended_at, called_at))) / 60
-       WHERE id = $1 RETURNING *`,
-      [req.params.tokenId]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
-
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'finished', $2)`,
-      [req.params.tokenId, agent_id]
-    );
-
-    // Actualizar estadísticas de la sesión
-    await pool.query(
-      `UPDATE agent_sessions SET
-        tokens_attended = tokens_attended + 1,
-        avg_attention_min = (
-          SELECT AVG(attention_minutes) FROM queue_tokens
-          WHERE agent_session_id = $1 AND status = 'finished'
-        )
-       WHERE id = $1`,
-      [session_id]
-    );
-
-    // Si el turno tiene cita vinculada → marcarla como completed + registrar agente
-    const token = result.rows[0];
-    if (token.appointment_id) {
-      const apptUp = await pool.query(
-        `UPDATE appointments SET status = 'completed', agent_id = COALESCE($2::uuid, agent_id)
-          WHERE id = $1
-          RETURNING id, user_id, branch_id, client_name, agent_id`,
-        [token.appointment_id, agent_id || null]
+    const outcome = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `UPDATE queue_tokens SET
+          status = 'finished', finished_at = CURRENT_TIMESTAMP,
+          attention_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(attended_at, called_at))) / 60
+         WHERE id = $1 RETURNING *`,
+        [req.params.tokenId]
       );
-      if (apptUp.rowCount) {
-        const appt = apptUp.rows[0];
-        let agentName = null;
-        if (appt.agent_id) {
-          const agRow = await pool.query(`SELECT name FROM agents WHERE id = $1`, [appt.agent_id]);
-          if (agRow.rowCount) agentName = agRow.rows[0].name;
-        }
-        const completedPayload = { id: appt.id, status: 'completed', agent_id: appt.agent_id, agent_name: agentName };
-        io.to(`user_${appt.user_id}`).emit('appointment.completed', completedPayload);
-        io.to(`branch_${appt.branch_id}`).emit('appointment.completed', completedPayload);
-        console.log(JSON.stringify({ event: 'appointment.completed', appt_id: appt.id, agent_id: appt.agent_id, agent_name: agentName }));
+      if (!result.rows.length) {
+        const e = new Error('Turno no encontrado'); e.httpStatus = 404; throw e;
       }
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'finished', $2)`,
+        [req.params.tokenId, agent_id]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET
+          tokens_attended = tokens_attended + 1,
+          avg_attention_min = (
+            SELECT AVG(attention_minutes) FROM queue_tokens
+            WHERE agent_session_id = $1 AND status = 'finished'
+          )
+         WHERE id = $1`,
+        [session_id]
+      );
+      const token = result.rows[0];
+      let apptPayload = null;
+      if (token.appointment_id) {
+        const apptUp = await client.query(
+          `UPDATE appointments SET status = 'completed', agent_id = COALESCE($2::uuid, agent_id)
+            WHERE id = $1
+            RETURNING id, user_id, branch_id, client_name, agent_id`,
+          [token.appointment_id, agent_id || null]
+        );
+        if (apptUp.rowCount) {
+          const appt = apptUp.rows[0];
+          let agentName = null;
+          if (appt.agent_id) {
+            const agRow = await client.query(`SELECT name FROM agents WHERE id = $1`, [appt.agent_id]);
+            if (agRow.rowCount) agentName = agRow.rows[0].name;
+          }
+          apptPayload = { id: appt.id, status: 'completed', agent_id: appt.agent_id, agent_name: agentName, user_id: appt.user_id, branch_id: appt.branch_id };
+        }
+      }
+      return { token, apptPayload };
+    });
+    if (outcome.apptPayload) {
+      const p = outcome.apptPayload;
+      const completedPayload = { id: p.id, status: p.status, agent_id: p.agent_id, agent_name: p.agent_name };
+      io.to(`user_${p.user_id}`).emit('appointment.completed', completedPayload);
+      io.to(`branch_${p.branch_id}`).emit('appointment.completed', completedPayload);
+      console.log(JSON.stringify({ event: 'appointment.completed', appt_id: p.id, agent_id: p.agent_id, agent_name: p.agent_name }));
     }
-
-    // Emitir para actualizar pantalla y panel
     io.to(`branch_${branch_id}`).emit('token_finished', {
       token_id: req.params.tokenId,
-      counter_id: result.rows[0].counter_id
+      counter_id: outcome.token.counter_id
     });
-
-    // Mostrar calificación si la ventanilla lo tiene habilitado
-    if (result.rows[0].rating_enabled !== false) {
-      io.to(`counter_${result.rows[0].counter_id}`).emit('show_rating', {
+    if (outcome.token.rating_enabled !== false) {
+      io.to(`counter_${outcome.token.counter_id}`).emit('show_rating', {
         token_id: req.params.tokenId,
-        token_number: result.rows[0].display_number
+        token_number: outcome.token.display_number
       });
     }
-
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // POST — Marcar como no presentado
 app.post('/api/queue/tokens/:tokenId/no-show', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id } = req.body;
-    await pool.query(
-      `UPDATE queue_tokens SET status = 'no_show', finished_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [req.params.tokenId]
-    );
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'no_show', $2)`,
-      [req.params.tokenId, agent_id]
-    );
-    await pool.query(
-      `UPDATE agent_sessions SET tokens_no_show = tokens_no_show + 1 WHERE id = $1`,
-      [session_id]
-    );
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE queue_tokens SET status = 'no_show', finished_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [req.params.tokenId]
+      );
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'no_show', $2)`,
+        [req.params.tokenId, agent_id]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET tokens_no_show = tokens_no_show + 1 WHERE id = $1`,
+        [session_id]
+      );
+    });
     io.to(`branch_${branch_id}`).emit('token_no_show', { token_id: req.params.tokenId });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
@@ -4049,34 +4064,56 @@ app.post('/api/queue/tokens/:tokenId/no-show', authenticateAgentOrUser, async (r
 app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id, to_counter_id, to_service_id, note } = req.body;
-    const current = await pool.query('SELECT * FROM queue_tokens WHERE id = $1', [req.params.tokenId]);
-    if (!current.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
-
-    const orig = current.rows[0];
-    await pool.query(
-      `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
-      [req.params.tokenId]
-    );
-    await pool.query(
-      `INSERT INTO queue_tokens (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
-       VALUES ($1, $2, $3, $4, $5, 'waiting', $6, 'transfer', CURRENT_DATE)`,
-      [orig.branch_id, to_service_id || orig.service_id, to_counter_id, orig.token_number, orig.display_number, orig.is_priority || false]
-    );
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
-       VALUES ($1, 'transferred', $2, $3, $4, $5)`,
-      [req.params.tokenId, agent_id, current.rows[0].counter_id, to_counter_id, note]
-    );
-    await pool.query(
-      `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
-      [session_id]
-    );
+    const outcome = await withTransaction(pool, async (client) => {
+      const current = await client.query(
+        `SELECT * FROM queue_tokens WHERE id = $1 FOR UPDATE`, [req.params.tokenId]
+      );
+      if (!current.rows.length) {
+        const e = new Error('Turno no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const orig = current.rows[0];
+      const targetServiceId = to_service_id || orig.service_id;
+      // Lock por (branch, servicio destino, día) — evita correlativo duplicado (A-4)
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [orig.branch_id, targetServiceId]
+      );
+      const svcRow = await client.query(
+        `SELECT prefix FROM services WHERE id = $1`, [targetServiceId]
+      );
+      const nextNum = await generateNextTokenNumber(client, orig.branch_id, targetServiceId);
+      const newTokenNumber = `${svcRow.rows[0]?.prefix || ''}${String(nextNum).padStart(3, '0')}`;
+      await client.query(
+        `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
+        [req.params.tokenId]
+      );
+      const newTok = await client.query(
+        `INSERT INTO queue_tokens (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
+         VALUES ($1, $2, $3, $4, $4, 'waiting', $5, 'transfer', CURRENT_DATE) RETURNING id`,
+        [orig.branch_id, targetServiceId, to_counter_id, newTokenNumber, orig.is_priority || false]
+      );
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
+         VALUES ($1, 'transferred', $2, $3, $4, $5)`,
+        [req.params.tokenId, agent_id, orig.counter_id, to_counter_id, note]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
+        [session_id]
+      );
+      return { newTokenId: newTok.rows[0].id, newTokenNumber };
+    });
     io.to(`branch_${branch_id}`).emit('token_transferred', {
       token_id: req.params.tokenId,
+      new_token_id: outcome.newTokenId,
+      new_token_number: outcome.newTokenNumber,
       to_counter_id, to_service_id
     });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -4086,7 +4123,7 @@ app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (
 app.post('/api/queue/tokens/:tokenId/note', authenticateAgentOrUser, async (req, res) => {
   try {
     const { tokenId } = req.params;
-    const text = (req.body && req.body.text) ? String(req.body.text).trim().slice(0, 1000) : '';
+    const text = (req.body && req.body.text) ? String(req.body.text).trim().slice(0, 4096) : '';
     if (!text) return res.status(400).json({ error: 'Texto de nota requerido' });
     const check = req.user.role === 'agent'
       ? await pool.query('SELECT id FROM queue_tokens WHERE id = $1 AND branch_id = $2', [tokenId, req.user.branch_id])
@@ -7073,7 +7110,7 @@ app.get('/agendar/:slug', (req, res) => {
 // R1.5 §2 — GET /api/queue/public/:slug
 // Devuelve tenant + sucursales activas + servicios. Sin auth.
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/public/:slug', async (req, res) => {
+app.get('/api/queue/public/:slug', publicLimiter, async (req, res) => {
   const { slug } = req.params;
   if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
     return res.status(400).json({ error: 'slug inválido' });
@@ -7129,7 +7166,7 @@ app.get('/api/queue/public/:slug', async (req, res) => {
 // R1.5 §3 — GET /api/queue/public/:slug/slots
 // ?branch_id=UUID&service_id=UUID&date=YYYY-MM-DD
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/public/:slug/slots', async (req, res) => {
+app.get('/api/queue/public/:slug/slots', publicLimiter, async (req, res) => {
   const { slug } = req.params;
   const { branch_id, service_id, date } = req.query;
 
@@ -7218,7 +7255,7 @@ app.get('/api/queue/public/:slug/slots', async (req, res) => {
 // Anti-bot: hp_field vacío + timing ≥2 s + habeas_data aceptado.
 // public_booking_mode 'auto' → confirmed, 'manual' → pending.
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/public/:slug/appointments', async (req, res) => {
+app.post('/api/queue/public/:slug/appointments', publicLimiter, async (req, res) => {
   const { slug } = req.params;
   if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
     return res.status(400).json({ error: 'slug inválido' });
@@ -7458,7 +7495,7 @@ app.get('/cita/:token', (req, res) => {
 // R1.5 §9 — GET /api/queue/cita/:token
 // Devuelve detalles de la cita para la página pública.
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/cita/:token', async (req, res) => {
+app.get('/api/queue/cita/:token', publicLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   try {
@@ -7504,7 +7541,7 @@ app.get('/api/queue/cita/:token', async (req, res) => {
 // R1.5 §10 — DELETE /api/queue/cita/:token
 // Cancela la cita y marca el token como usado.
 // ─────────────────────────────────────────────────────────────
-app.delete('/api/queue/cita/:token', async (req, res) => {
+app.delete('/api/queue/cita/:token', publicLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   try {
@@ -7544,7 +7581,7 @@ app.delete('/api/queue/cita/:token', async (req, res) => {
 // Reprograma la cita. El token NO se consume (permite re-agendar).
 // Body: { scheduled_at: ISO8601 }
 // ─────────────────────────────────────────────────────────────
-app.patch('/api/queue/cita/:token', async (req, res) => {
+app.patch('/api/queue/cita/:token', publicLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   const vAt = parseScheduledAt(req.body?.scheduled_at);
