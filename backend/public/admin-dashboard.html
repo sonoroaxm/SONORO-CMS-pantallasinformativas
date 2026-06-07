@@ -665,6 +665,26 @@
     .license-badge.active   { background: rgba(0,230,118,0.1); color: var(--online); border: 1px solid rgba(0,230,118,0.25); }
     .license-badge.expired  { background: rgba(255,23,68,0.1);  color: var(--offline); border: 1px solid rgba(255,23,68,0.25); }
     .license-badge.suspended{ background: rgba(255,140,0,0.1);  color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    /* ── QUEUE v2 FEATURE ROWS ── */
+    .q2-feat-row { display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border); }
+    .q2-feat-row:last-child { border-bottom:none; }
+    .q2-feat-info { flex:1;min-width:0; }
+    .q2-feat-name { font-size:12px;font-weight:600;color:var(--text); }
+    .q2-feat-desc { font-size:11px;color:var(--muted);margin-top:1px; }
+    .q2-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0; }
+    .q2-badge.on   { background:rgba(0,230,118,0.1);color:var(--online);border:1px solid rgba(0,230,118,0.25); }
+    .q2-badge.off  { background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border); }
+    .q2-badge.soon { background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.25); }
+    .q2-act-btn { font-size:11px;padding:3px 12px;border-radius:6px;cursor:pointer;border:1px solid;white-space:nowrap;font-weight:600;transition:all 0.15s;flex-shrink:0; }
+    .q2-act-btn.activate   { color:var(--online);border-color:rgba(0,230,118,0.4);background:rgba(0,230,118,0.08); }
+    .q2-act-btn.activate:hover { background:rgba(0,230,118,0.18); }
+    .q2-act-btn.deactivate { color:var(--offline);border-color:rgba(255,23,68,0.35);background:rgba(255,23,68,0.05); }
+    .q2-act-btn.deactivate:hover { background:rgba(255,23,68,0.12); }
+    .q2-act-btn.q2-disabled { color:var(--muted);border-color:var(--border);background:transparent;cursor:default;opacity:0.45; }
+    .feat-confirm-lic  { margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:12px;line-height:1.8; }
+    .feat-confirm-warn { margin-top:10px;padding:9px 12px;border-radius:8px;font-size:11px;line-height:1.5; }
+    .feat-confirm-warn.danger  { background:rgba(255,23,68,0.08);color:#ff6b6b;border:1px solid rgba(255,23,68,0.2); }
+    .feat-confirm-warn.caution { background:rgba(255,140,0,0.08);color:var(--warning);border:1px solid rgba(255,140,0,0.2); }
     .user-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; margin-bottom: 12px; overflow: hidden;
@@ -2982,6 +3002,7 @@ async function loadUsers() {
               Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
             </div>
           </div>
+          ${renderQ2Features(u)}
           <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
             <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Correos de notificación (máx. 2)</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -3005,18 +3026,55 @@ async function loadUsers() {
 
 // Mapa de features por tipo de licencia (mirror del backend)
 const LICENSE_FEATURES_MAP = {
-  cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-  cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
-  queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
-  rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-  windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+  cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+  cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+  queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+  rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+  windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
 };
+
+const Q2_FEATURE_DEFS = [
+  { key: 'queue_v2_appointments',   label: 'Citas & Bloqueos',        desc: 'Gestión de citas programadas, bloqueos de horario y confirmación de presencia.' },
+  { key: 'queue_v2_public_booking', label: 'Booking público',          desc: 'Página /agendar/{slug} para que clientes reserven su cita sin login.' },
+  { key: 'queue_v2_bulk',           label: 'Operaciones masivas',      desc: 'Mover, reasignar o cancelar múltiples citas en un solo paso.' },
+  { key: 'queue_v2_agent_notes',    label: 'Notas del agente',         desc: 'Registro de observaciones por turno y programación de citas de seguimiento.' },
+  { key: 'queue_v2_calendars',      label: 'Integración calendarios',  desc: 'Sincronización con Google Calendar y Outlook.', soon: true },
+];
+
+function renderQ2Features(u) {
+  const licEndRaw  = u.license_end || '';
+  const licStatus  = u.is_expired ? 'expired' : (u.license_status || 'active');
+  const rows = Q2_FEATURE_DEFS.map(f => {
+    const on = !!(u.features && u.features[f.key]);
+    if (f.soon) {
+      return `<div class="q2-feat-row">
+        <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
+        <span class="q2-badge soon">Próximamente</span>
+        <button class="q2-act-btn q2-disabled" disabled>No disponible</button>
+      </div>`;
+    }
+    const safeUser = (u.name || u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<div class="q2-feat-row">
+      <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
+      <span class="q2-badge ${on ? 'on' : 'off'}" id="q2badge-${f.key}-${u.id}">${on ? 'Activo' : 'Inactivo'}</span>
+      <button class="q2-act-btn ${on ? 'deactivate' : 'activate'}" id="q2btn-${f.key}-${u.id}"
+        onclick="event.stopPropagation();confirmFeatureChange(${u.id},'${f.key}',${!on},'${safeUser}','${licEndRaw}','${licStatus}')">
+        ${on ? 'Desactivar' : 'Activar'}
+      </button>
+    </div>`;
+  }).join('');
+  return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Queue v2 — Citas &amp; Agendamiento</div>
+    ${rows}
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Requiere licencia activa. Los módulos se desactivan automáticamente al suspender la licencia.</div>
+  </div>`;
+}
 
 async function toggleFeature(userId, feature, enabled) {
   try {
     const users = await api('/api/admin/users');
     const user = users.find(u => u.id === userId);
-    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
+    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
     const features = Object.assign(defaults, user?.features || {});
     features[feature] = enabled;
     const data = await api(`/api/admin/users/${userId}/features`, {
@@ -3827,6 +3885,107 @@ function fidsSelectMode(el) {
   document.getElementById('fids-config-overlay').classList.toggle('visible', m === 'overlay_ad');
   document.getElementById('fids-config-lowerbar').classList.toggle('visible', m === 'lower_bar');
 }
+
+// ── QUEUE v2 FEATURE CONFIRMATION ─────────────────────────────
+const Q2_FEATURE_LABELS = {
+  queue_v2_appointments:   'Citas & Bloqueos',
+  queue_v2_public_booking: 'Booking público',
+  queue_v2_bulk:           'Operaciones masivas',
+  queue_v2_agent_notes:    'Notas del agente',
+  queue_v2_calendars:      'Integración calendarios',
+};
+
+let _pendingFeatChange = null;
+
+function confirmFeatureChange(userId, feature, enable, userName, licenseEnd, licenseStatus) {
+  _pendingFeatChange = { userId, feature, enable };
+  const label     = Q2_FEATURE_LABELS[feature] || feature;
+  const actionCap = enable ? 'Activar' : 'Desactivar';
+
+  document.getElementById('feat-confirm-title').textContent = actionCap + ' módulo';
+
+  const descEl = document.getElementById('feat-confirm-desc');
+  descEl.innerHTML = '¿Confirmas ' + (enable ? 'activar' : 'desactivar') +
+    ' el módulo <strong>' + label + '</strong> para <strong>' + userName + '</strong>?' +
+    (!enable ? '<br><span style="font-size:11px;color:var(--muted);display:block;margin-top:4px;">El usuario perderá acceso en su próximo inicio de sesión.</span>' : '');
+
+  // Licencia info
+  const licEndDate = licenseEnd ? new Date(licenseEnd) : null;
+  const licEndStr  = licEndDate
+    ? licEndDate.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Sin fecha definida';
+  const daysLeft   = licEndDate ? Math.ceil((licEndDate - Date.now()) / 86400000) : null;
+  const statusLabels = { active: 'Activa', suspended: 'Suspendida', expired: 'Vencida' };
+  const statusLabel  = statusLabels[licenseStatus] || licenseStatus;
+  const daysStr      = daysLeft !== null && daysLeft > 0
+    ? ' <span style="color:var(--muted);font-weight:400;">(' + daysLeft + ' días restantes)</span>'
+    : '';
+
+  document.getElementById('feat-confirm-lic').innerHTML =
+    '<div style="display:flex;justify-content:space-between;">' +
+      '<span style="color:var(--muted);">Estado de licencia</span>' +
+      '<span style="font-weight:600;">' + statusLabel + '</span>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:4px;">' +
+      '<span style="color:var(--muted);">Válida hasta</span>' +
+      '<span style="font-weight:600;">' + licEndStr + daysStr + '</span>' +
+    '</div>';
+
+  // Advertencia según estado de licencia
+  const warnEl = document.getElementById('feat-confirm-warn');
+  warnEl.style.display = 'none';
+  warnEl.className = 'feat-confirm-warn';
+  if (enable) {
+    const now = new Date();
+    if (licenseStatus === 'suspended') {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('danger');
+      warnEl.innerHTML = '<strong>Licencia suspendida.</strong> El módulo quedará registrado pero no funcionará hasta renovar la licencia.';
+    } else if (licenseStatus === 'expired' || (licEndDate && licEndDate < now)) {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('danger');
+      warnEl.innerHTML = '<strong>Licencia vencida.</strong> Activa el módulo solo si planeas renovar pronto.';
+    } else if (daysLeft !== null && daysLeft <= 30) {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('caution');
+      warnEl.innerHTML = '<strong>Licencia próxima a vencer</strong> (' + daysLeft + ' días). Considera renovarla para asegurar continuidad del servicio.';
+    }
+  }
+
+  const confirmBtn = document.getElementById('feat-confirm-btn');
+  confirmBtn.textContent = actionCap;
+  confirmBtn.className   = 'btn ' + (enable ? 'btn-primary' : 'btn-danger');
+
+  document.getElementById('modal-feat-confirm').classList.add('open');
+}
+
+async function execFeatureChange() {
+  if (!_pendingFeatChange) return;
+  const { userId, feature, enable } = _pendingFeatChange;
+  _pendingFeatChange = null;
+  closeModal('modal-feat-confirm');
+  await toggleFeature(userId, feature, enable);
+  loadUsers();
+}
 </script>
+
+<!-- Modal: confirmación de cambio de módulo Queue v2 -->
+<div class="modal-overlay" id="modal-feat-confirm">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title" id="feat-confirm-title">Confirmar cambio de módulo</div>
+      <button class="modal-close" onclick="closeModal('modal-feat-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="feat-confirm-desc" style="font-size:13px;color:var(--text);line-height:1.6;"></div>
+      <div class="feat-confirm-lic" id="feat-confirm-lic"></div>
+      <div id="feat-confirm-warn" style="display:none;"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid var(--border);">
+      <button class="btn btn-outline" onclick="closeModal('modal-feat-confirm')">Cancelar</button>
+      <button class="btn btn-primary" id="feat-confirm-btn" onclick="execFeatureChange()">Confirmar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
