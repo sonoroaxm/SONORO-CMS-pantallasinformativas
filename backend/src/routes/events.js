@@ -8,6 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
+const { sendEventRegistrationEmail } = require('../services/email');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -405,11 +406,32 @@ router.patch('/:id/registrations/:regId/status', auth, async (req, res) => {
       `UPDATE events.registrations r SET status = $1
        FROM events.events e
        WHERE r.id = $2 AND r.event_id = e.id AND e.user_id = $3
-       RETURNING r.id, r.status`,
+       RETURNING r.id, r.status, r.qr_token, r.ticket_type, r.event_id`,
       [status, req.params.regId, req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Registro no encontrado' });
-    res.json(rows[0]);
+
+    if (status === 'confirmed') {
+      // Enviar correo de confirmación con QR al asistente
+      pool.query(
+        `SELECT a.name, a.email,
+                e.name AS event_name, e.slug, e.starts_at, e.ends_at, e.venue_name, e.timezone
+         FROM events.registrations r
+         JOIN events.attendees a ON a.id = r.attendee_id
+         JOIN events.events    e ON e.id = r.event_id
+         WHERE r.id = $1`,
+        [req.params.regId]
+      ).then(({ rows: d }) => {
+        if (!d[0]) return;
+        sendEventRegistrationEmail(
+          { name: d[0].name, email: d[0].email },
+          { name: d[0].event_name, slug: d[0].slug, starts_at: d[0].starts_at, ends_at: d[0].ends_at, venue_name: d[0].venue_name, timezone: d[0].timezone },
+          { qr_token: rows[0].qr_token, ticket_type: rows[0].ticket_type }
+        ).catch(e => console.error('⚠️ Email confirmación manual fallido:', e.message));
+      }).catch(e => console.error('⚠️ Query para email confirmación fallida:', e.message));
+    }
+
+    res.json({ id: rows[0].id, status: rows[0].status });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

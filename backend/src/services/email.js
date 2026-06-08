@@ -482,6 +482,52 @@ async function sendPasswordResetEmail(user, resetLink) {
   console.log(`✅ Email reset password enviado a ${user.email}`);
 }
 
+// ── EMAIL: INSCRIPCIÓN RECIBIDA (pendiente de confirmación) ──
+async function sendEventPendingEmail(attendee, event) {
+  const opts = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
+      ¡Inscripción recibida!
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
+      tu inscripción a <strong style="color:#0f0f0f;">${event.name}</strong> ha sido recibida y está
+      <strong style="color:#f59e0b;">pendiente de confirmación</strong> por el organizador.
+    </p>
+
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
+        Pronto recibirás un correo con tu pase de acceso (código QR) una vez que tu inscripción sea confirmada.
+      </p>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0;font-size:16px;color:#0f0f0f;font-weight:700;">${event.name}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${startStr}</p>
+      </td></tr>
+      ${event.venue_name ? `
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Lugar</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${event.venue_name}</p>
+      </td></tr>` : ''}
+    </table>
+
+    <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
+      Si no te registraste en este evento, ignora este mensaje.
+    </p>
+  `);
+
+  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Inscripción recibida — ${event.name}`, html });
+  console.log(`✅ Email inscripción pendiente enviado a ${attendee.email}`);
+}
+
 // ── EMAIL DE CONFIRMACIÓN DE REGISTRO A EVENTO ───────────────
 async function sendEventRegistrationEmail(attendee, event, registration) {
   const QRCode  = require('qrcode');
@@ -558,4 +604,4 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
   console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, verifyConnection };
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, verifyConnection };

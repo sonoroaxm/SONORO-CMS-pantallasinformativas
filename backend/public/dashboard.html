@@ -4438,19 +4438,39 @@ async function evLoadRegistrations() {
     const data = await res.json();
     evRegsTotal = data.total || 0;
     // Stat cards
+    const maxCap = evCurrentEvent?.max_capacity;
+    const capLabel = maxCap ? `de ${maxCap} cupos` : 'sin límite de cupos';
+    const capPct   = maxCap ? Math.min(100, Math.round(((data.total || 0) / maxCap) * 100)) : null;
+    const confPct  = data.total ? Math.round(((data.confirmed || 0) / data.total) * 100) : 0;
     document.getElementById('ev-regs-stats').innerHTML = `
-      <div class="card" style="text-align:center;padding:16px;">
-        <div style="font-size:28px;font-weight:900;color:#f59e0b;">${data.total || 0}</div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Total</div>
+      <div class="card" style="padding:16px 20px;">
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-size:32px;font-weight:900;color:#f59e0b;">${data.total || 0}</span>
+          <span style="font-size:13px;color:var(--text-muted);">${capLabel}</span>
+        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:4px 0 8px;">Inscritos</div>
+        ${capPct !== null ? `
+        <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
+          <div style="height:100%;width:${capPct}%;background:#f59e0b;border-radius:2px;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${capPct}% de ocupación</div>` : ''}
       </div>
-      <div class="card" style="text-align:center;padding:16px;">
-        <div style="font-size:28px;font-weight:900;color:#00e676;">${data.confirmed || 0}</div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Confirmados</div>
+      <div class="card" style="padding:16px 20px;">
+        <div style="display:flex;align-items:baseline;gap:6px;">
+          <span style="font-size:32px;font-weight:900;color:#00e676;">${data.confirmed || 0}</span>
+          <span style="font-size:13px;color:var(--text-muted);">de ${data.total || 0} inscritos</span>
+        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:4px 0 8px;">Confirmados</div>
+        <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
+          <div style="height:100%;width:${confPct}%;background:#00e676;border-radius:2px;transition:width .3s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${confPct}% del total</div>
       </div>
-      <div class="card" style="text-align:center;padding:16px;">
-        <div style="font-size:28px;font-weight:900;color:#888;">${data.pending || 0}</div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Pendientes</div>
-      </div>
+      ${data.pending ? `
+      <div class="card" style="padding:16px 20px;">
+        <div style="font-size:32px;font-weight:900;color:#f59e0b;">${data.pending}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Pendientes de confirmar</div>
+      </div>` : ''}
     `;
     const rows = data.registrations || [];
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }

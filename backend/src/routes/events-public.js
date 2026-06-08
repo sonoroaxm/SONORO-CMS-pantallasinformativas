@@ -9,7 +9,7 @@ const express    = require('express');
 const router     = express.Router();
 const rateLimit  = require('express-rate-limit');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendEventPendingEmail } = require('../services/email');
 
 const eventPublicReadLimiter = rateLimit({
   windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
@@ -170,12 +170,21 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
       return res.status(409).json({ error: 'Ya existe un registro para este email en este evento' });
     }
 
-    // Email de confirmación — async, no bloquea la respuesta
-    sendEventRegistrationEmail(
-      { name: name.trim(), email: cleanEmail },
-      event,
-      registration
-    ).catch(e => console.error('⚠️ Email registro evento fallido:', e.message));
+    // Email — async, no bloquea la respuesta
+    // auto_confirm=true → correo de confirmación con QR
+    // auto_confirm=false → correo de inscripción pendiente (QR llega al confirmar)
+    if (autoConfirm) {
+      sendEventRegistrationEmail(
+        { name: name.trim(), email: cleanEmail },
+        event,
+        registration
+      ).catch(e => console.error('⚠️ Email confirmación evento fallido:', e.message));
+    } else {
+      sendEventPendingEmail(
+        { name: name.trim(), email: cleanEmail },
+        event
+      ).catch(e => console.error('⚠️ Email inscripción pendiente fallido:', e.message));
+    }
 
     // Telemetría: emit al dashboard de producción (si ya está abierto)
     global.io?.to(`event_${event.id}`).emit('attendee.registered', {
@@ -186,7 +195,7 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     res.status(201).json({
       registration_id: registration.id,
       qr_token:        registration.qr_token,
-      email_sent:      !!qrBuffer,
+      email_sent:      true,
     });
   } catch (err) {
     console.error('❌ POST /api/events/public/:slug/register:', err);
