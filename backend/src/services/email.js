@@ -482,4 +482,84 @@ async function sendPasswordResetEmail(user, resetLink) {
   console.log(`✅ Email reset password enviado a ${user.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, verifyConnection };
+// ── EMAIL DE CONFIRMACIÓN DE REGISTRO A EVENTO ───────────────
+async function sendEventRegistrationEmail(attendee, event, registration, qrBuffer) {
+  const qrLink = `${CMS_URL}/evento/${event.slug}/mi-registro/${registration.qr_token}`;
+  const opts   = { timeZone: event.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
+  const endStr   = new Date(event.ends_at).toLocaleString('es-CO', opts);
+  const ticketLabel = registration.ticket_type.charAt(0).toUpperCase() + registration.ticket_type.slice(1);
+
+  const attachments = qrBuffer
+    ? [{ filename: 'codigo-qr.png', content: qrBuffer, cid: 'evento_qr' }]
+    : [];
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
+      ¡Tu registro está confirmado!
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
+      aquí está tu pase para el evento.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0;font-size:16px;color:#0f0f0f;font-weight:700;">${event.name}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Inicio</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${startStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Cierre</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${endStr}</p>
+      </td></tr>
+      ${event.venue_name ? `
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Lugar</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${event.venue_name}</p>
+      </td></tr>` : ''}
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tipo de entrada</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${ticketLabel}</p>
+      </td></tr>
+    </table>
+
+    <div style="text-align:center;margin:24px 0;">
+      <p style="margin:0 0 12px;font-size:13px;color:#666;">
+        Presenta este código QR al ingresar al evento
+      </p>
+      ${qrBuffer
+        ? `<img src="cid:evento_qr" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;border-radius:4px;" />`
+        : `<div style="background:#f0f0f0;border-radius:8px;padding:16px;display:inline-block;">
+             <p style="margin:0;font-family:monospace;font-size:13px;color:#333;">${registration.qr_token}</p>
+           </div>`
+      }
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      <tr><td align="center">
+        <a href="${qrLink}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver mi registro
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
+      Si no te registraste en este evento, ignora este mensaje.
+    </p>
+  `);
+
+  await transporter.sendMail({
+    from: FROM,
+    to:   attendee.email,
+    subject: `Tu pase para ${event.name}`,
+    html,
+    attachments,
+  });
+  console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, verifyConnection };
