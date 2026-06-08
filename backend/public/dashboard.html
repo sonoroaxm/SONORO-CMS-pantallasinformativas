@@ -1488,6 +1488,13 @@
                       Registro público habilitado
                     </label>
                   </div>
+                  <div class="form-group" style="margin:0;">
+                    <label style="display:flex;align-items:center;justify-content:space-between;">
+                      <span>Tipos de entrada</span>
+                      <span style="font-size:10px;color:var(--text-muted);font-weight:400;">uno por línea · vacío = solo "general"</span>
+                    </label>
+                    <textarea id="ev-edit-ticket-types" rows="4" placeholder="general&#10;vip&#10;speaker&#10;staff&#10;prensa" style="resize:vertical;font-size:12px;font-family:monospace;"></textarea>
+                  </div>
                   <div style="display:flex;gap:10px;margin-top:4px;align-items:center;">
                     <button class="btn btn-grad" onclick="evSaveInfo()" style="flex:1;">Guardar cambios</button>
                     <button id="ev-publish-btn" class="btn btn-outline btn-sm" onclick="evTogglePublish()" style="flex-shrink:0;"></button>
@@ -1538,12 +1545,11 @@
               <!-- Constructor -->
               <div>
                 <div class="card" style="margin-bottom:16px;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <div class="card-title" style="margin:0;">Campos configurables</div>
-                    <div style="display:flex;gap:8px;">
-                      <div style="font-size:11px;color:var(--text-muted);background:var(--surface3);padding:4px 10px;border-radius:6px;font-weight:600;">
-                        Fijos: nombre · email · teléfono
-                      </div>
+                  <div style="margin-bottom:12px;">
+                    <div class="card-title" style="margin-bottom:10px;">Campos adicionales configurables</div>
+                    <div style="padding:9px 12px;background:rgba(59,91,219,0.07);border-radius:8px;font-size:11px;color:#3B5BDB;display:flex;gap:8px;align-items:flex-start;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                      <span>Campos fijos (siempre presentes, no configurables): <strong>Nombre, Email, Teléfono (+prefijo país), Tipo de documento, N° documento y Tipo de entrada.</strong></span>
                     </div>
                   </div>
                   <div id="ev-fields-list" style="display:grid;gap:6px;min-height:60px;"></div>
@@ -3986,6 +3992,8 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-end').value = ev.ends_at ? ev.ends_at.substring(0,10) : '';
   document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
+  const ticketTypes = (ev.config && ev.config.ticket_types) || [];
+  document.getElementById('ev-edit-ticket-types').value = ticketTypes.join('\n');
   const origin = window.location.origin;
   document.getElementById('ev-public-url').textContent = `${origin}/evento/${ev.slug}`;
   const pubBtn = document.getElementById('ev-publish-btn');
@@ -4030,7 +4038,11 @@ async function evSaveInfo() {
     starts_at: document.getElementById('ev-edit-start').value,
     ends_at: document.getElementById('ev-edit-end').value,
     timezone: document.getElementById('ev-edit-tz').value,
-    config: { ...(evCurrentEvent.config || {}), allow_public_registration: document.getElementById('ev-edit-public').checked }
+    config: {
+      ...(evCurrentEvent.config || {}),
+      allow_public_registration: document.getElementById('ev-edit-public').checked,
+      ticket_types: document.getElementById('ev-edit-ticket-types').value.split('\n').map(s=>s.trim()).filter(Boolean)
+    }
   };
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
@@ -4162,10 +4174,16 @@ function evStartEditField(idx) {
   } else { optWrap.classList.add('hidden'); }
   // Populate condition field selector
   const condSel = document.getElementById('ev-fe-cond-field');
-  condSel.innerHTML = '<option value="">— Sin condición —</option>' +
+  const ticketTypesConfig = (evCurrentEvent?.config?.ticket_types || []);
+  const ticketTypeOpt = ticketTypesConfig.length
+    ? `<option value="ticket_type"${f.condition && f.condition.field === 'ticket_type' ? ' selected' : ''}>Tipo de entrada =</option>`
+    : '';
+  condSel.innerHTML = '<option value="">— Sin condición —</option>' + ticketTypeOpt +
     evFields.filter((_, i) => i !== idx && evFields[i].type === 'select')
       .map(cf => `<option value="${cf.key}"${f.condition && f.condition.field === cf.key ? ' selected' : ''}>${cf.labelEs || cf.key}</option>`).join('');
+  // If ticket_type condition selected, show the value as chip list
   document.getElementById('ev-fe-cond-value').value = (f.condition && f.condition.value) || '';
+  document.getElementById('ev-fe-cond-value').placeholder = ticketTypesConfig.length ? `ej: ${ticketTypesConfig[0]}` : 'valor';
   document.getElementById('ev-field-editor').classList.remove('hidden');
   evRenderFields();
 }
@@ -4216,10 +4234,13 @@ function evRenderPreview() {
   const fixedStyle = 'display:grid;gap:4px;';
   const labelStyle = 'font-size:11px;font-weight:700;color:var(--text-muted);';
   const inputStyle = 'width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:Montserrat,sans-serif;';
+  const ticketTypes = evCurrentEvent?.config?.ticket_types;
   let html = `
     <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Nombre completo' : 'Full name'} *</div><input placeholder="${lang === 'es' ? 'Tu nombre' : 'Your name'}" style="${inputStyle}" disabled></div>
     <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Correo electrónico' : 'Email address'} *</div><input placeholder="email@ejemplo.com" style="${inputStyle}" disabled></div>
-    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Teléfono' : 'Phone'}</div><input placeholder="+57 300 000 0000" style="${inputStyle}" disabled></div>
+    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Teléfono' : 'Phone'}</div><div style="display:flex;gap:6px;"><input placeholder="+57" style="${inputStyle};width:60px;" disabled><input placeholder="300 000 0000" style="${inputStyle}" disabled></div></div>
+    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Tipo + N° documento' : 'ID type + number'} *</div><div style="display:flex;gap:6px;"><select style="${inputStyle};width:140px;" disabled><option>${lang==='es'?'Cédula':'National ID'}</option><option>${lang==='es'?'Pasaporte':'Passport'}</option></select><input placeholder="${lang==='es'?'Número...':'Number...'}" style="${inputStyle}" disabled></div></div>
+    ${ticketTypes && ticketTypes.length ? `<div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Tipo de entrada' : 'Ticket type'} *</div><select style="${inputStyle}" disabled>${ticketTypes.map(t=>`<option>${t}</option>`).join('')}</select></div>` : ''}
   `;
   evFields.forEach(f => {
     const label = (lang === 'es' ? f.labelEs : f.labelEn) || f.labelEs || f.key;
