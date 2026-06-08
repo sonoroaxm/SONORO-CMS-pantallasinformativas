@@ -329,4 +329,57 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
   res.json({ total: rows.length, created, skipped, errors });
 });
 
+// ── LISTAR STAFF ──────────────────────────────────────────────────────────────
+router.get('/:id/staff', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `SELECT id, name, email, phone, role, pin, created_at
+       FROM events.event_staff
+       WHERE event_id = $1 AND user_id = $2
+       ORDER BY role, name`,
+      [req.params.id, req.user.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── CREAR STAFF ───────────────────────────────────────────────────────────────
+const VALID_STAFF_ROLES = ['coordinator','registration','tech','host','security','catering','artistic_entertainment','other'];
+
+router.post('/:id/staff', auth, async (req, res) => {
+  const pool = global.pool;
+  const { name, email, phone, role, pin } = req.body;
+  if (!name || !role) return res.status(400).json({ error: 'name y role son requeridos' });
+  if (!VALID_STAFF_ROLES.includes(role)) return res.status(400).json({ error: 'rol inválido' });
+  const staffPin = pin ? String(pin).replace(/\D/g, '').slice(0, 6).padStart(6, '0')
+                       : String(Math.floor(100000 + Math.random() * 900000));
+  try {
+    const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, name, email, phone, role, pin, created_at`,
+      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── ELIMINAR STAFF ────────────────────────────────────────────────────────────
+router.delete('/:id/staff/:staffId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM events.event_staff WHERE id=$1 AND event_id=$2 AND user_id=$3`,
+      [req.params.staffId, req.params.id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

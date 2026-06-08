@@ -1454,6 +1454,7 @@
             <button class="ev-sub-tab active" data-evtab="info" onclick="evSwitchSubTab('info')">Información</button>
             <button class="ev-sub-tab" data-evtab="form" onclick="evSwitchSubTab('form')">Formulario</button>
             <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
+            <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
           </div>
 
           <!-- SUB-TAB: Información -->
@@ -1663,6 +1664,56 @@
             </div>
             <!-- Paginación -->
             <div id="ev-regs-pagination" style="display:flex;justify-content:center;gap:8px;margin-top:16px;"></div>
+          </div>
+
+          <!-- SUB-TAB: Staff -->
+          <div id="ev-sub-staff" class="ev-sub-panel hidden">
+            <div class="card">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                Equipo del evento
+                <button class="btn btn-outline btn-sm" onclick="evOpenAddStaff()">+ Agregar</button>
+              </div>
+
+              <!-- Formulario añadir staff (oculto) -->
+              <div id="ev-add-staff-form" class="hidden" style="margin-bottom:16px;padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+                <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:#f59e0b;">Nuevo miembro de staff</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div class="form-group" style="margin:0;"><label>Nombre *</label><input type="text" id="ev-staff-name" placeholder="Ej: Juan Pérez"></div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Rol *</label>
+                    <select id="ev-staff-role">
+                      <option value="">— Seleccionar —</option>
+                      <option value="coordinator">Coordinador</option>
+                      <option value="registration">Coordinador de Registro</option>
+                      <option value="tech">Coordinador Técnico</option>
+                      <option value="host">Coordinador de Anfitriones</option>
+                      <option value="security">Coordinador de Seguridad</option>
+                      <option value="catering">Coordinador de Catering</option>
+                      <option value="artistic_entertainment">Coordinador Artístico y de Entretenimiento</option>
+                      <option value="other">Otro</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="ev-staff-email" placeholder="opcional"></div>
+                  <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="tel" id="ev-staff-phone" placeholder="opcional"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+                  <div class="form-group" style="margin:0;flex:1;">
+                    <label style="display:flex;align-items:center;justify-content:space-between;">
+                      <span>PIN de acceso (check-in)</span>
+                      <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px;" onclick="evGenPin()">Generar</button>
+                    </label>
+                    <input type="text" id="ev-staff-pin" placeholder="6 dígitos — se genera automáticamente" maxlength="6" pattern="[0-9]{6}" style="font-family:monospace;letter-spacing:4px;font-size:15px;">
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddStaff()">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveStaff()">Guardar</button>
+                </div>
+              </div>
+
+              <!-- Tabla staff -->
+              <div id="ev-staff-list" style="display:flex;flex-direction:column;gap:0;"></div>
+            </div>
           </div>
 
         </div><!-- /ev-detail-view -->
@@ -4003,6 +4054,7 @@ function evSwitchSubTab(tab) {
   if (tab === 'info') evLoadSessions(evCurrentEventId);
   if (tab === 'form') { evRenderActive(); evRenderCatalog(); }
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
+  if (tab === 'staff') evLoadStaff();
 }
 
 // ── INFORMACIÓN ────────────────────────────────────────────────
@@ -4471,6 +4523,118 @@ async function evExportCSV() {
     const a = document.createElement('a'); a.href = url; a.download = `registros_${evCurrentEventId}.csv`; a.click();
     URL.revokeObjectURL(url);
   } catch(e) { showStatus('Error exportando', 'error'); }
+}
+
+// ── STAFF ─────────────────────────────────────────────────────────────────────
+let evStaffList = [];
+
+const EV_ROLE_LABELS = {
+  coordinator: 'Coordinador',
+  registration: 'Coordinador de Registro',
+  tech: 'Coordinador Técnico',
+  host: 'Coordinador de Anfitriones',
+  security: 'Coordinador de Seguridad',
+  catering: 'Coordinador de Catering',
+  artistic_entertainment: 'Coordinador Artístico y de Entretenimiento',
+  other: 'Otro'
+};
+
+const EV_ROLE_COLORS = {
+  coordinator: '#f59e0b',
+  registration: '#38bdf8',
+  tech: '#a78bfa',
+  host: '#34d399',
+  security: '#f87171',
+  catering: '#fbbf24',
+  artistic_entertainment: '#f472b6',
+  other: '#94a3b8'
+};
+
+async function evLoadStaff() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    evStaffList = await res.json();
+    evRenderStaff();
+  } catch(e) { showStatus('Error cargando staff', 'error'); }
+}
+
+function evRenderStaff() {
+  const el = document.getElementById('ev-staff-list');
+  if (!el) return;
+  if (!evStaffList.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Sin staff registrado aún. Agrega el equipo del evento.</div>`;
+    return;
+  }
+  el.innerHTML = evStaffList.map(s => {
+    const color = EV_ROLE_COLORS[s.role] || '#94a3b8';
+    const label = EV_ROLE_LABELS[s.role] || s.role;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:50%;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${color};flex-shrink:0;">${(s.name||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name}</div>
+        <div style="font-size:11px;color:${color};font-weight:600;">${label}</div>
+        ${s.email ? `<div style="font-size:11px;color:var(--text-muted);">${s.email}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--surface2);padding:4px 10px;border-radius:6px;color:var(--text);" title="PIN de check-in">${s.pin}</div>
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;" onclick="evDeleteStaff('${s.id}','${(s.name||'').replace(/'/g,'')}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function evOpenAddStaff() {
+  document.getElementById('ev-add-staff-form').classList.remove('hidden');
+  document.getElementById('ev-staff-name').focus();
+  evGenPin();
+}
+
+function evCloseAddStaff() {
+  document.getElementById('ev-add-staff-form').classList.add('hidden');
+  ['ev-staff-name','ev-staff-email','ev-staff-phone','ev-staff-pin'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const role = document.getElementById('ev-staff-role'); if(role) role.value = '';
+}
+
+function evGenPin() {
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  const el = document.getElementById('ev-staff-pin');
+  if (el) el.value = pin;
+}
+
+async function evSaveStaff() {
+  const name = document.getElementById('ev-staff-name')?.value.trim();
+  const role = document.getElementById('ev-staff-role')?.value;
+  const email = document.getElementById('ev-staff-email')?.value.trim();
+  const phone = document.getElementById('ev-staff-phone')?.value.trim();
+  const pin = document.getElementById('ev-staff-pin')?.value.trim();
+  if (!name) { showStatus('El nombre es requerido', 'error'); return; }
+  if (!role) { showStatus('Selecciona un rol', 'error'); return; }
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, role, email: email||undefined, phone: phone||undefined, pin: pin||undefined })
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
+    evStaffList.push(data);
+    evRenderStaff();
+    evCloseAddStaff();
+    showStatus('Staff agregado', 'success');
+  } catch(e) { showStatus('Error al guardar', 'error'); }
+}
+
+async function evDeleteStaff(staffId, staffName) {
+  if (!confirm(`¿Eliminar a "${staffName}" del staff?`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${staffId}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
+    evStaffList = evStaffList.filter(s => s.id !== staffId);
+    evRenderStaff();
+    showStatus('Staff eliminado', 'success');
+  } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
 // ══ FIN GESTIÓN DE EVENTOS ══
