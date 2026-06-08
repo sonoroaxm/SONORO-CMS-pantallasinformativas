@@ -1544,7 +1544,7 @@
                 <!-- Acceso y confirmación -->
                 <div class="card">
                   <div class="card-title">Acceso y confirmación</div>
-                  <div style="display:flex;flex-direction:column;gap:8px;">
+                  <div style="display:flex;flex-direction:column;gap:10px;">
                     <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
                       <input type="checkbox" id="ev-edit-public" style="width:17px;height:17px;cursor:pointer;accent-color:#f59e0b;flex-shrink:0;">
                       <div>
@@ -1552,11 +1552,19 @@
                         <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Cualquier persona con el enlace puede inscribirse al evento</div>
                       </div>
                     </label>
-                    <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-                      <input type="checkbox" id="ev-edit-autoconfirm" style="width:17px;height:17px;cursor:pointer;accent-color:#00e676;flex-shrink:0;">
+                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);padding:0 2px;">Modo de confirmación</div>
+                    <label id="ev-opt-auto" onclick="evSelectConfirmMode('auto')" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:12px 14px;border-radius:8px;border:2px solid var(--border);">
+                      <input type="radio" name="ev-confirm-mode" value="auto" id="ev-confirm-auto" style="width:16px;height:16px;accent-color:#f59e0b;flex-shrink:0;margin-top:2px;">
                       <div>
                         <div style="font-size:13px;font-weight:700;">Confirmación automática</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Activo: llega el pase con QR al inscribirse · Inactivo: el organizador confirma manualmente y el QR llega al confirmar</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Al inscribirse llega el pase con código QR de forma inmediata</div>
+                      </div>
+                    </label>
+                    <label id="ev-opt-manual" onclick="evSelectConfirmMode('manual')" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:12px 14px;border-radius:8px;border:2px solid var(--border);">
+                      <input type="radio" name="ev-confirm-mode" value="manual" id="ev-confirm-manual" style="width:16px;height:16px;accent-color:#f59e0b;flex-shrink:0;margin-top:2px;">
+                      <div>
+                        <div style="font-size:13px;font-weight:700;">Confirmación manual</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">El inscrito recibe aviso de que será confirmado por el equipo del evento. Al confirmar desde el dashboard se envía el pase con QR</div>
                       </div>
                     </label>
                   </div>
@@ -4085,7 +4093,7 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-end').value = ev.ends_at ? ev.ends_at.substring(0,10) : '';
   document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
-  document.getElementById('ev-edit-autoconfirm').checked = !!(ev.config && ev.config.auto_confirm);
+  evSelectConfirmMode(ev.config?.auto_confirm ? 'auto' : 'manual');
   const ticketTypes = (ev.config && ev.config.ticket_types) || [];
   document.getElementById('ev-edit-ticket-types').value = ticketTypes.join('\n');
   const ticketChip = document.getElementById('ev-fixed-ticket-chip');
@@ -4156,6 +4164,18 @@ async function evSaveInfo() {
       showStatus('Evento actualizado', 'success');
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+function evSelectConfirmMode(mode) {
+  const isAuto = mode === 'auto';
+  document.getElementById('ev-confirm-auto').checked   = isAuto;
+  document.getElementById('ev-confirm-manual').checked = !isAuto;
+  const autoEl   = document.getElementById('ev-opt-auto');
+  const manualEl = document.getElementById('ev-opt-manual');
+  autoEl.style.borderColor   = isAuto  ? '#f59e0b' : 'var(--border)';
+  autoEl.style.background    = isAuto  ? 'rgba(245,158,11,0.06)' : '';
+  manualEl.style.borderColor = !isAuto ? '#f59e0b' : 'var(--border)';
+  manualEl.style.background  = !isAuto ? 'rgba(245,158,11,0.06)' : '';
 }
 
 function evCopyPublicUrl() {
@@ -4426,7 +4446,7 @@ async function evSaveFormConfig() {
     ...(evCurrentEvent.config || {}),
     registration_fields:       evFields,
     allow_public_registration: document.getElementById('ev-edit-public').checked,
-    auto_confirm:              document.getElementById('ev-edit-autoconfirm').checked,
+    auto_confirm:              document.getElementById('ev-confirm-auto').checked,
     max_capacity:              capVal2 ? parseInt(capVal2) : null,
   };
   try {
