@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro al evento</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #f5f5f5;
+      --surface: #ffffff;
+      --border:  #e5e5e5;
+      --text:    #111111;
+      --muted:   #777777;
+      --faint:   #aaaaaa;
+      --brand:   #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --success: #16A34A;
+      --error:   #DC2626;
+      --r:       12px;
+      --shadow:  0 1px 4px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .ev-header {
+      background: #111;
+      color: #fff;
+      padding: 40px 24px 36px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .ev-header::after {
+      content: '';
+      display: block;
+      height: 3px;
+      background: linear-gradient(135deg, #FF1B8D, #FF8C00, #FFE566);
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+    }
+    .ev-brand {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #FF1B8D, #FF8C00, #FFE566);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+    .ev-title {
+      font-size: clamp(22px, 5vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .ev-meta {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .ev-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,.7);
+      font-weight: 500;
+    }
+
+    /* ── Stepper ── */
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 24px 0;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      flex: 1;
+    }
+    .step-circle {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      position: relative; z-index: 1;
+      transition: all .2s;
+    }
+    .step.active .step-circle { border-color: var(--brand); background: var(--brand); color: #fff; }
+    .step.done  .step-circle  { border-color: var(--success); background: var(--success); color: #fff; }
+    .step-label { font-size: 10px; color: var(--faint); font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+    .step.active .step-label,
+    .step.done   .step-label  { color: var(--text); }
+    .step-line { flex: 1; height: 2px; background: var(--border); margin-bottom: 16px; transition: background .2s; }
+    .step-line.done { background: var(--success); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      max-width: 560px;
+      margin: 20px auto 0;
+      padding: 28px 28px 24px;
+    }
+    @media (max-width: 600px) { .card { margin: 16px 12px 0; padding: 20px 18px; } }
+    .card-title    { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .card-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    /* ── Capacity bar ── */
+    .cap-bar {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--muted);
+      padding: 10px 14px; background: #f9f9f9; border-radius: 8px; margin-bottom: 18px;
+      font-weight: 600;
+    }
+    .cap-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+    .cap-fill  { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #FF1B8D, #FF8C00); transition: width .4s; }
+
+    /* ── Form controls ── */
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+    label  { font-size: 12px; font-weight: 700; color: var(--text); }
+    label .req { color: var(--brand); margin-left: 2px; }
+    input[type=text], input[type=email], input[type=tel], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--brand); }
+    input.ev-err, select.ev-err { border-color: var(--error); }
+    .field-hint  { font-size: 11px; color: var(--faint); }
+    .field-error { font-size: 11px; color: var(--error); display: none; }
+    .field-error.show { display: block; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 480px) { .row-2 { grid-template-columns: 1fr; } }
+
+    /* ── Tel row (prefix + input) ── */
+    .tel-row { display: flex; gap: 8px; }
+    .tel-prefix { width: 90px; flex-shrink: 0; }
+
+    /* ── Session cards ── */
+    .session-list { display: flex; flex-direction: column; gap: 10px; }
+    .session-card {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 14px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      display: flex; align-items: flex-start; gap: 12px;
+      user-select: none;
+    }
+    .session-card.selected { border-color: var(--brand); background: #fff0f7; }
+    .session-card.full { opacity: .55; cursor: not-allowed; }
+    .session-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0; margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .session-card.selected .session-check { background: var(--brand); border-color: var(--brand); }
+    .session-info { flex: 1; }
+    .session-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .session-meta { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block;
+      padding: 1px 7px; border-radius: 20px;
+      font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      background: #f0f0f0; color: var(--muted); margin-left: 6px;
+    }
+
+    /* ── Terms ── */
+    .terms-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 14px; background: #f9f9f9; border-radius: 8px;
+      margin-top: 6px;
+    }
+    .terms-row input[type=checkbox] { width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px; accent-color: var(--brand); }
+    .terms-row label { font-size: 13px; font-weight: 400; color: var(--muted); cursor: pointer; line-height: 1.5; }
+    .terms-row a { color: var(--brand); text-decoration: none; }
+
+    /* ── Summary box ── */
+    .summary-box {
+      background: #f9f9f9; border-radius: 8px;
+      padding: 16px 18px; margin-bottom: 18px;
+    }
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; font-size: 13px; }
+    @media (max-width: 400px) { .summary-grid { grid-template-columns: 1fr; } }
+    .summary-label { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--faint); margin-bottom: 2px; }
+    .summary-val   { font-weight: 600; }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 12px; justify-content: space-between; margin-top: 24px; }
+    .btn {
+      padding: 11px 24px; border-radius: 8px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      border: none; outline: none; transition: opacity .15s, transform .1s;
+      font-family: inherit;
+    }
+    .btn:hover   { opacity: .9; }
+    .btn:active  { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #FF1B8D, #FF8C00); color: #fff; }
+    .btn-ghost   { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+
+    /* ── Success screen ── */
+    .success-wrap { text-align: center; padding: 8px 0 12px; }
+    .check-circle {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: #DCFCE7; margin: 0 auto 18px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #qr-canvas { display: block; margin: 20px auto; border-radius: 8px; }
+    .qr-token {
+      font-family: monospace; font-size: 11px;
+      background: #f4f4f4; padding: 6px 14px; border-radius: 6px;
+      display: inline-block; color: var(--muted);
+      word-break: break-all; max-width: 280px; margin: 0 auto;
+    }
+    .reminder-box {
+      margin-top: 24px; padding: 14px 16px;
+      background: #f9f9f9; border-radius: 8px;
+      text-align: left; font-size: 13px; color: var(--muted);
+    }
+    .reminder-box strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 13px; }
+    .reminder-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 7px; line-height: 1.4; }
+    .reminder-item:last-child { margin-bottom: 0; }
+    .reminder-arrow { color: var(--brand); flex-shrink: 0; }
+
+    /* ── Mi registro screen ── */
+    .reg-detail { text-align: center; padding: 8px 0 12px; }
+    .reg-detail .ticket-type {
+      display: inline-block; padding: 3px 12px; border-radius: 20px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      background: linear-gradient(135deg,#FF1B8D,#FF8C00); color: #fff; margin-bottom: 16px;
+    }
+    .sessions-detail { text-align: left; margin-top: 16px; }
+    .sessions-detail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); margin-bottom: 8px; }
+    .session-detail-row { padding: 8px 12px; background: #f4f4f4; border-radius: 6px; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+
+    /* ── Error / loading screens ── */
+    .status-card {
+      max-width: 480px; margin: 48px auto; text-align: center;
+      padding: 40px 24px;
+      background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow);
+    }
+    .status-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .status-card p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── Footer ── */
+    .ev-footer {
+      max-width: 560px; margin: 20px auto 48px;
+      text-align: center; font-size: 12px; color: var(--faint); line-height: 1.8;
+    }
+    .ev-footer a { color: var(--brand); text-decoration: none; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- EVENT HEADER -->
+<div class="ev-header" id="ev-header" style="display:none;">
+  <div class="ev-brand">SONORO · EVENTOS</div>
+  <h1 class="ev-title" id="ev-title"></h1>
+  <div class="ev-meta" id="ev-meta"></div>
+</div>
+
+<!-- STEPPER -->
+<div class="stepper" id="stepper" style="display:none;">
+  <div class="step active" id="step1"><div class="step-circle">1</div><div class="step-label">Datos</div></div>
+  <div class="step-line" id="line1"></div>
+  <div class="step" id="step2"><div class="step-circle">2</div><div class="step-label">Sesiones</div></div>
+  <div class="step-line" id="line2"></div>
+  <div class="step" id="step3"><div class="step-circle">3</div><div class="step-label">Confirmar</div></div>
+</div>
+
+<!-- LOADING -->
+<div class="status-card" id="screen-loading">
+  <p style="color:var(--faint);font-size:14px;">Cargando evento...</p>
+</div>
+
+<!-- ERROR -->
+<div class="status-card hidden" id="screen-error">
+  <h2 id="err-title">Evento no disponible</h2>
+  <p id="err-msg">Este evento no existe o el registro no está abierto.</p>
+</div>
+
+<!-- SCREEN 1: DATOS -->
+<div class="card hidden" id="screen1">
+  <div class="card-title">Tus datos</div>
+  <div class="card-subtitle">Completa la información para registrarte.</div>
+
+  <div class="cap-bar hidden" id="cap-bar">
+    <span id="cap-label">Cupos</span>
+    <div class="cap-track"><div class="cap-fill" id="cap-fill" style="width:0%"></div></div>
+    <span id="cap-count"></span>
+  </div>
+
+  <div class="row-2">
+    <div class="field">
+      <label for="f-name"><span id="l-name">Nombre completo</span><span class="req">*</span></label>
+      <input type="text" id="f-name" autocomplete="name">
+      <span class="field-error" id="err-name">Campo requerido</span>
+    </div>
+    <div class="field">
+      <label for="f-email"><span id="l-email">Correo electrónico</span><span class="req">*</span></label>
+      <input type="email" id="f-email" autocomplete="email">
+      <span class="field-error" id="err-email">Email inválido</span>
+    </div>
+  </div>
+
+  <div class="row-2">
+    <div class="field">
+      <label for="f-id-type"><span id="l-id-type">Tipo de documento</span></label>
+      <select id="f-id-type">
+        <option value="CC">Cédula de ciudadanía</option>
+        <option value="CE">Cédula de extranjería</option>
+        <option value="PA">Pasaporte</option>
+        <option value="NIT">NIT</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-id-number"><span id="l-id-number">Número de documento</span><span class="req">*</span></label>
+      <input type="text" id="f-id-number" inputmode="numeric">
+      <span class="field-error" id="err-id">Campo requerido</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label><span id="l-phone">Teléfono / Celular</span></label>
+    <div class="tel-row">
+      <select id="f-phone-prefix" class="tel-prefix">
+        <option value="+57">+57 CO</option>
+        <option value="+1">+1 US</option>
+        <option value="+52">+52 MX</option>
+        <option value="+51">+51 PE</option>
+        <option value="+56">+56 CL</option>
+        <option value="+54">+54 AR</option>
+        <option value="+55">+55 BR</option>
+        <option value="+34">+34 ES</option>
+        <option value="+44">+44 UK</option>
+        <option value="+33">+33 FR</option>
+        <option value="+49">+49 DE</option>
+      </select>
+      <input type="tel" id="f-phone" placeholder="300 000 0000" autocomplete="tel" style="flex:1;">
+    </div>
+  </div>
+
+  <div class="row-2">
+    <div class="field">
+      <label for="f-ticket-type"><span id="l-ticket">Tipo de entrada</span></label>
+      <select id="f-ticket-type"></select>
+    </div>
+    <div class="field">
+      <label for="f-org"><span id="l-org">Empresa / Institución</span></label>
+      <input type="text" id="f-org" autocomplete="organization">
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="f-job"><span id="l-job">Cargo</span></label>
+    <input type="text" id="f-job" autocomplete="organization-title">
+  </div>
+
+  <!-- Campos configurables (se inyectan aquí) -->
+  <div id="custom-fields"></div>
+
+  <!-- Honeypot (oculto) -->
+  <input type="text" id="hp_field" style="display:none;position:absolute;left:-9999px;" tabindex="-1" autocomplete="off">
+
+  <div class="btn-row">
+    <span></span>
+    <button class="btn btn-primary" onclick="step1Next()" id="btn-step1">Continuar</button>
+  </div>
+</div>
+
+<!-- SCREEN 2: SESIONES -->
+<div class="card hidden" id="screen2">
+  <div class="card-title" id="s2-title">Selecciona tus sesiones</div>
+  <div class="card-subtitle" id="s2-sub">Elige las sesiones a las que planeas asistir.</div>
+  <div class="session-list" id="session-list"></div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(1)">Atras</button>
+    <button class="btn btn-primary" onclick="step2Next()">Continuar</button>
+  </div>
+</div>
+
+<!-- SCREEN 3: CONFIRMAR -->
+<div class="card hidden" id="screen3">
+  <div class="card-title" id="s3-title">Confirmar registro</div>
+  <div class="card-subtitle" id="s3-sub">Revisa tus datos antes de registrarte.</div>
+
+  <div class="summary-box">
+    <div class="summary-grid" id="summary-grid"></div>
+    <button style="margin-top:12px;background:none;border:none;font-size:12px;color:var(--brand);cursor:pointer;font-family:inherit;padding:0;font-weight:700;" onclick="goTo(1)" id="btn-edit">Editar datos</button>
+  </div>
+
+  <div class="terms-row">
+    <input type="checkbox" id="f-terms" onchange="document.getElementById('btn-register').disabled=!this.checked">
+    <label for="f-terms" id="l-terms">
+      He leído y acepto la <a href="#" onclick="return false">Política de Tratamiento de Datos</a> y los <a href="#" onclick="return false">Términos del evento</a>.
+    </label>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-ghost" onclick="goTo(hasSessions ? 2 : 1)" id="btn-back3">Atras</button>
+    <button class="btn btn-primary" id="btn-register" disabled onclick="doRegister()">Registrarme</button>
+  </div>
+</div>
+
+<!-- SCREEN 4: CONFIRMACIÓN -->
+<div class="card hidden" id="screen4">
+  <div class="success-wrap">
+    <div class="check-circle">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:8px;" id="s4-title">Registro exitoso</h2>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;" id="s4-msg"></p>
+    <canvas id="qr-canvas" width="200" height="200"></canvas>
+    <div class="qr-token" id="qr-token-text"></div>
+    <div class="reminder-box">
+      <strong id="r-title">Recuerda</strong>
+      <div class="reminder-item"><span class="reminder-arrow">→</span><span id="r1">Guarda el email con tu codigo QR o captura esta pantalla</span></div>
+      <div class="reminder-item"><span class="reminder-arrow">→</span><span id="r2">El mismo QR aplica para todos los dias del evento</span></div>
+      <div class="reminder-item"><span class="reminder-arrow">→</span><span id="r3">Presentalo en el acceso principal al ingresar</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MI REGISTRO (lookup por QR desde email) -->
+<div class="card hidden" id="screen-mi-reg">
+  <div class="reg-detail">
+    <div id="mreg-ticket" class="ticket-type"></div>
+    <h2 style="font-size:19px;font-weight:800;margin-bottom:6px;" id="mreg-name"></h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:4px;" id="mreg-email"></p>
+    <canvas id="qr-canvas-mreg" width="180" height="180" style="display:block;margin:18px auto;border-radius:8px;"></canvas>
+    <div class="qr-token" id="mreg-qr-token"></div>
+    <div class="sessions-detail hidden" id="mreg-sessions">
+      <div class="sessions-detail-title" id="mreg-sess-label">Sesiones registradas</div>
+      <div id="mreg-sess-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="ev-footer" id="ev-footer">
+  Impulsado por <a href="https://sonoro.com.co" target="_blank">SONORO AV</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+'use strict';
+
+const API_URL   = window.location.origin;
+const parts     = window.location.pathname.split('/').filter(Boolean);
+// /evento/:slug  OR  /evento/:slug/mi-registro/:qr
+const SLUG      = parts[1] || '';
+const IS_MREG   = parts[2] === 'mi-registro';
+const MREG_QR   = IS_MREG ? (parts[3] || '') : '';
+
+let EVENT       = null;
+let LANG        = 'es';
+let hasSessions = false;
+let selectedSessions = new Set();
+let FORM_START  = Date.now();
+
+const L = {
+  es: {
+    loading:      'Cargando evento...',
+    noEvent:      'Evento no disponible',
+    noEventMsg:   'Este evento no existe o el registro no esta abierto.',
+    full:         'Evento lleno',
+    fullMsg:      'Este evento ha alcanzado su capacidad maxima.',
+    screen1Title: 'Tus datos',
+    screen1Sub:   'Completa la informacion para registrarte.',
+    name:         'Nombre completo', email: 'Correo electronico',
+    idType:       'Tipo de documento', idNumber: 'Numero de documento',
+    phone:        'Telefono / Celular', ticket: 'Tipo de entrada',
+    org:          'Empresa / Institucion', job: 'Cargo',
+    continue:     'Continuar', back: 'Atras', register: 'Registrarme',
+    screen2Title: 'Selecciona tus sesiones',
+    screen2Sub:   'Elige las sesiones a las que planeas asistir.',
+    screen3Title: 'Confirmar registro',
+    screen3Sub:   'Revisa tus datos antes de registrarte.',
+    terms:        'He leido y acepto la <a href="#" onclick="return false">Politica de Tratamiento de Datos</a> y los <a href="#" onclick="return false">Terminos del evento</a>.',
+    edit:         'Editar datos',
+    sessions:     'Sesiones seleccionadas',
+    s4Title:      'Registro exitoso',
+    s4Msg:        (email) => `Te enviamos un email a <strong>${email}</strong> con tu codigo QR de acceso.`,
+    remTitle:     'Recuerda',
+    rem1:         'Guarda el email con tu codigo QR o captura esta pantalla',
+    rem2:         'El mismo QR aplica para todos los dias del evento',
+    rem3:         'Presentalo en el acceso principal al ingresar',
+    caps:         'Cupos',
+    sessLabel:    'Sesiones registradas',
+    reqErr:       'Campo requerido',
+    emailErr:     'Email invalido',
+    full_cap:     (cur, max) => `${cur} / ${max}`,
+    no_sessions:  'Este evento no tiene sesiones configuradas.',
+  },
+  en: {
+    loading:      'Loading event...',
+    noEvent:      'Event not available',
+    noEventMsg:   'This event does not exist or registration is not open.',
+    full:         'Event full',
+    fullMsg:      'This event has reached its maximum capacity.',
+    screen1Title: 'Your information',
+    screen1Sub:   'Fill in your details to register.',
+    name:         'Full name', email: 'Email address',
+    idType:       'ID type', idNumber: 'ID number',
+    phone:        'Phone', ticket: 'Ticket type',
+    org:          'Company / Institution', job: 'Job title',
+    continue:     'Continue', back:  'Back', register: 'Register',
+    screen2Title: 'Select your sessions',
+    screen2Sub:   'Choose the sessions you plan to attend.',
+    screen3Title: 'Confirm registration',
+    screen3Sub:   'Review your details before registering.',
+    terms:        'I have read and accept the <a href="#" onclick="return false">Data Privacy Policy</a> and the <a href="#" onclick="return false">Event Terms</a>.',
+    edit:         'Edit details',
+    sessions:     'Selected sessions',
+    s4Title:      'Registration successful',
+    s4Msg:        (email) => `We sent an email to <strong>${email}</strong> with your QR access code.`,
+    remTitle:     'Remember',
+    rem1:         'Save the email with your QR code or screenshot this page',
+    rem2:         'The same QR applies for all days of the event',
+    rem3:         'Present it at the main entrance when you arrive',
+    caps:         'Capacity',
+    sessLabel:    'Registered sessions',
+    reqErr:       'Required field',
+    emailErr:     'Invalid email',
+    full_cap:     (cur, max) => `${cur} / ${max}`,
+    no_sessions:  'This event has no sessions configured.',
+  }
+};
+
+function t(key, ...args) {
+  const val = L[LANG][key];
+  return typeof val === 'function' ? val(...args) : (val || key);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+async function init() {
+  if (!SLUG) { showError(t('noEvent'), t('noEventMsg')); return; }
+  if (IS_MREG && MREG_QR) { await loadMiRegistro(); return; }
+  await loadEvent();
+}
+
+async function loadEvent() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/public/${SLUG}`);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      showError(t('noEvent'), d.error || t('noEventMsg'));
+      return;
+    }
+    EVENT = await res.json();
+    renderHeader();
+    renderCapacity();
+    renderTicketTypes();
+    renderCustomFields();
+    renderSessions();
+    detectLang();
+    hide('screen-loading');
+    show('ev-header');
+    show('stepper');
+    goTo(1);
+  } catch(e) {
+    showError(t('noEvent'), t('noEventMsg'));
+  }
+}
+
+async function loadMiRegistro() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/public/${SLUG}/registration/${MREG_QR}`);
+    if (!res.ok) { showError('Registro no encontrado', 'El codigo QR no corresponde a ningun registro.'); return; }
+    const reg = await res.json();
+    // Load event for header
+    const evRes = await fetch(`${API_URL}/api/events/public/${SLUG}`);
+    if (evRes.ok) { EVENT = await evRes.json(); renderHeader(); show('ev-header'); }
+    hide('screen-loading');
+    renderMiRegistro(reg);
+    show('screen-mi-reg');
+    show('ev-footer');
+  } catch(e) {
+    showError('Error', 'No se pudo cargar el registro.');
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+
+function renderHeader() {
+  document.getElementById('ev-title').textContent = EVENT.name;
+  document.title = EVENT.name + ' — Registro';
+  const tz = EVENT.timezone || 'UTC';
+  const s  = new Date(EVENT.starts_at);
+  const e  = new Date(EVENT.ends_at);
+  const fmtDate = (d) => d.toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  let metaHtml = `
+    <div class="ev-meta-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      ${fmtDate(s)}${fmtDate(s) !== fmtDate(e) ? ' — ' + fmtDate(e) : ''}
+    </div>`;
+  if (EVENT.venue_name) {
+    metaHtml += `
+    <div class="ev-meta-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="3"/></svg>
+      ${EVENT.venue_name}
+    </div>`;
+  }
+  document.getElementById('ev-meta').innerHTML = metaHtml;
+}
+
+function renderCapacity() {
+  const cfg = EVENT.config || {};
+  if (!cfg.max_capacity) return;
+  const registered = EVENT.registered_count || 0;
+  const pct = Math.min(100, Math.round(registered / cfg.max_capacity * 100));
+  document.getElementById('cap-label').textContent = t('caps');
+  document.getElementById('cap-count').textContent = `${registered} / ${cfg.max_capacity}`;
+  document.getElementById('cap-fill').style.width = pct + '%';
+  show('cap-bar');
+  if (registered >= cfg.max_capacity) {
+    showError(t('full'), t('fullMsg'));
+    return;
+  }
+}
+
+function renderTicketTypes() {
+  const sel = document.getElementById('f-ticket-type');
+  const types = EVENT.config?.ticket_types;
+  if (types && types.length) {
+    sel.innerHTML = types.map(tt => `<option value="${tt.value || tt}">${tt.label || tt}</option>`).join('');
+  } else {
+    sel.innerHTML = '<option value="general">General</option>';
+  }
+}
+
+function renderCustomFields() {
+  const fields = EVENT.config?.registration_fields || [];
+  const container = document.getElementById('custom-fields');
+  container.innerHTML = fields.map((f, i) => {
+    const label = (LANG === 'es' ? f.labelEs : f.labelEn) || f.labelEs || f.key;
+    if (!label) return '';
+    let input = '';
+    if (f.type === 'text') {
+      input = `<input type="text" id="cf-${f.key}" data-cf="${f.key}" ${f.required ? 'required' : ''}>`;
+    } else if (f.type === 'tel') {
+      input = `<div class="tel-row">
+        <select id="cf-${f.key}-prefix" class="tel-prefix">
+          <option value="+57">+57 CO</option><option value="+1">+1 US</option>
+          <option value="+52">+52 MX</option><option value="+34">+34 ES</option>
+          <option value="+44">+44 UK</option>
+        </select>
+        <input type="tel" id="cf-${f.key}" data-cf="${f.key}" style="flex:1;" ${f.required ? 'required' : ''}>
+      </div>`;
+    } else if (f.type === 'select') {
+      const opts = (f.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
+      input = `<select id="cf-${f.key}" data-cf="${f.key}">${opts}</select>`;
+    } else if (f.type === 'boolean') {
+      input = `<select id="cf-${f.key}" data-cf="${f.key}">
+        <option value="si">${LANG === 'es' ? 'Si' : 'Yes'}</option>
+        <option value="no">No</option>
+      </select>`;
+    }
+    const condAttr = f.condition ? ` data-cond-field="${f.condition.field}" data-cond-value="${f.condition.value}"` : '';
+    const reqBadge = f.required ? '<span class="req">*</span>' : '';
+    return `<div class="field" id="cfw-${f.key}"${condAttr} style="${f.condition ? 'display:none;' : ''}">
+      <label for="cf-${f.key}">${label}${reqBadge}</label>
+      ${input}
+      ${f.required ? `<span class="field-error" id="err-cf-${f.key}">${t('reqErr')}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  // Listeners para condiciones
+  container.querySelectorAll('[data-cf]').forEach(el => {
+    el.addEventListener('change', updateConditions);
+  });
+  document.getElementById('f-ticket-type').addEventListener('change', updateConditions);
+}
+
+function updateConditions() {
+  document.querySelectorAll('[data-cond-field]').forEach(wrap => {
+    const field = wrap.dataset.condField;
+    const value = wrap.dataset.condValue;
+    const src = document.getElementById('cf-' + field) || document.getElementById('f-' + field) || document.getElementById('f-ticket-type');
+    const show_ = src && src.value === value;
+    wrap.style.display = show_ ? '' : 'none';
+    if (!show_) { const inp = wrap.querySelector('input,select'); if (inp) inp.value = inp.tagName === 'SELECT' ? inp.options[0]?.value : ''; }
+  });
+}
+
+function renderSessions() {
+  const sessions = EVENT.sessions || [];
+  hasSessions = sessions.length > 0;
+  if (!hasSessions) return;
+  const tz = EVENT.timezone || 'UTC';
+  const list = document.getElementById('session-list');
+  list.innerHTML = sessions.map(s => {
+    const start = new Date(s.starts_at);
+    const end   = new Date(s.ends_at);
+    const dateStr = start.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz });
+    const startT  = start.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+    const endT    = end.toLocaleTimeString('es-CO',   { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+    const isFull  = s.capacity && parseInt(s.registered_count) >= parseInt(s.capacity);
+    const typeLabel = { plenary: 'Plenaria', workshop: 'Taller', meal: 'Comida', breakout: 'Sala', networking: 'Networking' }[s.session_type] || '';
+    return `<div class="session-card${isFull ? ' full' : ''}" id="sc-${s.id}" onclick="${isFull ? '' : `toggleSession('${s.id}')`}" data-session-id="${s.id}">
+      <div class="session-check">
+        <svg width="10" height="10" viewBox="0 0 12 10" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="1,5 4,8 11,1"/></svg>
+      </div>
+      <div class="session-info">
+        <div class="session-name">${s.name}${typeLabel ? `<span class="badge">${typeLabel}</span>` : ''}</div>
+        <div class="session-meta">
+          <span>${dateStr} &middot; ${startT} – ${endT}</span>
+          ${s.venue_zone ? `<span>${s.venue_zone}</span>` : ''}
+          ${isFull ? '<span style="color:var(--error);font-weight:700;">Sin cupos</span>' : (s.capacity ? `<span>Cap. ${s.capacity}</span>` : '')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMiRegistro(reg) {
+  document.getElementById('mreg-name').textContent  = reg.name || '';
+  document.getElementById('mreg-email').textContent = reg.email || '';
+  document.getElementById('mreg-ticket').textContent = (reg.ticket_type || 'general').toUpperCase();
+  document.getElementById('mreg-qr-token').textContent = reg.qr_token || '';
+  QRCode.toCanvas(document.getElementById('qr-canvas-mreg'), reg.qr_token || '', { width: 180, margin: 2, color: { dark: '#111111', light: '#ffffff' } });
+  if (reg.sessions && reg.sessions.length) {
+    const tz = EVENT?.timezone || 'UTC';
+    document.getElementById('mreg-sess-label').textContent = t('sessLabel');
+    document.getElementById('mreg-sess-list').innerHTML = reg.sessions.map(s =>
+      `<div class="session-detail-row">${s.name}${s.starts_at ? ' &middot; ' + new Date(s.starts_at).toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz }) : ''}</div>`
+    ).join('');
+    show('mreg-sessions');
+  }
+}
+
+function detectLang() {
+  const nav = (navigator.language || 'es').substring(0, 2).toLowerCase();
+  LANG = nav === 'en' ? 'en' : 'es';
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+
+let currentStep = 1;
+
+function goTo(n) {
+  ['screen1','screen2','screen3','screen4'].forEach(id => hide(id));
+  show('screen' + n);
+  currentStep = n;
+  updateStepper(n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepper(n) {
+  for (let i = 1; i <= 3; i++) {
+    const step = document.getElementById('step' + i);
+    if (!step) continue;
+    step.className = 'step' + (i < n ? ' done' : (i === n && n <= 3 ? ' active' : ''));
+  }
+  for (let i = 1; i <= 2; i++) {
+    const line = document.getElementById('line' + i);
+    if (line) line.className = 'step-line' + (i < n ? ' done' : '');
+  }
+  document.getElementById('stepper').style.display = n === 4 ? 'none' : 'flex';
+}
+
+function step1Next() {
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const idNum = document.getElementById('f-id-number').value.trim();
+  let ok = true;
+  setErr('f-name',     'err-name',  !name,  t('reqErr'));
+  setErr('f-email',    'err-email', !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), t('emailErr'));
+  setErr('f-id-number','err-id',    !idNum, t('reqErr'));
+  if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !idNum) ok = false;
+  // Validate required custom fields
+  document.querySelectorAll('[data-cf][required]').forEach(el => {
+    const wrap = el.closest('.field');
+    if (wrap && wrap.style.display === 'none') return;
+    if (!el.value.trim()) {
+      ok = false;
+      el.classList.add('ev-err');
+      const errEl = document.getElementById('err-cf-' + el.dataset.cf);
+      if (errEl) errEl.classList.add('show');
+    } else {
+      el.classList.remove('ev-err');
+      const errEl = document.getElementById('err-cf-' + el.dataset.cf);
+      if (errEl) errEl.classList.remove('show');
+    }
+  });
+  if (!ok) return;
+  if (hasSessions) { buildSummary(); goTo(2); }
+  else             { buildSummary(); goTo(3); }
+}
+
+function step2Next() {
+  buildSummary();
+  goTo(3);
+}
+
+function setErr(inputId, errId, hasErr, msg) {
+  const inp = document.getElementById(inputId);
+  const err = document.getElementById(errId);
+  if (inp) inp.classList.toggle('ev-err', hasErr);
+  if (err) { err.textContent = msg; err.classList.toggle('show', hasErr); }
+}
+
+function toggleSession(id) {
+  const card = document.getElementById('sc-' + id);
+  if (!card || card.classList.contains('full')) return;
+  card.classList.toggle('selected');
+  if (card.classList.contains('selected')) selectedSessions.add(id);
+  else selectedSessions.delete(id);
+}
+
+function buildSummary() {
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const idType = document.getElementById('f-id-type').value;
+  const idNum  = document.getElementById('f-id-number').value.trim();
+  const ticket = document.getElementById('f-ticket-type');
+  const ticketLabel = ticket.options[ticket.selectedIndex]?.text || '';
+  const sessNames = [...selectedSessions].map(sid => {
+    const card = document.getElementById('sc-' + sid);
+    return card ? card.querySelector('.session-name').textContent.trim() : sid;
+  });
+  let rows = `
+    <div><div class="summary-label">${t('name')}</div><div class="summary-val">${name}</div></div>
+    <div><div class="summary-label">${t('email')}</div><div class="summary-val">${email}</div></div>
+    <div><div class="summary-label">${t('idNumber')}</div><div class="summary-val">${idType} ${idNum}</div></div>
+    <div><div class="summary-label">${t('ticket')}</div><div class="summary-val">${ticketLabel}</div></div>
+  `;
+  if (sessNames.length) {
+    rows += `<div style="grid-column:1/-1;"><div class="summary-label">${t('sessions')}</div><div class="summary-val">${sessNames.join(' · ')}</div></div>`;
+  }
+  document.getElementById('summary-grid').innerHTML = rows;
+  document.getElementById('l-terms').innerHTML = t('terms');
+  document.getElementById('btn-edit').textContent = t('edit');
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────────────────────
+
+async function doRegister() {
+  const btn = document.getElementById('btn-register');
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  const phonePrefix = document.getElementById('f-phone-prefix').value;
+  const phoneNum    = document.getElementById('f-phone').value.trim();
+  const phone = phoneNum ? phonePrefix + ' ' + phoneNum : '';
+
+  const custom_fields = {};
+  document.querySelectorAll('[data-cf]').forEach(el => {
+    const wrap = el.closest('.field');
+    if (wrap && wrap.style.display === 'none') return;
+    const key = el.dataset.cf;
+    if (key && el.value) {
+      if (el.id.endsWith('-prefix')) return;
+      // tel with prefix
+      const prefix = document.getElementById(el.id + '-prefix');
+      custom_fields[key] = prefix ? prefix.value + ' ' + el.value : el.value;
+    }
+  });
+
+  const body = {
+    name:          document.getElementById('f-name').value.trim(),
+    email:         document.getElementById('f-email').value.trim(),
+    phone,
+    id_type:       document.getElementById('f-id-type').value,
+    id_number:     document.getElementById('f-id-number').value.trim(),
+    organization:  document.getElementById('f-org').value.trim(),
+    job_title:     document.getElementById('f-job').value.trim(),
+    ticket_type:   document.getElementById('f-ticket-type').value,
+    session_ids:   [...selectedSessions],
+    custom_fields,
+    hp_field:      document.getElementById('hp_field').value,
+    accepted_terms: true,
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/api/events/public/${SLUG}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':       'application/json',
+        'X-Form-Started-At':  String(FORM_START),
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (res.ok && data.qr_token) {
+      showSuccess(body.email, data.qr_token);
+    } else if (res.status === 409) {
+      btn.disabled = false;
+      btn.textContent = t('register');
+      alert(data.error || 'Ya estas registrado en este evento.');
+    } else {
+      btn.disabled = false;
+      btn.textContent = t('register');
+      alert(data.error || 'Error al registrar. Intenta de nuevo.');
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = t('register');
+    alert('Error de conexion. Verifica tu internet e intenta de nuevo.');
+  }
+}
+
+function showSuccess(email, qrToken) {
+  hide('stepper');
+  goTo(4);
+  document.getElementById('s4-title').textContent = t('s4Title');
+  document.getElementById('s4-msg').innerHTML = t('s4Msg', email);
+  document.getElementById('qr-token-text').textContent = qrToken;
+  document.getElementById('r-title').textContent = t('remTitle');
+  document.getElementById('r1').textContent = t('rem1');
+  document.getElementById('r2').textContent = t('rem2');
+  document.getElementById('r3').textContent = t('rem3');
+  QRCode.toCanvas(document.getElementById('qr-canvas'), qrToken, {
+    width: 200, margin: 2,
+    color: { dark: '#111111', light: '#ffffff' }
+  });
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+function showError(title, msg) {
+  hide('screen-loading');
+  hide('stepper');
+  document.getElementById('err-title').textContent = title;
+  document.getElementById('err-msg').textContent   = msg;
+  show('screen-error');
+  show('ev-footer');
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+
+init();
+</script>
+</body>
+</html>

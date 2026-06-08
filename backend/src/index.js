@@ -7138,6 +7138,9 @@ app.use('/api/events',        eventsRouter);
 app.get('/evento/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
 });
+app.get('/evento/:slug/mi-registro/:qr', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
 app.get('/evento/:slug/staff', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-staff.html'));
 });
