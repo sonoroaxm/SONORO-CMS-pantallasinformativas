@@ -136,7 +136,7 @@ router.patch('/:id', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
-                   'venue_name', 'venue_address', 'cover_image_url', 'config', 'max_capacity'];
+                   'venue_name', 'venue_address', 'cover_image_url', 'config'];
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   if (!fields.length) return res.status(400).json({ error: 'Nada que actualizar' });
 
@@ -432,6 +432,21 @@ router.patch('/:id/registrations/:regId/status', auth, async (req, res) => {
     }
 
     res.json({ id: rows[0].id, status: rows[0].status });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── ELIMINAR REGISTRO (permanente) ────────────────────────────────────────────
+router.delete('/:id/registrations/:regId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM events.registrations r
+       USING events.events e
+       WHERE r.id = $1 AND r.event_id = e.id AND e.user_id = $2`,
+      [req.params.regId, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Registro no encontrado' });
+    res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
