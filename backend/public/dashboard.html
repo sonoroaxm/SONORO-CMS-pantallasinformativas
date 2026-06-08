@@ -338,6 +338,40 @@
     }
     .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(255,27,141,0.25); }
     .sidebar-group.atencion .sidebar-children-inner { border-color: rgba(0,200,255,0.2); }
+    .sidebar-group.eventos .sidebar-group-label { color: #f59e0b; }
+    .sidebar-group.eventos .sidebar-group-header:hover { background: rgba(245,158,11,0.06); }
+    .sidebar-group.eventos .tab-btn.active { background: rgba(245,158,11,0.1); color: #f59e0b; }
+    .sidebar-group.eventos .tab-btn:hover { color: #f59e0b; }
+    .sidebar-group.eventos .sidebar-indicator { background: #f59e0b; }
+    .sidebar-group.eventos .sidebar-children-inner { border-color: rgba(245,158,11,0.25); }
+
+    /* ── EVENTOS sub-tabs ── */
+    .ev-sub-tab {
+      padding: 8px 18px; background: transparent; border: none;
+      color: var(--text-muted); font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .ev-sub-tab:hover { color: var(--text); }
+    .ev-sub-tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
+    .ev-sub-panel { }
+
+    /* ── EVENTOS field chip ── */
+    .ev-field-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .ev-field-chip:hover { border-color: rgba(245,158,11,0.4); }
+    .ev-field-chip.active { border-color: #f59e0b; background: rgba(245,158,11,0.08); }
+    .ev-field-chip .ev-chip-drag { color: var(--text-muted); cursor: grab; }
+    .ev-field-chip .ev-chip-type { font-size:10px; color:var(--text-muted); background:var(--surface3); padding:2px 6px; border-radius:4px; font-weight:700; text-transform:uppercase; }
+    .ev-field-chip .ev-chip-req { color:#f59e0b; font-size:12px; margin-left:auto; }
+    .ev-field-chip .ev-chip-del { color:var(--text-muted); margin-left:4px; font-size:16px; line-height:1; transition:color .15s; }
+    .ev-field-chip .ev-chip-del:hover { color: #ff4444; }
 
     .tab-btn {
       display: flex; align-items: center; gap: 10px;
@@ -1104,6 +1138,7 @@
 
       <!-- GRUPO 2: Gestión de la Atención -->
       <div class="sidebar-group atencion open hidden-feature" id="group-atencion">
+
         <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-atencion')">
           <div class="sidebar-group-label">Gestión de<br>la Atención</div>
           <div class="sidebar-group-arrow">▶</div>
@@ -1112,6 +1147,22 @@
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="queue">Puntos de Atención</button>
             <button class="tab-btn" onclick="window.open('/atencion/reportes','_blank')">Reportes ↗</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Divisor -->
+      <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
+
+      <!-- GRUPO 3: Gestión de Eventos -->
+      <div class="sidebar-group eventos open hidden-feature" id="group-eventos">
+        <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-eventos')">
+          <div class="sidebar-group-label">Gestión de<br>Eventos</div>
+          <div class="sidebar-group-arrow">▶</div>
+        </div>
+        <div class="sidebar-children">
+          <div class="sidebar-children-inner">
+            <button class="tab-btn" data-tab="events">Mis Eventos</button>
           </div>
         </div>
       </div>
@@ -1323,6 +1374,267 @@
         </div>
       </div>
 
+      <!-- ══ GESTIÓN DE EVENTOS ══ -->
+      <div id="events-tab" class="container hidden">
+
+        <!-- VISTA: Lista de Eventos -->
+        <div id="ev-list-view">
+          <div class="section-header">
+            <div class="section-title">Mis Eventos</div>
+            <button class="btn btn-grad" onclick="evShowView('new')">+ Nuevo Evento</button>
+          </div>
+          <div id="ev-list-grid" style="display:grid;gap:16px;"></div>
+        </div>
+
+        <!-- VISTA: Nuevo Evento -->
+        <div id="ev-new-view" class="hidden">
+          <div class="section-header">
+            <div class="section-title">Nuevo Evento</div>
+            <button class="btn btn-outline btn-sm" onclick="evShowView('list')">← Volver</button>
+          </div>
+          <div class="card" style="max-width:700px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div class="form-group" style="grid-column:1/-1;margin:0;">
+                <label>Nombre del evento *</label>
+                <input type="text" id="ev-new-name" placeholder="Ej: Convención SONORO 2026">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Fecha inicio *</label>
+                <input type="date" id="ev-new-start">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Fecha fin *</label>
+                <input type="date" id="ev-new-end">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Zona horaria</label>
+                <select id="ev-new-tz">
+                  <option value="America/Bogota">America/Bogota</option>
+                  <option value="America/Lima">America/Lima</option>
+                  <option value="America/Mexico_City">America/Mexico_City</option>
+                  <option value="America/New_York">America/New_York</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles</option>
+                  <option value="Europe/Madrid">Europe/Madrid</option>
+                  <option value="UTC">UTC</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Capacidad máxima</label>
+                <input type="number" id="ev-new-capacity" placeholder="Ej: 500" min="1">
+              </div>
+              <div class="form-group" style="grid-column:1/-1;margin:0;">
+                <label>Descripción</label>
+                <textarea id="ev-new-desc" rows="3" placeholder="Descripción pública del evento..." style="resize:vertical;"></textarea>
+              </div>
+              <div class="form-group" style="grid-column:1/-1;margin:0;">
+                <label>Venue / Lugar</label>
+                <input type="text" id="ev-new-venue" placeholder="Ej: Hotel Tequendama, Bogotá">
+              </div>
+            </div>
+            <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+              <button class="btn btn-outline" onclick="evShowView('list')">Cancelar</button>
+              <button class="btn btn-grad" onclick="evSaveNew()">Crear Evento →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISTA: Detalle de Evento -->
+        <div id="ev-detail-view" class="hidden">
+          <div class="section-header">
+            <div>
+              <div class="section-title" id="ev-detail-title">Evento</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="ev-detail-slug"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="evShowView('list')">← Mis Eventos</button>
+          </div>
+
+          <!-- Sub-tabs del detalle -->
+          <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px;">
+            <button class="ev-sub-tab active" data-evtab="info" onclick="evSwitchSubTab('info')">Información</button>
+            <button class="ev-sub-tab" data-evtab="form" onclick="evSwitchSubTab('form')">Formulario</button>
+            <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
+          </div>
+
+          <!-- SUB-TAB: Información -->
+          <div id="ev-sub-info" class="ev-sub-panel">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+              <div class="card">
+                <div class="card-title">Datos del evento</div>
+                <div style="display:grid;gap:12px;">
+                  <div class="form-group" style="margin:0;"><label>Nombre</label><input type="text" id="ev-edit-name"></div>
+                  <div class="form-group" style="margin:0;"><label>Descripción</label><textarea id="ev-edit-desc" rows="3" style="resize:vertical;"></textarea></div>
+                  <div class="form-group" style="margin:0;"><label>Venue</label><input type="text" id="ev-edit-venue"></div>
+                  <div class="form-group" style="margin:0;"><label>Capacidad</label><input type="number" id="ev-edit-capacity" min="1"></div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group" style="margin:0;"><label>Fecha inicio</label><input type="date" id="ev-edit-start"></div>
+                    <div class="form-group" style="margin:0;"><label>Fecha fin</label><input type="date" id="ev-edit-end"></div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Zona horaria</label>
+                    <select id="ev-edit-tz">
+                      <option value="America/Bogota">America/Bogota</option>
+                      <option value="America/Lima">America/Lima</option>
+                      <option value="America/Mexico_City">America/Mexico_City</option>
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles</option>
+                      <option value="Europe/Madrid">Europe/Madrid</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                      <input type="checkbox" id="ev-edit-public" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;">
+                      Registro público habilitado
+                    </label>
+                  </div>
+                  <button class="btn btn-grad" onclick="evSaveInfo()" style="margin-top:4px;">Guardar cambios</button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                  Sesiones / Jornadas
+                  <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()">+ Agregar</button>
+                </div>
+                <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
+                <!-- Formulario añadir sesión (oculto) -->
+                <div id="ev-add-session-form" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                  <div style="display:grid;gap:10px;">
+                    <div class="form-group" style="margin:0;"><label>Nombre de la sesión</label><input type="text" id="ev-sess-name" placeholder="Ej: Día 1 — Mañana"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                      <div class="form-group" style="margin:0;"><label>Fecha</label><input type="date" id="ev-sess-date"></div>
+                      <div class="form-group" style="margin:0;"><label>Cupo (opc.)</label><input type="number" id="ev-sess-cap" placeholder="Sin límite"></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                      <div class="form-group" style="margin:0;"><label>Hora inicio</label><input type="time" id="ev-sess-start"></div>
+                      <div class="form-group" style="margin:0;"><label>Hora fin</label><input type="time" id="ev-sess-end"></div>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                      <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()">Cancelar</button>
+                      <button class="btn btn-primary btn-sm" onclick="evSaveSession()">Guardar sesión</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Info del enlace público -->
+            <div class="card" style="margin-top:16px;background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2);">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:4px;">Formulario de registro público</div>
+                  <div id="ev-public-url" style="font-size:12px;color:var(--text-muted);font-family:monospace;"></div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="evCopyPublicUrl()" style="border-color:#f59e0b;color:#f59e0b;">Copiar enlace</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB: Formulario -->
+          <div id="ev-sub-form" class="ev-sub-panel hidden">
+            <div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
+              <!-- Constructor -->
+              <div>
+                <div class="card" style="margin-bottom:16px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <div class="card-title" style="margin:0;">Campos configurables</div>
+                    <div style="display:flex;gap:8px;">
+                      <div style="font-size:11px;color:var(--text-muted);background:var(--surface3);padding:4px 10px;border-radius:6px;font-weight:600;">
+                        Fijos: nombre · email · teléfono
+                      </div>
+                    </div>
+                  </div>
+                  <div id="ev-fields-list" style="display:grid;gap:6px;min-height:60px;"></div>
+                </div>
+                <!-- Botones añadir campo -->
+                <div class="card">
+                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Añadir campo</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="evAddField('text')">+ Texto</button>
+                    <button class="btn btn-outline btn-sm" onclick="evAddField('select')">+ Selección</button>
+                    <button class="btn btn-outline btn-sm" onclick="evAddField('boolean')">+ Sí / No</button>
+                    <button class="btn btn-outline btn-sm" onclick="evAddField('tel')">+ Teléfono</button>
+                  </div>
+                </div>
+                <!-- Panel edición campo activo -->
+                <div id="ev-field-editor" class="card hidden" style="margin-top:16px;border-color:rgba(245,158,11,0.4);">
+                  <div class="card-title" style="color:#f59e0b;">Editar campo</div>
+                  <div style="display:grid;gap:12px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                      <div class="form-group" style="margin:0;"><label>Etiqueta (ES)</label><input type="text" id="ev-fe-label-es" oninput="evFieldPreviewUpdate()"></div>
+                      <div class="form-group" style="margin:0;"><label>Label (EN)</label><input type="text" id="ev-fe-label-en" oninput="evFieldPreviewUpdate()"></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <input type="checkbox" id="ev-fe-required" style="width:16px;height:16px;accent-color:#f59e0b;">
+                      <label for="ev-fe-required" style="font-size:13px;font-weight:600;cursor:pointer;">Campo obligatorio</label>
+                    </div>
+                    <div id="ev-fe-options-wrap" class="hidden">
+                      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Opciones (una por línea)</label>
+                      <textarea id="ev-fe-options" rows="4" placeholder="Ej:&#10;Opción A&#10;Opción B" style="resize:vertical;" oninput="evFieldPreviewUpdate()"></textarea>
+                    </div>
+                    <div>
+                      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Condición (mostrar si…)</label>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <select id="ev-fe-cond-field" style="font-size:13px;"><option value="">— Sin condición —</option></select>
+                        <input type="text" id="ev-fe-cond-value" placeholder="valor" style="font-size:13px;">
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                      <button class="btn btn-outline btn-sm" onclick="evCancelFieldEdit()">Cancelar</button>
+                      <button class="btn btn-primary btn-sm" onclick="evSaveFieldEdit()">Aplicar</button>
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+                  <button class="btn btn-grad" onclick="evSaveFormConfig()">Guardar configuración del formulario</button>
+                </div>
+              </div>
+              <!-- Vista previa -->
+              <div class="card" style="position:sticky;top:80px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Vista previa</div>
+                <div style="display:flex;gap:6px;margin-bottom:16px;">
+                  <button class="btn btn-sm" id="ev-prev-es" onclick="evPreviewLang('es')" style="font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;">🇨🇴 ES</button>
+                  <button class="btn btn-sm" id="ev-prev-en" onclick="evPreviewLang('en')" style="font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;">🇺🇸 EN</button>
+                </div>
+                <div id="ev-form-preview" style="display:grid;gap:12px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB: Registros -->
+          <div id="ev-sub-regs" class="ev-sub-panel hidden">
+            <!-- Stat cards -->
+            <div id="ev-regs-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;"></div>
+            <!-- Toolbar -->
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+              <input type="text" id="ev-regs-search" placeholder="Buscar por nombre o email..." style="flex:1;min-width:200px;" oninput="evRegsSearchInput()">
+              <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+                Importar CSV
+                <input type="file" accept=".csv" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
+              </label>
+              <button class="btn btn-outline btn-sm" onclick="evExportCSV()">Exportar CSV</button>
+            </div>
+            <div id="ev-regs-table-wrap" style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);">
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Nombre</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Email</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Tipo</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Estado</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Registro</th>
+                    <th style="padding:8px 12px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="ev-regs-tbody"></tbody>
+              </table>
+            </div>
+            <!-- Paginación -->
+            <div id="ev-regs-pagination" style="display:flex;justify-content:center;gap:8px;margin-top:16px;"></div>
+          </div>
+
+        </div><!-- /ev-detail-view -->
+
+      </div><!-- /events-tab -->
+
     </div><!-- /main -->
   </div><!-- /layout -->
 
@@ -1354,6 +1666,12 @@
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
       Turnos
+    </button>
+    <button class="mobile-tab-btn" id="mtab-events" onclick="switchMobileTab('events')" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      Eventos
     </button>
     <button class="mobile-tab-btn" id="mtab-more" onclick="toggleMobileSidebar()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1544,6 +1862,7 @@ function setupTabs() {
         stopDevicesAutoRefresh();
       }
       if (tabName === 'queue') loadQueueTab();
+      if (tabName === 'events') loadEventsTab();
     });
   });
 }
@@ -1676,14 +1995,26 @@ function checkQueueLicense() {
   } catch(e) {}
 }
 
+function checkEventsLicense() {
+  try {
+    const features = currentUser?.features || {};
+    const g = document.getElementById('group-eventos');
+    const mBtn = document.getElementById('mtab-events');
+    const show = features.events_v1 === true;
+    if (g) {
+      if (show) g.classList.remove('hidden-feature');
+      else g.classList.add('hidden-feature');
+    }
+    if (mBtn) mBtn.style.display = show ? '' : 'none';
+  } catch(e) {}
+}
+
 function showDashboard() {
-  console.log('[DEBUG] showDashboard — features:', JSON.stringify(currentUser?.features));
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
-  console.log('[DEBUG] despues checkQueueLicense — group class:', document.getElementById('group-atencion')?.classList.toString());
+  checkEventsLicense();
   document.getElementById('userName').textContent = currentUser.email;
-  // Mostrar modulos segun features del usuario
   const features = currentUser.features || {};
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
@@ -1737,9 +2068,8 @@ function connectWebSocket() {
         currentUser = { ...currentUser, ...data.user };
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        const features = currentUser.features || {};
-        const g = document.getElementById('group-atencion');
-        if (g) g.style.display = features.turnos ? '' : 'none';
+        checkQueueLicense();
+        checkEventsLicense();
         showStatus('Modulos actualizados', 'success');
         console.log('Features actualizados:', features);
       }
@@ -3529,6 +3859,467 @@ async function toggleService(serviceId, active) {
 }
 
 // ══ FIN ATENCIÓN AL USUARIO ══
+
+// ══════════════════════════════════════════════════════════════
+// GESTIÓN DE EVENTOS — funciones del dashboard
+// ══════════════════════════════════════════════════════════════
+
+let evCurrentEventId = null;
+let evCurrentEvent = null;
+let evFields = [];
+let evEditingFieldIdx = null;
+let evRegsPage = 1;
+let evRegsTotal = 0;
+let evRegsSearchTerm = '';
+let evRegsSearchTimer = null;
+let evPreviewLangCurrent = 'es';
+
+async function loadEventsTab() {
+  evShowView('list');
+  await evLoadList();
+}
+
+function evShowView(view) {
+  document.getElementById('ev-list-view').classList.toggle('hidden', view !== 'list');
+  document.getElementById('ev-new-view').classList.toggle('hidden', view !== 'new');
+  document.getElementById('ev-detail-view').classList.toggle('hidden', view !== 'detail');
+}
+
+// ── LISTA ──────────────────────────────────────────────────────
+async function evLoadList() {
+  const grid = document.getElementById('ev-list-grid');
+  grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Cargando eventos...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    if (!data.length) {
+      grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
+        <div style="font-size:32px;margin-bottom:12px;">🎪</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">Sin eventos todavía</div>
+        <div style="font-size:13px;color:var(--text-muted);">Crea tu primer evento para comenzar.</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = data.map(ev => {
+      const start = new Date(ev.start_date).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
+      const end = new Date(ev.end_date).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
+      const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
+      return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail(${ev.id})">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+          <div style="flex:1;">
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${ev.venue || ''}</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);">
+              <span>📅 ${start} — ${end}</span>
+              ${ev.max_capacity ? `<span>👥 Capacidad: ${ev.max_capacity}</span>` : ''}
+              <span style="color:${statusColor};font-weight:700;text-transform:uppercase;">${ev.status}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail(${ev.id})">Gestionar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = '<div style="color:#ff4444;font-size:13px;">Error cargando eventos.</div>';
+  }
+}
+
+// ── NUEVO EVENTO ───────────────────────────────────────────────
+async function evSaveNew() {
+  const name = document.getElementById('ev-new-name').value.trim();
+  const start = document.getElementById('ev-new-start').value;
+  const end = document.getElementById('ev-new-end').value;
+  const tz = document.getElementById('ev-new-tz').value;
+  const capacity = document.getElementById('ev-new-capacity').value;
+  const desc = document.getElementById('ev-new-desc').value.trim();
+  const venue = document.getElementById('ev-new-venue').value.trim();
+  if (!name || !start || !end) { showStatus('Nombre y fechas son obligatorios', 'error'); return; }
+  try {
+    const res = await fetch(`${API_URL}/api/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, start_date: start, end_date: end, timezone: tz, max_capacity: capacity || null, description: desc, venue })
+    });
+    const data = await res.json();
+    if (data.id) {
+      showStatus('Evento creado', 'success');
+      ['ev-new-name','ev-new-start','ev-new-end','ev-new-capacity','ev-new-desc','ev-new-venue'].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('ev-new-tz').value = 'America/Bogota';
+      await evOpenDetail(data.id);
+    } else { showStatus(data.error || 'Error creando evento', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── DETALLE ────────────────────────────────────────────────────
+async function evOpenDetail(eventId) {
+  evCurrentEventId = eventId;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${eventId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    evCurrentEvent = await res.json();
+    evPopulateInfo(evCurrentEvent);
+    evFields = (evCurrentEvent.config && evCurrentEvent.config.registration_fields) ? JSON.parse(JSON.stringify(evCurrentEvent.config.registration_fields)) : [];
+    evRenderFields();
+    evSwitchSubTab('info');
+    evShowView('detail');
+  } catch(e) { showStatus('Error cargando evento', 'error'); }
+}
+
+function evSwitchSubTab(tab) {
+  document.querySelectorAll('.ev-sub-tab').forEach(b => b.classList.toggle('active', b.dataset.evtab === tab));
+  document.querySelectorAll('.ev-sub-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(`ev-sub-${tab}`).classList.remove('hidden');
+  if (tab === 'info') evLoadSessions(evCurrentEventId);
+  if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
+}
+
+// ── INFORMACIÓN ────────────────────────────────────────────────
+function evPopulateInfo(ev) {
+  document.getElementById('ev-detail-title').textContent = ev.name;
+  document.getElementById('ev-detail-slug').textContent = `/evento/${ev.slug}`;
+  document.getElementById('ev-edit-name').value = ev.name || '';
+  document.getElementById('ev-edit-desc').value = ev.description || '';
+  document.getElementById('ev-edit-venue').value = ev.venue || '';
+  document.getElementById('ev-edit-capacity').value = ev.max_capacity || '';
+  document.getElementById('ev-edit-start').value = ev.start_date ? ev.start_date.substring(0,10) : '';
+  document.getElementById('ev-edit-end').value = ev.end_date ? ev.end_date.substring(0,10) : '';
+  document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
+  document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
+  const origin = window.location.origin;
+  document.getElementById('ev-public-url').textContent = `${origin}/evento/${ev.slug}`;
+}
+
+async function evSaveInfo() {
+  const body = {
+    name: document.getElementById('ev-edit-name').value.trim(),
+    description: document.getElementById('ev-edit-desc').value.trim(),
+    venue: document.getElementById('ev-edit-venue').value.trim(),
+    max_capacity: document.getElementById('ev-edit-capacity').value || null,
+    start_date: document.getElementById('ev-edit-start').value,
+    end_date: document.getElementById('ev-edit-end').value,
+    timezone: document.getElementById('ev-edit-tz').value,
+    config: { ...(evCurrentEvent.config || {}), allow_public_registration: document.getElementById('ev-edit-public').checked }
+  };
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.id) {
+      evCurrentEvent = data;
+      document.getElementById('ev-detail-title').textContent = data.name;
+      showStatus('Evento actualizado', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+function evCopyPublicUrl() {
+  const url = document.getElementById('ev-public-url').textContent;
+  navigator.clipboard.writeText(url).then(() => showStatus('Enlace copiado', 'success'));
+}
+
+// ── SESIONES ───────────────────────────────────────────────────
+async function evLoadSessions(eventId) {
+  const list = document.getElementById('ev-sessions-list');
+  list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events/${eventId}/sessions`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const sessions = await res.json();
+    if (!sessions.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Sin sesiones. Agrega una arriba.</div>'; return; }
+    list.innerHTML = sessions.map(s => {
+      const date = new Date(s.session_date).toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: 'UTC' });
+      const startT = s.start_time ? s.start_time.substring(0,5) : '';
+      const endT = s.end_time ? s.end_time.substring(0,5) : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+        <div>
+          <div style="font-size:13px;font-weight:700;">${s.name}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${date}${startT ? ' · ' + startT : ''}${endT ? ' – ' + endT : ''}${s.max_capacity ? ' · ' + s.max_capacity + ' cupos' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { list.innerHTML = '<div style="color:#ff4444;font-size:12px;">Error cargando sesiones.</div>'; }
+}
+
+function evOpenAddSession() {
+  document.getElementById('ev-add-session-form').classList.remove('hidden');
+}
+function evCloseAddSession() {
+  document.getElementById('ev-add-session-form').classList.add('hidden');
+  ['ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end'].forEach(id => { document.getElementById(id).value = ''; });
+}
+async function evSaveSession() {
+  const name = document.getElementById('ev-sess-name').value.trim();
+  const date = document.getElementById('ev-sess-date').value;
+  if (!name || !date) { showStatus('Nombre y fecha son obligatorios', 'error'); return; }
+  const body = {
+    name, session_date: date,
+    max_capacity: document.getElementById('ev-sess-cap').value || null,
+    start_time: document.getElementById('ev-sess-start').value || null,
+    end_time: document.getElementById('ev-sess-end').value || null
+  };
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.id) {
+      showStatus('Sesión agregada', 'success');
+      evCloseAddSession();
+      evLoadSessions(evCurrentEventId);
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── CONSTRUCTOR DE FORMULARIO ──────────────────────────────────
+const EV_TYPE_LABELS = { text: 'Texto', select: 'Selección', boolean: 'Sí/No', tel: 'Teléfono' };
+
+function evRenderFields() {
+  const list = document.getElementById('ev-fields-list');
+  if (!evFields.length) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Sin campos configurables todavía.</div>';
+    evRenderPreview();
+    return;
+  }
+  list.innerHTML = evFields.map((f, i) => `
+    <div class="ev-field-chip${evEditingFieldIdx === i ? ' active' : ''}" onclick="evStartEditField(${i})">
+      <span class="ev-chip-drag" onclick="event.stopPropagation()">⠿</span>
+      <span style="flex:1;">${f.labelEs || f.key}</span>
+      <span class="ev-chip-type">${EV_TYPE_LABELS[f.type] || f.type}</span>
+      ${f.required ? '<span class="ev-chip-req">*</span>' : ''}
+      <span class="ev-chip-del" onclick="event.stopPropagation();evDeleteField(${i})">×</span>
+    </div>
+  `).join('');
+  evRenderPreview();
+}
+
+function evAddField(type) {
+  const newField = { key: `field_${Date.now()}`, type, labelEs: '', labelEn: '', required: false };
+  if (type === 'select') newField.options = [];
+  evFields.push(newField);
+  evEditingFieldIdx = evFields.length - 1;
+  evRenderFields();
+  evStartEditField(evEditingFieldIdx);
+}
+
+function evDeleteField(idx) {
+  evFields.splice(idx, 1);
+  if (evEditingFieldIdx === idx) { evEditingFieldIdx = null; document.getElementById('ev-field-editor').classList.add('hidden'); }
+  else if (evEditingFieldIdx > idx) evEditingFieldIdx--;
+  evRenderFields();
+}
+
+function evStartEditField(idx) {
+  evEditingFieldIdx = idx;
+  const f = evFields[idx];
+  document.getElementById('ev-fe-label-es').value = f.labelEs || '';
+  document.getElementById('ev-fe-label-en').value = f.labelEn || '';
+  document.getElementById('ev-fe-required').checked = !!f.required;
+  const optWrap = document.getElementById('ev-fe-options-wrap');
+  if (f.type === 'select') {
+    optWrap.classList.remove('hidden');
+    document.getElementById('ev-fe-options').value = (f.options || []).join('\n');
+  } else { optWrap.classList.add('hidden'); }
+  // Populate condition field selector
+  const condSel = document.getElementById('ev-fe-cond-field');
+  condSel.innerHTML = '<option value="">— Sin condición —</option>' +
+    evFields.filter((_, i) => i !== idx && evFields[i].type === 'select')
+      .map(cf => `<option value="${cf.key}"${f.condition && f.condition.field === cf.key ? ' selected' : ''}>${cf.labelEs || cf.key}</option>`).join('');
+  document.getElementById('ev-fe-cond-value').value = (f.condition && f.condition.value) || '';
+  document.getElementById('ev-field-editor').classList.remove('hidden');
+  evRenderFields();
+}
+
+function evFieldPreviewUpdate() {
+  if (evEditingFieldIdx === null) return;
+  evFields[evEditingFieldIdx].labelEs = document.getElementById('ev-fe-label-es').value;
+  evFields[evEditingFieldIdx].labelEn = document.getElementById('ev-fe-label-en').value;
+  if (evFields[evEditingFieldIdx].type === 'select') {
+    evFields[evEditingFieldIdx].options = document.getElementById('ev-fe-options').value.split('\n').filter(s => s.trim());
+  }
+  evRenderPreview();
+}
+
+function evSaveFieldEdit() {
+  if (evEditingFieldIdx === null) return;
+  const f = evFields[evEditingFieldIdx];
+  f.labelEs = document.getElementById('ev-fe-label-es').value.trim();
+  f.labelEn = document.getElementById('ev-fe-label-en').value.trim();
+  f.required = document.getElementById('ev-fe-required').checked;
+  if (f.type === 'select') f.options = document.getElementById('ev-fe-options').value.split('\n').filter(s => s.trim());
+  const condField = document.getElementById('ev-fe-cond-field').value;
+  const condVal = document.getElementById('ev-fe-cond-value').value.trim();
+  if (condField) f.condition = { field: condField, value: condVal };
+  else delete f.condition;
+  evEditingFieldIdx = null;
+  document.getElementById('ev-field-editor').classList.add('hidden');
+  evRenderFields();
+}
+
+function evCancelFieldEdit() {
+  evEditingFieldIdx = null;
+  document.getElementById('ev-field-editor').classList.add('hidden');
+  evRenderFields();
+}
+
+function evPreviewLang(lang) {
+  evPreviewLangCurrent = lang;
+  document.getElementById('ev-prev-es').style.cssText = lang === 'es' ? 'font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;' : 'font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;';
+  document.getElementById('ev-prev-en').style.cssText = lang === 'en' ? 'font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;' : 'font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;';
+  evRenderPreview();
+}
+
+function evRenderPreview() {
+  const preview = document.getElementById('ev-form-preview');
+  if (!preview) return;
+  const lang = evPreviewLangCurrent;
+  const fixedStyle = 'display:grid;gap:4px;';
+  const labelStyle = 'font-size:11px;font-weight:700;color:var(--text-muted);';
+  const inputStyle = 'width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:Montserrat,sans-serif;';
+  let html = `
+    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Nombre completo' : 'Full name'} *</div><input placeholder="${lang === 'es' ? 'Tu nombre' : 'Your name'}" style="${inputStyle}" disabled></div>
+    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Correo electrónico' : 'Email address'} *</div><input placeholder="email@ejemplo.com" style="${inputStyle}" disabled></div>
+    <div style="${fixedStyle}"><div style="${labelStyle}">${lang === 'es' ? 'Teléfono' : 'Phone'}</div><input placeholder="+57 300 000 0000" style="${inputStyle}" disabled></div>
+  `;
+  evFields.forEach(f => {
+    const label = (lang === 'es' ? f.labelEs : f.labelEn) || f.labelEs || f.key;
+    if (!label) return;
+    html += `<div style="${fixedStyle}"><div style="${labelStyle}">${label}${f.required ? ' *' : ''}</div>`;
+    if (f.type === 'text' || f.type === 'tel') html += `<input style="${inputStyle}" disabled>`;
+    else if (f.type === 'select') html += `<select style="${inputStyle}" disabled><option>— ${lang === 'es' ? 'Seleccionar' : 'Select'} —</option>${(f.options||[]).map(o=>`<option>${o}</option>`).join('')}</select>`;
+    else if (f.type === 'boolean') html += `<select style="${inputStyle}" disabled><option>${lang==='es'?'Sí':'Yes'}</option><option>${lang==='es'?'No':'No'}</option></select>`;
+    html += '</div>';
+  });
+  preview.innerHTML = html;
+}
+
+async function evSaveFormConfig() {
+  const config = { ...(evCurrentEvent.config || {}), registration_fields: evFields };
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ config })
+    });
+    const data = await res.json();
+    if (data.id) {
+      evCurrentEvent = data;
+      showStatus('Formulario guardado', 'success');
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── REGISTROS ─────────────────────────────────────────────────
+async function evLoadRegistrations() {
+  const tbody = document.getElementById('ev-regs-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Cargando...</td></tr>';
+  try {
+    const params = new URLSearchParams({ page: evRegsPage, limit: 25 });
+    if (evRegsSearchTerm) params.set('search', evRegsSearchTerm);
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations?${params}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    evRegsTotal = data.total || 0;
+    // Stat cards
+    document.getElementById('ev-regs-stats').innerHTML = `
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-size:28px;font-weight:900;color:#f59e0b;">${data.total || 0}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Total</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-size:28px;font-weight:900;color:#00e676;">${data.confirmed || 0}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Confirmados</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-size:28px;font-weight:900;color:#888;">${data.pending || 0}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Pendientes</div>
+      </div>
+    `;
+    const rows = data.registrations || [];
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }
+    tbody.innerHTML = rows.map(r => {
+      const date = new Date(r.registered_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/Bogota' });
+      const statusColor = r.status === 'confirmed' ? '#00e676' : r.status === 'cancelled' ? '#ff4444' : '#f59e0b';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px 12px;">${r.attendee_name || r.name || ''}</td>
+        <td style="padding:10px 12px;color:var(--text-muted);font-size:12px;">${r.email || ''}</td>
+        <td style="padding:10px 12px;font-size:12px;">${r.ticket_type || '—'}</td>
+        <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${r.status}</span></td>
+        <td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">${date}</td>
+        <td style="padding:10px 12px;text-align:right;"></td>
+      </tr>`;
+    }).join('');
+    evRenderRegsPagination(data.total);
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">Error cargando registros.</td></tr>'; }
+}
+
+function evRegsSearchInput() {
+  clearTimeout(evRegsSearchTimer);
+  evRegsSearchTimer = setTimeout(() => {
+    evRegsSearchTerm = document.getElementById('ev-regs-search').value.trim();
+    evRegsPage = 1;
+    evLoadRegistrations();
+  }, 350);
+}
+
+function evRenderRegsPagination(total) {
+  const pages = Math.ceil(total / 25);
+  const pag = document.getElementById('ev-regs-pagination');
+  if (pages <= 1) { pag.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= pages; i++) {
+    html += `<button class="btn btn-sm ${i === evRegsPage ? 'btn-primary' : 'btn-outline'}" onclick="evRegsPage=${i};evLoadRegistrations()" style="min-width:36px;">${i}</button>`;
+  }
+  pag.innerHTML = html;
+}
+
+async function evImportCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    showStatus('Importando CSV...', 'info');
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/import`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: formData
+    });
+    const data = await res.json();
+    if (data.imported !== undefined) {
+      showStatus(`CSV importado: ${data.imported} nuevos, ${data.skipped || 0} omitidos`, 'success');
+      evLoadRegistrations();
+    } else { showStatus(data.error || 'Error en importación', 'error'); }
+  } catch(e) { showStatus('Error importando CSV', 'error'); }
+  input.value = '';
+}
+
+async function evExportCSV() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations?limit=9999`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    const rows = data.registrations || [];
+    if (!rows.length) { showStatus('Sin registros para exportar', 'info'); return; }
+    const headers = ['nombre','email','telefono','tipo_entrada','estado','registrado_en'];
+    const csv = [headers.join(','), ...rows.map(r => [
+      `"${(r.attendee_name||'').replace(/"/g,'""')}"`,
+      `"${(r.email||'').replace(/"/g,'""')}"`,
+      `"${(r.phone||'').replace(/"/g,'""')}"`,
+      `"${(r.ticket_type||'').replace(/"/g,'""')}"`,
+      r.status,
+      r.registered_at ? new Date(r.registered_at).toISOString().substring(0,16) : ''
+    ].join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `registros_${evCurrentEventId}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showStatus('Error exportando', 'error'); }
+}
+
+// ══ FIN GESTIÓN DE EVENTOS ══
 
 </script>
 <!-- ══ MODAL SCREENSHOT ══ -->
