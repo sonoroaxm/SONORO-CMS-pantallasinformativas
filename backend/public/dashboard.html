@@ -1488,7 +1488,10 @@
                       Registro público habilitado
                     </label>
                   </div>
-                  <button class="btn btn-grad" onclick="evSaveInfo()" style="margin-top:4px;">Guardar cambios</button>
+                  <div style="display:flex;gap:10px;margin-top:4px;align-items:center;">
+                    <button class="btn btn-grad" onclick="evSaveInfo()" style="flex:1;">Guardar cambios</button>
+                    <button id="ev-publish-btn" class="btn btn-outline btn-sm" onclick="evTogglePublish()" style="flex-shrink:0;"></button>
+                  </div>
                 </div>
               </div>
               <div class="card">
@@ -3985,6 +3988,37 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
   const origin = window.location.origin;
   document.getElementById('ev-public-url').textContent = `${origin}/evento/${ev.slug}`;
+  const pubBtn = document.getElementById('ev-publish-btn');
+  if (ev.status === 'published' || ev.status === 'live') {
+    pubBtn.textContent = 'Despublicar';
+    pubBtn.style.borderColor = '#ef4444';
+    pubBtn.style.color = '#ef4444';
+  } else {
+    pubBtn.textContent = 'Publicar';
+    pubBtn.style.borderColor = '';
+    pubBtn.style.color = '';
+  }
+}
+
+async function evTogglePublish() {
+  const isPublished = evCurrentEvent.status === 'published' || evCurrentEvent.status === 'live';
+  const newStatus = isPublished ? 'draft' : 'published';
+  const label = isPublished ? 'Despublicar' : 'Publicar';
+  if (isPublished && !confirm(`¿Despublicar el evento? La página pública dejará de ser accesible.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const data = await res.json();
+    if (data.id) {
+      evCurrentEvent = data;
+      evPopulateInfo(data);
+      showStatus(newStatus === 'published' ? 'Evento publicado — la página pública ya está activa' : 'Evento despublicado', newStatus === 'published' ? 'success' : 'info');
+      evLoadList();
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
 async function evSaveInfo() {
