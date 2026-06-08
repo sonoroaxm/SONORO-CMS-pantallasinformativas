@@ -1541,91 +1541,94 @@
 
           <!-- SUB-TAB: Formulario -->
           <div id="ev-sub-form" class="ev-sub-panel hidden">
-            <div style="display:grid;grid-template-columns:1fr 380px;gap:24px;align-items:start;">
+            <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">
               <!-- Constructor -->
-              <div>
-                <div class="card" style="margin-bottom:16px;">
-                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Campos fijos — siempre presentes</div>
-                  <div style="display:grid;gap:5px;margin-bottom:16px;">
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">texto</span><span style="flex:1;">Nombre completo</span><span class="ev-chip-req">*</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">email</span><span style="flex:1;">Correo electrónico</span><span class="ev-chip-req">*</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">tel</span><span style="flex:1;">Teléfono (+prefijo país)</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">select</span><span style="flex:1;">Tipo de documento</span><span class="ev-chip-req">*</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">texto</span><span style="flex:1;">Número de documento</span><span class="ev-chip-req">*</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <div id="ev-fixed-ticket-chip" class="ev-field-chip hidden" style="cursor:default;opacity:0.65;">
-                      <span class="ev-chip-type">select</span><span style="flex:1;">Tipo de entrada</span><span class="ev-chip-req">*</span>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                  </div>
-                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Campos adicionales configurables</div>
-                  <div id="ev-fields-list" style="display:grid;gap:6px;min-height:40px;"></div>
-                </div>
-                <!-- Botones añadir campo -->
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <!-- Campos fijos -->
                 <div class="card">
-                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Añadir campo</div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-outline btn-sm" onclick="evAddField('text')">+ Texto</button>
-                    <button class="btn btn-outline btn-sm" onclick="evAddField('select')">+ Selección</button>
-                    <button class="btn btn-outline btn-sm" onclick="evAddField('boolean')">+ Sí / No</button>
-                    <button class="btn btn-outline btn-sm" onclick="evAddField('tel')">+ Teléfono</button>
+                  <div class="card-title" style="display:flex;align-items:center;gap:6px;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Campos fijos — siempre presentes
+                  </div>
+                  <div style="display:grid;gap:5px;">
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#818cf8;">texto</span><span style="flex:1;">Nombre completo</span><span class="ev-chip-req">*</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#34d399;">email</span><span style="flex:1;">Correo electrónico</span><span class="ev-chip-req">*</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#38bdf8;">tel</span><span style="flex:1;">Teléfono (+prefijo)</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;">Tipo + N° documento</span><span class="ev-chip-req">*</span></div>
+                    <div id="ev-fixed-ticket-chip" class="ev-field-chip hidden" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;">Tipo de entrada</span><span class="ev-chip-req">*</span></div>
                   </div>
                 </div>
-                <!-- Panel edición campo activo -->
-                <div id="ev-field-editor" class="card hidden" style="margin-top:16px;border-color:rgba(245,158,11,0.4);">
-                  <div class="card-title" style="color:#f59e0b;">Editar campo</div>
-                  <div style="display:grid;gap:12px;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                      <div class="form-group" style="margin:0;"><label>Etiqueta (ES)</label><input type="text" id="ev-fe-label-es" oninput="evFieldPreviewUpdate()"></div>
-                      <div class="form-group" style="margin:0;"><label>Label (EN)</label><input type="text" id="ev-fe-label-en" oninput="evFieldPreviewUpdate()"></div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                      <input type="checkbox" id="ev-fe-required" style="width:16px;height:16px;accent-color:#f59e0b;">
-                      <label for="ev-fe-required" style="font-size:13px;font-weight:600;cursor:pointer;">Campo obligatorio</label>
-                    </div>
-                    <div id="ev-fe-options-wrap" class="hidden">
-                      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Opciones (una por línea)</label>
-                      <textarea id="ev-fe-options" rows="4" placeholder="Ej:&#10;Opción A&#10;Opción B" style="resize:vertical;" oninput="evFieldPreviewUpdate()"></textarea>
-                    </div>
-                    <div>
-                      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">Condición (mostrar si…)</label>
-                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <select id="ev-fe-cond-field" style="font-size:13px;"><option value="">— Sin condición —</option></select>
-                        <input type="text" id="ev-fe-cond-value" placeholder="valor" style="font-size:13px;">
-                      </div>
-                    </div>
-                    <div style="display:flex;gap:8px;justify-content:flex-end;">
-                      <button class="btn btn-outline btn-sm" onclick="evCancelFieldEdit()">Cancelar</button>
-                      <button class="btn btn-primary btn-sm" onclick="evSaveFieldEdit()">Aplicar</button>
-                    </div>
+                <!-- Campos activos en el formulario -->
+                <div class="card">
+                  <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+                    Campos en el formulario
+                    <span id="ev-active-count" style="background:var(--surface3);border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;color:var(--text-muted);">0</span>
+                  </div>
+                  <div id="ev-active-rows" style="display:flex;flex-direction:column;gap:6px;"></div>
+                </div>
+                <!-- Catálogo -->
+                <div class="card">
+                  <div class="card-title">Campos disponibles para añadir</div>
+                  <div id="ev-catalog-rows" style="display:flex;flex-direction:column;gap:5px;"></div>
+                </div>
+                <!-- Nuevo campo personalizado -->
+                <div class="card">
+                  <div class="card-title">Crear campo personalizado</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px;background:var(--surface2);border-radius:6px;">
+                    <span style="font-size:11px;font-weight:600;color:var(--text-muted);align-self:center;">Tipo:</span>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('text')">Texto</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('select')">Selección</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('boolean')">Sí / No</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('tel')">Teléfono</button>
                   </div>
                 </div>
-                <div style="margin-top:16px;display:flex;justify-content:flex-end;">
-                  <button class="btn btn-grad" onclick="evSaveFormConfig()">Guardar configuración del formulario</button>
+                <div style="display:flex;justify-content:flex-end;">
+                  <button class="btn btn-grad" onclick="evSaveFormConfig()">Guardar formulario</button>
                 </div>
               </div>
               <!-- Vista previa -->
               <div class="card" style="position:sticky;top:80px;">
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Vista previa</div>
-                <div style="display:flex;gap:6px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Vista previa</div>
+                <div style="display:flex;gap:6px;margin-bottom:14px;">
                   <button class="btn btn-sm" id="ev-prev-es" onclick="evPreviewLang('es')" style="font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;">ES</button>
                   <button class="btn btn-sm" id="ev-prev-en" onclick="evPreviewLang('en')" style="font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;">EN</button>
                 </div>
                 <div id="ev-form-preview" style="display:grid;gap:12px;"></div>
+              </div>
+            </div>
+          </div>
+          <!-- MODAL: campo personalizado -->
+          <div id="ev-field-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:380px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto;">
+              <div style="font-size:14px;font-weight:700;" id="ev-modal-title">Nuevo campo</div>
+              <div class="form-group" style="margin:0;"><label>Etiqueta ES</label><input type="text" id="ev-m-label-es" placeholder="Ej: Empresa"></div>
+              <div class="form-group" style="margin:0;"><label>Label EN</label><input type="text" id="ev-m-label-en" placeholder="e.g. Company"></div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;">
+                <input type="checkbox" id="ev-m-required" style="width:15px;height:15px;accent-color:#f59e0b;">Campo obligatorio
+              </label>
+              <div id="ev-m-opts-wrap" style="display:none;">
+                <div class="form-group" style="margin:0;">
+                  <label>Opciones</label>
+                  <div id="ev-m-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:30px;padding:7px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;"></div>
+                  <div style="display:flex;gap:6px;margin-top:6px;">
+                    <input type="text" id="ev-m-opt-input" placeholder="Nueva opción…" onkeydown="if(event.key==='Enter'){evAddModalOpt();event.preventDefault();}">
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-color:rgba(245,158,11,0.4);color:#f59e0b;" onclick="evAddModalOpt()">+ Añadir</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Mostrar solo si… (opcional)</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <select id="ev-m-cond-field" onchange="document.getElementById('ev-m-cond-val').disabled=!this.value;">
+                    <option value="">— Siempre visible —</option>
+                    <option value="ticket_type">Tipo de entrada =</option>
+                  </select>
+                  <input type="text" id="ev-m-cond-val" placeholder="ej: vip" disabled>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline btn-sm" onclick="evCloseFieldModal()">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="evSaveFieldModal()">Añadir al formulario</button>
               </div>
             </div>
           </div>
@@ -3987,7 +3990,7 @@ async function evOpenDetail(eventId) {
     evCurrentEvent = await res.json();
     evPopulateInfo(evCurrentEvent);
     evFields = (evCurrentEvent.config && evCurrentEvent.config.registration_fields) ? JSON.parse(JSON.stringify(evCurrentEvent.config.registration_fields)) : [];
-    evRenderFields();
+    evInitCatalog();
     evSwitchSubTab('info');
     evShowView('detail');
   } catch(e) { showStatus('Error cargando evento', 'error'); }
@@ -3998,6 +4001,7 @@ function evSwitchSubTab(tab) {
   document.querySelectorAll('.ev-sub-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById(`ev-sub-${tab}`).classList.remove('hidden');
   if (tab === 'info') evLoadSessions(evCurrentEventId);
+  if (tab === 'form') { evRenderActive(); evRenderCatalog(); }
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
 }
 
@@ -4151,99 +4155,166 @@ async function evSaveSession() {
 
 // ── CONSTRUCTOR DE FORMULARIO ──────────────────────────────────
 const EV_TYPE_LABELS = { text: 'Texto', select: 'Selección', boolean: 'Sí/No', tel: 'Teléfono' };
+const EV_TYPE_COLORS = { text: '#818cf8', select: '#f59e0b', boolean: '#22c55e', tel: '#38bdf8' };
 
-function evRenderFields() {
-  const list = document.getElementById('ev-fields-list');
-  if (!evFields.length) {
-    list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Sin campos configurables todavía.</div>';
-    evRenderPreview();
+const EV_CATALOG_BASE = [
+  { key:'organization', type:'text',    labelEs:'Empresa / Institución',  labelEn:'Company / Institution',  required:true },
+  { key:'job_title',    type:'text',    labelEs:'Cargo',                   labelEn:'Job Title',               required:false },
+  { key:'dietary',      type:'select',  labelEs:'Restricción alimentaria', labelEn:'Dietary restriction',     required:true,
+    options:['Ninguna / None','Vegetariano','Vegano','Sin gluten / Gluten-free','Sin lactosa / Lactose-free'] },
+  { key:'tshirt_size',  type:'select',  labelEs:'Talla camiseta',          labelEn:'T-shirt size',            required:false,
+    options:['XS','S','M','L','XL','XXL'], condition:{ field:'ticket_type', value:'vip' } },
+  { key:'emergency',    type:'text',    labelEs:'Contacto de emergencia',  labelEn:'Emergency contact',       required:false },
+  { key:'emergency_ph', type:'tel',     labelEs:'Tel. emergencia',         labelEn:'Emergency phone',         required:false },
+  { key:'eps',          type:'text',    labelEs:'EPS',                     labelEn:'Health insurance',        required:false },
+  { key:'blood_type',   type:'select',  labelEs:'Tipo de sangre',          labelEn:'Blood type',              required:false,
+    options:['A+','A-','B+','B-','O+','O-','AB+','AB-'] },
+  { key:'transport',    type:'boolean', labelEs:'¿Desea ofertas de transporte y alojamiento?',            labelEn:'Interested in transport & accommodation offers?',   required:false },
+  { key:'tourism',      type:'boolean', labelEs:'¿Desea información turística y planes complementarios?', labelEn:'Interested in tourism info & complementary plans?', required:false },
+  { key:'attended',     type:'boolean', labelEs:'¿Ha asistido a eventos anteriores?',                     labelEn:'Have you attended previous events?',               required:false },
+];
+let evCatalog = [];
+
+function evGetFieldByKey(key) {
+  return evCatalog.find(f => f.key === key) || evFields.find(f => f.key === key);
+}
+
+function evInitCatalog() {
+  // Merge base catalog with any custom fields already in evFields
+  const baseKeys = EV_CATALOG_BASE.map(f => f.key);
+  const customFields = evFields.filter(f => !baseKeys.includes(f.key));
+  evCatalog = [...EV_CATALOG_BASE, ...customFields];
+}
+
+function evRenderCatalog() {
+  const rows = document.getElementById('ev-catalog-rows');
+  if (!rows) return;
+  const activeKeys = evFields.map(f => f.key);
+  const available = evCatalog.filter(f => !activeKeys.includes(f.key));
+  if (!available.length) {
+    rows.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px;">Todos los campos disponibles ya están en el formulario.</div>';
     return;
   }
-  list.innerHTML = evFields.map((f, i) => `
-    <div class="ev-field-chip${evEditingFieldIdx === i ? ' active' : ''}" onclick="evStartEditField(${i})">
-      <span class="ev-chip-drag" onclick="event.stopPropagation()">⠿</span>
-      <span style="flex:1;">${f.labelEs || f.key}</span>
-      <span class="ev-chip-type">${EV_TYPE_LABELS[f.type] || f.type}</span>
-      ${f.required ? '<span class="ev-chip-req">*</span>' : ''}
-      <span class="ev-chip-del" onclick="event.stopPropagation();evDeleteField(${i})">×</span>
-    </div>
-  `).join('');
-  evRenderPreview();
+  rows.innerHTML = available.map(f => {
+    const color = EV_TYPE_COLORS[f.type] || '#888';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+      <span class="ev-chip-type" style="color:${color};">${EV_TYPE_LABELS[f.type]||f.type}</span>
+      <span style="flex:1;font-size:12px;font-weight:600;">${f.labelEs}</span>
+      ${f.condition ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(245,158,11,0.12);color:#f59e0b;">COND.</span>` : ''}
+      <button class="btn btn-sm" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.3);color:#f59e0b;font-size:11px;white-space:nowrap;" onclick="evAddFromCatalog('${f.key}')">+ Añadir al formulario</button>
+    </div>`;
+  }).join('');
 }
 
-function evAddField(type) {
-  const newField = { key: `field_${Date.now()}`, type, labelEs: '', labelEn: '', required: false };
-  if (type === 'select') newField.options = [];
-  evFields.push(newField);
-  evEditingFieldIdx = evFields.length - 1;
-  evRenderFields();
-  evStartEditField(evEditingFieldIdx);
-}
-
-function evDeleteField(idx) {
-  evFields.splice(idx, 1);
-  if (evEditingFieldIdx === idx) { evEditingFieldIdx = null; document.getElementById('ev-field-editor').classList.add('hidden'); }
-  else if (evEditingFieldIdx > idx) evEditingFieldIdx--;
-  evRenderFields();
-}
-
-function evStartEditField(idx) {
-  evEditingFieldIdx = idx;
-  const f = evFields[idx];
-  document.getElementById('ev-fe-label-es').value = f.labelEs || '';
-  document.getElementById('ev-fe-label-en').value = f.labelEn || '';
-  document.getElementById('ev-fe-required').checked = !!f.required;
-  const optWrap = document.getElementById('ev-fe-options-wrap');
-  if (f.type === 'select') {
-    optWrap.classList.remove('hidden');
-    document.getElementById('ev-fe-options').value = (f.options || []).join('\n');
-  } else { optWrap.classList.add('hidden'); }
-  // Populate condition field selector
-  const condSel = document.getElementById('ev-fe-cond-field');
-  const ticketTypesConfig = (evCurrentEvent?.config?.ticket_types || []);
-  const ticketTypeOpt = ticketTypesConfig.length
-    ? `<option value="ticket_type"${f.condition && f.condition.field === 'ticket_type' ? ' selected' : ''}>Tipo de entrada =</option>`
-    : '';
-  condSel.innerHTML = '<option value="">— Sin condición —</option>' + ticketTypeOpt +
-    evFields.filter((_, i) => i !== idx && evFields[i].type === 'select')
-      .map(cf => `<option value="${cf.key}"${f.condition && f.condition.field === cf.key ? ' selected' : ''}>${cf.labelEs || cf.key}</option>`).join('');
-  // If ticket_type condition selected, show the value as chip list
-  document.getElementById('ev-fe-cond-value').value = (f.condition && f.condition.value) || '';
-  document.getElementById('ev-fe-cond-value').placeholder = ticketTypesConfig.length ? `ej: ${ticketTypesConfig[0]}` : 'valor';
-  document.getElementById('ev-field-editor').classList.remove('hidden');
-  evRenderFields();
-}
-
-function evFieldPreviewUpdate() {
-  if (evEditingFieldIdx === null) return;
-  evFields[evEditingFieldIdx].labelEs = document.getElementById('ev-fe-label-es').value;
-  evFields[evEditingFieldIdx].labelEn = document.getElementById('ev-fe-label-en').value;
-  if (evFields[evEditingFieldIdx].type === 'select') {
-    evFields[evEditingFieldIdx].options = document.getElementById('ev-fe-options').value.split('\n').filter(s => s.trim());
+function evRenderActive() {
+  const rows = document.getElementById('ev-active-rows');
+  const count = document.getElementById('ev-active-count');
+  if (!rows) return;
+  if (count) count.textContent = evFields.length;
+  if (!evFields.length) {
+    rows.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px;text-align:center;">Ningún campo añadido todavía.</div>';
+    evRenderPreview(); return;
   }
+  rows.innerHTML = evFields.map((f, i) => {
+    const color = EV_TYPE_COLORS[f.type] || '#888';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;">
+      <span style="font-size:11px;font-weight:800;color:var(--text-muted);width:16px;text-align:right;flex-shrink:0;">${i+1}</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.labelEs}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${EV_TYPE_LABELS[f.type]||f.type}${f.required?' · obligatorio':''}${f.condition?` · solo si ${f.condition.field}=${f.condition.value}`:''}</div>
+      </div>
+      <div style="display:flex;gap:2px;flex-shrink:0;">
+        <button class="btn-icon" onclick="evMoveField(${i},-1)" ${i===0?'disabled':''}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
+        <button class="btn-icon" onclick="evMoveField(${i},1)" ${i===evFields.length-1?'disabled':''}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+      <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.25);color:#ef4444;font-size:11px;white-space:nowrap;" onclick="evRemoveFromForm('${f.key}')">Quitar</button>
+    </div>`;
+  }).join('');
   evRenderPreview();
 }
 
-function evSaveFieldEdit() {
-  if (evEditingFieldIdx === null) return;
-  const f = evFields[evEditingFieldIdx];
-  f.labelEs = document.getElementById('ev-fe-label-es').value.trim();
-  f.labelEn = document.getElementById('ev-fe-label-en').value.trim();
-  f.required = document.getElementById('ev-fe-required').checked;
-  if (f.type === 'select') f.options = document.getElementById('ev-fe-options').value.split('\n').filter(s => s.trim());
-  const condField = document.getElementById('ev-fe-cond-field').value;
-  const condVal = document.getElementById('ev-fe-cond-value').value.trim();
-  if (condField) f.condition = { field: condField, value: condVal };
-  else delete f.condition;
-  evEditingFieldIdx = null;
-  document.getElementById('ev-field-editor').classList.add('hidden');
-  evRenderFields();
+function evAddFromCatalog(key) {
+  const f = evCatalog.find(c => c.key === key);
+  if (!f || evFields.find(x => x.key === key)) return;
+  evFields.push({ ...f });
+  evRenderActive();
+  evRenderCatalog();
 }
 
-function evCancelFieldEdit() {
-  evEditingFieldIdx = null;
-  document.getElementById('ev-field-editor').classList.add('hidden');
-  evRenderFields();
+function evRemoveFromForm(key) {
+  evFields = evFields.filter(f => f.key !== key);
+  evRenderActive();
+  evRenderCatalog();
+}
+
+function evMoveField(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= evFields.length) return;
+  [evFields[i], evFields[j]] = [evFields[j], evFields[i]];
+  evRenderActive();
+}
+
+// Modal: campo personalizado
+let evModalOpts = [];
+let evModalType = null;
+
+function evOpenNewFieldModal(type) {
+  evModalType = type;
+  evModalOpts = [];
+  document.getElementById('ev-modal-title').textContent = 'Nuevo campo — ' + (EV_TYPE_LABELS[type] || type);
+  document.getElementById('ev-m-label-es').value = '';
+  document.getElementById('ev-m-label-en').value = '';
+  document.getElementById('ev-m-required').checked = false;
+  document.getElementById('ev-m-opts-wrap').style.display = type === 'select' ? '' : 'none';
+  document.getElementById('ev-m-tags').innerHTML = '';
+  document.getElementById('ev-m-opt-input').value = '';
+  document.getElementById('ev-m-cond-field').value = '';
+  document.getElementById('ev-m-cond-val').disabled = true;
+  document.getElementById('ev-m-cond-val').value = '';
+  document.getElementById('ev-field-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('ev-m-label-es').focus(), 80);
+}
+
+function evCloseFieldModal() {
+  document.getElementById('ev-field-modal').style.display = 'none';
+}
+
+function evAddModalOpt() {
+  const inp = document.getElementById('ev-m-opt-input');
+  const val = inp.value.trim(); if (!val) return;
+  evModalOpts.push(val);
+  const tags = document.getElementById('ev-m-tags');
+  const idx = evModalOpts.length - 1;
+  const tag = document.createElement('span');
+  tag.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:20px;font-size:12px;';
+  tag.innerHTML = `${val}<button onclick="this.parentElement.remove();evModalOpts.splice(${idx},1);" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;line-height:1;padding:0 1px;">×</button>`;
+  tags.appendChild(tag);
+  inp.value = ''; inp.focus();
+}
+
+function evSaveFieldModal() {
+  const labelEs = document.getElementById('ev-m-label-es').value.trim();
+  if (!labelEs) { document.getElementById('ev-m-label-es').focus(); return; }
+  const condField = document.getElementById('ev-m-cond-field').value;
+  const condVal = document.getElementById('ev-m-cond-val').value.trim();
+  const newField = {
+    key: 'custom_' + Date.now(), type: evModalType,
+    labelEs, labelEn: document.getElementById('ev-m-label-en').value.trim(),
+    required: document.getElementById('ev-m-required').checked,
+    ...(evModalType === 'select' ? { options: [...evModalOpts] } : {}),
+    ...(condField ? { condition: { field: condField, value: condVal } } : {}),
+  };
+  evCatalog.push(newField);
+  evFields.push({ ...newField });
+  evCloseFieldModal();
+  evRenderActive();
+  evRenderCatalog();
 }
 
 function evPreviewLang(lang) {
