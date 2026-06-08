@@ -1484,17 +1484,7 @@
                       <option value="UTC">UTC</option>
                     </select>
                   </div>
-                  <div style="display:flex;flex-direction:column;gap:8px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
-                      <input type="checkbox" id="ev-edit-public" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;">
-                      Registro público habilitado
-                    </label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
-                      <input type="checkbox" id="ev-edit-autoconfirm" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;">
-                      Confirmación automática
-                      <span style="font-size:11px;font-weight:400;color:var(--text-muted);">— si está desactivado, debes confirmar cada inscripción manualmente</span>
-                    </label>
-                  </div>
+                  <!-- Acceso y confirmación viven en la pestaña Formulario -->
                   <div class="form-group" style="margin:0;">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
                       <span>Tipos de entrada</span>
@@ -1551,6 +1541,26 @@
             <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">
               <!-- Constructor -->
               <div style="display:flex;flex-direction:column;gap:12px;">
+                <!-- Acceso y confirmación -->
+                <div class="card">
+                  <div class="card-title">Acceso y confirmación</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+                      <input type="checkbox" id="ev-edit-public" style="width:17px;height:17px;cursor:pointer;accent-color:#f59e0b;flex-shrink:0;">
+                      <div>
+                        <div style="font-size:13px;font-weight:700;">Registro público habilitado</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Cualquier persona con el enlace puede inscribirse al evento</div>
+                      </div>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+                      <input type="checkbox" id="ev-edit-autoconfirm" style="width:17px;height:17px;cursor:pointer;accent-color:#00e676;flex-shrink:0;">
+                      <div>
+                        <div style="font-size:13px;font-weight:700;">Confirmación automática</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Activo: llega el pase con QR al inscribirse · Inactivo: el organizador confirma manualmente y el QR llega al confirmar</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
                 <!-- Campos fijos -->
                 <div class="card">
                   <div class="card-title" style="display:flex;align-items:center;gap:6px;">
@@ -4126,8 +4136,6 @@ async function evSaveInfo() {
     timezone: document.getElementById('ev-edit-tz').value,
     config: {
       ...(evCurrentEvent.config || {}),
-      allow_public_registration: document.getElementById('ev-edit-public').checked,
-      auto_confirm: document.getElementById('ev-edit-autoconfirm').checked,
       ticket_types: document.getElementById('ev-edit-ticket-types').value.split('\n').map(s=>s.trim()).filter(Boolean)
     }
   };
@@ -4412,7 +4420,12 @@ function evRenderPreview() {
 }
 
 async function evSaveFormConfig() {
-  const config = { ...(evCurrentEvent.config || {}), registration_fields: evFields };
+  const config = {
+    ...(evCurrentEvent.config || {}),
+    registration_fields:     evFields,
+    allow_public_registration: document.getElementById('ev-edit-public').checked,
+    auto_confirm:              document.getElementById('ev-edit-autoconfirm').checked,
+  };
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
       method: 'PATCH',
@@ -4437,41 +4450,41 @@ async function evLoadRegistrations() {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations?${params}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const data = await res.json();
     evRegsTotal = data.total || 0;
-    // Stat cards
-    const maxCap = evCurrentEvent?.max_capacity;
-    const capLabel = maxCap ? `de ${maxCap} cupos` : 'sin límite de cupos';
-    const capPct   = maxCap ? Math.min(100, Math.round(((data.total || 0) / maxCap) * 100)) : null;
-    const confPct  = data.total ? Math.round(((data.confirmed || 0) / data.total) * 100) : 0;
-    document.getElementById('ev-regs-stats').innerHTML = `
-      <div class="card" style="padding:16px 20px;">
-        <div style="display:flex;align-items:baseline;gap:6px;">
-          <span style="font-size:32px;font-weight:900;color:#f59e0b;">${data.total || 0}</span>
-          <span style="font-size:13px;color:var(--text-muted);">${capLabel}</span>
+    // Stat cards con gráfica donut
+    const maxCap  = evCurrentEvent?.max_capacity ? parseInt(evCurrentEvent.max_capacity) : null;
+    const total   = data.total     || 0;
+    const conf    = data.confirmed || 0;
+    const pend    = data.pending   || 0;
+    const occPct  = maxCap && total ? Math.min(100, Math.round((total / maxCap) * 100)) : (maxCap ? 0 : null);
+    const confPct = total ? Math.round((conf / total) * 100) : 0;
+
+    function evDonut(pct, color, bigNum, line1, line2) {
+      const p = pct ?? 0;
+      const gap = Math.max(0, 100 - p);
+      return `<div class="card" style="display:flex;align-items:center;gap:18px;padding:16px 20px;">
+        <svg width="80" height="80" viewBox="0 0 80 80" style="flex-shrink:0;">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="var(--border)" stroke-width="9"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="${color}" stroke-width="9"
+                  pathLength="100" stroke-dasharray="${p} ${gap}"
+                  transform="rotate(-90 40 40)" stroke-linecap="round"/>
+          <text x="40" y="43" text-anchor="middle" font-size="13" font-weight="800" fill="${color}">${pct !== null ? p + '%' : '∞'}</text>
+        </svg>
+        <div>
+          <div style="font-size:32px;font-weight:900;color:${color};line-height:1.1;">${bigNum}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">${line1}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:5px;">${line2}</div>
         </div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:4px 0 8px;">Inscritos</div>
-        ${capPct !== null ? `
-        <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
-          <div style="height:100%;width:${capPct}%;background:#f59e0b;border-radius:2px;transition:width .3s;"></div>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${capPct}% de ocupación</div>` : ''}
-      </div>
-      <div class="card" style="padding:16px 20px;">
-        <div style="display:flex;align-items:baseline;gap:6px;">
-          <span style="font-size:32px;font-weight:900;color:#00e676;">${data.confirmed || 0}</span>
-          <span style="font-size:13px;color:var(--text-muted);">de ${data.total || 0} inscritos</span>
-        </div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:4px 0 8px;">Confirmados</div>
-        <div style="height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
-          <div style="height:100%;width:${confPct}%;background:#00e676;border-radius:2px;transition:width .3s;"></div>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${confPct}% del total</div>
-      </div>
-      ${data.pending ? `
-      <div class="card" style="padding:16px 20px;">
-        <div style="font-size:32px;font-weight:900;color:#f59e0b;">${data.pending}</div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-top:4px;">Pendientes de confirmar</div>
-      </div>` : ''}
-    `;
+      </div>`;
+    }
+
+    document.getElementById('ev-regs-stats').innerHTML =
+      evDonut(occPct, '#f59e0b', total,
+        maxCap ? `de ${maxCap} cupos disponibles` : 'sin límite de cupos',
+        'Inscritos') +
+      evDonut(confPct, '#00e676', conf,
+        `de ${total} inscritos`,
+        'Confirmados') +
+      (pend ? evDonut(null, '#f59e0b', pend, 'pendientes de confirmar', 'Pendientes') : '');
     const rows = data.registrations || [];
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }
     const tz = evCurrentEvent?.timezone || 'America/Bogota';

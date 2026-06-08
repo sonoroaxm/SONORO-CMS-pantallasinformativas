@@ -136,7 +136,7 @@ router.patch('/:id', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
-                   'venue_name', 'venue_address', 'cover_image_url', 'config', 'capacity'];
+                   'venue_name', 'venue_address', 'cover_image_url', 'config', 'max_capacity'];
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   if (!fields.length) return res.status(400).json({ error: 'Nada que actualizar' });
 
