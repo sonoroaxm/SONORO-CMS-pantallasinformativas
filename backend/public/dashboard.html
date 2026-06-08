@@ -3901,14 +3901,14 @@ async function evLoadList() {
       return;
     }
     grid.innerHTML = data.map(ev => {
-      const start = new Date(ev.start_date).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
-      const end = new Date(ev.end_date).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
+      const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
+      const end = new Date(ev.ends_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
       const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
       return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail(${ev.id})">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
           <div style="flex:1;">
             <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${ev.venue || ''}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${ev.venue_name || ''}</div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);">
               <span>📅 ${start} — ${end}</span>
               ${ev.max_capacity ? `<span>👥 Capacidad: ${ev.max_capacity}</span>` : ''}
@@ -3940,7 +3940,7 @@ async function evSaveNew() {
     const res = await fetch(`${API_URL}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ name, start_date: start, end_date: end, timezone: tz, max_capacity: capacity || null, description: desc, venue })
+      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue })
     });
     const data = await res.json();
     if (data.id) {
@@ -3980,10 +3980,10 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-detail-slug').textContent = `/evento/${ev.slug}`;
   document.getElementById('ev-edit-name').value = ev.name || '';
   document.getElementById('ev-edit-desc').value = ev.description || '';
-  document.getElementById('ev-edit-venue').value = ev.venue || '';
+  document.getElementById('ev-edit-venue').value = ev.venue_name || '';
   document.getElementById('ev-edit-capacity').value = ev.max_capacity || '';
-  document.getElementById('ev-edit-start').value = ev.start_date ? ev.start_date.substring(0,10) : '';
-  document.getElementById('ev-edit-end').value = ev.end_date ? ev.end_date.substring(0,10) : '';
+  document.getElementById('ev-edit-start').value = ev.starts_at ? ev.starts_at.substring(0,10) : '';
+  document.getElementById('ev-edit-end').value = ev.ends_at ? ev.ends_at.substring(0,10) : '';
   document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
   const origin = window.location.origin;
@@ -3994,10 +3994,10 @@ async function evSaveInfo() {
   const body = {
     name: document.getElementById('ev-edit-name').value.trim(),
     description: document.getElementById('ev-edit-desc').value.trim(),
-    venue: document.getElementById('ev-edit-venue').value.trim(),
+    venue_name: document.getElementById('ev-edit-venue').value.trim(),
     max_capacity: document.getElementById('ev-edit-capacity').value || null,
-    start_date: document.getElementById('ev-edit-start').value,
-    end_date: document.getElementById('ev-edit-end').value,
+    starts_at: document.getElementById('ev-edit-start').value,
+    ends_at: document.getElementById('ev-edit-end').value,
     timezone: document.getElementById('ev-edit-tz').value,
     config: { ...(evCurrentEvent.config || {}), allow_public_registration: document.getElementById('ev-edit-public').checked }
   };
@@ -4030,13 +4030,16 @@ async function evLoadSessions(eventId) {
     const sessions = await res.json();
     if (!sessions.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Sin sesiones. Agrega una arriba.</div>'; return; }
     list.innerHTML = sessions.map(s => {
-      const date = new Date(s.session_date).toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: 'UTC' });
-      const startT = s.start_time ? s.start_time.substring(0,5) : '';
-      const endT = s.end_time ? s.end_time.substring(0,5) : '';
+      const tz = evCurrentEvent?.timezone || 'UTC';
+      const startDt = new Date(s.starts_at);
+      const endDt = new Date(s.ends_at);
+      const dateStr = startDt.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz });
+      const startT = startDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+      const endT = endDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
         <div>
           <div style="font-size:13px;font-weight:700;">${s.name}</div>
-          <div style="font-size:12px;color:var(--text-muted);">${date}${startT ? ' · ' + startT : ''}${endT ? ' – ' + endT : ''}${s.max_capacity ? ' · ' + s.max_capacity + ' cupos' : ''}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' cupos' : ''}</div>
         </div>
       </div>`;
     }).join('');
@@ -4053,12 +4056,14 @@ function evCloseAddSession() {
 async function evSaveSession() {
   const name = document.getElementById('ev-sess-name').value.trim();
   const date = document.getElementById('ev-sess-date').value;
-  if (!name || !date) { showStatus('Nombre y fecha son obligatorios', 'error'); return; }
+  const startT = document.getElementById('ev-sess-start').value;
+  const endT = document.getElementById('ev-sess-end').value;
+  if (!name || !date || !startT || !endT) { showStatus('Nombre, fecha y horas son obligatorios', 'error'); return; }
   const body = {
-    name, session_date: date,
-    max_capacity: document.getElementById('ev-sess-cap').value || null,
-    start_time: document.getElementById('ev-sess-start').value || null,
-    end_time: document.getElementById('ev-sess-end').value || null
+    name,
+    starts_at: `${date}T${startT}:00`,
+    ends_at: `${date}T${endT}:00`,
+    capacity: document.getElementById('ev-sess-cap').value || null
   };
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, {
