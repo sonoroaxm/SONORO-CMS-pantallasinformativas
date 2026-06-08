@@ -1524,14 +1524,54 @@
                 </div>
               </div>
             </div>
-            <!-- Info del enlace público -->
+            <!-- Links del evento -->
             <div class="card" style="margin-top:16px;background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2);">
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-                <div>
-                  <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:4px;">Formulario de registro público</div>
-                  <div id="ev-public-url" style="font-size:12px;color:var(--text-muted);font-family:monospace;"></div>
+              <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:14px;">Enlaces del evento</div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <!-- Registro público -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Registro público</div>
+                    <div id="ev-public-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-public-url')" style="border-color:#f59e0b;color:#f59e0b;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-public-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
+                  </div>
                 </div>
-                <button class="btn btn-outline btn-sm" onclick="evCopyPublicUrl()" style="border-color:#f59e0b;color:#f59e0b;">Copiar enlace</button>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- App Staff -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">App Staff (tablet)</div>
+                    <div id="ev-staff-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-staff-url')" style="border-color:#60a5fa;color:#60a5fa;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-staff-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
+                  </div>
+                </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- Kiosko -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(0,230,118,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e676" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Kiosko check-in</div>
+                    <div id="ev-kiosko-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -4090,7 +4130,13 @@ function evPopulateInfo(ev) {
   const ticketChip = document.getElementById('ev-fixed-ticket-chip');
   if (ticketChip) ticketChip.classList.toggle('hidden', ticketTypes.length === 0);
   const origin = window.location.origin;
-  document.getElementById('ev-public-url').textContent = `${origin}/evento/${ev.slug}`;
+  const baseUrl = `${origin}/evento/${ev.slug}`;
+  document.getElementById('ev-public-url').textContent = baseUrl;
+  document.getElementById('ev-public-url-link').href = baseUrl;
+  document.getElementById('ev-staff-url').textContent = `${baseUrl}/staff`;
+  document.getElementById('ev-staff-url-link').href = `${baseUrl}/staff`;
+  document.getElementById('ev-kiosko-url').textContent = `${baseUrl}/kiosko`;
+  document.getElementById('ev-kiosko-url-link').href = `${baseUrl}/kiosko`;
   const pubBtn = document.getElementById('ev-publish-btn');
   if (ev.status === 'published' || ev.status === 'live') {
     pubBtn.textContent = 'Despublicar';
@@ -4169,8 +4215,8 @@ function evSelectConfirmMode(mode) {
   manualEl.style.background  = !isAuto ? 'rgba(245,158,11,0.06)' : '';
 }
 
-function evCopyPublicUrl() {
-  const url = document.getElementById('ev-public-url').textContent;
+function evCopyLink(elementId) {
+  const url = document.getElementById(elementId).textContent;
   navigator.clipboard.writeText(url).then(() => showStatus('Enlace copiado', 'success'));
 }
 
