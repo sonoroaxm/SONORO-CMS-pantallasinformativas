@@ -1591,8 +1591,8 @@
               <div class="card" style="position:sticky;top:80px;">
                 <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Vista previa</div>
                 <div style="display:flex;gap:6px;margin-bottom:16px;">
-                  <button class="btn btn-sm" id="ev-prev-es" onclick="evPreviewLang('es')" style="font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;">🇨🇴 ES</button>
-                  <button class="btn btn-sm" id="ev-prev-en" onclick="evPreviewLang('en')" style="font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;">🇺🇸 EN</button>
+                  <button class="btn btn-sm" id="ev-prev-es" onclick="evPreviewLang('es')" style="font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;">ES</button>
+                  <button class="btn btn-sm" id="ev-prev-en" onclick="evPreviewLang('en')" style="font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;">EN</button>
                 </div>
                 <div id="ev-form-preview" style="display:grid;gap:12px;"></div>
               </div>
@@ -3894,28 +3894,24 @@ async function evLoadList() {
     const data = await res.json();
     if (!data.length) {
       grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:32px;margin-bottom:12px;">🎪</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:8px;">Sin eventos todavía</div>
         <div style="font-size:13px;color:var(--text-muted);">Crea tu primer evento para comenzar.</div>
       </div>`;
       return;
     }
     grid.innerHTML = data.map(ev => {
-      const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
-      const end = new Date(ev.ends_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: ev.timezone || 'UTC' });
+      const tz = ev.timezone || 'UTC';
+      const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+      const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
       const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
       return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail(${ev.id})">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
           <div style="flex:1;">
-            <div style="font-size:16px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${ev.venue_name || ''}</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);">
-              <span>📅 ${start} — ${end}</span>
-              ${ev.max_capacity ? `<span>👥 Capacidad: ${ev.max_capacity}</span>` : ''}
-              <span style="color:${statusColor};font-weight:700;text-transform:uppercase;">${ev.status}</span>
-            </div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${ev.venue_name ? ev.venue_name + ' &middot; ' : ''}${start} — ${end}</div>
           </div>
-          <div style="display:flex;gap:8px;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
             <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail(${ev.id})">Gestionar</button>
           </div>
         </div>
