@@ -3905,7 +3905,7 @@ async function evLoadList() {
       const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
       const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
       const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
-      return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail(${ev.id})">
+      return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
           <div style="flex:1;">
             <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
@@ -3913,7 +3913,7 @@ async function evLoadList() {
           </div>
           <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
             <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail(${ev.id})">Gestionar</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">Gestionar</button>
           </div>
         </div>
       </div>`;
