@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SONORO · Kiosko Check-in</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0a0a0a;
+    --surface:  #111;
+    --border:   #1e1e1e;
+    --text:     #f0f0f0;
+    --muted:    #555;
+    --brand:    #FF1B8D;
+    --green:    #00e676;
+    --green-dim:#00a854;
+    --amber:    #f59e0b;
+    --red:      #ef4444;
+  }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: auto; }
+  .hidden { display: none !important; }
+
+  /* ── SETUP ──────────────────────────────────── */
+  #s-setup {
+    background: radial-gradient(ellipse at 50% 0%, #1a0030 0%, var(--bg) 65%);
+    padding: 24px;
+  }
+  .setup-card {
+    width: 100%; max-width: 380px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 36px 28px;
+  }
+  .setup-logo {
+    font-size: 22px; font-weight: 900; letter-spacing: -1px;
+    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .setup-sub { font-size: 11px; color: var(--muted); letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 28px; margin-top: 2px; }
+  .setup-label { font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .setup-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 13px; color: var(--text);
+    font-size: 15px; outline: none; margin-bottom: 14px;
+  }
+  .setup-input:focus { border-color: var(--brand); }
+  .pin-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 13px; color: var(--text);
+    font-size: 22px; font-weight: 900; letter-spacing: 10px; outline: none;
+    text-align: center; font-family: monospace; margin-bottom: 20px;
+  }
+  .pin-input:focus { border-color: var(--brand); }
+  .setup-btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
+    border: none; border-radius: 8px; color: #fff;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .setup-btn:disabled { opacity: .5; cursor: default; }
+  .setup-err { font-size: 12px; color: var(--red); margin-top: 10px; text-align: center; min-height: 18px; }
+  .setup-footer { font-size: 11px; color: var(--muted); text-align: center; margin-top: 18px; }
+  .setup-footer a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+  /* ── WELCOME (idle) ──────────────────────────── */
+  #s-welcome {
+    background: var(--bg);
+    gap: 0;
+  }
+  .wlc-logo {
+    font-size: 28px; font-weight: 900; letter-spacing: -1px;
+    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: absolute; top: 32px; left: 50%; transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .wlc-event-name {
+    font-size: clamp(22px, 4vw, 36px); font-weight: 800;
+    text-align: center; max-width: 700px; padding: 0 24px;
+    line-height: 1.2; margin-bottom: 10px;
+  }
+  .wlc-event-date {
+    font-size: 15px; color: var(--muted); margin-bottom: 56px;
+    letter-spacing: .5px;
+  }
+  /* QR scan target animation */
+  .scan-frame {
+    width: 200px; height: 200px; position: relative; margin-bottom: 48px;
+    flex-shrink: 0;
+  }
+  .scan-frame::before, .scan-frame::after,
+  .scan-corner-br, .scan-corner-bl {
+    content: ''; position: absolute;
+    width: 36px; height: 36px; border-color: var(--brand); border-style: solid;
+  }
+  .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .scan-corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+  .scan-corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .scan-line {
+    position: absolute; left: 8px; right: 8px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--brand), transparent);
+    animation: scan-sweep 2.4s ease-in-out infinite;
+    top: 8px;
+  }
+  @keyframes scan-sweep {
+    0%   { top: 8px; opacity: 1; }
+    45%  { opacity: 1; }
+    50%  { top: calc(100% - 10px); opacity: .5; }
+    55%  { opacity: 1; }
+    100% { top: 8px; opacity: 1; }
+  }
+  .scan-qr-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .scan-qr-icon svg { width: 72px; height: 72px; opacity: .18; }
+  .wlc-cta {
+    font-size: clamp(17px, 2.5vw, 22px); font-weight: 700;
+    color: var(--text); text-align: center; margin-bottom: 8px;
+  }
+  .wlc-sub {
+    font-size: 14px; color: var(--muted); text-align: center;
+  }
+  .wlc-logout {
+    position: absolute; bottom: 20px; right: 24px;
+    font-size: 11px; color: #333; cursor: pointer;
+    padding: 6px 10px; border-radius: 6px;
+  }
+  .wlc-logout:hover { color: var(--muted); }
+
+  /* ── PROCESSING ──────────────────────────────── */
+  #s-processing { gap: 20px; }
+  .proc-spinner {
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: var(--brand);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .proc-label { font-size: 18px; color: var(--muted); }
+
+  /* ── RESULT ──────────────────────────────────── */
+  #s-result { gap: 0; transition: background .3s ease; }
+
+  .result-icon {
+    width: 100px; height: 100px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 52px; margin-bottom: 28px;
+    flex-shrink: 0;
+  }
+  .result-icon.success { background: rgba(0,230,118,.12); }
+  .result-icon.already { background: rgba(245,158,11,.12); }
+  .result-icon.fail    { background: rgba(239,68,68,.12); }
+
+  .result-headline {
+    font-size: clamp(28px, 5vw, 52px); font-weight: 900;
+    text-align: center; margin-bottom: 10px; line-height: 1.1;
+  }
+  .result-headline.success { color: var(--green); }
+  .result-headline.already { color: var(--amber); }
+  .result-headline.fail    { color: var(--red); }
+
+  .result-name {
+    font-size: clamp(20px, 3.5vw, 32px); font-weight: 700;
+    color: var(--text); text-align: center;
+    margin-bottom: 8px; max-width: 600px; padding: 0 24px;
+  }
+  .result-sub {
+    font-size: 16px; color: var(--muted); text-align: center;
+    margin-bottom: 48px;
+  }
+  .result-progress {
+    width: 160px; height: 3px; background: var(--border);
+    border-radius: 3px; overflow: hidden;
+  }
+  .result-progress-bar {
+    height: 100%; border-radius: 3px;
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(1);
+    transition: transform linear;
+  }
+  .result-progress-bar.success { background: var(--green); }
+  .result-progress-bar.already { background: var(--amber); }
+  .result-progress-bar.fail    { background: var(--red); }
+
+  /* result screen bg tint */
+  #s-result.tint-success { background: radial-gradient(ellipse at 50% 40%, rgba(0,230,118,.07) 0%, var(--bg) 65%); }
+  #s-result.tint-already { background: radial-gradient(ellipse at 50% 40%, rgba(245,158,11,.07) 0%, var(--bg) 65%); }
+  #s-result.tint-fail    { background: radial-gradient(ellipse at 50% 40%, rgba(239,68,68,.07) 0%, var(--bg) 65%); }
+
+  /* ── HIDDEN HID INPUT ───────────────────────── */
+  #hid-input {
+    position: fixed; top: -999px; left: -999px;
+    width: 1px; height: 1px; opacity: 0;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Setup screen -->
+<div class="screen active" id="s-setup">
+  <div class="setup-card">
+    <div class="setup-logo">SONORO</div>
+    <div class="setup-sub">Kiosko · Check-in</div>
+    <div class="setup-label">Evento (slug)</div>
+    <input id="setup-slug" class="setup-input" type="text" placeholder="convención-sonoro-2026" autocomplete="off" spellcheck="false">
+    <div class="setup-label">PIN de kiosko</div>
+    <input id="setup-pin" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
+    <button class="setup-btn" id="setup-btn" onclick="doSetup()">Iniciar kiosko</button>
+    <div class="setup-err" id="setup-err"></div>
+    <div class="setup-footer">
+      El PIN debe ser de un staff con rol <strong>kiosk</strong> creado desde el dashboard.
+    </div>
+  </div>
+</div>
+
+<!-- Welcome / idle screen -->
+<div class="screen" id="s-welcome">
+  <div class="wlc-logo">SONORO</div>
+  <div class="wlc-event-name" id="wlc-event-name">—</div>
+  <div class="wlc-event-date" id="wlc-event-date"></div>
+  <div class="scan-frame">
+    <div class="scan-corner-br"></div>
+    <div class="scan-corner-bl"></div>
+    <div class="scan-line"></div>
+    <div class="scan-qr-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="4.5" y="4.5" width="4" height="4" rx=".5" fill="currentColor" stroke="none"/>
+        <rect x="15.5" y="4.5" width="4" height="4" rx=".5" fill="currentColor" stroke="none"/>
+        <rect x="4.5" y="15.5" width="4" height="4" rx=".5" fill="currentColor" stroke="none"/>
+        <rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/>
+        <rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/>
+      </svg>
+    </div>
+  </div>
+  <div class="wlc-cta">Presenta tu código QR</div>
+  <div class="wlc-sub">Escanea el QR que recibiste en tu correo de confirmación</div>
+  <div class="wlc-logout" id="wlc-logout" onclick="doLogout()">salir</div>
+</div>
+
+<!-- Processing screen -->
+<div class="screen" id="s-processing">
+  <div class="proc-spinner"></div>
+  <div class="proc-label">Verificando…</div>
+</div>
+
+<!-- Result screen -->
+<div class="screen" id="s-result">
+  <div class="result-icon" id="r-icon"></div>
+  <div class="result-headline" id="r-headline"></div>
+  <div class="result-name" id="r-name"></div>
+  <div class="result-sub" id="r-sub"></div>
+  <div class="result-progress">
+    <div class="result-progress-bar" id="r-bar"></div>
+  </div>
+</div>
+
+<!-- Hidden HID capture input -->
+<input id="hid-input" type="text" autocomplete="off" tabindex="-1" aria-hidden="true">
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+let session = null;   // { token, eventId, staffName, eventName, eventDate, timezone }
+let busy = false;
+let resetTimer = null;
+
+const STORAGE_KEY = 'kiosko_session';
+
+// ── Screens ────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(function init() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved && saved.token && saved.eventId) {
+      session = saved;
+      activateKiosko();
+    }
+  } catch(e) {}
+})();
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+async function doSetup() {
+  const slug = document.getElementById('setup-slug').value.trim();
+  const pin  = document.getElementById('setup-pin').value.trim();
+  const btn  = document.getElementById('setup-btn');
+  const err  = document.getElementById('setup-err');
+
+  err.textContent = '';
+  if (!slug || !pin) { err.textContent = 'Completa todos los campos.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Conectando…';
+
+  try {
+    // 1. Resolve slug → event_id
+    const slugRes = await fetch(`/api/events/public/${encodeURIComponent(slug)}`);
+    if (!slugRes.ok) {
+      const d = await slugRes.json().catch(() => ({}));
+      throw new Error(d.error || `Evento no encontrado (${slugRes.status})`);
+    }
+    const ev = await slugRes.json();
+
+    // 2. PIN auth
+    const authRes = await fetch('/api/events/staff/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_id: ev.id, pin })
+    });
+    if (!authRes.ok) {
+      const d = await authRes.json().catch(() => ({}));
+      throw new Error(d.error || `PIN inválido (${authRes.status})`);
+    }
+    const authData = await authRes.json();
+
+    session = {
+      token:     authData.token,
+      eventId:   ev.id,
+      staffName: authData.staff?.name || 'Kiosko',
+      eventName: ev.name,
+      eventDate: ev.starts_at,
+      timezone:  ev.timezone
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    activateKiosko();
+
+  } catch(e) {
+    err.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = 'Iniciar kiosko';
+  }
+}
+
+document.getElementById('setup-pin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSetup();
+});
+
+function activateKiosko() {
+  // Populate welcome screen
+  document.getElementById('wlc-event-name').textContent = session.eventName || '—';
+
+  if (session.eventDate) {
+    const d = new Date(session.eventDate);
+    document.getElementById('wlc-event-date').textContent =
+      d.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: session.timezone || 'America/Bogota' });
+  }
+
+  showScreen('s-welcome');
+  startHID();
+}
+
+// ── Logout ─────────────────────────────────────────────────────────────────
+function doLogout() {
+  if (!confirm('¿Salir del modo kiosko?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  session = null;
+  stopHID();
+  document.getElementById('setup-slug').value = '';
+  document.getElementById('setup-pin').value = '';
+  document.getElementById('setup-err').textContent = '';
+  document.getElementById('setup-btn').disabled = false;
+  document.getElementById('setup-btn').textContent = 'Iniciar kiosko';
+  showScreen('s-setup');
+}
+
+// ── HID Scanner ────────────────────────────────────────────────────────────
+// Rapid keypress buffer — scanner sends chars faster than human typing
+let hidBuffer = '';
+let hidTimer  = null;
+const HID_TIMEOUT_MS = 80;   // ms between chars — scanner is faster
+const HID_MIN_LEN    = 6;    // minimum QR length to consider valid
+
+function startHID() {
+  document.addEventListener('keydown', onGlobalKey);
+  // Keep hidden input focused as fallback
+  focusHID();
+  document.addEventListener('click', focusHID);
+}
+
+function stopHID() {
+  document.removeEventListener('keydown', onGlobalKey);
+  document.removeEventListener('click', focusHID);
+}
+
+function focusHID() {
+  const el = document.getElementById('hid-input');
+  if (el && !el.matches(':focus')) {
+    el.value = '';
+    el.focus({ preventScroll: true });
+  }
+}
+
+function onGlobalKey(e) {
+  // Ignore modifier combos and special keys (except printable + Enter)
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const val = hidBuffer.trim();
+    hidBuffer = '';
+    clearTimeout(hidTimer);
+    if (val.length >= HID_MIN_LEN) {
+      onQRScanned(val);
+    }
+    return;
+  }
+  if (e.key.length === 1) {
+    hidBuffer += e.key;
+    clearTimeout(hidTimer);
+    hidTimer = setTimeout(() => {
+      // Human typing fallthrough — only submit if long enough (UUID)
+      if (hidBuffer.length >= 32) {
+        const val = hidBuffer.trim();
+        hidBuffer = '';
+        onQRScanned(val);
+      } else {
+        hidBuffer = '';
+      }
+    }, HID_TIMEOUT_MS * 10);
+  }
+}
+
+// ── Check-in ───────────────────────────────────────────────────────────────
+function onQRScanned(qrToken) {
+  if (busy) return;
+  if (!session) return;
+  const screen = document.getElementById('s-welcome');
+  // Only process if welcome screen is active (not during result)
+  if (!screen.classList.contains('active')) return;
+
+  doCheckin(qrToken);
+}
+
+async function doCheckin(qrToken) {
+  busy = true;
+  clearTimeout(resetTimer);
+
+  showScreen('s-processing');
+
+  try {
+    const res = await fetch(`/api/events/staff/${session.eventId}/checkin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.token}`
+      },
+      body: JSON.stringify({ qr_token: qrToken })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      if (data.already) {
+        showResult('already', data.name || '', 'Ya registró asistencia hoy', 3000);
+      } else {
+        showResult('success', data.name || '', formatDayLabel(data.event_day), 5000);
+      }
+    } else if (res.status === 401 || res.status === 403) {
+      // Token expired — clear session and go to setup
+      localStorage.removeItem(STORAGE_KEY);
+      session = null;
+      stopHID();
+      showScreen('s-setup');
+      document.getElementById('setup-err').textContent = 'Sesión expirada. Vuelve a iniciar.';
+      busy = false;
+    } else {
+      const msg = data.error || 'No se pudo registrar la asistencia';
+      showResult('fail', '', msg, 3000);
+    }
+  } catch(e) {
+    showResult('fail', '', 'Error de conexión', 3000);
+  }
+}
+
+function formatDayLabel(dayStr) {
+  if (!dayStr) return '';
+  try {
+    const d = new Date(dayStr + 'T12:00:00Z');
+    return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+  } catch(e) { return dayStr; }
+}
+
+// ── Result screen ──────────────────────────────────────────────────────────
+function showResult(type, name, sub, durationMs) {
+  const iconEl      = document.getElementById('r-icon');
+  const headlineEl  = document.getElementById('r-headline');
+  const nameEl      = document.getElementById('r-name');
+  const subEl       = document.getElementById('r-sub');
+  const barEl       = document.getElementById('r-bar');
+  const resultEl    = document.getElementById('s-result');
+
+  const config = {
+    success: { icon: '✓', label: '¡Bienvenido!', cls: 'success' },
+    already: { icon: '◷', label: 'Ya estás dentro', cls: 'already' },
+    fail:    { icon: '✕', label: 'No encontrado',  cls: 'fail'    },
+  };
+  const c = config[type] || config.fail;
+
+  iconEl.className     = `result-icon ${c.cls}`;
+  iconEl.textContent   = c.icon;
+  headlineEl.className = `result-headline ${c.cls}`;
+  headlineEl.textContent = c.label;
+  nameEl.textContent   = name;
+  subEl.textContent    = sub;
+
+  barEl.className = `result-progress-bar ${c.cls}`;
+  barEl.style.transition = 'none';
+  barEl.style.transform  = 'scaleX(1)';
+
+  resultEl.className = `screen tint-${c.cls}`;
+
+  showScreen('s-result');
+
+  // Animate progress bar
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      barEl.style.transition = `transform ${durationMs}ms linear`;
+      barEl.style.transform  = 'scaleX(0)';
+    });
+  });
+
+  resetTimer = setTimeout(() => {
+    busy = false;
+    showScreen('s-welcome');
+    focusHID();
+  }, durationMs);
+}
+
+// ── Setup: Enter on slug field moves to PIN ────────────────────────────────
+document.getElementById('setup-slug').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('setup-pin').focus();
+  }
+});
+</script>
+</body>
+</html>

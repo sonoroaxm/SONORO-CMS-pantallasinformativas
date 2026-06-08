@@ -1,6 +1,6 @@
 // Events v1 — Rutas autenticadas (organizador / productor)
 // P-2: todo filtro incluye user_id | P-3: mutaciones ≥2 tablas usan withTransaction
-// Fase: E1
+// Fase: E2
 
 'use strict';
 const express = require('express');
@@ -433,6 +433,44 @@ router.patch('/:id/registrations/:regId/status', auth, async (req, res) => {
 
     res.json({ id: rows[0].id, status: rows[0].status });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── STATS EN TIEMPO REAL ──────────────────────────────────────────────────────
+router.get('/:id/stats/live', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evRes = await pool.query(
+      `SELECT id, timezone FROM events.events
+       WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { timezone } = evRes.rows[0];
+
+    const { rows } = await pool.query(
+      `SELECT
+         (SELECT COUNT(*) FROM events.registrations
+          WHERE event_id = $1 AND status != 'cancelled')::int        AS total,
+         (SELECT COUNT(*) FROM events.registrations
+          WHERE event_id = $1 AND status = 'confirmed')::int         AS confirmed,
+         (SELECT COUNT(*) FROM events.registrations
+          WHERE event_id = $1 AND status = 'pending')::int           AS pending,
+         (SELECT COUNT(DISTINCT registration_id)
+          FROM events.registration_checkins
+          WHERE event_id = $1)::int                                   AS checked_in_total,
+         (SELECT COUNT(DISTINCT registration_id)
+          FROM events.registration_checkins
+          WHERE event_id = $1
+            AND event_day = (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE)::int AS checked_in_today,
+         (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE::text              AS event_day`,
+      [req.params.id, timezone]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ GET /api/events/:id/stats/live:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
 });
 
 // ── ELIMINAR REGISTRO (permanente) ────────────────────────────────────────────

@@ -537,9 +537,12 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
   const endStr   = new Date(event.ends_at).toLocaleString('es-CO', opts);
   const ticketLabel = (registration.ticket_type || 'general').charAt(0).toUpperCase() + (registration.ticket_type || 'general').slice(1);
 
-  let qrDataUrl = null;
+  let qrImgHtml = `<p style="margin:0;font-family:monospace;font-size:12px;color:#555;word-break:break-all;">${registration.qr_token}</p>`;
+  let attachments = [];
   try {
-    qrDataUrl = await QRCode.toDataURL(registration.qr_token, { type: 'png', width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+    const qrBuffer = await QRCode.toBuffer(registration.qr_token, { type: 'png', width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+    qrImgHtml = `<img src="cid:event_qr_code" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;" />`;
+    attachments = [{ filename: 'qr.png', content: qrBuffer, cid: 'event_qr_code' }];
   } catch (e) {
     console.error('⚠️ QR generation error:', e.message);
   }
@@ -581,10 +584,7 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
       <p style="margin:0 0 12px;font-size:13px;color:#666;font-weight:600;">
         Presenta este código QR al ingresar al evento
       </p>
-      ${qrDataUrl
-        ? `<img src="${qrDataUrl}" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;" />`
-        : `<p style="margin:0;font-family:monospace;font-size:12px;color:#555;word-break:break-all;">${registration.qr_token}</p>`
-      }
+      ${qrImgHtml}
     </div>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
@@ -600,7 +600,7 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
     </p>
   `);
 
-  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Tu pase para ${event.name}`, html });
+  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Tu pase para ${event.name}`, html, attachments });
   console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
 }
 

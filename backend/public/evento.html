@@ -600,6 +600,11 @@ async function loadMiRegistro() {
     renderMiRegistro(reg);
     show('screen-mi-reg');
     show('ev-footer');
+    if (typeof QRCode !== 'undefined' && reg.qr_token) {
+      QRCode.toCanvas(document.getElementById('qr-canvas-mreg'), reg.qr_token,
+        { width: 180, margin: 2, color: { dark: '#111111', light: '#ffffff' } }
+      ).catch(() => {});
+    }
   } catch(e) {
     console.error('loadMiRegistro error:', e);
     showError('Error', 'No se pudo cargar el registro. ' + (e?.message || ''));
@@ -747,9 +752,6 @@ function renderMiRegistro(reg) {
   document.getElementById('mreg-email').textContent = reg.email || '';
   document.getElementById('mreg-ticket').textContent = (reg.ticket_type || 'general').toUpperCase();
   document.getElementById('mreg-qr-token').textContent = reg.qr_token || '';
-  try {
-    QRCode.toCanvas(document.getElementById('qr-canvas-mreg'), reg.qr_token || '', { width: 180, margin: 2, color: { dark: '#111111', light: '#ffffff' } });
-  } catch(e) { /* QR canvas opcional */ }
   if (reg.sessions && reg.sessions.length) {
     const tz = EVENT?.timezone || 'UTC';
     document.getElementById('mreg-sess-label').textContent = t('sessLabel');
@@ -927,7 +929,7 @@ async function doRegister() {
   } catch(e) {
     btn.disabled = false;
     btn.textContent = t('register');
-    alert('Error de conexion. Verifica tu internet e intenta de nuevo.');
+    alert('Error al registrar: ' + e.message);
   }
 }
 
@@ -941,10 +943,12 @@ function showSuccess(email, qrToken) {
   document.getElementById('r1').textContent = t('rem1');
   document.getElementById('r2').textContent = t('rem2');
   document.getElementById('r3').textContent = t('rem3');
-  QRCode.toCanvas(document.getElementById('qr-canvas'), qrToken, {
-    width: 200, margin: 2,
-    color: { dark: '#111111', light: '#ffffff' }
-  });
+  try {
+    QRCode.toCanvas(document.getElementById('qr-canvas'), qrToken, {
+      width: 200, margin: 2,
+      color: { dark: '#111111', light: '#ffffff' }
+    });
+  } catch(e) { /* QR en pantalla opcional */ }
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
