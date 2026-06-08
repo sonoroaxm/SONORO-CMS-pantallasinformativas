@@ -1545,14 +1545,35 @@
               <!-- Constructor -->
               <div>
                 <div class="card" style="margin-bottom:16px;">
-                  <div style="margin-bottom:12px;">
-                    <div class="card-title" style="margin-bottom:10px;">Campos adicionales configurables</div>
-                    <div style="padding:9px 12px;background:rgba(59,91,219,0.07);border-radius:8px;font-size:11px;color:#3B5BDB;display:flex;gap:8px;align-items:flex-start;">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-                      <span>Campos fijos (siempre presentes, no configurables): <strong>Nombre, Email, Teléfono (+prefijo país), Tipo de documento, N° documento y Tipo de entrada.</strong></span>
+                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Campos fijos — siempre presentes</div>
+                  <div style="display:grid;gap:5px;margin-bottom:16px;">
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">texto</span><span style="flex:1;">Nombre completo</span><span class="ev-chip-req">*</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">email</span><span style="flex:1;">Correo electrónico</span><span class="ev-chip-req">*</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">tel</span><span style="flex:1;">Teléfono (+prefijo país)</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">select</span><span style="flex:1;">Tipo de documento</span><span class="ev-chip-req">*</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">texto</span><span style="flex:1;">Número de documento</span><span class="ev-chip-req">*</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <div id="ev-fixed-ticket-chip" class="ev-field-chip hidden" style="cursor:default;opacity:0.65;">
+                      <span class="ev-chip-type">select</span><span style="flex:1;">Tipo de entrada</span><span class="ev-chip-req">*</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
                   </div>
-                  <div id="ev-fields-list" style="display:grid;gap:6px;min-height:60px;"></div>
+                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Campos adicionales configurables</div>
+                  <div id="ev-fields-list" style="display:grid;gap:6px;min-height:40px;"></div>
                 </div>
                 <!-- Botones añadir campo -->
                 <div class="card">
@@ -3994,6 +4015,8 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
   const ticketTypes = (ev.config && ev.config.ticket_types) || [];
   document.getElementById('ev-edit-ticket-types').value = ticketTypes.join('\n');
+  const ticketChip = document.getElementById('ev-fixed-ticket-chip');
+  if (ticketChip) ticketChip.classList.toggle('hidden', ticketTypes.length === 0);
   const origin = window.location.origin;
   document.getElementById('ev-public-url').textContent = `${origin}/evento/${ev.slug}`;
   const pubBtn = document.getElementById('ev-publish-btn');
@@ -4054,6 +4077,9 @@ async function evSaveInfo() {
     if (data.id) {
       evCurrentEvent = data;
       document.getElementById('ev-detail-title').textContent = data.name;
+      const ticketChip = document.getElementById('ev-fixed-ticket-chip');
+      if (ticketChip) ticketChip.classList.toggle('hidden', !(data.config?.ticket_types?.length));
+      evPopulateInfo(data);
       showStatus('Evento actualizado', 'success');
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
