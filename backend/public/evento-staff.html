@@ -30,50 +30,31 @@
   }
   .hidden { display: none !important; }
 
-  /* ── LOGIN ─────────────────────────────────── */
-  #s-login {
+  /* ── LOADING / ERROR ────────────────────────── */
+  #s-loading, #s-error {
     flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
     background: radial-gradient(ellipse at 50% 0%, #1a0030 0%, var(--bg) 65%);
-    padding: 24px;
   }
-  .login-card {
-    width: 100%; max-width: 380px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 36px 28px;
-  }
-  .login-logo {
-    font-size: 24px; font-weight: 900; letter-spacing: -1px;
+  .init-logo {
+    font-size: 22px; font-weight: 900; letter-spacing: -1px;
     background: linear-gradient(135deg,#FF1B8D,#FF8C00);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background-clip: text; margin-bottom: 8px;
   }
-  .login-sub { font-size: 11px; color: var(--muted); letter-spacing: 2px;
-    text-transform: uppercase; margin-bottom: 28px; margin-top: 2px; }
-  .login-label { font-size: 11px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .login-input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 13px; color: var(--text);
-    font-size: 15px; outline: none; margin-bottom: 14px;
-    -webkit-appearance: none;
+  .init-spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--brand);
+    animation: spin .7s linear infinite;
   }
-  .login-input:focus { border-color: var(--brand); }
-  .pin-wrap { position: relative; margin-bottom: 20px; }
-  .pin-input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 13px; color: var(--text);
-    font-size: 22px; font-weight: 900; letter-spacing: 10px; outline: none;
-    text-align: center; font-family: monospace; -webkit-appearance: none;
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .init-msg { font-size: 13px; color: var(--muted); }
+  .init-err-msg { font-size: 14px; color: var(--red); text-align: center; max-width: 300px; }
+  .init-retry {
+    padding: 10px 28px; background: transparent;
+    border: 1px solid var(--brand); border-radius: 8px;
+    color: var(--brand); font-size: 13px; font-weight: 700; cursor: pointer;
   }
-  .pin-input:focus { border-color: var(--brand); }
-  .login-btn {
-    width: 100%; padding: 13px;
-    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
-    border: none; border-radius: 8px; color: #fff;
-    font-size: 15px; font-weight: 700; cursor: pointer; letter-spacing: .3px;
-  }
-  .login-btn:disabled { opacity: .5; cursor: default; }
-  .login-err { font-size: 12px; color: var(--red); margin-top: 10px; text-align: center; min-height: 18px; }
 
   /* ── SCANNER ───────────────────────────────── */
   #s-scanner { flex: 1; display: flex; flex-direction: column; }
@@ -250,24 +231,18 @@
 </head>
 <body>
 
-<!-- ══════════════ LOGIN ══════════════ -->
-<div id="s-login">
-  <div class="login-card">
-    <div class="login-logo">SONORO.</div>
-    <div class="login-sub">Staff · Acceso al evento</div>
+<!-- ══════════════ LOADING ══════════════ -->
+<div id="s-loading">
+  <div class="init-logo">SONORO.</div>
+  <div class="init-spinner"></div>
+  <div class="init-msg">Cargando evento…</div>
+</div>
 
-    <div class="login-label">Código del evento</div>
-    <input id="inp-slug" class="login-input" type="text" placeholder="ej. convencion-sonoro-2026"
-           autocomplete="off" autocorrect="off" spellcheck="false">
-
-    <div class="login-label">Tu PIN</div>
-    <input id="inp-pin" class="login-input pin-input" type="password"
-           inputmode="numeric" maxlength="6" placeholder="••••••"
-           autocomplete="off">
-
-    <button id="btn-login" class="login-btn" onclick="doLogin()">Ingresar →</button>
-    <div id="login-err" class="login-err"></div>
-  </div>
+<!-- ══════════════ ERROR ══════════════ -->
+<div id="s-error" class="hidden">
+  <div class="init-logo">SONORO.</div>
+  <div class="init-err-msg" id="init-err-msg">No se pudo cargar el evento</div>
+  <button class="init-retry" onclick="autoInit()">Reintentar</button>
 </div>
 
 <!-- ══════════════ SCANNER ══════════════ -->
@@ -333,7 +308,7 @@
       <div class="log-title">Últimas entradas</div>
       <div class="log-scroll" id="log-list"></div>
 
-      <button class="logout-btn" onclick="doLogout()">Cerrar sesión</button>
+      <button class="logout-btn" onclick="location.reload()">Reiniciar</button>
     </div>
 
   </div>
@@ -372,15 +347,6 @@ let hidTimer  = null;
 
 // ── INIT ──────────────────────────────────────────────────────
 (function init() {
-  // Pre-fill slug desde URL /evento/:slug/staff
-  const parts = location.pathname.split('/').filter(Boolean);
-  // /evento/:slug/staff
-  if (parts[0] === 'evento' && parts[1] && parts[2] === 'staff') {
-    document.getElementById('inp-slug').value = parts[1];
-    document.getElementById('inp-pin').focus();
-  }
-
-  // Recuperar sesión de sessionStorage
   const saved = sessionStorage.getItem('staff_session');
   if (saved) {
     try {
@@ -390,76 +356,59 @@ let hidTimer  = null;
       return;
     } catch(e) { sessionStorage.removeItem('staff_session'); }
   }
+  autoInit();
 })();
 
-// ── LOGIN ─────────────────────────────────────────────────────
-async function doLogin() {
-  const slug = document.getElementById('inp-slug').value.trim();
-  const pin  = document.getElementById('inp-pin').value.trim();
-  const btn  = document.getElementById('btn-login');
-  const err  = document.getElementById('login-err');
+async function autoInit() {
+  show('s-loading');
 
-  if (!slug) { err.textContent = 'Ingresa el código del evento'; return; }
-  if (!pin || pin.length < 4) { err.textContent = 'PIN debe tener al menos 4 dígitos'; return; }
+  const parts = location.pathname.split('/').filter(Boolean);
+  const slug  = parts[1]; // /evento/:slug/staff
 
-  btn.disabled = true; btn.textContent = '...'; err.textContent = '';
+  if (!slug) { showInitError('URL inválida — abre este enlace desde el dashboard del evento'); return; }
 
   try {
-    // Primero resolvemos el slug a un event_id via endpoint público
-    const evRes = await fetch(`${API}/api/events/public/${encodeURIComponent(slug)}`);
+    const [evRes, tkRes] = await Promise.all([
+      fetch(`${API}/api/events/public/${encodeURIComponent(slug)}`),
+      fetch(`${API}/api/events/public/${encodeURIComponent(slug)}/staff-token`),
+    ]);
     if (!evRes.ok) {
       const d = await evRes.json().catch(() => ({}));
-      throw new Error(d.error || 'Evento no encontrado');
+      throw new Error(d.error || 'Evento no encontrado o no publicado');
     }
-    const ev = await evRes.json();
+    if (!tkRes.ok) {
+      const d = await tkRes.json().catch(() => ({}));
+      throw new Error(d.error || 'No se pudo obtener acceso al evento');
+    }
+    const ev   = await evRes.json();
+    const tkData = await tkRes.json();
 
-    const authRes = await fetch(`${API}/api/events/staff/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_id: ev.id, pin }),
-    });
-    const authData = await authRes.json();
-    if (!authRes.ok) throw new Error(authData.error || 'PIN inválido');
-
-    token     = authData.token;
-    eventId   = authData.event.id;
-    eventData = authData.event;
-    staffData = authData.staff;
+    token     = tkData.token;
+    eventId   = ev.id;
+    eventData = ev;
+    staffData = null;
 
     sessionStorage.setItem('staff_session', JSON.stringify({
-      token, eventId, event: eventData, staff: staffData,
+      token, eventId, event: eventData, staff: null,
     }));
     startScanner();
   } catch(e) {
-    err.textContent = e.message;
-    btn.disabled = false; btn.textContent = 'Ingresar →';
+    showInitError(e.message);
   }
 }
 
-document.getElementById('inp-pin').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
-});
-
-// ── LOGOUT ────────────────────────────────────────────────────
-function doLogout() {
-  sessionStorage.removeItem('staff_session');
-  stopCamera();
-  token = eventId = eventData = staffData = null;
-  show('s-login');
-  document.getElementById('inp-pin').value = '';
-  document.getElementById('login-err').textContent = '';
-  document.getElementById('btn-login').disabled = false;
-  document.getElementById('btn-login').textContent = 'Ingresar →';
+function showInitError(msg) {
+  document.getElementById('init-err-msg').textContent = msg;
+  show('s-error');
 }
 
 // ── SCANNER ───────────────────────────────────────────────────
 function startScanner() {
-  // Poblar UI
-  document.getElementById('ev-name').textContent     = eventData.name || '—';
-  document.getElementById('staff-name-lbl').textContent = staffData.name || '—';
-  document.getElementById('staff-role-lbl').textContent = roleLabel(staffData.role);
+  document.getElementById('ev-name').textContent        = eventData.name || '—';
+  document.getElementById('staff-name-lbl').textContent = staffData?.name || 'Staff';
+  document.getElementById('staff-role-lbl').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
   document.getElementById('staff-av').textContent =
-    (staffData.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   show('s-scanner');
   startCamera();
@@ -573,6 +522,14 @@ async function doCheckin(qrToken) {
       showResult('success', data.name, 'Bienvenido', formatDay(data.event_day));
       addLog(data.name, 'g');
       bumpStat('sp-today');
+    } else if (res.status === 401 || res.status === 403) {
+      // Token expirado — limpiar y reiniciar
+      sessionStorage.removeItem('staff_session');
+      stopCamera();
+      token = eventId = eventData = staffData = null;
+      autoInit();
+      processing = false;
+      return;
     } else if (data.code === 'ALREADY_CHECKED_IN') {
       showResult('already', data.attendee_name || '—', 'Ya registrado hoy', 'Llegada registrada anteriormente');
       addLog(data.attendee_name || '—', 'a');

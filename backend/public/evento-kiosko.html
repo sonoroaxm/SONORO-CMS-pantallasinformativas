@@ -35,49 +35,30 @@
   .screen.active { opacity: 1; pointer-events: auto; }
   .hidden { display: none !important; }
 
-  /* ── SETUP ──────────────────────────────────── */
-  #s-setup {
+  /* ── LOADING / ERROR ────────────────────────── */
+  #s-loading, #s-error {
     background: radial-gradient(ellipse at 50% 0%, #1a0030 0%, var(--bg) 65%);
-    padding: 24px;
+    gap: 16px;
   }
-  .setup-card {
-    width: 100%; max-width: 380px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 36px 28px;
-  }
-  .setup-logo {
+  .init-logo {
     font-size: 22px; font-weight: 900; letter-spacing: -1px;
     background: linear-gradient(135deg,#FF1B8D,#FF8C00);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+    background-clip: text; margin-bottom: 8px;
   }
-  .setup-sub { font-size: 11px; color: var(--muted); letter-spacing: 2px;
-    text-transform: uppercase; margin-bottom: 28px; margin-top: 2px; }
-  .setup-label { font-size: 11px; font-weight: 700; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  .setup-input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 13px; color: var(--text);
-    font-size: 15px; outline: none; margin-bottom: 14px;
+  .init-spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--brand);
+    animation: spin .7s linear infinite;
   }
-  .setup-input:focus { border-color: var(--brand); }
-  .pin-input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 11px 13px; color: var(--text);
-    font-size: 22px; font-weight: 900; letter-spacing: 10px; outline: none;
-    text-align: center; font-family: monospace; margin-bottom: 20px;
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .init-msg { font-size: 13px; color: var(--muted); }
+  .init-err-msg { font-size: 14px; color: var(--red); text-align: center; max-width: 300px; }
+  .init-retry {
+    padding: 10px 28px; background: transparent;
+    border: 1px solid var(--brand); border-radius: 8px;
+    color: var(--brand); font-size: 13px; font-weight: 700; cursor: pointer;
   }
-  .pin-input:focus { border-color: var(--brand); }
-  .setup-btn {
-    width: 100%; padding: 13px;
-    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
-    border: none; border-radius: 8px; color: #fff;
-    font-size: 15px; font-weight: 700; cursor: pointer;
-  }
-  .setup-btn:disabled { opacity: .5; cursor: default; }
-  .setup-err { font-size: 12px; color: var(--red); margin-top: 10px; text-align: center; min-height: 18px; }
-  .setup-footer { font-size: 11px; color: var(--muted); text-align: center; margin-top: 18px; }
-  .setup-footer a { color: var(--muted); text-decoration: underline; cursor: pointer; }
 
   /* ── WELCOME (idle) ──────────────────────────── */
   #s-welcome {
@@ -218,21 +199,18 @@
 </head>
 <body>
 
-<!-- Setup screen -->
-<div class="screen active" id="s-setup">
-  <div class="setup-card">
-    <div class="setup-logo">SONORO</div>
-    <div class="setup-sub">Kiosko · Check-in</div>
-    <div class="setup-label">Evento (slug)</div>
-    <input id="setup-slug" class="setup-input" type="text" placeholder="convención-sonoro-2026" autocomplete="off" spellcheck="false">
-    <div class="setup-label">PIN de kiosko</div>
-    <input id="setup-pin" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••">
-    <button class="setup-btn" id="setup-btn" onclick="doSetup()">Iniciar kiosko</button>
-    <div class="setup-err" id="setup-err"></div>
-    <div class="setup-footer">
-      El PIN debe ser de un staff con rol <strong>kiosk</strong> creado desde el dashboard.
-    </div>
-  </div>
+<!-- Loading screen -->
+<div class="screen active" id="s-loading">
+  <div class="init-logo">SONORO</div>
+  <div class="init-spinner"></div>
+  <div class="init-msg">Iniciando kiosko…</div>
+</div>
+
+<!-- Error screen -->
+<div class="screen" id="s-error">
+  <div class="init-logo">SONORO</div>
+  <div class="init-err-msg" id="init-err-msg">No se pudo cargar el evento</div>
+  <button class="init-retry" onclick="autoInit()">Reintentar</button>
 </div>
 
 <!-- Welcome / idle screen -->
@@ -289,8 +267,6 @@ let session = null;   // { token, eventId, staffName, eventName, eventDate, time
 let busy = false;
 let resetTimer = null;
 
-const STORAGE_KEY = 'kiosko_session';
-
 // ── Screens ────────────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -299,73 +275,53 @@ function showScreen(id) {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 (function init() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (saved && saved.token && saved.eventId) {
-      session = saved;
-      activateKiosko();
-    }
-  } catch(e) {}
+  autoInit();
 })();
 
-// ── Setup ──────────────────────────────────────────────────────────────────
-async function doSetup() {
-  const slug = document.getElementById('setup-slug').value.trim();
-  const pin  = document.getElementById('setup-pin').value.trim();
-  const btn  = document.getElementById('setup-btn');
-  const err  = document.getElementById('setup-err');
+async function autoInit() {
+  showScreen('s-loading');
 
-  err.textContent = '';
-  if (!slug || !pin) { err.textContent = 'Completa todos los campos.'; return; }
+  const parts = location.pathname.split('/').filter(Boolean);
+  const slug  = parts[1]; // /evento/:slug/kiosko
 
-  btn.disabled = true;
-  btn.textContent = 'Conectando…';
+  if (!slug) {
+    document.getElementById('init-err-msg').textContent = 'URL inválida — abre este enlace desde el dashboard';
+    showScreen('s-error');
+    return;
+  }
 
   try {
-    // 1. Resolve slug → event_id
-    const slugRes = await fetch(`/api/events/public/${encodeURIComponent(slug)}`);
-    if (!slugRes.ok) {
-      const d = await slugRes.json().catch(() => ({}));
-      throw new Error(d.error || `Evento no encontrado (${slugRes.status})`);
+    const [evRes, tkRes] = await Promise.all([
+      fetch(`/api/events/public/${encodeURIComponent(slug)}`),
+      fetch(`/api/events/public/${encodeURIComponent(slug)}/staff-token`),
+    ]);
+    if (!evRes.ok) {
+      const d = await evRes.json().catch(() => ({}));
+      throw new Error(d.error || 'Evento no encontrado o no publicado');
     }
-    const ev = await slugRes.json();
-
-    // 2. PIN auth
-    const authRes = await fetch('/api/events/staff/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_id: ev.id, pin })
-    });
-    if (!authRes.ok) {
-      const d = await authRes.json().catch(() => ({}));
-      throw new Error(d.error || `PIN inválido (${authRes.status})`);
+    if (!tkRes.ok) {
+      const d = await tkRes.json().catch(() => ({}));
+      throw new Error(d.error || 'No se pudo obtener acceso');
     }
-    const authData = await authRes.json();
+    const ev     = await evRes.json();
+    const tkData = await tkRes.json();
 
     session = {
-      token:     authData.token,
+      token:     tkData.token,
       eventId:   ev.id,
-      staffName: authData.staff?.name || 'Kiosko',
       eventName: ev.name,
       eventDate: ev.starts_at,
-      timezone:  ev.timezone
+      timezone:  ev.timezone,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     activateKiosko();
 
   } catch(e) {
-    err.textContent = e.message;
-    btn.disabled = false;
-    btn.textContent = 'Iniciar kiosko';
+    document.getElementById('init-err-msg').textContent = e.message;
+    showScreen('s-error');
   }
 }
 
-document.getElementById('setup-pin').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doSetup();
-});
-
 function activateKiosko() {
-  // Populate welcome screen
   document.getElementById('wlc-event-name').textContent = session.eventName || '—';
 
   if (session.eventDate) {
@@ -378,18 +334,11 @@ function activateKiosko() {
   startHID();
 }
 
-// ── Logout ─────────────────────────────────────────────────────────────────
+// ── Logout (oculto, doble tap en esquina) ──────────────────────────────────
 function doLogout() {
-  if (!confirm('¿Salir del modo kiosko?')) return;
-  localStorage.removeItem(STORAGE_KEY);
   session = null;
   stopHID();
-  document.getElementById('setup-slug').value = '';
-  document.getElementById('setup-pin').value = '';
-  document.getElementById('setup-err').textContent = '';
-  document.getElementById('setup-btn').disabled = false;
-  document.getElementById('setup-btn').textContent = 'Iniciar kiosko';
-  showScreen('s-setup');
+  autoInit();
 }
 
 // ── HID Scanner ────────────────────────────────────────────────────────────
@@ -484,13 +433,12 @@ async function doCheckin(qrToken) {
         showResult('success', data.name || '', formatDayLabel(data.event_day), 5000);
       }
     } else if (res.status === 401 || res.status === 403) {
-      // Token expired — clear session and go to setup
-      localStorage.removeItem(STORAGE_KEY);
+      // Token expirado — re-init automático (fetch nuevo token)
       session = null;
       stopHID();
-      showScreen('s-setup');
-      document.getElementById('setup-err').textContent = 'Sesión expirada. Vuelve a iniciar.';
       busy = false;
+      autoInit();
+      return;
     } else {
       const msg = data.error || 'No se pudo registrar la asistencia';
       showResult('fail', '', msg, 3000);
@@ -554,13 +502,6 @@ function showResult(type, name, sub, durationMs) {
   }, durationMs);
 }
 
-// ── Setup: Enter on slug field moves to PIN ────────────────────────────────
-document.getElementById('setup-slug').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    document.getElementById('setup-pin').focus();
-  }
-});
 </script>
 </body>
 </html>

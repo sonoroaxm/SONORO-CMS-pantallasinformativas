@@ -8,6 +8,7 @@
 const express    = require('express');
 const router     = express.Router();
 const rateLimit  = require('express-rate-limit');
+const jwt        = require('jsonwebtoken');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendEventPendingEmail } = require('../services/email');
 
@@ -53,6 +54,30 @@ router.get('/:slug', eventPublicReadLimiter, async (req, res) => {
     res.json(event);
   } catch (err) {
     console.error('❌ GET /api/events/public/:slug:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── TOKEN OPERACIONAL (staff / kiosko — sin PIN, acceso por enlace) ───────────
+// GET /:slug/staff-token
+// El slug es el control de acceso. JWT válido 12h para checkin/stats/lookup.
+router.get('/:slug/staff-token', eventPublicReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, user_id FROM events.events WHERE slug = $1 AND status IN ('published','live')`,
+      [req.params.slug]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Evento no encontrado o no disponible' });
+    const ev = rows[0];
+    const token = jwt.sign(
+      { event_id: ev.id, user_id: ev.user_id, type: 'operational', role: 'staff' },
+      process.env.JWT_SECRET,
+      { expiresIn: '12h' }
+    );
+    res.json({ token });
+  } catch (err) {
+    console.error('❌ GET /api/events/public/:slug/staff-token:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
