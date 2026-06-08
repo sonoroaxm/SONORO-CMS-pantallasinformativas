@@ -509,6 +509,7 @@
       font-size: 13px; margin: 6px 0;
       transition: border-color 0.2s;
     }
+    input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
     input[type=text]:focus, input[type=email]:focus,
     input[type=password]:focus, textarea:focus, select:focus {
       outline: none; border-color: var(--magenta);
@@ -1483,10 +1484,15 @@
                       <option value="UTC">UTC</option>
                     </select>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="display:flex;flex-direction:column;gap:8px;">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
                       <input type="checkbox" id="ev-edit-public" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;">
                       Registro público habilitado
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                      <input type="checkbox" id="ev-edit-autoconfirm" style="width:16px;height:16px;cursor:pointer;accent-color:#f59e0b;">
+                      Confirmación automática
+                      <span style="font-size:11px;font-weight:400;color:var(--text-muted);">— si está desactivado, debes confirmar cada inscripción manualmente</span>
                     </label>
                   </div>
                   <div class="form-group" style="margin:0;">
@@ -1494,7 +1500,7 @@
                       <span>Tipos de entrada</span>
                       <span style="font-size:10px;color:var(--text-muted);font-weight:400;">uno por línea · vacío = solo "general"</span>
                     </label>
-                    <textarea id="ev-edit-ticket-types" rows="4" placeholder="general&#10;vip&#10;speaker&#10;staff&#10;prensa" style="resize:vertical;font-size:12px;font-family:monospace;"></textarea>
+                    <textarea id="ev-edit-ticket-types" rows="4" placeholder="Escribe un tipo por línea, ej:&#10;General&#10;VIP&#10;Speaker" style="resize:vertical;font-size:12px;font-family:monospace;"></textarea>
                   </div>
                   <div style="display:flex;gap:10px;margin-top:4px;align-items:center;">
                     <button class="btn btn-grad" onclick="evSaveInfo()" style="flex:1;">Guardar cambios</button>
@@ -4069,6 +4075,7 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-end').value = ev.ends_at ? ev.ends_at.substring(0,10) : '';
   document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
   document.getElementById('ev-edit-public').checked = !!(ev.config && ev.config.allow_public_registration);
+  document.getElementById('ev-edit-autoconfirm').checked = !!(ev.config && ev.config.auto_confirm);
   const ticketTypes = (ev.config && ev.config.ticket_types) || [];
   document.getElementById('ev-edit-ticket-types').value = ticketTypes.join('\n');
   const ticketChip = document.getElementById('ev-fixed-ticket-chip');
@@ -4120,6 +4127,7 @@ async function evSaveInfo() {
     config: {
       ...(evCurrentEvent.config || {}),
       allow_public_registration: document.getElementById('ev-edit-public').checked,
+      auto_confirm: document.getElementById('ev-edit-autoconfirm').checked,
       ticket_types: document.getElementById('ev-edit-ticket-types').value.split('\n').map(s=>s.trim()).filter(Boolean)
     }
   };
@@ -4446,20 +4454,73 @@ async function evLoadRegistrations() {
     `;
     const rows = data.registrations || [];
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }
+    const tz = evCurrentEvent?.timezone || 'America/Bogota';
     tbody.innerHTML = rows.map(r => {
-      const date = new Date(r.registered_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/Bogota' });
+      const date = new Date(r.registered_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz });
       const statusColor = r.status === 'confirmed' ? '#00e676' : r.status === 'cancelled' ? '#ff4444' : '#f59e0b';
-      return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:10px 12px;">${r.attendee_name || r.name || ''}</td>
+      const statusLabel = r.status === 'confirmed' ? 'Confirmado' : r.status === 'cancelled' ? 'Cancelado' : 'Pendiente';
+      const sessions = r.sessions ? r.sessions.filter(Boolean).join(', ') : '—';
+      const extraFields = [
+        r.phone       ? `<span><b>Tel:</b> ${r.phone}</span>` : '',
+        r.id_number   ? `<span><b>ID:</b> ${r.id_number}</span>` : '',
+        r.organization? `<span><b>Empresa:</b> ${r.organization}</span>` : '',
+        r.job_title   ? `<span><b>Cargo:</b> ${r.job_title}</span>` : '',
+      ].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+      const actionBtns = r.status !== 'confirmed'
+        ? `<button class="btn btn-sm" style="background:#00e676;color:#000;font-weight:700;border:none;padding:4px 10px;border-radius:6px;" onclick="evSetRegStatus('${r.id}','confirmed')">Confirmar</button>`
+        : '';
+      const cancelBtn = r.status !== 'cancelled'
+        ? `<button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid #ff4444;padding:4px 10px;border-radius:6px;" onclick="evSetRegStatus('${r.id}','cancelled')">Cancelar</button>`
+        : '';
+      return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="evToggleRegDetail('reg-detail-${r.id}')">
+        <td style="padding:10px 12px;font-size:13px;font-weight:600;">${r.attendee_name || ''}</td>
         <td style="padding:10px 12px;color:var(--text-muted);font-size:12px;">${r.email || ''}</td>
         <td style="padding:10px 12px;font-size:12px;">${r.ticket_type || '—'}</td>
-        <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${r.status}</span></td>
+        <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${statusLabel}</span></td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">${date}</td>
-        <td style="padding:10px 12px;text-align:right;"></td>
+        <td style="padding:10px 12px;text-align:right;"><span style="font-size:16px;color:var(--text-muted);" id="reg-chevron-${r.id}">▸</span></td>
+      </tr>
+      <tr id="reg-detail-${r.id}" class="hidden">
+        <td colspan="6" style="padding:12px 16px 16px 16px;background:var(--surface2);border-bottom:2px solid var(--border);">
+          <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+            ${extraFields || '<span style="color:var(--text-muted)">Sin datos adicionales</span>'}
+            ${r.sessions?.length ? `&nbsp;&nbsp;·&nbsp;&nbsp;<span><b>Sesiones:</b> ${sessions}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            ${actionBtns}
+            ${cancelBtn}
+            <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">QR: ${r.qr_token || '—'}</span>
+          </div>
+        </td>
       </tr>`;
     }).join('');
     evRenderRegsPagination(data.total);
   } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">Error cargando registros.</td></tr>'; }
+}
+
+function evToggleRegDetail(detailRowId) {
+  const row = document.getElementById(detailRowId);
+  if (!row) return;
+  const regId = detailRowId.replace('reg-detail-', '');
+  const chevron = document.getElementById(`reg-chevron-${regId}`);
+  const isHidden = row.classList.contains('hidden');
+  row.classList.toggle('hidden', !isHidden);
+  if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+}
+
+async function evSetRegStatus(regId, status) {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json();
+    if (data.id) {
+      showStatus(status === 'confirmed' ? 'Inscripción confirmada' : 'Inscripción cancelada', status === 'confirmed' ? 'success' : 'info');
+      evLoadRegistrations();
+    } else { showStatus(data.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
 function evRegsSearchInput() {

@@ -135,7 +135,7 @@ router.patch('/:id', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
-                   'venue_name', 'venue_address', 'cover_image_url', 'config'];
+                   'venue_name', 'venue_address', 'cover_image_url', 'config', 'capacity'];
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   if (!fields.length) return res.status(400).json({ error: 'Nada que actualizar' });
 
@@ -229,8 +229,9 @@ router.get('/:id/registrations', auth, async (req, res) => {
   try {
     const [dataRes, countRes] = await Promise.all([
       pool.query(
-        `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.origin, r.created_at,
-                a.name, a.email, a.phone, a.id_number, a.organization, a.job_title,
+        `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.origin, r.created_at AS registered_at,
+                r.custom_fields,
+                a.name AS attendee_name, a.email, a.phone, a.id_number, a.organization, a.job_title,
                 (SELECT json_agg(sess.name)
                  FROM events.registration_sessions rs
                  JOIN events.event_sessions sess ON sess.id = rs.session_id
@@ -247,11 +248,21 @@ router.get('/:id/registrations', auth, async (req, res) => {
         [req.params.id, limit, offset]
       ),
       pool.query(
-        `SELECT COUNT(*) FROM events.registrations WHERE event_id = $1`,
+        `SELECT COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed,
+                COUNT(*) FILTER (WHERE status = 'pending')   AS pending
+         FROM events.registrations WHERE event_id = $1`,
         [req.params.id]
       ),
     ]);
-    res.json({ data: dataRes.rows, total: parseInt(countRes.rows[0].count), page, limit });
+    const counts = countRes.rows[0];
+    res.json({
+      registrations: dataRes.rows,
+      total:     parseInt(counts.total),
+      confirmed: parseInt(counts.confirmed),
+      pending:   parseInt(counts.pending),
+      page, limit
+    });
   } catch (err) {
     console.error('❌ GET /api/events/:id/registrations:', err);
     res.status(500).json({ error: 'Error interno' });
@@ -379,6 +390,26 @@ router.delete('/:id/staff/:staffId', auth, async (req, res) => {
     );
     if (!rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── CONFIRMAR / RECHAZAR REGISTRO ─────────────────────────────────────────────
+router.patch('/:id/registrations/:regId/status', auth, async (req, res) => {
+  const pool = global.pool;
+  const { status } = req.body;
+  if (!['confirmed','pending','cancelled'].includes(status)) {
+    return res.status(400).json({ error: 'status inválido' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE events.registrations r SET status = $1
+       FROM events.events e
+       WHERE r.id = $2 AND r.event_id = e.id AND e.user_id = $3
+       RETURNING r.id, r.status`,
+      [status, req.params.regId, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Registro no encontrado' });
+    res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

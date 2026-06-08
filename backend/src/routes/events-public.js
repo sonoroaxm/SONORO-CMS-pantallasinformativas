@@ -8,7 +8,6 @@
 const express    = require('express');
 const router     = express.Router();
 const rateLimit  = require('express-rate-limit');
-const QRCode     = require('qrcode');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail } = require('../services/email');
 
@@ -132,13 +131,15 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
 
       // Insert registration — UNIQUE(event_id, attendee_id) evita doble registro
       // P-1: NO hay checked_in_at — presencia se registra en registration_checkins
+      const autoConfirm = event.config?.auto_confirm === true;
       const regRes = await client.query(
         `INSERT INTO events.registrations
-           (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms)
-         VALUES ($1,$2,$3,$4,'web_form',$5,TRUE)
+           (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
+         VALUES ($1,$2,$3,$4,'web_form',$5,TRUE,$6)
          ON CONFLICT (event_id, attendee_id) DO NOTHING
-         RETURNING id, qr_token, ticket_type`,
-        [event.id, attendee_id, event.user_id, ticket_type, JSON.stringify(custom_fields)]
+         RETURNING id, qr_token, ticket_type, status`,
+        [event.id, attendee_id, event.user_id, ticket_type, JSON.stringify(custom_fields),
+         autoConfirm ? 'confirmed' : 'pending']
       );
 
       if (!regRes.rows[0]) {
@@ -169,20 +170,11 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
       return res.status(409).json({ error: 'Ya existe un registro para este email en este evento' });
     }
 
-    // P-4: QR permanente — encoda el UUID (identidad del asistente en el evento)
-    let qrBuffer = null;
-    try {
-      qrBuffer = await QRCode.toBuffer(registration.qr_token, { type: 'png', width: 300, margin: 2 });
-    } catch (qrErr) {
-      console.error('⚠️ QR generation error:', qrErr.message);
-    }
-
     // Email de confirmación — async, no bloquea la respuesta
     sendEventRegistrationEmail(
       { name: name.trim(), email: cleanEmail },
       event,
-      registration,
-      qrBuffer
+      registration
     ).catch(e => console.error('⚠️ Email registro evento fallido:', e.message));
 
     // Telemetría: emit al dashboard de producción (si ya está abierto)

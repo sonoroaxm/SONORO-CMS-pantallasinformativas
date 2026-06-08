@@ -483,16 +483,20 @@ async function sendPasswordResetEmail(user, resetLink) {
 }
 
 // ── EMAIL DE CONFIRMACIÓN DE REGISTRO A EVENTO ───────────────
-async function sendEventRegistrationEmail(attendee, event, registration, qrBuffer) {
-  const qrLink = `${CMS_URL}/evento/${event.slug}/mi-registro/${registration.qr_token}`;
-  const opts   = { timeZone: event.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+async function sendEventRegistrationEmail(attendee, event, registration) {
+  const QRCode  = require('qrcode');
+  const qrLink  = `${CMS_URL}/evento/${event.slug}/mi-registro/${registration.qr_token}`;
+  const opts    = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
   const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
   const endStr   = new Date(event.ends_at).toLocaleString('es-CO', opts);
-  const ticketLabel = registration.ticket_type.charAt(0).toUpperCase() + registration.ticket_type.slice(1);
+  const ticketLabel = (registration.ticket_type || 'general').charAt(0).toUpperCase() + (registration.ticket_type || 'general').slice(1);
 
-  const attachments = qrBuffer
-    ? [{ filename: 'codigo-qr.png', content: qrBuffer, cid: 'evento_qr' }]
-    : [];
+  let qrDataUrl = null;
+  try {
+    qrDataUrl = await QRCode.toDataURL(registration.qr_token, { type: 'png', width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+  } catch (e) {
+    console.error('⚠️ QR generation error:', e.message);
+  }
 
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
@@ -527,15 +531,13 @@ async function sendEventRegistrationEmail(attendee, event, registration, qrBuffe
       </td></tr>
     </table>
 
-    <div style="text-align:center;margin:24px 0;">
-      <p style="margin:0 0 12px;font-size:13px;color:#666;">
+    <div style="text-align:center;margin:24px 0;background:#fff;border:1px solid #eee;border-radius:8px;padding:20px;">
+      <p style="margin:0 0 12px;font-size:13px;color:#666;font-weight:600;">
         Presenta este código QR al ingresar al evento
       </p>
-      ${qrBuffer
-        ? `<img src="cid:evento_qr" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;border-radius:4px;" />`
-        : `<div style="background:#f0f0f0;border-radius:8px;padding:16px;display:inline-block;">
-             <p style="margin:0;font-family:monospace;font-size:13px;color:#333;">${registration.qr_token}</p>
-           </div>`
+      ${qrDataUrl
+        ? `<img src="${qrDataUrl}" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;" />`
+        : `<p style="margin:0;font-family:monospace;font-size:12px;color:#555;word-break:break-all;">${registration.qr_token}</p>`
       }
     </div>
 
@@ -552,13 +554,7 @@ async function sendEventRegistrationEmail(attendee, event, registration, qrBuffe
     </p>
   `);
 
-  await transporter.sendMail({
-    from: FROM,
-    to:   attendee.email,
-    subject: `Tu pase para ${event.name}`,
-    html,
-    attachments,
-  });
+  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Tu pase para ${event.name}`, html });
   console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
 }
 

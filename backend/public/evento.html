@@ -375,20 +375,9 @@
     </div>
   </div>
 
-  <div class="row-2">
-    <div class="field">
-      <label for="f-ticket-type"><span id="l-ticket">Tipo de entrada</span></label>
-      <select id="f-ticket-type"></select>
-    </div>
-    <div class="field">
-      <label for="f-org"><span id="l-org">Empresa / Institución</span></label>
-      <input type="text" id="f-org" autocomplete="organization">
-    </div>
-  </div>
-
   <div class="field">
-    <label for="f-job"><span id="l-job">Cargo</span></label>
-    <input type="text" id="f-job" autocomplete="organization-title">
+    <label for="f-ticket-type"><span id="l-ticket">Tipo de entrada</span></label>
+    <select id="f-ticket-type"></select>
   </div>
 
   <!-- Campos configurables (se inyectan aquí) -->
@@ -612,7 +601,8 @@ async function loadMiRegistro() {
     show('screen-mi-reg');
     show('ev-footer');
   } catch(e) {
-    showError('Error', 'No se pudo cargar el registro.');
+    console.error('loadMiRegistro error:', e);
+    showError('Error', 'No se pudo cargar el registro. ' + (e?.message || ''));
   }
 }
 
@@ -656,12 +646,15 @@ function renderCapacity() {
 }
 
 function renderTicketTypes() {
-  const sel = document.getElementById('f-ticket-type');
+  const wrap = document.getElementById('f-ticket-type')?.closest('.field');
+  const sel  = document.getElementById('f-ticket-type');
   const types = EVENT.config?.ticket_types;
   if (types && types.length) {
     sel.innerHTML = types.map(tt => `<option value="${tt.value || tt}">${tt.label || tt}</option>`).join('');
+    if (wrap) wrap.style.display = '';
   } else {
     sel.innerHTML = '<option value="general">General</option>';
+    if (wrap) wrap.style.display = 'none';
   }
 }
 
@@ -754,7 +747,9 @@ function renderMiRegistro(reg) {
   document.getElementById('mreg-email').textContent = reg.email || '';
   document.getElementById('mreg-ticket').textContent = (reg.ticket_type || 'general').toUpperCase();
   document.getElementById('mreg-qr-token').textContent = reg.qr_token || '';
-  QRCode.toCanvas(document.getElementById('qr-canvas-mreg'), reg.qr_token || '', { width: 180, margin: 2, color: { dark: '#111111', light: '#ffffff' } });
+  try {
+    QRCode.toCanvas(document.getElementById('qr-canvas-mreg'), reg.qr_token || '', { width: 180, margin: 2, color: { dark: '#111111', light: '#ffffff' } });
+  } catch(e) { /* QR canvas opcional */ }
   if (reg.sessions && reg.sessions.length) {
     const tz = EVENT?.timezone || 'UTC';
     document.getElementById('mreg-sess-label').textContent = t('sessLabel');
@@ -899,8 +894,8 @@ async function doRegister() {
     phone,
     id_type:       document.getElementById('f-id-type').value,
     id_number:     document.getElementById('f-id-number').value.trim(),
-    organization:  document.getElementById('f-org').value.trim(),
-    job_title:     document.getElementById('f-job').value.trim(),
+    organization:  custom_fields.organization || '',
+    job_title:     custom_fields.job_title || '',
     ticket_type:   document.getElementById('f-ticket-type').value,
     session_ids:   [...selectedSessions],
     custom_fields,
@@ -954,8 +949,8 @@ function showSuccess(email, qrToken) {
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-function show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
-function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+function show(id) { const el = document.getElementById(id); if (el) { el.classList.remove('hidden'); el.style.display = ''; } }
+function hide(id) { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); el.style.display = ''; } }
 
 function showError(title, msg) {
   hide('screen-loading');
