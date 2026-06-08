@@ -3059,6 +3059,7 @@ const BASE_FEATURE_DEFS = [
   { key: 'dual_hdmi', label: 'Dual HDMI Premium',       desc: 'Reproducción simultánea en dos salidas HDMI (Dual / Videowall).' },
   { key: 'onpremise', label: 'On-Premise / Red local',  desc: 'Instalación y operación en red corporativa (Windows On-Premise).' },
   { key: 'multisede', label: 'Multi-sede',               desc: 'Panel multi-sede para clientes con múltiples ubicaciones.' },
+  { key: 'events_v1', label: 'Gestión de Eventos',      desc: 'Módulo de eventos: registro público, QR, check-in multi-día, dashboard de producción.' },
 ];
 
 const Q2_FEATURE_DEFS = [
@@ -3113,7 +3114,7 @@ async function toggleFeature(userId, feature, enabled) {
   try {
     const users = await api('/api/admin/users');
     const user = users.find(u => u.id === userId);
-    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
+    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, events_v1: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
     const features = Object.assign(defaults, user?.features || {});
     features[feature] = enabled;
     const data = await api(`/api/admin/users/${userId}/features`, {
@@ -3932,6 +3933,7 @@ const ALL_FEATURE_LABELS = {
   dual_hdmi:               'Dual HDMI Premium',
   onpremise:               'On-Premise / Red local',
   multisede:               'Multi-sede',
+  events_v1:               'Gestión de Eventos',
   queue_v2_appointments:   'Citas & Bloqueos',
   queue_v2_public_booking: 'Booking público',
   queue_v2_bulk:           'Operaciones masivas',
