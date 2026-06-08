@@ -107,7 +107,8 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
       }
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail   = email.toLowerCase().trim();
+    const autoConfirm  = event.config?.auto_confirm === true;
 
     // P-3: toda la operación en una transacción
     const { registration, isNew } = await withTransaction(pool, async (client) => {
@@ -131,7 +132,6 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
 
       // Insert registration — UNIQUE(event_id, attendee_id) evita doble registro
       // P-1: NO hay checked_in_at — presencia se registra en registration_checkins
-      const autoConfirm = event.config?.auto_confirm === true;
       const regRes = await client.query(
         `INSERT INTO events.registrations
            (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
