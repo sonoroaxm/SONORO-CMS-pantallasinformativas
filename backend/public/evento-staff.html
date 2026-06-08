@@ -613,7 +613,7 @@ function startClock() {
 
 // ── HELPERS ───────────────────────────────────────────────────
 function show(id) {
-  ['s-login','s-scanner','s-result'].forEach(s => {
+  ['s-loading','s-error','s-scanner','s-result'].forEach(s => {
     document.getElementById(s).classList.toggle('hidden', s !== id);
   });
 }
