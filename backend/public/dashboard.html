@@ -1148,6 +1148,7 @@
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="queue">Puntos de Atención</button>
+            <button class="tab-btn" data-tab="appointments" style="display:none;">Citas</button>
             <button class="tab-btn" onclick="window.open('/atencion/reportes','_blank')">Reportes ↗</button>
           </div>
         </div>
@@ -1375,6 +1376,185 @@
           </div>
         </div>
       </div>
+
+      <!-- ── CITAS (Queue v2 R1) ── -->
+      <!-- ── CITAS (Queue v2 R1 — slice 1 lectura + slice 2 crear) ── -->
+      <div id="appointments-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Gestión de Citas</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="loadAppointmentsData()">&#8635; Actualizar</button>
+            <button class="btn btn-outline btn-sm" onclick="openBlockPreviewModal()">Bloquear horario</button>
+            <button class="btn btn-primary btn-sm" onclick="openCreateAppointmentModal()">+ Nueva cita</button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+          <div class="form-group" style="margin:0 0 14px 0;">
+            <label>Sucursal</label>
+            <select id="apptBranchFilter" onchange="onAppointmentFilterChange()"></select>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input type="date" id="apptDateFilter" onchange="onAppointmentFilterChange()"
+                style="flex:0 0 auto;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);font-size:13px;color:var(--text);" />
+              <div style="display:flex;gap:4px;flex:1;min-width:200px;">
+                <button class="btn-range-appt active" id="apptRangeHoy" onclick="setApptRange('hoy')" style="flex:1;text-align:center;">Hoy</button>
+                <button class="btn-range-appt" id="apptRangeSemana" onclick="setApptRange('semana')" style="flex:1;text-align:center;">Esta semana</button>
+                <button class="btn-range-appt" id="apptRangeMes" onclick="setApptRange('mes')" style="flex:1;text-align:center;">Este mes</button>
+              </div>
+            </div>
+            <div id="apptRangeDisplay" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted);padding-left:2px;letter-spacing:0.2px;"></div>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-top:14px;margin-bottom:16px;border-top:1px solid var(--border);">
+            <div class="form-group" style="margin:0;flex:0 0 220px;">
+              <label style="font-size:11px;color:var(--text-muted);">Modo de operación</label>
+              <select id="apptOperationMode" onchange="submitOperationModeChange()" disabled>
+                <option value="">—</option>
+                <option value="queue_only">Solo turnos (walk-in)</option>
+                <option value="appointments_only">Solo citas</option>
+                <option value="queue_and_appointments">Turnos + citas</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1 1 300px;">
+              <label style="font-size:11px;color:var(--text-muted);">Token de kiosko</label>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="apptKioskTokenInput" readonly
+                  style="font-family:monospace;font-size:12px;flex:1;min-width:160px;max-width:260px;background:var(--bg-secondary);border:1px solid var(--border);padding:8px 10px;border-radius:6px;color:var(--text);"
+                  placeholder="—">
+                <button id="apptKioskTokenToggle" class="btn btn-outline btn-sm" onclick="toggleKioskTokenVisibility()" disabled>Mostrar</button>
+                <button id="apptKioskTokenCopy" class="btn btn-outline btn-sm" onclick="copyKioskTokenToClipboard()" disabled>Copiar</button>
+                <button id="apptKioskTokenRotate" class="btn btn-outline btn-sm" onclick="submitKioskTokenRotate()" disabled>Rotar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- RESERVAS PÚBLICAS — slice B -->
+          <div id="apptPublicBookingPanel" style="display:none;margin-bottom:16px;padding:14px 16px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border);">
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;">Reservas públicas</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+              <div class="form-group" style="margin:0;flex:1 1 200px;">
+                <label>Slug de URL <span style="font-weight:400;color:var(--text-muted)">(para toda la cuenta)</span></label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="text" id="apptPublicSlugInput" placeholder="ej: clinica-soriano"
+                    style="font-family:monospace;font-size:13px;flex:1;min-width:0;"
+                    oninput="_apptPublicUrlPreview()">
+                  <button class="btn btn-outline btn-sm" id="apptPublicSlugSave" onclick="submitPublicSlug()">Guardar</button>
+                </div>
+                <div id="apptPublicSlugHint" style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:monospace;min-height:14px;"></div>
+              </div>
+              <div class="form-group" style="margin:0;flex:1 1 200px;">
+                <label>Modo <span style="font-weight:400;color:var(--text-muted)">(esta sucursal)</span></label>
+                <select id="apptPublicModeSelect" onchange="submitPublicBookingMode()" disabled>
+                  <option value="disabled">Desactivado</option>
+                  <option value="manual">Manual (pendiente de confirmación)</option>
+                  <option value="auto">Automático (confirma al instante)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;flex:1 1 220px;">
+                <label>URL pública</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="text" id="apptPublicUrlInput" readonly
+                    style="font-family:monospace;font-size:12px;flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);padding:8px 10px;border-radius:6px;color:var(--text);"
+                    placeholder="—">
+                  <button class="btn btn-outline btn-sm" id="apptPublicUrlCopy" onclick="copyPublicUrl()" disabled>Copiar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="apptStatusBanner" style="display:none;padding:14px 16px;border-radius:8px;margin-bottom:16px;font-size:13px;line-height:1.5;"></div>
+
+          <div id="apptSearchBar" style="display:none;margin-bottom:12px;">
+            <div style="position:relative;">
+              <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:0.45;pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="apptSearchInput" type="search" placeholder="Buscar por nombre o cédula…"
+                oninput="_apptSearchFilter(this.value)"
+                style="width:100%;box-sizing:border-box;padding:8px 10px 8px 34px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text);font-size:13px;outline:none;"/>
+            </div>
+          </div>
+          <!-- Filtro citas/kiosko (R1.5 §B) — visible solo si hay walk-ins -->
+          <div id="apptTypePills" style="display:none;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="appt-pill active" data-filter="all"   onclick="_apptFilter(this,'all')">Todos</button>
+            <button class="appt-pill"        data-filter="cita"  onclick="_apptFilter(this,'cita')">Solo citas</button>
+            <button class="appt-pill"        data-filter="kiosko" onclick="_apptFilter(this,'kiosko')">Solo kiosko</button>
+            <span style="font-size:12px;color:var(--text-muted);margin-left:6px;">
+              <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#00B4D8;margin-right:4px;vertical-align:middle;"></span>cita programada
+              <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8a8a8a;margin-right:4px;margin-left:10px;vertical-align:middle;"></span>turno kiosko
+            </span>
+          </div>
+          <div id="apptWalkinNotice" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:12px;background:rgba(0,180,216,0.07);border:1px solid rgba(0,180,216,0.25);color:var(--text-muted);">
+            Los turnos de kiosko se muestran porque esta sucursal opera en modo <strong>Cola y citas</strong>.
+          </div>
+          <div id="pendingRescheduleBanner" class="pending-reschedule-banner"></div>
+          <div id="bulkToolbar" class="bulk-toolbar">
+            <span class="bulk-toolbar-count" id="bulkCount"></span>
+            <button class="btn btn-outline btn-sm" onclick="openBulkModal('move')">Mover a fecha</button>
+            <button class="btn btn-outline btn-sm" onclick="openBulkModal('reassign')">Reasignar</button>
+            <button class="btn btn-danger btn-sm" onclick="openBulkModal('cancel')">Cancelar seleccion</button>
+            <button class="btn btn-outline btn-sm" onclick="_r2ClearBulk()">Deseleccionar</button>
+          </div>
+          <div id="appointmentsList">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Selecciona una sucursal para ver las citas.</div>
+          </div>
+        </div>
+
+        <!-- BLOQUEOS DE HORARIO — slice 5 -->
+        <div class="card" style="padding:20px;margin-top:20px;" id="timeBlocksCard">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">Bloqueos de horario</div>
+            <button class="btn btn-outline btn-sm" id="tbNewBtn" onclick="_tbToggleForm()" disabled>+ Nuevo bloqueo</button>
+          </div>
+
+          <!-- Formulario (colapsable) -->
+          <div id="tbFormPanel" style="display:none;background:var(--bg-secondary);border-radius:10px;padding:20px;margin-bottom:20px;">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+              <div class="form-group" style="margin:0;flex:1 1 180px;">
+                <label>Desde</label>
+                <input type="datetime-local" id="tbStartsAt" style="width:100%;">
+              </div>
+              <div class="form-group" style="margin:0;flex:1 1 180px;">
+                <label>Hasta</label>
+                <input type="datetime-local" id="tbEndsAt" style="width:100%;">
+              </div>
+              <div class="form-group" style="margin:0;flex:1 1 200px;">
+                <label>Alcance</label>
+                <select id="tbServiceId" style="width:100%;">
+                  <option value="">Todos los servicios</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;flex:2 1 220px;">
+                <label>Motivo (opcional)</label>
+                <input type="text" id="tbReason" placeholder="Ej: Festivo, Mantenimiento..." style="width:100%;">
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;margin-top:14px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input type="checkbox" id="tbRecurWeekly" onchange="_tbToggleRecurrence()">
+                Repetir semanalmente
+              </label>
+              <div id="tbUntilGroup" style="display:none;align-items:center;gap:8px;font-size:13px;">
+                <span style="color:var(--text-muted);">hasta</span>
+                <input type="date" id="tbUntilDate" style="padding:6px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+              </div>
+              <div style="margin-left:auto;display:flex;gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="_tbToggleForm()">Cancelar</button>
+                <button class="btn btn-primary btn-sm" id="tbSaveBtn" onclick="_tbSubmitCreate()">Guardar bloqueo</button>
+              </div>
+            </div>
+            <div id="tbFormError" style="color:#ff6b6b;font-size:12px;margin-top:8px;display:none;"></div>
+          </div>
+
+          <!-- Lista de bloqueos -->
+          <div id="tbBlocksList">
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0;">Selecciona una sucursal para ver los bloqueos.</div>
+          </div>
+        </div>
+
+      </div>
+
 
       <!-- ══ GESTIÓN DE EVENTOS ══ -->
       <div id="events-tab" class="container hidden">
@@ -2213,6 +2393,7 @@ function setupTabs() {
         stopDevicesAutoRefresh();
       }
       if (tabName === 'queue') loadQueueTab();
+      if (tabName === 'appointments') loadAppointmentsTab();
       if (tabName === 'events') loadEventsTab();
     });
   });
@@ -2360,11 +2541,21 @@ function checkEventsLicense() {
   } catch(e) {}
 }
 
+function checkAppointmentsFeature() {
+  try {
+    const features = currentUser?.features || {};
+    const enabled = features.queue_v2_appointments === true && features.turnos === true;
+    const btn = document.querySelector('.tab-btn[data-tab="appointments"]');
+    if (btn) btn.style.display = enabled ? '' : 'none';
+  } catch(e) {}
+}
+
 function showDashboard() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('dashboardScreen').style.display = 'block';
   checkQueueLicense();
   checkEventsLicense();
+  checkAppointmentsFeature();
   document.getElementById('userName').textContent = currentUser.email;
   const features = currentUser.features || {};
   if (features.turnos) {
@@ -2421,6 +2612,7 @@ function connectWebSocket() {
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         checkQueueLicense();
         checkEventsLicense();
+        checkAppointmentsFeature();
         showStatus('Modulos actualizados', 'success');
         console.log('Features actualizados:', features);
       }
@@ -4210,6 +4402,1639 @@ async function toggleService(serviceId, active) {
 }
 
 // ══ FIN ATENCIÓN AL USUARIO ══
+
+// ══ CITAS (Queue v2 R1 — slice 1: lectura pura) ══
+const _apptState = {
+  branches: null,
+  branchesById: null,
+  servicesByBranch: new Map(),
+  selectedBranchId: null,
+  selectedDate: null,
+  selectedDateTo: null,
+  kioskTokenVisible: false,
+  tenantPublicSlug: null,
+};
+
+function _apptTodayLocalISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function _apptEscapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function appointmentStatusLabel(s) {
+  const map = {
+    pending: 'Pendiente',
+    confirmed: 'Confirmada',
+    in_progress: 'En atención',
+    completed: 'Atendido',
+    cancelled: 'Cancelada',
+    no_show: 'No asistió',
+    attended: 'En sitio',
+    pending_reschedule: 'Por reagendar'
+  };
+  return map[s] || s || '—';
+}
+
+function appointmentStatusColor(s) {
+  const map = {
+    pending:            { bg: '#3a2800', fg: '#ffd000' },
+    confirmed:          { bg: '#00273d', fg: '#00c8e6' },
+    in_progress:        { bg: '#1b3a1b', fg: '#7ed957' },
+    completed:          { bg: '#003d28', fg: '#00e676' },
+    cancelled:          { bg: '#3a1414', fg: '#ff5252' },
+    no_show:            { bg: '#3d0020', fg: '#ff4d8f' },
+    attended:           { bg: '#003d1a', fg: '#22c55e' },
+    pending_reschedule: { bg: '#3a1d00', fg: '#ff8c00' }
+  };
+  return map[s] || { bg: '#1f2937', fg: '#9ca3af' };
+}
+
+function showAppointmentBanner(kind, msg) {
+  const el = document.getElementById('apptStatusBanner');
+  if (!el) return;
+  const palette = {
+    error:   { bg: '#3a1414', fg: '#ff6b6b' },
+    warn:    { bg: '#3a2d00', fg: '#ffc857' },
+    info:    { bg: '#0d2a4d', fg: '#5fb1ff' }
+  };
+  const c = palette[kind] || palette.info;
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideAppointmentBanner() {
+  const el = document.getElementById('apptStatusBanner');
+  if (el) el.style.display = 'none';
+}
+
+async function loadAppointmentsTab() {
+  hideAppointmentBanner();
+  const dateInput = document.getElementById('apptDateFilter');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = _apptState.selectedDate || _apptTodayLocalISO();
+  }
+  _apptState.selectedDate = dateInput?.value || _apptTodayLocalISO();
+  try {
+    await ensureAppointmentBranches();
+  } catch (err) {
+    showAppointmentBanner('error', 'No se pudieron cargar las sucursales: ' + (err.message || 'error desconocido'));
+    return;
+  }
+  if (_apptState.selectedBranchId) {
+    await loadAppointmentsData();
+    _tbLoadBlocks();
+  }
+}
+
+async function ensureAppointmentBranches() {
+  if (_apptState.branches) {
+    _apptRenderBranchSelect();
+    return;
+  }
+  const headers = { 'Authorization': `Bearer ${authToken}` };
+  const [branchRes, profileRes] = await Promise.all([
+    fetch(`${API_URL}/api/queue/branches`, { headers }),
+    fetch(`${API_URL}/api/queue/tenant/profile`, { headers }),
+  ]);
+  if (!branchRes.ok) throw new Error('HTTP ' + branchRes.status);
+  const list = await branchRes.json();
+  _apptState.branches = Array.isArray(list) ? list : [];
+  _apptState.branchesById = new Map(_apptState.branches.map(b => [b.id, b]));
+  if (!_apptState.selectedBranchId && _apptState.branches.length > 0) {
+    _apptState.selectedBranchId = _apptState.branches[0].id;
+  }
+  if (profileRes.ok) {
+    const profile = await profileRes.json();
+    _apptState.tenantPublicSlug = profile.public_slug || null;
+  }
+  _apptRenderBranchSelect();
+}
+
+function _apptRenderBranchSelect() {
+  const sel = document.getElementById('apptBranchFilter');
+  if (!sel) return;
+  if (!_apptState.branches || _apptState.branches.length === 0) {
+    sel.innerHTML = '<option value="">(sin sucursales)</option>';
+    sel.disabled = true;
+    document.getElementById('appointmentsList').innerHTML =
+      '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">No tienes sucursales registradas.</div>';
+    _apptRenderOperationModeSelect();
+    _apptRenderKioskTokenPanel();
+    _apptRenderPublicBookingPanel();
+    return;
+  }
+  sel.disabled = false;
+  sel.innerHTML = _apptState.branches.map(b =>
+    `<option value="${_apptEscapeHtml(b.id)}">${_apptEscapeHtml(b.name || '(sin nombre)')}</option>`
+  ).join('');
+  if (_apptState.selectedBranchId) sel.value = _apptState.selectedBranchId;
+  _apptRenderOperationModeSelect();
+  _apptRenderKioskTokenPanel();
+  _apptRenderPublicBookingPanel();
+}
+
+async function ensureBranchServices(branchId) {
+  if (!branchId) return new Map();
+  if (_apptState.servicesByBranch.has(branchId)) {
+    return _apptState.servicesByBranch.get(branchId);
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${encodeURIComponent(branchId)}/services`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) {
+      _apptState.servicesByBranch.set(branchId, new Map());
+      return _apptState.servicesByBranch.get(branchId);
+    }
+    const list = await res.json();
+    const map = new Map((Array.isArray(list) ? list : []).map(s => [s.id, s]));
+    _apptState.servicesByBranch.set(branchId, map);
+    return map;
+  } catch(e) {
+    _apptState.servicesByBranch.set(branchId, new Map());
+    return _apptState.servicesByBranch.get(branchId);
+  }
+}
+
+function setApptRange(range) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  let from, to;
+  if (range === 'hoy') {
+    from = to = fmt(now);
+  } else if (range === 'semana') {
+    const day = now.getDay() || 7;
+    const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    from = fmt(mon); to = fmt(sun);
+  } else if (range === 'mes') {
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    from = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-01';
+    to = fmt(lastDay);
+  }
+  const dfInput = document.getElementById('apptDateFilter');
+  if (dfInput) dfInput.value = from;
+  _apptState.selectedDate   = from;
+  _apptState.selectedDateTo = to;
+  document.querySelectorAll('.btn-range-appt').forEach(b => b.classList.remove('active'));
+  const ids = { hoy: 'apptRangeHoy', semana: 'apptRangeSemana', mes: 'apptRangeMes' };
+  const el = document.getElementById(ids[range]);
+  if (el) el.classList.add('active');
+  // Mostrar rango de fechas cuando no es 'hoy'
+  const rdEl = document.getElementById('apptRangeDisplay');
+  if (rdEl) {
+    if (range !== 'hoy' && from !== to) {
+      const fmtDisp = d => new Date(d + 'T00:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+      rdEl.textContent = fmtDisp(from) + '  →  ' + fmtDisp(to);
+      rdEl.style.display = 'block';
+    } else {
+      rdEl.style.display = 'none';
+    }
+  }
+  loadAppointmentsData();
+}
+
+async function onAppointmentFilterChange() {
+  const si = document.getElementById('apptSearchInput');
+  if (si) si.value = '';
+  const sel = document.getElementById('apptBranchFilter');
+  const dateInput = document.getElementById('apptDateFilter');
+  _apptState.selectedBranchId = sel?.value || null;
+  _apptState.selectedDate   = dateInput?.value || _apptTodayLocalISO();
+  _apptState.selectedDateTo = _apptState.selectedDate;
+  document.querySelectorAll('.btn-range-appt').forEach(b => b.classList.remove('active'));
+  const _rdEl = document.getElementById('apptRangeDisplay');
+  if (_rdEl) _rdEl.style.display = 'none';
+  _apptRenderOperationModeSelect();
+  _apptRenderKioskTokenPanel();
+  _apptRenderPublicBookingPanel();
+  await loadAppointmentsData();
+  _tbLoadBlocks();
+}
+
+function resetAppointmentFilters() {
+  setApptRange('hoy');
+}
+
+async function toggleApptNotes(apptId, btn) {
+  const row = btn.closest('[data-appt-id]');
+  let panel = row.querySelector('.appt-notes-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'appt-notes-panel';
+    panel.style.cssText = 'padding:10px 14px 14px;border-top:1px solid var(--border);display:none;width:100%;margin-top:4px;';
+    row.appendChild(panel);
+  }
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    btn.textContent = 'Notas';
+    return;
+  }
+  btn.textContent = '…';
+  try {
+    const r = await fetch(`${API_URL}/api/queue/appointments/${apptId}/notes`, { headers:{Authorization:`Bearer ${authToken}`} });
+    const notes = await r.json();
+    panel.innerHTML = notes.length
+      ? '<div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Notas</div>' +
+        notes.map(n => `<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">` +
+          `<span>${n.text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>` +
+          `<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${n.agent_name||'Agente'} · ${new Date(n.created_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'America/Bogota'})}</span>` +
+          `</div>`).join('')
+      : '<div style="font-size:12px;color:var(--text-muted);">Sin notas</div>';
+    panel.style.display = 'block';
+    btn.textContent = 'Ocultar';
+  } catch(e) { btn.textContent = 'Error'; }
+}
+
+async function loadAppointmentsData() {
+  const listEl = document.getElementById('appointmentsList');
+  if (!listEl) return;
+  if (!_apptState.selectedBranchId) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Selecciona una sucursal.</div>';
+    return;
+  }
+  hideAppointmentBanner();
+  listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">Cargando…</div>';
+  const _apptFrom = _apptState.selectedDate   || _apptTodayLocalISO();
+  const _apptTo   = _apptState.selectedDateTo || _apptFrom;
+  const params = new URLSearchParams({
+    branch_id: _apptState.selectedBranchId,
+    date_from: _apptFrom,
+    date_to:   _apptTo,
+    page_size: '200'
+  });
+  try {
+    const [res, servicesMap] = await Promise.all([
+      fetch(`${API_URL}/api/queue/appointments?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      }),
+      ensureBranchServices(_apptState.selectedBranchId)
+    ]);
+    if (res.status === 403) {
+      let body = {};
+      try { body = await res.json(); } catch(_) {}
+      if (body && body.error === 'FEATURE_DISABLED') {
+        showAppointmentBanner('warn', 'El módulo Citas no está habilitado para tu cuenta. Contacta al administrador.');
+      } else {
+        showAppointmentBanner('error', 'No tienes permiso para ver estas citas.');
+      }
+      listEl.innerHTML = '';
+      return;
+    }
+    if (!res.ok) {
+      showAppointmentBanner('error', 'Error al cargar citas (HTTP ' + res.status + ').');
+      listEl.innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    const items = (data && Array.isArray(data.items)) ? data.items : [];
+
+    // Fetch walk-ins if branch is in queue_and_appointments mode
+    let walkins = [];
+    const _branchData = _apptState.branchesById?.get(_apptState.selectedBranchId);
+    if (_branchData?.operation_mode === 'queue_and_appointments') {
+      try {
+        const wDate = _apptFrom;
+        const wRes = await fetch(
+          `${API_URL}/api/queue/branches/${_apptState.selectedBranchId}/walkins?date=${wDate}`,
+          { headers: { 'Authorization': `Bearer ${authToken}` } }
+        );
+        if (wRes.ok) walkins = await wRes.json();
+      } catch(_e) { /* walk-ins son complementarios, error silencioso */ }
+    }
+
+    renderAppointmentsList(items, servicesMap, walkins);
+  } catch (err) {
+    showAppointmentBanner('error', 'Error de red: ' + (err.message || 'desconocido'));
+    listEl.innerHTML = '';
+  }
+}
+
+function renderAppointmentsList(items, servicesMap, walkins) {
+  const listEl = document.getElementById('appointmentsList');
+  if (!listEl) return;
+  // Merge walk-ins into the list with type tag
+  const wkArr = Array.isArray(walkins) ? walkins : [];
+  const hasWalkins = wkArr.length > 0;
+  // Update filter pills + notice visibility
+  const pillsEl  = document.getElementById('apptTypePills');
+  const noticeEl = document.getElementById('apptWalkinNotice');
+  if (pillsEl)  pillsEl.style.display  = hasWalkins ? '' : 'none';
+  if (noticeEl) noticeEl.style.display = hasWalkins ? '' : 'none';
+  const searchBarEl = document.getElementById('apptSearchBar');
+  const hasAny = (items && items.length > 0) || (walkins && walkins.length > 0);
+  if (searchBarEl) searchBarEl.style.display = hasAny ? '' : 'none';
+  const searchInput = document.getElementById('apptSearchInput');
+  if (searchInput) searchInput.value = '';
+  // Reset active pill to Todos on fresh render
+  document.querySelectorAll('.appt-pill').forEach(p => p.classList.toggle('active', p.dataset.filter === 'all'));
+
+  const aptItems = (items || []).map(a => ({ ...a, _rowType: 'cita' }));
+  const wkItems  = wkArr.map(t => ({
+    id: 'wk_' + t.id,
+    scheduled_at: t.created_at,
+    client_name: null,
+    client_phone: null,
+    service_id: null,
+    status: t.status,
+    origin: 'kiosko',
+    _rowType: 'kiosko',
+    _tokenNumber: t.token_number,
+    _serviceNameWk: t.service_name,
+    _serviceColorWk: t.service_color || '#8a8a8a',
+  }));
+  const allItems = [...aptItems, ...wkItems];
+
+  if (allItems.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0;">No hay citas para esta sucursal y fecha.</div>';
+    return;
+  }
+  const sorted = allItems.slice().sort((a, b) => {
+    const ta = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+    const tb = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+    return ta - tb;
+  });
+  const todayLocal = _apptTodayLocalISO();
+  const filterDate = _apptState.selectedDate || todayLocal;
+  const isTodayView = (filterDate === todayLocal);
+  const _isMultiDay = !!(_apptState.selectedDateTo && _apptState.selectedDateTo !== filterDate);
+  let _lastApptDay = null;
+  const rows = sorted.map(a => {
+    const dt = a.scheduled_at ? new Date(a.scheduled_at) : null;
+    const time = dt ? dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' }) : '--:--';
+    const dateShort = (_isMultiDay && dt)
+      ? dt.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
+      : null;
+    let _hdr = '';
+    if (_isMultiDay && dt) {
+      const _dk = dt.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' });
+      if (_dk !== _lastApptDay) {
+        _lastApptDay = _dk;
+        const _lbl = dt.toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Bogota' });
+        _hdr = `<div style="padding:10px 4px 4px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">${_lbl.charAt(0).toUpperCase()+_lbl.slice(1)}</div>`;
+      }
+    }
+
+    if (a._rowType === 'kiosko') {
+      // Walk-in token row (muted, no client data)
+      return _hdr + `
+        <div data-row-type="kiosko" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg-card);opacity:0.75;">
+          <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text-muted);text-align:center;">${_apptEscapeHtml(time)}${dateShort ? `<div style='font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;'>${_apptEscapeHtml(dateShort)}</div>` : ''}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;color:var(--text-muted);">Turno ${_apptEscapeHtml(String(a._tokenNumber || ''))}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${_apptEscapeHtml(a._serviceNameWk || '—')}</div>
+          </div>
+          <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.5px;background:rgba(138,138,138,0.12);color:#8a8a8a;border:1px solid rgba(138,138,138,0.25);">KIOSKO</span>
+          </div>
+        </div>`;
+    }
+
+    // Regular appointment row
+    const svc = servicesMap && a.service_id ? servicesMap.get(a.service_id) : null;
+    const svcName = svc ? svc.name : (a.service_id ? '(servicio)' : '—');
+    const statusColor = appointmentStatusColor(a.status);
+    const clientName = a.client_name || '(sin nombre)';
+    const clientIdNum = a.client_id_number ? ` · CC ${_apptEscapeHtml(a.client_id_number)}` : '';
+    const clientPhone = a.client_phone ? ` · ${_apptEscapeHtml(a.client_phone)}` : '';
+    const origin = a.origin ? a.origin : '';
+    const _apptDayISO = dt ? dt.toLocaleDateString('sv-SE', { timeZone: 'America/Bogota' }) : null;
+    const _isApptToday = _apptDayISO === todayLocal;
+    const canArrival  = _isApptToday && (a.status === 'pending' || a.status === 'confirmed') && a.id && a.branch_id;
+    const canPresence = _isApptToday && a.status === 'confirmed' && a.id && a.branch_id;
+    const confirmBtn = canArrival
+      ? `<button class="btn btn-primary btn-sm" style="margin-left:8px;white-space:nowrap;" onclick='confirmArrival(${JSON.stringify(a.id)}, ${JSON.stringify(a.branch_id)}, ${JSON.stringify(clientName)}, this)'>Confirmar llegada</button>`
+        + (canPresence
+          ? ` <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick='openConfirmPresenceModal(${JSON.stringify(a.id)}, ${JSON.stringify(a.branch_id)}, ${JSON.stringify(clientName)}, ${JSON.stringify(a.scheduled_at || "")}, ${JSON.stringify(svcName)})'>Con cédula</button>`
+          : '')
+      : '';
+    const originBadge = origin === 'public'
+      ? `<span style="display:inline-block;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;background:rgba(0,180,216,0.12);color:#00B4D8;margin-left:6px;">Pública</span>`
+      : '';
+    return _hdr + `
+      <div data-row-type="cita" data-appt-id="${a.id}" data-status="${a.status}" data-client-name="${(a.client_name||''). toLowerCase()}" data-client-id="${(a.client_id_number||''). toLowerCase()}" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--border);border-left:4px solid ${statusColor.fg};border-radius:8px;margin-bottom:8px;background:${statusColor.bg}30;">
+        <div style="flex:0 0 64px;font-size:20px;font-weight:600;color:var(--text);text-align:center;">${_apptEscapeHtml(time)}${dateShort ? `<div style='font-size:10px;font-weight:600;color:var(--text-muted);margin-top:2px;'>${_apptEscapeHtml(dateShort)}</div>` : ''}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:var(--text);">${_apptEscapeHtml(clientName)}${clientIdNum}${originBadge}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+            ${_apptEscapeHtml(svcName)}${clientPhone}${origin && origin !== 'public' ? ' · ' + _apptEscapeHtml(origin) : ''}
+          </div>
+        </div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;background:${statusColor.bg};color:${statusColor.fg};">
+            ${_apptEscapeHtml(appointmentStatusLabel(a.status))}${a.agent_name ? ` · <span style="font-weight:400;opacity:0.85;">${_apptEscapeHtml(a.agent_name)}</span>` : ''}
+          </span>
+          ${confirmBtn}
+          <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick='toggleApptNotes(${JSON.stringify(a.id)}, this)'>Notas</button>
+        </div>
+      </div>`;
+  }).join('');
+  listEl.innerHTML = rows;
+}
+
+// Barra de búsqueda por nombre/cédula
+function _apptSearchFilter(query) {
+  const q = (query || '').trim().toLowerCase();
+  document.querySelectorAll('#appointmentsList [data-row-type]').forEach(row => {
+    if (!q) { row.style.display = ''; return; }
+    const name = (row.dataset.clientName || '');
+    const id   = (row.dataset.clientId   || '');
+    row.style.display = (name.includes(q) || id.includes(q)) ? '' : 'none';
+  });
+}
+
+// Filter pills handler (R1.5 §B)
+function _apptFilter(btn, type) {
+  document.querySelectorAll('.appt-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#appointmentsList [data-row-type]').forEach(row => {
+    const show = type === 'all' || row.dataset.rowType === type;
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+// ── slice 2: crear cita ──
+function _apptShowCreateBanner(kind, msg) {
+  const el = document.getElementById('apptCreateBanner');
+  if (!el) return;
+  const palette = {
+    error: { bg: '#3a1414', fg: '#ff6b6b' },
+    warn:  { bg: '#3a2d00', fg: '#ffc857' },
+    info:  { bg: '#0d2a4d', fg: '#5fb1ff' }
+  };
+  const c = palette[kind] || palette.info;
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _apptHideCreateBanner() {
+  const el = document.getElementById('apptCreateBanner');
+  if (el) el.style.display = 'none';
+}
+
+async function _apptPopulateCreateServiceSelect(branchId) {
+  const sel = document.getElementById('apptCreateService');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Cargando…</option>';
+  sel.disabled = true;
+  const map = await ensureBranchServices(branchId);
+  const list = Array.from(map.values()).filter(s => s.active !== false);
+  if (list.length === 0) {
+    sel.innerHTML = '<option value="">(sin servicios)</option>';
+    sel.disabled = true;
+    return;
+  }
+  sel.innerHTML = list.map(s =>
+    `<option value="${_apptEscapeHtml(s.id)}">${_apptEscapeHtml(s.name || '(sin nombre)')}</option>`
+  ).join('');
+  sel.disabled = false;
+}
+
+async function _apptOnCreateBranchChange() {
+  const branchSel = document.getElementById('apptCreateBranch');
+  const branchId = branchSel ? branchSel.value : null;
+  if (!branchId) return;
+  await _apptPopulateCreateServiceSelect(branchId);
+}
+
+async function openCreateAppointmentModal() {
+  _apptHideCreateBanner();
+  const modal = document.getElementById('appointmentModal');
+  if (!modal) return;
+  try {
+    await ensureAppointmentBranches();
+  } catch (err) {
+    showStatus('No se pudieron cargar las sucursales: ' + (err.message || 'error'), 'error');
+    return;
+  }
+  if (!_apptState.branches || _apptState.branches.length === 0) {
+    showStatus('Primero debes crear una sucursal antes de agendar citas.', 'error');
+    return;
+  }
+  const branchSel = document.getElementById('apptCreateBranch');
+  branchSel.innerHTML = _apptState.branches.map(b =>
+    `<option value="${_apptEscapeHtml(b.id)}">${_apptEscapeHtml(b.name || '(sin nombre)')}</option>`
+  ).join('');
+  const preselect = _apptState.selectedBranchId || _apptState.branches[0].id;
+  branchSel.value = preselect;
+  await _apptPopulateCreateServiceSelect(preselect);
+
+  // Defaults: fecha = filtro activo (o hoy); hora = próximo cuarto de hora
+  const dateInput = document.getElementById('apptCreateDate');
+  const timeInput = document.getElementById('apptCreateTime');
+  const nameInput = document.getElementById('apptCreateName');
+  const phoneInput = document.getElementById('apptCreatePhone');
+  const idInput = document.getElementById('apptCreateIdNumber');
+  const emailInput = document.getElementById('apptCreateEmail');
+  if (dateInput) dateInput.value = _apptState.selectedDate || _apptTodayLocalISO();
+  if (timeInput) {
+    const now = new Date();
+    const next = new Date(now.getTime() + 30 * 60 * 1000);
+    const rounded = new Date(next.getTime() - (next.getMinutes() % 15) * 60 * 1000);
+    rounded.setSeconds(0, 0);
+    const hh = String(rounded.getHours()).padStart(2, '0');
+    const mm = String(rounded.getMinutes()).padStart(2, '0');
+    timeInput.value = `${hh}:${mm}`;
+  }
+  if (nameInput) nameInput.value = '';
+  if (phoneInput) phoneInput.value = '';
+  if (idInput) idInput.value = '';
+  if (emailInput) emailInput.value = '';
+
+  modal.classList.add('active');
+}
+
+function closeCreateAppointmentModal() {
+  const modal = document.getElementById('appointmentModal');
+  if (modal) modal.classList.remove('active');
+  _apptHideCreateBanner();
+}
+
+async function submitCreateAppointment() {
+  _apptHideCreateBanner();
+  const btn = document.getElementById('apptCreateSubmitBtn');
+  const branchId = document.getElementById('apptCreateBranch').value;
+  const serviceId = document.getElementById('apptCreateService').value;
+  const dateVal = document.getElementById('apptCreateDate').value;
+  const timeVal = document.getElementById('apptCreateTime').value;
+  const name = (document.getElementById('apptCreateName').value || '').trim();
+  const phone = (document.getElementById('apptCreatePhone').value || '').trim();
+  const idNumber = (document.getElementById('apptCreateIdNumber').value || '').trim();
+  const email = (document.getElementById('apptCreateEmail').value || '').trim();
+
+  // Validación cliente
+  if (!branchId) return _apptShowCreateBanner('error', 'Selecciona una sucursal.');
+  if (!serviceId) return _apptShowCreateBanner('error', 'Selecciona un servicio.');
+  if (!dateVal || !timeVal) return _apptShowCreateBanner('error', 'Indica fecha y hora.');
+  if (name.length < 3) return _apptShowCreateBanner('error', 'El nombre debe tener al menos 3 caracteres.');
+  if (!/^\+?[0-9\s\-]{7,}$/.test(phone)) return _apptShowCreateBanner('error', 'Teléfono inválido (mínimo 7 dígitos, opcionalmente con +).');
+  if (idNumber.length < 4) return _apptShowCreateBanner('error', 'La cédula debe tener al menos 4 caracteres.');
+
+  const localDt = new Date(`${dateVal}T${timeVal}:00`);
+  if (isNaN(localDt.getTime())) return _apptShowCreateBanner('error', 'Fecha/hora inválida.');
+  const skewMs = 5 * 60 * 1000;
+  if (localDt.getTime() < Date.now() - skewMs) {
+    return _apptShowCreateBanner('error', 'La fecha/hora debe ser futura.');
+  }
+  const scheduledIso = localDt.toISOString();
+
+  const body = {
+    branch_id: branchId,
+    service_id: serviceId,
+    client_name: name,
+    client_phone: phone,
+    client_id_number: idNumber,
+    scheduled_at: scheduledIso,
+    origin: 'admin'
+  };
+  if (email) body.client_email = email;
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando…'; }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch(_) {}
+
+    if (res.status === 201 || res.ok) {
+      closeCreateAppointmentModal();
+      showStatus('Cita creada correctamente', 'success');
+      // Alinear filtro al día de la cita creada para que aparezca en la lista
+      const createdDate = `${dateVal}`;
+      _apptState.selectedBranchId = branchId;
+      _apptState.selectedDate = createdDate;
+      const branchFilter = document.getElementById('apptBranchFilter');
+      const dateFilter = document.getElementById('apptDateFilter');
+      if (branchFilter) branchFilter.value = branchId;
+      if (dateFilter) dateFilter.value = createdDate;
+      await loadAppointmentsData();
+      return;
+    }
+
+    const code = payload && (payload.code || payload.error);
+    if (res.status === 403 && code === 'FEATURE_DISABLED') {
+      _apptShowCreateBanner('warn', 'El módulo Citas no está habilitado para tu cuenta.');
+    } else if (res.status === 400) {
+      _apptShowCreateBanner('error', payload.error || 'Datos inválidos.');
+    } else if (res.status === 404) {
+      _apptShowCreateBanner('error', 'Sucursal o servicio no encontrado.');
+    } else if (res.status === 409) {
+      const msg = code === 'SLOT_TAKEN'   ? 'Ese horario ya está ocupado. Elige otro.'
+                : code === 'BLOCKED'      ? 'El horario está bloqueado.'
+                : code === 'OVER_CAPACITY' ? 'El cupo del horario está lleno.'
+                : (payload.error || 'Conflicto al guardar la cita.');
+      _apptShowCreateBanner('error', msg);
+    } else if (res.status === 503) {
+      _apptShowCreateBanner('error', 'Servicio ocupado, intenta de nuevo en unos segundos.');
+    } else {
+      _apptShowCreateBanner('error', payload.error || `Error inesperado (HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    _apptShowCreateBanner('error', 'Error de red: ' + (err.message || 'desconocido'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cita'; }
+  }
+}
+
+// ── slice 3: confirmar presencia ──
+const _apptConfirmState = { apptId: null, branchId: null };
+
+function _apptShowConfirmBanner(kind, msg) {
+  const el = document.getElementById('apptConfirmBanner');
+  if (!el) return;
+  const palette = {
+    error:   { bg: '#3a1414', fg: '#ff6b6b' },
+    warn:    { bg: '#3a2d00', fg: '#ffc857' },
+    info:    { bg: '#0d2a4d', fg: '#5fb1ff' },
+    success: { bg: '#1b3a1b', fg: '#7ed957' }
+  };
+  const c = palette[kind] || palette.info;
+  el.style.background = c.bg;
+  el.style.color = c.fg;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _apptHideConfirmBanner() {
+  const el = document.getElementById('apptConfirmBanner');
+  if (el) el.style.display = 'none';
+}
+
+async function confirmArrival(apptId, branchId, clientName, btn) {
+  if (!confirm('¿Confirmar llegada de ' + (clientName || 'el cliente') + '?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Confirmando…'; }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments/${encodeURIComponent(apptId)}/confirm-arrival`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ branch_id: branchId }),
+    });
+    const data = await res.json();
+    if (res.ok && data.confirmed) {
+      showStatus(`✓ Llegada confirmada — Turno ${data.token_number}. Posición ${data.queue_position} en cola.`, 'success');
+      // Recargar lista para reflejar el nuevo estado
+      setTimeout(() => loadAppointmentsData && loadAppointmentsData(), 600);
+    } else {
+      showStatus(data.error || 'No se pudo confirmar la llegada.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirmar llegada'; }
+    }
+  } catch (e) {
+    showStatus('Error de red al confirmar llegada.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar llegada'; }
+  }
+}
+
+function openConfirmPresenceModal(apptId, branchId, clientName, scheduledAtIso, svcName) {
+  _apptHideConfirmBanner();
+  const modal = document.getElementById('appointmentConfirmModal');
+  if (!modal) return;
+  if (!apptId || !branchId) {
+    showStatus('Datos de cita incompletos.', 'error');
+    return;
+  }
+  _apptConfirmState.apptId = apptId;
+  _apptConfirmState.branchId = branchId;
+  const info = document.getElementById('apptConfirmInfo');
+  const idInput = document.getElementById('apptConfirmIdNumber');
+  let hhmm = '--:--';
+  if (scheduledAtIso) {
+    const dt = new Date(scheduledAtIso);
+    if (!isNaN(dt.getTime())) {
+      hhmm = dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    }
+  }
+  if (info) {
+    info.innerHTML =
+      '<div><strong style="color:var(--text);">Cliente esperado:</strong> ' + _apptEscapeHtml(clientName || '—') + '</div>' +
+      '<div><strong style="color:var(--text);">Servicio:</strong> ' + _apptEscapeHtml(svcName || '—') + '</div>' +
+      '<div><strong style="color:var(--text);">Hora:</strong> ' + _apptEscapeHtml(hhmm) + '</div>';
+  }
+  if (idInput) {
+    idInput.value = '';
+    setTimeout(() => idInput.focus(), 50);
+  }
+  modal.classList.add('active');
+}
+
+function closeConfirmPresenceModal() {
+  const modal = document.getElementById('appointmentConfirmModal');
+  if (modal) modal.classList.remove('active');
+  _apptHideConfirmBanner();
+  _apptConfirmState.apptId = null;
+  _apptConfirmState.branchId = null;
+}
+
+async function submitConfirmPresence() {
+  _apptHideConfirmBanner();
+  const btn = document.getElementById('apptConfirmSubmitBtn');
+  const idInput = document.getElementById('apptConfirmIdNumber');
+  const apptId = _apptConfirmState.apptId;
+  const branchId = _apptConfirmState.branchId;
+  const idNumber = (idInput && idInput.value || '').trim();
+
+  if (!apptId || !branchId) {
+    _apptShowConfirmBanner('error', 'Sesión de confirmación perdida. Cierra y reintenta.');
+    return;
+  }
+  if (idNumber.length < 4) {
+    _apptShowConfirmBanner('error', 'La cédula debe tener al menos 4 caracteres.');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Confirmando…'; }
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments/${encodeURIComponent(apptId)}/confirm-presence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ branch_id: branchId, client_id_number: idNumber })
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch(_) {}
+
+    if (res.status === 403 && (payload.error === 'FEATURE_DISABLED')) {
+      _apptShowConfirmBanner('warn', 'El módulo Citas no está habilitado para tu cuenta.');
+      return;
+    }
+    if (res.status === 400) {
+      _apptShowConfirmBanner('error', payload.error || 'Datos inválidos.');
+      return;
+    }
+    if (!res.ok) {
+      _apptShowConfirmBanner('error', `Error inesperado (HTTP ${res.status}).`);
+      return;
+    }
+
+    if (payload && payload.confirmed === true) {
+      const tk = payload.token_number || '—';
+      const pos = (typeof payload.queue_position === 'number') ? payload.queue_position : '—';
+      const wait = (typeof payload.estimated_wait_minutes === 'number') ? payload.estimated_wait_minutes : '—';
+      closeConfirmPresenceModal();
+      showStatus(`Presencia confirmada — turno ${tk} · posición ${pos} · espera ~${wait} min`, 'success');
+      await loadAppointmentsData();
+      return;
+    }
+
+    // Respuesta uniforme anti-enumeración.
+    _apptShowConfirmBanner('error', 'Cédula no coincide con esta cita o la cita no está disponible para hoy.');
+  } catch (err) {
+    _apptShowConfirmBanner('error', 'Error de red: ' + (err.message || 'desconocido'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirmar'; }
+  }
+}
+
+// ── slice 4a: control de operation_mode por sucursal ──
+function _apptRenderOperationModeSelect() {
+  const sel = document.getElementById('apptOperationMode');
+  if (!sel) return;
+  const branchId = _apptState.selectedBranchId;
+  if (!branchId || !_apptState.branchesById) {
+    sel.value = '';
+    sel.disabled = true;
+    return;
+  }
+  const branch = _apptState.branchesById.get(branchId);
+  if (!branch) {
+    sel.value = '';
+    sel.disabled = true;
+    return;
+  }
+  sel.value = branch.operation_mode || 'queue_only';
+  sel.disabled = false;
+}
+
+async function submitOperationModeChange() {
+  const sel = document.getElementById('apptOperationMode');
+  const branchId = _apptState.selectedBranchId;
+  if (!sel || !branchId) return;
+  const next = sel.value;
+  if (!next) return;
+  const branch = _apptState.branchesById && _apptState.branchesById.get(branchId);
+  const prev = branch ? (branch.operation_mode || 'queue_only') : null;
+  if (next === prev) return;
+
+  sel.disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${encodeURIComponent(branchId)}/operation-mode`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ operation_mode: next })
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch(_) {}
+
+    if (res.status === 403 && payload.error === 'FEATURE_DISABLED') {
+      showStatus('Citas no habilitadas para tu cuenta.', 'error');
+      if (branch) sel.value = prev;
+      return;
+    }
+    if (res.status === 400) {
+      showStatus(payload.error || 'Modo de operación inválido.', 'error');
+      if (branch) sel.value = prev;
+      return;
+    }
+    if (res.status === 404) {
+      showStatus('Sucursal no encontrada.', 'error');
+      if (branch) sel.value = prev;
+      return;
+    }
+    if (!res.ok) {
+      showStatus(`Error inesperado (HTTP ${res.status}).`, 'error');
+      if (branch) sel.value = prev;
+      return;
+    }
+
+    if (branch) branch.operation_mode = payload.operation_mode || next;
+    if (payload.changed === false) {
+      showStatus('El modo ya estaba aplicado.', 'info');
+    } else {
+      const labelMap = {
+        queue_only: 'Solo turnos',
+        appointments_only: 'Solo citas',
+        queue_and_appointments: 'Turnos + citas'
+      };
+      showStatus(`Modo actualizado: ${labelMap[next] || next}`, 'success');
+    }
+  } catch (err) {
+    showStatus('Error de red: ' + (err.message || 'desconocido'), 'error');
+    if (branch) sel.value = prev;
+  } finally {
+    sel.disabled = !branchId;
+  }
+}
+// ── slice 4b: panel de Token de kiosko ──
+function _maskKioskToken(token) {
+  if (!token) return '—';
+  return token.slice(0, -4).replace(/[0-9a-f]/gi, '•') + token.slice(-4);
+}
+
+function _apptRenderKioskTokenPanel() {
+  const input = document.getElementById('apptKioskTokenInput');
+  const btnToggle = document.getElementById('apptKioskTokenToggle');
+  const btnCopy = document.getElementById('apptKioskTokenCopy');
+  const btnRotate = document.getElementById('apptKioskTokenRotate');
+  if (!input) return;
+
+  const branchId = _apptState.selectedBranchId;
+  const branch = branchId && _apptState.branchesById ? _apptState.branchesById.get(branchId) : null;
+  const token = branch ? branch.kiosk_token : null;
+
+  if (!token) {
+    input.value = '—';
+    input.setAttribute('data-full', '');
+    if (btnToggle) { btnToggle.disabled = true; btnToggle.textContent = 'Mostrar'; }
+    if (btnCopy) btnCopy.disabled = true;
+    if (btnRotate) btnRotate.disabled = true;
+    _apptState.kioskTokenVisible = false;
+    return;
+  }
+
+  input.setAttribute('data-full', token);
+  if (_apptState.kioskTokenVisible) {
+    input.value = token;
+    if (btnToggle) btnToggle.textContent = 'Ocultar';
+  } else {
+    input.value = _maskKioskToken(token);
+    if (btnToggle) btnToggle.textContent = 'Mostrar';
+  }
+  if (btnToggle) btnToggle.disabled = false;
+  if (btnCopy) btnCopy.disabled = false;
+  if (btnRotate) btnRotate.disabled = false;
+}
+
+function toggleKioskTokenVisibility() {
+  _apptState.kioskTokenVisible = !_apptState.kioskTokenVisible;
+  _apptRenderKioskTokenPanel();
+}
+
+function copyKioskTokenToClipboard() {
+  const input = document.getElementById('apptKioskTokenInput');
+  const token = input && input.getAttribute('data-full');
+  if (!token) return;
+  navigator.clipboard.writeText(token).then(() => {
+    showStatus('Token copiado al portapapeles.', 'success');
+  }).catch(() => {
+    showStatus('Error al copiar. Selecciona el campo manualmente.', 'error');
+  });
+}
+
+async function submitKioskTokenRotate() {
+  const branchId = _apptState.selectedBranchId;
+  if (!branchId) return;
+  if (!confirm('¿Rotar el token de kiosko? El kiosko actual dejará de funcionar hasta que se reconfigure con el nuevo token.')) return;
+  const btn = document.getElementById('apptKioskTokenRotate');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${encodeURIComponent(branchId)}/kiosk-token/rotate`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    let payload = {};
+    try { payload = await res.json(); } catch (_) {}
+    if (res.status === 403 && payload.error === 'FEATURE_DISABLED') {
+      showStatus('Citas no habilitadas para tu cuenta.', 'error');
+      return;
+    }
+    if (!res.ok) {
+      showStatus(payload.error || `Error HTTP ${res.status}.`, 'error');
+      return;
+    }
+    const branch = _apptState.branchesById && _apptState.branchesById.get(branchId);
+    if (branch) branch.kiosk_token = payload.kiosk_token;
+    _apptState.kioskTokenVisible = true;
+    _apptRenderKioskTokenPanel();
+    showStatus('Token rotado. Reconfigura el kiosko con el nuevo token.', 'success');
+  } catch (err) {
+    showStatus('Error de red: ' + (err.message || 'desconocido'), 'error');
+  } finally {
+    const b = document.getElementById('apptKioskTokenRotate');
+    if (b) b.disabled = !_apptState.selectedBranchId;
+  }
+}
+// ── slice B: reservas públicas ────────────────────────────────
+
+function _apptPublicUrlPreview() {
+  const slug = (document.getElementById('apptPublicSlugInput')?.value || '').trim();
+  const hint = document.getElementById('apptPublicSlugHint');
+  if (!hint) return;
+  const ok = /^[a-z0-9-]{2,60}$/.test(slug);
+  hint.textContent = slug
+    ? (ok ? `cms.sonoro.com.co/agendar/${slug}` : 'Solo minúsculas, números y guiones (2–60 chars)')
+    : '';
+  hint.style.color = ok ? 'var(--text-muted)' : 'var(--danger, #e53e3e)';
+}
+
+function _apptRenderPublicBookingPanel() {
+  const panel     = document.getElementById('apptPublicBookingPanel');
+  const modesel   = document.getElementById('apptPublicModeSelect');
+  const urlInput  = document.getElementById('apptPublicUrlInput');
+  const copyBtn   = document.getElementById('apptPublicUrlCopy');
+  const slugInput = document.getElementById('apptPublicSlugInput');
+  if (!panel) return;
+
+  const branchId = _apptState.selectedBranchId;
+  const branch   = branchId ? _apptState.branchesById?.get(branchId) : null;
+  const slug     = _apptState.tenantPublicSlug || '';
+
+  panel.style.display = branchId ? 'block' : 'none';
+  if (!branchId) return;
+
+  if (slugInput && !slugInput.matches(':focus') && slugInput.value === '') {
+    slugInput.value = slug;
+    _apptPublicUrlPreview();
+  }
+
+  if (modesel) {
+    modesel.disabled = false;
+    modesel.value = branch?.public_booking_mode || 'disabled';
+  }
+
+  const mode = branch?.public_booking_mode || 'disabled';
+  if (urlInput) {
+    urlInput.value = (slug && mode !== 'disabled')
+      ? `cms.sonoro.com.co/agendar/${slug}`
+      : mode === 'disabled' ? '(desactivado)' : '(configura el slug primero)';
+  }
+  if (copyBtn) copyBtn.disabled = !slug || mode === 'disabled';
+}
+
+async function submitPublicSlug() {
+  const slugInput = document.getElementById('apptPublicSlugInput');
+  const saveBtn   = document.getElementById('apptPublicSlugSave');
+  const slug = (slugInput?.value || '').trim().toLowerCase();
+  if (!slug) { showStatus('Ingresa un slug.', 'error'); return; }
+  if (!/^[a-z0-9-]{2,60}$/.test(slug)) {
+    showStatus('Slug inválido: solo minúsculas, números y guiones (2–60 caracteres).', 'error');
+    return;
+  }
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/tenant/public-slug`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_slug: slug }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar el slug.', 'error'); return; }
+    _apptState.tenantPublicSlug = slug;
+    _apptRenderPublicBookingPanel();
+    showStatus('Slug guardado correctamente.', 'success');
+  } catch (err) {
+    showStatus('Error de red: ' + (err.message || 'desconocido'), 'error');
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+async function submitPublicBookingMode() {
+  const modesel  = document.getElementById('apptPublicModeSelect');
+  const branchId = _apptState.selectedBranchId;
+  if (!branchId || !modesel) return;
+  const mode = modesel.value;
+  modesel.disabled = true;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/branches/${encodeURIComponent(branchId)}/public-booking-mode`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_booking_mode: mode }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showStatus(data.error || 'Error al actualizar modo.', 'error');
+      modesel.value = _apptState.branchesById?.get(branchId)?.public_booking_mode || 'disabled';
+      return;
+    }
+    const branch = _apptState.branchesById?.get(branchId);
+    if (branch) branch.public_booking_mode = mode;
+    _apptRenderPublicBookingPanel();
+    showStatus(mode === 'disabled' ? 'Reservas públicas desactivadas.' : 'Modo actualizado.', 'success');
+  } catch (err) {
+    showStatus('Error de red: ' + (err.message || 'desconocido'), 'error');
+  } finally {
+    if (modesel) modesel.disabled = false;
+  }
+}
+
+function copyPublicUrl() {
+  const input = document.getElementById('apptPublicUrlInput');
+  if (!input?.value || input.value.startsWith('(')) return;
+  const url = 'https://' + input.value;
+  navigator.clipboard?.writeText(url).then(() => {
+    showStatus('URL copiada al portapapeles.', 'success');
+  }).catch(() => {
+    input.select();
+    document.execCommand('copy');
+    showStatus('URL copiada.', 'success');
+  });
+}
+
+// ── slice 5: time-blocks CRUD ─────────────────────────────────
+const _tbState = { blocks: [], formOpen: false };
+
+function _tbToDatetimeLocal(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function _tbToggleForm() {
+  _tbState.formOpen = !_tbState.formOpen;
+  const panel = document.getElementById('tbFormPanel');
+  const btn   = document.getElementById('tbNewBtn');
+  if (!panel) return;
+  if (_tbState.formOpen) {
+    panel.style.display = 'block';
+    if (btn) btn.textContent = '✕ Cerrar';
+    // Pre-fill: siguiente hora en punto
+    const now = new Date();
+    now.setMinutes(0, 0, 0);
+    now.setHours(now.getHours() + 1);
+    const ends = new Date(now.getTime() + 60 * 60 * 1000);
+    document.getElementById('tbStartsAt').value = _tbToDatetimeLocal(now);
+    document.getElementById('tbEndsAt').value   = _tbToDatetimeLocal(ends);
+    _tbPopulateServiceSelect();
+    const errEl = document.getElementById('tbFormError');
+    if (errEl) errEl.style.display = 'none';
+  } else {
+    panel.style.display = 'none';
+    if (btn) btn.textContent = '+ Nuevo bloqueo';
+    const chk = document.getElementById('tbRecurWeekly');
+    if (chk) chk.checked = false;
+    const ug = document.getElementById('tbUntilGroup');
+    if (ug) ug.style.display = 'none';
+  }
+}
+
+function _tbPopulateServiceSelect() {
+  const sel = document.getElementById('tbServiceId');
+  if (!sel) return;
+  const branchId = _apptState.selectedBranchId;
+  const raw  = branchId ? _apptState.servicesByBranch.get(branchId) : null;
+  const svcs = raw instanceof Map ? Array.from(raw.values()) : (Array.isArray(raw) ? raw : []);
+  sel.innerHTML = '<option value="">Todos los servicios</option>' +
+    svcs.map(s => `<option value="${s.id}">${_apptEscapeHtml(s.name)}</option>`).join('');
+}
+
+function _tbToggleRecurrence() {
+  const checked = document.getElementById('tbRecurWeekly')?.checked;
+  const group   = document.getElementById('tbUntilGroup');
+  if (!group) return;
+  group.style.display    = checked ? 'flex' : 'none';
+  group.style.alignItems = 'center';
+  group.style.gap        = '8px';
+}
+
+async function _tbSubmitCreate() {
+  const branchId  = _apptState.selectedBranchId;
+  if (!branchId) return;
+  const startsAt    = document.getElementById('tbStartsAt')?.value;
+  const endsAt      = document.getElementById('tbEndsAt')?.value;
+  const reason      = document.getElementById('tbReason')?.value?.trim();
+  const serviceId   = document.getElementById('tbServiceId')?.value || null;
+  const recurWeekly = document.getElementById('tbRecurWeekly')?.checked;
+  const untilDate   = document.getElementById('tbUntilDate')?.value;
+
+  const errEl   = document.getElementById('tbFormError');
+  const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+
+  if (!startsAt) return showErr('Ingresa la fecha y hora de inicio.');
+  if (!endsAt)   return showErr('Ingresa la fecha y hora de fin.');
+  if (new Date(endsAt) <= new Date(startsAt)) return showErr('La fecha de fin debe ser posterior al inicio.');
+  if (recurWeekly && !untilDate) return showErr('Ingresa la fecha hasta la que se repite.');
+
+  const recurrence = recurWeekly
+    ? `RRULE:FREQ=WEEKLY;UNTIL=${untilDate.replace(/-/g, '')}`
+    : null;
+
+  const btn = document.getElementById('tbSaveBtn');
+  if (btn) btn.disabled = true;
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_URL}/api/queue/time-blocks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({
+        branch_id:  branchId,
+        service_id: serviceId || null,
+        starts_at:  new Date(startsAt).toISOString(),
+        ends_at:    new Date(endsAt).toISOString(),
+        reason:     reason || null,
+        recurrence: recurrence,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return showErr(
+        data.error === 'BLOCKED_SAME_SCOPE'  ? 'Ya existe un bloqueo solapado en el mismo alcance.' :
+        data.error === 'BLOCKED_CROSS_SCOPE' ? 'Un bloqueo "todos los servicios" ya cubre esa franja, o un bloqueo específico choca con uno nuevo de alcance total.' :
+        (data.message || data.error || 'Error al crear el bloqueo.')
+      );
+    }
+    _tbToggleForm();
+    await _tbLoadBlocks();
+    showStatus('Bloqueo creado', 'success');
+  } catch (e) {
+    showErr('Error de conexión. Intenta de nuevo.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function _tbLoadBlocks() {
+  const branchId = _apptState.selectedBranchId;
+  const listEl   = document.getElementById('tbBlocksList');
+  const newBtn   = document.getElementById('tbNewBtn');
+  if (!listEl) return;
+  if (!branchId) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0;">Selecciona una sucursal para ver los bloqueos.</div>';
+    if (newBtn) newBtn.disabled = true;
+    return;
+  }
+  if (newBtn) newBtn.disabled = false;
+  listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0;">Cargando…</div>';
+  try {
+    const from = new Date().toISOString();
+    const to   = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString();
+    const qs   = new URLSearchParams({ branch_id: branchId, from, to });
+    const res  = await fetch(`${API_URL}/api/queue/time-blocks?${qs}`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'error');
+    _tbState.blocks = data.items || [];
+    _tbRenderBlocks();
+  } catch (e) {
+    console.error('_tbLoadBlocks:', e);
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0;">Error al cargar bloqueos.</div>';
+  }
+}
+
+function _tbRenderBlocks() {
+  const listEl   = document.getElementById('tbBlocksList');
+  if (!listEl) return;
+  const branchId = _apptState.selectedBranchId;
+  const raw      = branchId ? _apptState.servicesByBranch.get(branchId) : null;
+  const svcs     = raw instanceof Map ? Array.from(raw.values()) : (Array.isArray(raw) ? raw : []);
+  const svcMap   = Object.fromEntries(svcs.map(s => [s.id, s.name]));
+
+  if (!_tbState.blocks.length) {
+    listEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0;">Sin bloqueos en los próximos 90 días.</div>';
+    return;
+  }
+  const fmtDT = d => d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' }) +
+    ' ' + d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: 'America/Bogota' });
+
+  listEl.innerHTML = _tbState.blocks.map(b => {
+    const s     = new Date(b.starts_at);
+    const e     = new Date(b.ends_at);
+    const scope = b.service_id ? (svcMap[b.service_id] || b.service_id.slice(0, 8) + '…') : 'Todos los servicios';
+    const recurBadge = b.recurrence
+      ? `<span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(95,177,255,0.12);color:#5fb1ff;margin-left:6px;" title="${_apptEscapeHtml(b.recurrence)}">↻ semanal</span>`
+      : '';
+    return `<div class="tb-block-row">
+      <div class="tb-block-range">${fmtDT(s)} — ${fmtDT(e)}${recurBadge}</div>
+      <div class="tb-block-reason">${b.reason ? _apptEscapeHtml(b.reason) : '<span style="opacity:0.4">Sin motivo</span>'}</div>
+      <div class="tb-block-scope">${_apptEscapeHtml(scope)}</div>
+      <button class="tb-block-del" onclick="_tbDelete(${b.id})">Eliminar</button>
+    </div>`;
+  }).join('');
+}
+
+async function _tbDelete(id) {
+  if (!confirm('¿Eliminar este bloqueo de horario?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/queue/time-blocks/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      return showStatus(d.error || 'Error al eliminar', 'error');
+    }
+    _tbState.blocks = _tbState.blocks.filter(b => b.id !== id);
+    _tbRenderBlocks();
+    showStatus('Bloqueo eliminado', 'success');
+  } catch (e) {
+    showStatus('Error de conexión', 'error');
+  }
+}
+
+// ── R2: bulk operations ───────────────────────────────────────
+const _r2State = { selected: new Set(), action: null, blockId: null };
+
+function _r2ToggleAppt(apptId, checked) {
+  if (checked) _r2State.selected.add(apptId);
+  else _r2State.selected.delete(apptId);
+  _r2UpdateBulkToolbar();
+}
+
+function _r2ClearBulk() {
+  _r2State.selected.clear();
+  document.querySelectorAll('.appt-checkbox').forEach(cb => { cb.checked = false; });
+  _r2UpdateBulkToolbar();
+}
+
+function _r2UpdateBulkToolbar() {
+  const tb = document.getElementById('bulkToolbar');
+  const countEl = document.getElementById('bulkCount');
+  const n = _r2State.selected.size;
+  if (!tb) return;
+  tb.classList.toggle('visible', n > 0);
+  if (countEl) countEl.textContent = `${n} cita${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''}`;
+}
+
+// Observador: inyecta checkboxes cada vez que se re-renderiza la lista
+(function _r2InitObserver() {
+  function _injectCbs() {
+    document.querySelectorAll('#appointmentsList [data-row-type="cita"]:not([data-r2cb])').forEach(row => {
+      row.dataset.r2cb = '1';
+      const apptId = row.dataset.apptId;
+      const status = row.dataset.status;
+      if (!apptId || !['pending','confirmed','pending_reschedule'].includes(status)) return;
+      const cb = Object.assign(document.createElement('input'), { type: 'checkbox', className: 'appt-checkbox' });
+      cb.addEventListener('change', e => _r2ToggleAppt(apptId, e.target.checked));
+      row.insertBefore(cb, row.firstChild);
+    });
+    // Banner pending_reschedule
+    const pending = document.querySelectorAll('#appointmentsList [data-status="pending_reschedule"]').length;
+    const banner = document.getElementById('pendingRescheduleBanner');
+    if (banner) {
+      if (pending > 0) {
+        banner.textContent = `${pending} cita${pending !== 1 ? 's requieren' : ' requiere'} reagendacion manual. Usa "Reasignar" en el toolbar para buscar el proximo slot disponible.`;
+        banner.classList.add('visible');
+      } else {
+        banner.classList.remove('visible');
+      }
+    }
+    // Limpiar seleccion al re-renderizar
+    _r2State.selected.clear();
+    _r2UpdateBulkToolbar();
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const listEl = document.getElementById('appointmentsList');
+    if (!listEl) return;
+    new MutationObserver(_injectCbs).observe(listEl, { childList: true });
+  });
+})();
+
+// Socket: actualizar badge de pending_reschedule
+(function _r2SocketBadge() {
+  let _pendingTotal = 0;
+  function _updateBadge(n) {
+    const el = document.getElementById('pendingRescheduleBadge');
+    if (!el) return;
+    _pendingTotal = Math.max(0, n);
+    el.textContent = _pendingTotal > 0 ? String(_pendingTotal) : '';
+    el.style.display = _pendingTotal > 0 ? 'inline-block' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof socket === 'undefined') return;
+    socket.on('appointment.pending_reschedule', d => _updateBadge((d && d.count) || 0));
+    socket.on('time_block.applied', d => {
+      if (d && d.pending_reschedule > 0) _updateBadge(_pendingTotal + d.pending_reschedule);
+    });
+    socket.on('bulk_move.executed', () => { loadAppointmentsData && loadAppointmentsData(); });
+    socket.on('time_block.applied', () => { loadAppointmentsData && loadAppointmentsData(); });
+    socket.on('appointment.completed', d => {
+      if (!d || !d.id) return;
+      const row = document.querySelector(`[data-appt-id="${d.id}"]`);
+      if (row) {
+        row.dataset.status = 'completed';
+        const col = (typeof appointmentStatusColor === 'function') ? appointmentStatusColor('completed') : { bg: '#003d28', fg: '#00e676' };
+        row.style.borderLeftColor = col.fg;
+        row.style.background = col.bg + '30';
+        const pill = row.querySelector('span[style*="border-radius:999px"]');
+        if (pill) {
+          pill.style.background = col.bg;
+          pill.style.color = col.fg;
+          pill.innerHTML = d.agent_name
+            ? `Atendido <span style="font-weight:400;opacity:0.85;">· ${d.agent_name}</span>`
+            : 'Atendido';
+        }
+        row.querySelectorAll('button').forEach(b => {
+          if (b.textContent.includes('Confirmar') || b.textContent.includes('cédula')) b.style.display = 'none';
+        });
+      } else {
+        if (typeof loadAppointmentsData === 'function') loadAppointmentsData();
+      }
+    });
+  });
+})();
+
+// ── R2: Modal "Bloquear horario con preview" ───────────────────
+const _bpState = { blockId: null };
+
+function _bpFmtLocal(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openBlockPreviewModal() {
+  const branchId = _apptState && _apptState.selectedBranchId;
+  if (!branchId) { showStatus('Selecciona una sucursal primero', 'warn'); return; }
+  // Pre-fill fechas
+  const now = new Date(); now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
+  const ends = new Date(now.getTime() + 60 * 60 * 1000);
+  document.getElementById('bpStartsAt').value = _bpFmtLocal(now);
+  document.getElementById('bpEndsAt').value   = _bpFmtLocal(ends);
+  // Poblar servicios
+  const sel = document.getElementById('bpServiceId');
+  if (sel && _apptState.servicesByBranch) {
+    const raw  = _apptState.servicesByBranch.get(branchId);
+    const svcs = raw instanceof Map ? Array.from(raw.values()) : (Array.isArray(raw) ? raw : []);
+    sel.innerHTML = '<option value="">Todos los servicios</option>' +
+      svcs.map(s => `<option value="${s.id}">${_apptEscapeHtml(s.name)}</option>`).join('');
+  }
+  const errEl = document.getElementById('bpFormError');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('bpReason').value = '';
+  _bpState.blockId = null;
+  document.getElementById('blockStep1').classList.remove('hidden');
+  document.getElementById('blockStep2').classList.add('hidden');
+  document.getElementById('blockModalTitle').textContent = 'Bloquear horario';
+  document.getElementById('blockPreviewModal').classList.add('active');
+}
+
+function closeBlockPreviewModal() {
+  document.getElementById('blockPreviewModal').classList.remove('active');
+}
+
+function _bpBackToForm() {
+  document.getElementById('blockStep1').classList.remove('hidden');
+  document.getElementById('blockStep2').classList.add('hidden');
+  document.getElementById('blockModalTitle').textContent = 'Bloquear horario';
+}
+
+async function _bpPreview() {
+  const branchId = _apptState && _apptState.selectedBranchId;
+  const startsAt = document.getElementById('bpStartsAt').value;
+  const endsAt   = document.getElementById('bpEndsAt').value;
+  const reason   = document.getElementById('bpReason').value.trim();
+  const serviceId = document.getElementById('bpServiceId').value || null;
+  const errEl = document.getElementById('bpFormError');
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
+
+  if (!startsAt) return showErr('Ingresa la fecha y hora de inicio.');
+  if (!endsAt)   return showErr('Ingresa la fecha y hora de fin.');
+  if (new Date(endsAt) <= new Date(startsAt)) return showErr('La fecha de fin debe ser posterior al inicio.');
+
+  const btn = document.getElementById('bpPreviewBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando bloqueo...'; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    // Crear el bloqueo
+    const createRes = await fetch(`${API_URL}/api/queue/time-blocks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify({ branch_id: branchId, service_id: serviceId, starts_at: new Date(startsAt).toISOString(), ends_at: new Date(endsAt).toISOString(), reason: reason || null }),
+    });
+    const createData = await createRes.json();
+    if (!createRes.ok) return showErr(createData.error || createData.message || 'Error al crear el bloqueo.');
+    _bpState.blockId = createData.id;
+    await _tbLoadBlocks();
+
+    // Preview de citas afectadas
+    if (btn) btn.textContent = 'Analizando citas...';
+    const prevRes = await fetch(`${API_URL}/api/queue/time-blocks/${_bpState.blockId}/preview`, {
+      method: 'POST', headers: { Authorization: `Bearer ${authToken}` },
+    });
+    const prevData = await prevRes.json();
+    if (!prevRes.ok) {
+      document.getElementById('blockStep1').classList.remove('hidden');
+      document.getElementById('blockStep2').classList.add('hidden');
+      return;
+    }
+
+    // Renderizar preview
+    const affected = prevData.affected || [];
+    const el = document.getElementById('bpPreviewContent');
+    if (affected.length === 0) {
+      el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;">No hay citas agendadas en este horario. El bloqueo fue creado.</p>';
+      document.getElementById('bpApplyBtn').textContent = 'Aplicar (reagendar)';
+    } else {
+      el.innerHTML = `
+        <p style="font-size:13px;color:var(--text);margin:0 0 12px;">
+          <strong>${affected.length}</strong> cita${affected.length !== 1 ? 's' : ''} en el horario bloqueado.
+          Al aplicar se buscara el proximo slot disponible para cada una.
+        </p>
+        <div style="max-height:220px;overflow-y:auto;">
+          ${affected.map(a => {
+            const dt = new Date(a.scheduled_at);
+            const t = dt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+            const has = a.next_slot != null;
+            return `<div class="r2-preview-row">
+              <div class="r2-preview-dot" style="background:${has ? '#5fb1ff' : '#ff8c00'};"></div>
+              <div>
+                <div style="font-weight:600;">${_apptEscapeHtml(a.client_name || '(sin nombre)')} &middot; ${t}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${has ? 'Proximo slot disponible encontrado' : 'Sin slot disponible — quedara pendiente de reagendacion'}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+      document.getElementById('bpApplyBtn').textContent = 'Aplicar bloqueo';
+    }
+
+    const applyErr = document.getElementById('bpApplyError');
+    if (applyErr) applyErr.style.display = 'none';
+    document.getElementById('blockModalTitle').textContent = 'Confirmar bloqueo';
+    document.getElementById('blockStep1').classList.add('hidden');
+    document.getElementById('blockStep2').classList.remove('hidden');
+  } catch (e) {
+    showErr('Error de conexion. Intenta de nuevo.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Ver citas afectadas'; }
+  }
+}
+
+async function _bpApply() {
+  if (!_bpState.blockId) return;
+  const btn = document.getElementById('bpApplyBtn');
+  const errEl = document.getElementById('bpApplyError');
+  if (btn) { btn.disabled = true; btn.textContent = 'Aplicando...'; }
+  if (errEl) errEl.style.display = 'none';
+  try {
+    const res = await fetch(`${API_URL}/api/queue/time-blocks/${_bpState.blockId}/apply`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authToken}`, 'Idempotency-Key': _r2UUID() },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || 'Error al aplicar el bloqueo.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeBlockPreviewModal();
+    await loadAppointmentsData();
+    const { rescheduled = 0, pending_reschedule = 0 } = data.summary || {};
+    const msg = rescheduled > 0
+      ? `Bloqueo aplicado. ${rescheduled} cita${rescheduled !== 1 ? 's' : ''} reagendada${rescheduled !== 1 ? 's' : ''}.`
+      : pending_reschedule > 0
+      ? `Bloqueo aplicado. ${pending_reschedule} cita${pending_reschedule !== 1 ? 's' : ''} sin slot — revision manual requerida.`
+      : 'Bloqueo aplicado. Sin citas afectadas.';
+    showStatus(msg, 'success');
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error de conexion.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Aplicar bloqueo'; }
+  }
+}
+
+// ── R2: Modal bulk-move ────────────────────────────────────────
+function openBulkModal(action) {
+  if (_r2State.selected.size === 0) return;
+  _r2State.action = action;
+  const n = _r2State.selected.size;
+  const titles = { move: 'Mover citas a nueva fecha', reassign: 'Reasignar citas', cancel: 'Cancelar citas' };
+  document.getElementById('bulkMoveTitle').textContent = titles[action] || 'Operacion en lote';
+  const bodyEl = document.getElementById('bulkMoveBody');
+  const errEl  = document.getElementById('bulkMoveError');
+  if (errEl) errEl.style.display = 'none';
+  if (action === 'move') {
+    const now = new Date(); now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
+    const pad = x => String(x).padStart(2, '0');
+    const defVal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">${n} cita${n !== 1 ? 's' : ''} seleccionada${n !== 1 ? 's' : ''} seran movidas a la nueva fecha y hora.</p>
+      <div class="form-group">
+        <label>Nueva fecha y hora</label>
+        <input type="datetime-local" id="bulkTargetDate" value="${defVal}" style="width:100%;">
+      </div>`;
+  } else if (action === 'reassign') {
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">${n} cita${n !== 1 ? 's' : ''} seran reasignadas al proximo slot disponible (hasta 14 dias adelante).</p>
+      <p style="font-size:12px;color:var(--orange);margin:0;">Las citas sin slot disponible quedaran marcadas como "Por reagendar".</p>`;
+  } else if (action === 'cancel') {
+    bodyEl.innerHTML = `
+      <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;">Se cancelaran ${n} cita${n !== 1 ? 's' : ''}. Esta accion no se puede deshacer.</p>
+      <p style="font-size:12px;color:#ff6b6b;margin:0;">Los clientes con email registrado recibiran notificacion de cancelacion.</p>`;
+    document.getElementById('bulkConfirmBtn').className = 'btn btn-danger btn-sm';
+    document.getElementById('bulkConfirmBtn').textContent = 'Confirmar cancelacion';
+  }
+  if (action !== 'cancel') {
+    document.getElementById('bulkConfirmBtn').className = 'btn btn-primary btn-sm';
+    document.getElementById('bulkConfirmBtn').textContent = 'Confirmar';
+  }
+  document.getElementById('bulkMoveModal').classList.add('active');
+}
+
+async function _r2ConfirmBulk() {
+  const action = _r2State.action;
+  const ids = Array.from(_r2State.selected);
+  if (!ids.length || !action) return;
+
+  let target;
+  if (action === 'move') {
+    const val = document.getElementById('bulkTargetDate')?.value;
+    if (!val) return;
+    const d = new Date(val);
+    if (isNaN(d.getTime()) || d < new Date()) {
+      const errEl = document.getElementById('bulkMoveError');
+      if (errEl) { errEl.textContent = 'La fecha debe ser futura.'; errEl.style.display = 'block'; }
+      return;
+    }
+    target = { scheduled_at: d.toISOString() };
+  }
+
+  const btn = document.getElementById('bulkConfirmBtn');
+  const errEl = document.getElementById('bulkMoveError');
+  if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+  if (errEl) errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_URL}/api/queue/appointments/bulk-move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}`, 'Idempotency-Key': _r2UUID() },
+      body: JSON.stringify({ appointment_ids: ids, action, ...(target ? { target } : {}) }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (errEl) { errEl.textContent = data.error || 'Error al procesar.'; errEl.style.display = 'block'; }
+      return;
+    }
+    document.getElementById('bulkMoveModal').classList.remove('active');
+    _r2ClearBulk();
+    await loadAppointmentsData();
+    const { processed = 0, skipped = 0 } = data.summary || {};
+    const msg = `${processed} cita${processed !== 1 ? 's' : ''} procesada${processed !== 1 ? 's' : ''}` +
+      (skipped > 0 ? `, ${skipped} sin slot (revision manual requerida)` : '') + '.';
+    showStatus(msg, 'success');
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Error de conexion.'; errEl.style.display = 'block'; }
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+function _r2UUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+// ══ FIN CITAS ══
+
 
 // ══════════════════════════════════════════════════════════════
 // GESTIÓN DE EVENTOS — funciones del dashboard
