@@ -1,4 +1,4 @@
-// Events v1 — Rutas públicas (registro de asistentes, lookup QR)
+// Events v1 — Rutas públicas (registro de asistentes, lookup QR, cotizaciones)
 // Sin auth — rate limits propios por endpoint
 // P-1: registrations sin checked_in_at | P-3: upsert+insert en withTransaction
 // P-4: qr_token UUID permanente | P-5: timezone del evento
@@ -9,8 +9,26 @@ const express    = require('express');
 const router     = express.Router();
 const rateLimit  = require('express-rate-limit');
 const jwt        = require('jsonwebtoken');
+const multer     = require('multer');
+const path       = require('path');
+const fs         = require('fs');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendEventPendingEmail } = require('../services/email');
+
+// Multer para PDF de cotizaciones
+const cotizacionDir = path.join(process.cwd(), 'uploads', 'cotizaciones');
+if (!fs.existsSync(cotizacionDir)) fs.mkdirSync(cotizacionDir, { recursive: true });
+const pdfUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, cotizacionDir),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${req.params.token.slice(0, 12)}.pdf`)
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Solo se aceptan archivos PDF'));
+  }
+});
 
 const eventPublicReadLimiter = rateLimit({
   windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
@@ -266,5 +284,57 @@ function hashIp(ip) {
   for (let i = 0; i < (ip || '').length; i++) h = (Math.imul(31, h) + ip.charCodeAt(i)) | 0;
   return Math.abs(h).toString(16);
 }
+
+// ── COTIZACIONES (público — acceso por token) ─────────────────────────────────
+
+router.get('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT sq.id, sq.status, sq.submitted_at, sq.data,
+              es.service_description, es.contracted_amount,
+              s.name AS supplier_name,
+              e.name AS event_name, e.starts_at, e.ends_at, e.timezone, e.venue_name
+       FROM events.supplier_quotes sq
+       JOIN events.event_suppliers es ON es.id = sq.event_supplier_id
+       JOIN events.suppliers s ON s.id = es.supplier_id
+       JOIN events.events e ON e.id = sq.event_id
+       WHERE sq.token = $1`,
+      [req.params.token]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Cotización no encontrada o expirada' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ GET /cotizacion/:token:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/cotizacion/:token', eventPublicReadLimiter, pdfUpload.single('pdf'), async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, status FROM events.supplier_quotes WHERE token = $1`,
+      [req.params.token]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Token inválido' });
+    if (rows[0].status === 'recibida') return res.status(409).json({ error: 'Esta cotización ya fue enviada' });
+
+    const data = { ...req.body };
+    const pdf_path = req.file ? `/uploads/cotizaciones/${req.file.filename}` : null;
+
+    await pool.query(
+      `UPDATE events.supplier_quotes
+       SET data = $1, pdf_path = $2, submitted_at = NOW(), status = 'recibida'
+       WHERE token = $3`,
+      [JSON.stringify(data), pdf_path, req.params.token]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    console.error('❌ POST /cotizacion/:token:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
 
 module.exports = router;

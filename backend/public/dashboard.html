@@ -1806,20 +1806,20 @@
                 </div>
               </div>
               <div id="ev-budget-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto máximo asignado al evento">
                   <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Presupuesto</div>
                   <div id="ev-budget-total" style="font-size:18px;font-weight:700;color:var(--text);">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Contratado</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de todos los contratos (cotizaciones + abonos + pagados)">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total pactado</div>
                   <div id="ev-budget-contracted" style="font-size:18px;font-weight:700;color:#f59e0b;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Comprometido</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Dinero que ya salió: abonos realizados + contratos pagados en su totalidad">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Desembolsado</div>
                   <div id="ev-budget-committed" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Disponible</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total pactado">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Saldo libre</div>
                   <div id="ev-budget-avail" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
                 </div>
               </div>
@@ -4962,10 +4962,10 @@ let evEventContracts = []; // this event's contracted suppliers
 let evBudgetData = {};
 
 const EV_CONTRACT_STATUS_LABELS = {
-  pending: 'Pendiente', partial: 'Parcial', paid: 'Pagado', cancelled: 'Cancelado'
+  cotizado: 'Cotizado', abono: 'Abono', pagado: 'Pagado'
 };
 const EV_CONTRACT_STATUS_COLORS = {
-  pending: '#f59e0b', partial: '#3b82f6', paid: '#22c55e', cancelled: '#94a3b8'
+  cotizado: '#f59e0b', abono: '#3b82f6', pagado: '#22c55e'
 };
 
 async function evLoadSuppliers() {
@@ -4990,11 +4990,11 @@ function evFmtCOP(n) {
 }
 
 function evRenderBudget() {
-  const { total_budget = 0, total_contracted = 0, committed = 0 } = evBudgetData;
-  const avail = total_budget - total_contracted;
+  const { total_budget = 0, total_pactado = 0, desembolsado = 0 } = evBudgetData;
+  const avail = total_budget - total_pactado;
   document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : 'No definido';
-  document.getElementById('ev-budget-contracted').textContent = evFmtCOP(total_contracted);
-  document.getElementById('ev-budget-committed').textContent = evFmtCOP(committed);
+  document.getElementById('ev-budget-contracted').textContent = evFmtCOP(total_pactado);
+  document.getElementById('ev-budget-committed').textContent = evFmtCOP(desembolsado);
   document.getElementById('ev-budget-avail').textContent = total_budget ? evFmtCOP(avail) : '–';
   if (total_budget) document.getElementById('ev-budget-input').value = total_budget;
 }
@@ -5030,23 +5030,49 @@ function evRenderContracts() {
     return;
   }
   el.innerHTML = evEventContracts.map(c => {
-    const ps = c.payment_status || 'pending';
+    const ps = c.payment_status || 'cotizado';
     const color = EV_CONTRACT_STATUS_COLORS[ps] || '#94a3b8';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
-      <div style="flex:1;min-width:160px;">
-        <div style="font-size:13px;font-weight:600;">${c.supplier_name}</div>
-        ${c.service_description ? `<div style="font-size:11px;color:var(--muted);">${c.service_description}</div>` : ''}
-        ${c.contact_phone ? `<div style="font-size:11px;color:var(--muted);">${c.contact_phone}</div>` : ''}
+    const abonoInfo = ps === 'abono' && c.abono_amount > 0
+      ? `<div style="font-size:11px;color:#3b82f6;font-weight:600;">Abono: ${evFmtCOP(c.abono_amount)} de ${evFmtCOP(c.contracted_amount)}</div>`
+      : '';
+    // Quote badge
+    let quoteBadge = '';
+    if (c.quote_status === 'recibida' || c.quote_status === 'aceptada') {
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#22c55e;color:#22c55e;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">📄 Ver cotización</button>`;
+    } else if (c.quote_status === 'enviada') {
+      quoteBadge = `<span style="font-size:11px;color:#f59e0b;font-weight:600;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">⏳ Esperando respuesta</span>`;
+    } else if (c.contact_email) {
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" title="Enviar formato de cotización a ${c.contact_email}" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">✉ Cotizar</button>`;
+    }
+    return `<div id="ev-cr-${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;">
+          <div style="font-size:13px;font-weight:600;">${c.supplier_name || '—'}</div>
+          ${c.service_description ? `<div style="font-size:11px;color:var(--muted);">${c.service_description}</div>` : ''}
+          ${c.contact_phone ? `<div style="font-size:11px;color:var(--muted);">${c.contact_phone}</div>` : ''}
+          ${abonoInfo}
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);min-width:90px;text-align:right;">${evFmtCOP(c.contracted_amount)}</div>
+        <select style="padding:4px 8px;border-radius:6px;border:1px solid ${color};background:${color}22;color:${color};font-size:12px;font-weight:600;"
+          onchange="evUpdateContractStatus('${c.id}', this.value, '${ps}')">
+          ${Object.entries(EV_CONTRACT_STATUS_LABELS).map(([k,v]) =>
+            `<option value="${k}" ${k === ps ? 'selected' : ''}>${v}</option>`
+          ).join('')}
+        </select>
+        ${quoteBadge}
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
+          onclick="evDeleteContract('${c.id}','${(c.supplier_name||'').replace(/'/g,'')}')">✕</button>
       </div>
-      <div style="font-size:13px;font-weight:700;color:var(--text);min-width:80px;text-align:right;">${evFmtCOP(c.contracted_amount)}</div>
-      <select style="padding:4px 8px;border-radius:6px;border:1px solid ${color};background:${color}22;color:${color};font-size:12px;font-weight:600;"
-        onchange="evUpdateContractStatus('${c.id}', this.value)">
-        ${Object.entries(EV_CONTRACT_STATUS_LABELS).map(([k,v]) =>
-          `<option value="${k}" ${k === ps ? 'selected' : ''}>${v}</option>`
-        ).join('')}
-      </select>
-      <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
-        onclick="evDeleteContract('${c.id}','${(c.supplier_name||'').replace(/'/g,'')}')">✕</button>
+      <!-- Inline abono input -->
+      <div id="ev-abono-${c.id}" style="display:none;margin-top:10px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;">
+        <div style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px;">¿Cuánto fue el abono?</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="ev-abono-val-${c.id}" type="number" min="0" step="1000" placeholder="Monto abonado (COP)"
+            style="flex:1;min-width:160px;padding:7px 10px;border:1px solid rgba(59,130,246,0.4);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+          <button class="btn btn-primary btn-sm" onclick="evConfirmAbono('${c.id}')">Confirmar</button>
+          <button class="btn btn-outline btn-sm" onclick="evCancelAbono('${c.id}','${ps}')">Cancelar</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -5092,8 +5118,15 @@ async function evSaveContract() {
     });
     const data = await res.json();
     if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
+    // Enriquecer con datos del catálogo (el POST no devuelve JOIN)
+    const sup = evSupplierDir.find(s => s.id === supId);
+    if (sup) {
+      data.supplier_name = sup.name;
+      data.contact_email = sup.contact_email;
+      data.contact_phone = sup.contact_phone;
+    }
     evEventContracts.push(data);
-    evBudgetData.total_contracted = (evBudgetData.total_contracted || 0) + amount;
+    evBudgetData.total_pactado = (evBudgetData.total_pactado || 0) + amount;
     evRenderBudget();
     evRenderContracts();
     evCloseAddContract();
@@ -5101,18 +5134,45 @@ async function evSaveContract() {
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
-async function evUpdateContractStatus(contractId, newStatus) {
+function evUpdateContractStatus(contractId, newStatus, prevStatus) {
+  if (newStatus === 'abono') {
+    document.getElementById(`ev-abono-${contractId}`).style.display = '';
+    document.getElementById(`ev-abono-val-${contractId}`).focus();
+    return;
+  }
+  evPatchContractStatus(contractId, newStatus, null);
+}
+
+function evCancelAbono(contractId, prevStatus) {
+  document.getElementById(`ev-abono-${contractId}`).style.display = 'none';
+  const idx = evEventContracts.findIndex(c => c.id == contractId);
+  if (idx >= 0) evEventContracts[idx].payment_status = prevStatus;
+  evRenderContracts();
+}
+
+async function evConfirmAbono(contractId) {
+  const val = parseFloat(document.getElementById(`ev-abono-val-${contractId}`).value);
+  if (isNaN(val) || val <= 0) { showStatus('Ingresa un monto válido', 'error'); return; }
+  document.getElementById(`ev-abono-${contractId}`).style.display = 'none';
+  evPatchContractStatus(contractId, 'abono', val);
+}
+
+async function evPatchContractStatus(contractId, newStatus, abonoAmount) {
+  const body = { payment_status: newStatus };
+  if (abonoAmount !== null) body.abono_amount = abonoAmount;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payment_status: newStatus })
+      body: JSON.stringify(body)
     });
     if (!res.ok) { showStatus('Error al actualizar estado', 'error'); evLoadSuppliers(); return; }
     const idx = evEventContracts.findIndex(c => c.id == contractId);
-    if (idx >= 0) evEventContracts[idx].payment_status = newStatus;
+    if (idx >= 0) {
+      evEventContracts[idx].payment_status = newStatus;
+      if (abonoAmount !== null) evEventContracts[idx].abono_amount = abonoAmount;
+    }
     evRenderContracts();
-    // Refresh budget committed
     fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
       .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
   } catch(e) { showStatus('Error', 'error'); }
@@ -5127,7 +5187,7 @@ async function evDeleteContract(contractId, name) {
     if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
     const removed = evEventContracts.find(c => c.id == contractId);
     evEventContracts = evEventContracts.filter(c => c.id != contractId);
-    if (removed) evBudgetData.total_contracted = Math.max(0, (evBudgetData.total_contracted||0) - parseFloat(removed.contracted_amount||0));
+    if (removed) evBudgetData.total_pactado = Math.max(0, (evBudgetData.total_pactado||0) - parseFloat(removed.contracted_amount||0));
     evRenderBudget();
     evRenderContracts();
     showStatus('Proveedor quitado del evento', 'success');
@@ -5203,6 +5263,75 @@ async function evDeleteSupplier(supId, name) {
     evRenderSupplierDir();
     showStatus('Proveedor eliminado del directorio', 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
+}
+
+// ── COTIZACIONES ────────────────────────────────────────────────────────────
+
+async function evSendQuote(contractId, email) {
+  if (!confirm(`¿Enviar formato de cotización a ${email}?`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}/send-quote`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al enviar', 'error'); return; }
+    showStatus(`Cotización enviada a ${email}`, 'success');
+    const idx = evEventContracts.findIndex(c => c.id === contractId);
+    if (idx >= 0) evEventContracts[idx].quote_status = 'enviada';
+    evRenderContracts();
+  } catch(e) { showStatus('Error al enviar cotización', 'error'); }
+}
+
+async function evViewQuote(contractId) {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}/quote`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const q = await res.json();
+    if (!res.ok) { showStatus(q.error || 'Sin cotización', 'error'); return; }
+    evShowQuoteModal(q);
+  } catch(e) { showStatus('Error cargando cotización', 'error'); }
+}
+
+function evShowQuoteModal(q) {
+  const data = q.data || {};
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric', timeZone:'America/Bogota' }) : '—';
+  const row = (label, val) => val ? `<tr><td style="padding:6px 0;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;padding-right:16px;">${label}</td><td style="padding:6px 0;font-size:13px;color:var(--text);">${val}</td></tr>` : '';
+  const html = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h3 style="margin:0;font-size:16px;">Cotización recibida</h3>
+      <div style="font-size:11px;color:var(--muted);">Enviada: ${fmtDate(q.submitted_at)}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px;">PROVEEDOR</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:16px;">${q.supplier_name || '—'}</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      ${row('Descripción', data.description)}
+      ${row('Precio unitario', data.unit_price ? evFmtCOP(parseFloat(data.unit_price)) : '')}
+      ${row('Cantidad', data.qty)}
+      ${row('Subtotal sin IVA', data.subtotal ? evFmtCOP(parseFloat(data.subtotal)) : '')}
+      ${row('IVA', data.iva_pct !== undefined ? data.iva_pct + '%' : '')}
+      ${row('Total con IVA', data.total_con_iva ? evFmtCOP(parseFloat(data.total_con_iva)) : '')}
+      ${row('Vigencia', data.vigencia_fecha)}
+      ${row('Condición de pago', data.condicion_pago)}
+      ${row('Notas', data.notes)}
+    </table>
+    ${q.pdf_path ? `<a href="${q.pdf_path}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:7px;text-decoration:none;color:var(--text);font-size:13px;font-weight:600;">📎 Ver PDF adjunto ↗</a>` : ''}
+  `;
+  // Use a simple overlay modal
+  let modal = document.getElementById('ev-quote-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ev-quote-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `<div id="ev-quote-modal-inner" style="background:var(--surface);border-radius:12px;padding:24px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;position:relative;">
+      <button onclick="document.getElementById('ev-quote-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;">✕</button>
+      <div id="ev-quote-modal-body"></div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+  }
+  document.getElementById('ev-quote-modal-body').innerHTML = html;
+  modal.style.display = 'flex';
 }
 
 // ══ FIN GESTIÓN DE EVENTOS ══

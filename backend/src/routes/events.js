@@ -8,7 +8,8 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendSupplierQuoteEmail } = require('../services/email');
+const crypto = require('crypto');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -761,10 +762,15 @@ router.get('/:id/suppliers', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT es.id, es.supplier_id, es.service_description, es.contracted_amount,
-              es.currency, es.arrival_at, es.departure_at, es.payment_status, es.notes,
-              s.name AS supplier_name, s.category, s.contact_name, s.contact_email, s.contact_phone
+              es.currency, es.payment_status, es.abono_amount, es.notes,
+              s.name AS supplier_name, s.category, s.contact_name, s.contact_email, s.contact_phone,
+              sq.status AS quote_status, sq.submitted_at AS quote_submitted_at, sq.id AS quote_id
        FROM events.event_suppliers es
        JOIN events.suppliers s ON s.id = es.supplier_id
+       LEFT JOIN LATERAL (
+         SELECT id, status, submitted_at FROM events.supplier_quotes
+         WHERE event_supplier_id = es.id ORDER BY created_at DESC LIMIT 1
+       ) sq ON TRUE
        WHERE es.event_id = $1 ${ownerFilter}
        ORDER BY s.name`,
       params
@@ -793,7 +799,7 @@ router.post('/:id/suppliers', auth, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [id, req.user.id, supplier_id,
        service_description || null, contracted_amount || 0,
-       payment_status || 'pending', notes || null]
+       payment_status || 'cotizado', notes || null]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -805,18 +811,21 @@ router.post('/:id/suppliers', auth, async (req, res) => {
 router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
   const pool = global.pool;
   const { id, contractId } = req.params;
-  const { service_description, contracted_amount, payment_status, notes } = req.body;
+  const { service_description, contracted_amount, payment_status, abono_amount, notes } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE events.event_suppliers SET
          service_description = COALESCE($1, service_description),
          contracted_amount   = COALESCE($2, contracted_amount),
          payment_status      = COALESCE($3, payment_status),
-         notes               = COALESCE($4, notes)
-       WHERE id = $5 AND event_id = $6 AND user_id = $7 RETURNING *`,
+         abono_amount        = COALESCE($4, abono_amount),
+         notes               = COALESCE($5, notes)
+       WHERE id = $6 AND event_id = $7 AND user_id = $8 RETURNING *`,
       [service_description ?? null,
        contracted_amount != null ? contracted_amount : null,
-       payment_status || null, notes ?? null,
+       payment_status || null,
+       abono_amount != null ? abono_amount : null,
+       notes ?? null,
        contractId, id, req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Contrato no encontrado' });
@@ -854,7 +863,9 @@ router.get('/:id/budget', auth, async (req, res) => {
         isAdmin ? [id] : [id, req.user.id]
       ),
       pool.query(
-        `SELECT payment_status, SUM(contracted_amount)::NUMERIC AS total
+        `SELECT payment_status,
+                SUM(contracted_amount)::NUMERIC AS contracted_total,
+                SUM(COALESCE(abono_amount, 0))::NUMERIC AS abono_total
          FROM events.event_suppliers WHERE event_id = $1 AND user_id = $2
          GROUP BY payment_status`,
         [id, req.user.id]
@@ -862,17 +873,76 @@ router.get('/:id/budget', auth, async (req, res) => {
     ]);
     if (!eventR.rowCount) return res.status(403).json({ error: 'Acceso denegado' });
     const total_budget = parseFloat(eventR.rows[0]?.config?.total_budget || 0);
+    let total_pactado = 0;
+    let desembolsado = 0;
     const breakdown = {};
-    let committed = 0;
-    let total_contracted = 0;
     for (const row of suppliersR.rows) {
-      breakdown[row.payment_status] = parseFloat(row.total);
-      total_contracted += parseFloat(row.total);
-      if (['partial', 'paid'].includes(row.payment_status)) committed += parseFloat(row.total);
+      const ct = parseFloat(row.contracted_total);
+      const at = parseFloat(row.abono_total);
+      total_pactado += ct;
+      breakdown[row.payment_status] = { contracted: ct, abono: at };
+      if (row.payment_status === 'abono')   desembolsado += at;
+      if (row.payment_status === 'pagado')  desembolsado += ct;
     }
-    res.json({ total_budget, total_contracted, committed, breakdown });
+    res.json({ total_budget, total_pactado, desembolsado, breakdown });
   } catch (err) {
     console.error('❌ GET /:id/budget:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── COTIZACIONES ──────────────────────────────────────────────────────────────
+
+router.post('/:id/suppliers/:contractId/send-quote', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id, contractId } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT es.id, es.service_description, es.contracted_amount,
+              s.name AS supplier_name, s.contact_email,
+              e.name AS event_name, e.starts_at, e.timezone
+       FROM events.event_suppliers es
+       JOIN events.suppliers s ON s.id = es.supplier_id
+       JOIN events.events e ON e.id = es.event_id
+       WHERE es.id = $1 AND es.event_id = $2 AND es.user_id = $3`,
+      [contractId, id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Contrato no encontrado' });
+    const contract = rows[0];
+    if (!contract.contact_email) return res.status(400).json({ error: 'El proveedor no tiene email registrado' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO events.supplier_quotes (event_id, event_supplier_id, user_id, token, sent_to_email)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, contractId, req.user.id, token, contract.contact_email]
+    );
+    const quoteUrl = `${process.env.CMS_URL || 'https://cms.sonoro.com.co'}/cotizacion/${token}`;
+    await sendSupplierQuoteEmail(contract, quoteUrl);
+    res.json({ ok: true, sent_to: contract.contact_email, quote_url: quoteUrl });
+  } catch (err) {
+    console.error('❌ POST /:id/suppliers/:contractId/send-quote:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/:id/suppliers/:contractId/quote', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id, contractId } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT sq.*, s.name AS supplier_name
+       FROM events.supplier_quotes sq
+       JOIN events.event_suppliers es ON es.id = sq.event_supplier_id
+       JOIN events.suppliers s ON s.id = es.supplier_id
+       WHERE sq.event_supplier_id = $1 AND sq.event_id = $2 AND sq.user_id = $3
+       ORDER BY sq.created_at DESC LIMIT 1`,
+      [contractId, id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Sin cotización' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ GET /:id/suppliers/:contractId/quote:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });

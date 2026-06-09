@@ -604,4 +604,49 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
   console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, verifyConnection };
+// ── SOLICITUD DE COTIZACIÓN A PROVEEDOR ──────────────────────
+async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name, starts_at, timezone, service_description }, quoteUrl) {
+  const dateStr = starts_at
+    ? new Date(starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: timezone || 'America/Bogota' })
+    : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f0f0f;">
+      Solicitud de cotización
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${supplier_name}</strong>,<br>
+      Te invitamos a cotizar tus servicios para el siguiente evento:
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0 0 12px;font-size:16px;color:#0f0f0f;font-weight:700;">${event_name}</p>
+        ${dateStr ? `<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha</p>
+        <p style="margin:0 0 12px;font-size:14px;color:#333;">${dateStr}</p>` : ''}
+        ${service_description ? `<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Servicio solicitado</p>
+        <p style="margin:0;font-size:14px;color:#333;">${service_description}</p>` : ''}
+      </td></tr>
+    </table>
+
+    <p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">
+      Usa el formulario en línea para enviar tu cotización. Puedes incluir precios, condiciones y adjuntar tu propuesta en PDF.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td align="center">
+        <a href="${quoteUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700;">
+          Enviar mi cotización →
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
+      Este enlace es de uso único para ${supplier_name}. No reenvíes este correo.
+    </p>
+  `);
+  await transporter.sendMail({ from: FROM, to: contact_email, subject: `Solicitud de cotización — ${event_name}`, html });
+  console.log(`✅ Email cotización enviado a ${contact_email} (${event_name})`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, verifyConnection };

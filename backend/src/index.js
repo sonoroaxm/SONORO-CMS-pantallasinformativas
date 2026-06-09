@@ -7150,6 +7150,9 @@ app.get('/evento/:slug/produccion', (req, res) => {
 app.get('/evento/:slug/kiosko', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
 });
+app.get('/cotizacion/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
+});
 
 app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
