@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Producción — SONORO CMS</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:     #0a0a0a;
+  --s1:     #111;
+  --s2:     #161616;
+  --border: #1e1e1e;
+  --text:   #f0f0f0;
+  --muted:  #555;
+  --brand:  #FF1B8D;
+  --green:  #00e676;
+  --amber:  #f59e0b;
+  --red:    #ef4444;
+  --blue:   #60a5fa;
+  --purple: #a78bfa;
+}
+html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+
+/* ── LAYOUT ── */
+.layout {
+  display:grid;
+  grid-template-rows:auto auto auto 1fr;
+  grid-template-columns:280px 1fr;
+  height:100vh;
+}
+
+/* ── HEADER TOP ── */
+.header-top {
+  grid-column:1/-1;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; height:52px;
+  background:var(--s1); border-bottom:1px solid var(--border);
+  gap:16px; flex-shrink:0;
+}
+.hdr-left  { display:flex; align-items:center; gap:12px; min-width:0; }
+.hdr-logo  { font-size:16px; font-weight:900; letter-spacing:-.5px; flex-shrink:0;
+  background:linear-gradient(135deg,#FF1B8D,#FF8C00);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hdr-sep   { width:1px; height:18px; background:var(--border); flex-shrink:0; }
+.hdr-event { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hdr-date  { font-size:10px; color:var(--muted); margin-top:1px; }
+.hdr-right { display:flex; align-items:center; gap:16px; flex-shrink:0; }
+.live-pill { display:flex; align-items:center; gap:6px; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.22); border-radius:20px; padding:3px 10px; font-size:10px; font-weight:700; color:var(--red); letter-spacing:1px; }
+.live-dot  { width:6px; height:6px; border-radius:50%; background:var(--red); animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.hdr-clock-wrap { text-align:right; }
+.hdr-clock { font-size:26px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-1.5px; line-height:1; }
+.hdr-tz    { font-size:9px; color:var(--muted); }
+
+/* ── HEADER COUNTDOWN ── */
+.header-countdown {
+  grid-column:1/-1;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; height:44px;
+  background:rgba(255,27,141,.05); border-bottom:1px solid rgba(255,27,141,.12);
+  flex-shrink:0;
+}
+.cd-label { font-size:10px; font-weight:700; color:rgba(255,27,141,.6); text-transform:uppercase; letter-spacing:1px; }
+.cd-next  { font-size:12px; font-weight:700; color:var(--text); }
+.cd-timer { font-size:28px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-2px; color:var(--brand); line-height:1; }
+.cd-center { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.cd-right  { text-align:right; }
+
+/* ── MOBILE STATS BAR ── */
+.mobile-stats-bar {
+  display:none;
+  grid-column:1/-1;
+  background:var(--s1); border-bottom:1px solid var(--border);
+  padding:8px 16px; gap:0; flex-shrink:0;
+}
+.msb-item { flex:1; text-align:center; }
+.msb-num  { font-size:20px; font-weight:900; line-height:1; letter-spacing:-1px; }
+.msb-lbl  { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-top:2px; }
+.msb-num.green  { color:var(--green); }
+.msb-num.blue   { color:var(--blue); }
+.msb-num.amber  { color:var(--amber); }
+.msb-sep  { width:1px; background:var(--border); margin:4px 0; }
+
+/* ── LEFT PANEL ── */
+.left-panel { background:var(--s1); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border-bottom:1px solid var(--border); flex-shrink:0; }
+.stat-cell  { background:var(--s1); padding:12px 14px; }
+.stat-num   { font-size:30px; font-weight:900; line-height:1; letter-spacing:-1px; }
+.stat-lbl   { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-top:3px; }
+.stat-num.green  { color:var(--green); }
+.stat-num.amber  { color:var(--amber); }
+.stat-num.blue   { color:var(--blue); }
+.stat-num.purple { color:var(--purple); }
+
+.cap-wrap { padding:10px 14px 12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.cap-row  { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.cap-lbl  { font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+.cap-pct  { font-size:11px; font-weight:700; color:var(--green); }
+.cap-bar  { height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+.cap-fill { height:100%; background:linear-gradient(90deg,var(--green),#00ff8f); border-radius:2px; transition:width .5s; }
+
+.mini-feed-header { padding:10px 14px 6px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+.mini-feed-title  { font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.mini-feed-count  { font-size:9px; color:var(--muted); }
+.mini-feed        { flex:1; overflow-y:auto; padding:0 8px 8px; display:flex; flex-direction:column; gap:2px; }
+.mini-feed::-webkit-scrollbar { width:3px; }
+.mini-feed::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.feed-item { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:5px; background:var(--bg); font-size:11px; }
+.feed-item.fresh { background:rgba(0,230,118,.06); }
+.feed-dot  { width:6px; height:6px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.feed-name { flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feed-time { font-size:10px; color:var(--muted); flex-shrink:0; font-variant-numeric:tabular-nums; }
+
+/* ── RIGHT PANEL ── */
+.right-panel { display:flex; flex-direction:column; overflow:hidden; }
+.rundown-header { padding:14px 20px 10px; border-bottom:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rundown-title  { font-size:13px; font-weight:700; flex-shrink:0; }
+.day-selector   { display:flex; gap:4px; flex-wrap:wrap; }
+.day-btn        { padding:3px 10px; border-radius:5px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:11px; cursor:pointer; }
+.day-btn.active { background:rgba(255,27,141,.12); border-color:rgba(255,27,141,.3); color:var(--brand); font-weight:700; }
+.day-btn:hover:not(.active) { border-color:#333; color:#ccc; }
+.rundown-list   { flex:1; overflow-y:auto; padding:12px 16px 8px; display:flex; flex-direction:column; gap:0; }
+.rundown-list::-webkit-scrollbar { width:4px; }
+.rundown-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── TIME SLOT ── */
+.time-slot { display:flex; gap:10px; margin-bottom:4px; align-items:stretch; }
+.time-label { width:58px; flex-shrink:0; padding-top:14px; font-size:11px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; text-align:right; }
+.time-line  { width:1px; background:var(--border); flex-shrink:0; margin:0 2px; position:relative; }
+.time-dot   { width:8px; height:8px; border-radius:50%; background:var(--border); position:absolute; top:16px; left:50%; transform:translateX(-50%); }
+.time-slot.has-current .time-label { color:var(--brand); }
+.time-slot.has-current .time-line  { background:rgba(255,27,141,.3); }
+.time-slot.has-current .time-dot   { background:var(--brand); box-shadow:0 0 0 3px rgba(255,27,141,.2); animation:pulse 1.4s ease-in-out infinite; }
+.time-slot.is-done .time-label { color:#333; }
+.time-slot.is-done .time-line  { background:#1a1a1a; }
+.time-slot.is-done .time-dot   { background:#2a2a2a; }
+.slot-sessions { flex:1; display:flex; gap:8px; flex-wrap:wrap; padding-bottom:8px; }
+
+/* ── SESSION CARD ── */
+.sess-card {
+  flex:1; min-width:200px;
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden;
+  cursor:pointer; transition:border-color .15s;
+}
+.sess-card:hover { border-color:#333; }
+.sess-card.current  { border-color:rgba(255,27,141,.35); background:rgba(255,27,141,.04); }
+.sess-card.done     { opacity:.5; }
+.sess-head { display:flex; align-items:flex-start; justify-content:space-between; padding:11px 14px 9px; gap:8px; }
+.sess-name { font-size:13px; font-weight:700; line-height:1.3; flex:1; }
+.sess-toggle { font-size:14px; color:var(--muted); flex-shrink:0; transition:transform .2s; user-select:none; }
+.sess-card.open .sess-toggle { transform:rotate(180deg); }
+.sess-badges { display:flex; gap:6px; flex-wrap:wrap; padding:0 14px 10px; }
+.badge       { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; }
+.badge.current { background:rgba(255,27,141,.12); color:var(--brand); }
+.badge.done    { background:rgba(0,230,118,.08);  color:var(--green); }
+.badge.cap     { background:rgba(96,165,250,.10); color:var(--blue); }
+.badge.warn    { background:rgba(245,158,11,.10); color:var(--amber); }
+.sess-body { padding:0 14px 12px; display:none; border-top:1px solid var(--border); padding-top:10px; }
+.sess-card.open .sess-body { display:block; }
+.sess-row  { display:flex; gap:8px; align-items:flex-start; font-size:11px; color:var(--muted); margin-bottom:6px; }
+.sess-row:last-child { margin-bottom:0; }
+.sess-row svg { flex-shrink:0; margin-top:1px; }
+.sess-row strong { color:var(--text); font-weight:600; }
+.sess-actions { display:flex; gap:6px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.action-btn   { padding:5px 12px; border-radius:6px; border:none; font-size:11px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+.action-btn:hover { opacity:.8; }
+.start-btn  { background:rgba(255,27,141,.15); color:var(--brand); border:1px solid rgba(255,27,141,.25); }
+.done-btn   { background:rgba(0,230,118,.12);  color:var(--green); border:1px solid rgba(0,230,118,.2); }
+.reopen-btn { background:rgba(96,165,250,.10); color:var(--blue);  border:1px solid rgba(96,165,250,.2); }
+
+/* ── SCREEN BAR ── */
+.screen-bar {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 16px; border-top:1px solid var(--border);
+  background:var(--s1); flex-shrink:0;
+}
+.screen-bar-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; flex-shrink:0; }
+.screen-input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:var(--text); font-size:12px; outline:none; }
+.screen-input:focus { border-color:#333; }
+.screen-send { padding:6px 14px; background:rgba(255,27,141,.12); border:1px solid rgba(255,27,141,.25); border-radius:6px; color:var(--brand); font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; }
+.screen-send:hover { background:rgba(255,27,141,.2); }
+.screen-feedback { font-size:11px; color:var(--green); flex-shrink:0; min-width:0; }
+
+/* ── LOADING / ERROR ── */
+.loading, .error-msg { padding:24px 16px; font-size:13px; color:var(--muted); text-align:center; }
+.error-msg { color:var(--red); }
+
+/* ── MOBILE ── */
+@media (max-width:600px) {
+  .layout { grid-template-columns:1fr; grid-template-rows:auto auto auto auto 1fr; }
+  .left-panel { display:none; }
+  .mobile-stats-bar { display:flex !important; }
+  .header-countdown { padding:0 14px; }
+  .cd-timer  { font-size:22px; }
+  .hdr-clock { font-size:20px; }
+  .time-label { width:44px; font-size:10px; }
+  .sess-card  { min-width:140px; }
+  .rundown-header { padding:10px 14px 8px; }
+  .screen-bar { padding:6px 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- HEADER TOP -->
+  <header class="header-top">
+    <div class="hdr-left">
+      <div class="hdr-logo">SONORO.</div>
+      <div class="hdr-sep"></div>
+      <div>
+        <div class="hdr-event" id="hdr-event">Cargando...</div>
+        <div class="hdr-date"  id="hdr-date"></div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="live-pill" id="live-pill" style="display:none">
+        <div class="live-dot"></div>EN VIVO
+      </div>
+      <div class="hdr-clock-wrap">
+        <div class="hdr-clock" id="clock">—</div>
+        <div class="hdr-tz"    id="hdr-tz"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HEADER COUNTDOWN -->
+  <div class="header-countdown">
+    <div>
+      <div class="cd-label">Próxima sesión</div>
+      <div class="cd-next" id="cd-next">—</div>
+    </div>
+    <div class="cd-center">
+      <div class="cd-timer" id="cd-timer">—</div>
+    </div>
+    <div class="cd-right">
+      <div class="cd-label">Empieza a las</div>
+      <div class="cd-next" id="cd-starts">—</div>
+    </div>
+  </div>
+
+  <!-- MOBILE STATS BAR -->
+  <div class="mobile-stats-bar">
+    <div class="msb-item"><div class="msb-num green" id="msb-today">—</div><div class="msb-lbl">Check-ins</div></div>
+    <div class="msb-sep"></div>
+    <div class="msb-item"><div class="msb-num blue"  id="msb-total">—</div><div class="msb-lbl">Inscritos</div></div>
+    <div class="msb-sep"></div>
+    <div class="msb-item"><div class="msb-num amber" id="msb-pend">—</div><div class="msb-lbl">Pendientes</div></div>
+  </div>
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-num green"  id="st-today">—</div><div class="stat-lbl">Hoy</div></div>
+      <div class="stat-cell"><div class="stat-num blue"   id="st-total">—</div><div class="stat-lbl">Inscritos</div></div>
+      <div class="stat-cell"><div class="stat-num amber"  id="st-pend">—</div><div class="stat-lbl">Pendientes</div></div>
+      <div class="stat-cell"><div class="stat-num purple" id="st-hist">—</div><div class="stat-lbl">Histórico</div></div>
+    </div>
+    <div class="cap-wrap">
+      <div class="cap-row">
+        <div class="cap-lbl">Aforo</div>
+        <div class="cap-pct" id="cap-pct">—</div>
+      </div>
+      <div class="cap-bar"><div class="cap-fill" id="cap-fill" style="width:0%"></div></div>
+    </div>
+    <div class="mini-feed-header">
+      <div class="mini-feed-title">Entradas recientes</div>
+      <div class="mini-feed-count" id="feed-count">0</div>
+    </div>
+    <div class="mini-feed" id="mini-feed"></div>
+  </aside>
+
+  <!-- RIGHT PANEL -->
+  <main class="right-panel">
+    <div class="rundown-header">
+      <div class="rundown-title">Libreto del evento</div>
+      <div class="day-selector" id="day-selector"></div>
+    </div>
+    <div class="rundown-list" id="rundown-list">
+      <div class="loading">Conectando...</div>
+    </div>
+    <div class="screen-bar">
+      <span class="screen-bar-label">Pantallas</span>
+      <input type="text" id="screen-input" class="screen-input"
+             placeholder="Mensaje a pantallas informativas del evento..."
+             maxlength="120"
+             onkeydown="if(event.key==='Enter')sendBroadcast()">
+      <button class="screen-send" onclick="sendBroadcast()">Enviar</button>
+      <span class="screen-feedback" id="screen-feedback"></span>
+    </div>
+  </main>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+const authToken = localStorage.getItem('authToken');
+if (!authToken) { window.location.href = '/dashboard.html'; }
+
+const slugMatch = window.location.pathname.match(/\/evento\/([^\/]+)\/produccion/);
+if (!slugMatch) { document.body.innerHTML = '<div style="color:#f0f0f0;padding:40px;font-family:sans-serif">URL inválida — debe ser /evento/{slug}/produccion</div>'; }
+const SLUG = slugMatch ? slugMatch[1] : null;
+
+const H = { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' };
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let eventInfo    = null;
+let sessions     = [];
+let statsNow     = {};
+let feedItems    = [];
+let selectedDay  = null;
+let eventId      = null;
+let cdInterval   = null;
+let socket       = null;
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function tz() { return eventInfo?.timezone || 'America/Bogota'; }
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('es-CO', {
+    hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz()
+  });
+}
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('es-CO', {
+    weekday: 'short', day: 'numeric', month: 'short', timeZone: tz()
+  });
+}
+function dayKey(iso) {
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: tz() });
+}
+function todayKey() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: tz() });
+}
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+async function apiFetch(url, opts) {
+  const res = await fetch(url, { headers: H, ...opts });
+  if (res.status === 401 || res.status === 403) { window.location.href = '/dashboard.html'; return null; }
+  return res;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  if (!SLUG) return;
+  try {
+    // 1. Resolver slug → evento (autenticado, todos los estados)
+    const evRes = await apiFetch(`/api/events/by-slug/${SLUG}`);
+    if (!evRes) return;
+    if (!evRes.ok) { showError('Evento no encontrado o sin acceso'); return; }
+    eventInfo = await evRes.json();
+    eventId   = eventInfo.id;
+
+    // 2. Dashboard snapshot
+    const dashRes = await apiFetch(`/api/events/${eventId}/dashboard`);
+    if (!dashRes || !dashRes.ok) { showError('Error cargando dashboard'); return; }
+    const dash = await dashRes.json();
+    sessions  = dash.sessions || [];
+    statsNow  = dash.stats    || {};
+    feedItems = dash.recent_checkins || [];
+
+    // 3. Calcular día seleccionado por defecto
+    const days      = getEventDays();
+    const today     = todayKey();
+    selectedDay     = days.includes(today) ? today : (days[0] || today);
+
+    // 4. Socket.io
+    connectSocket();
+
+    // 5. Render
+    renderHeader();
+    renderStats(statsNow);
+    renderFeed(feedItems);
+    renderDaySelector(days);
+    renderRundown();
+    startClock();
+    startCountdown();
+
+    // 6. Polling stats cada 30s + re-render rundown cada 60s (auto-estado por tiempo)
+    setInterval(refreshStats, 30000);
+    setInterval(renderRundown, 60000);
+
+  } catch (err) {
+    console.error('init error:', err);
+    showError('Error de conexión');
+  }
+}
+
+// ── SOCKET.IO ─────────────────────────────────────────────────────────────────
+function connectSocket() {
+  socket = io({ auth: { token: authToken } });
+
+  socket.on('connect', () => {
+    socket.emit('join_event', { event_id: eventId });
+  });
+
+  socket.on('attendee.checkin', (data) => {
+    // event_checkin_ room envía { name, ticket_type, event_day } (sin event_id)
+    // event_ room envía { event_id, event_day, ms_response }
+    if (data.event_id) return; // de event_ room — solo telemetría, stats se reconcilian con polling
+    if (!data.name) return;
+
+    feedItems.unshift({ attendee_name: data.name, checked_in_at: new Date().toISOString() });
+    if (feedItems.length > 20) feedItems.pop();
+    renderFeed(feedItems);
+
+    statsNow.checked_in_today = (statsNow.checked_in_today || 0) + 1;
+    statsNow.checked_in_total = (statsNow.checked_in_total || 0) + 1;
+    if (statsNow.pending > 0) statsNow.pending--;
+    renderStats(statsNow);
+  });
+
+  socket.on('session.status_changed', (data) => {
+    if (data.event_id !== eventId) return;
+    const idx = sessions.findIndex(s => s.id === data.session_id);
+    if (idx !== -1) { sessions[idx].status = data.status; renderRundown(); }
+  });
+
+  socket.on('screen.broadcast', (data) => {
+    if (data.event_id !== eventId) return;
+    const fb = document.getElementById('screen-feedback');
+    if (fb) { fb.textContent = '✓ Enviado'; setTimeout(() => { fb.textContent = ''; }, 3000); }
+  });
+
+  socket.on('disconnect', () => console.log('socket desconectado'));
+}
+
+// ── HEADER ────────────────────────────────────────────────────────────────────
+function renderHeader() {
+  document.getElementById('hdr-event').textContent = eventInfo.name;
+  document.getElementById('hdr-tz').textContent    = eventInfo.timezone || 'America/Bogota';
+
+  if (eventInfo.status === 'live') {
+    document.getElementById('live-pill').style.display = 'flex';
+  }
+
+  const days    = getEventDays();
+  const today   = todayKey();
+  const dayIdx  = days.indexOf(today);
+  if (dayIdx >= 0) {
+    const dateLbl = fmtDate(today + 'T12:00:00');
+    document.getElementById('hdr-date').textContent =
+      `${dateLbl} · Día ${dayIdx + 1} de ${days.length}`;
+  } else if (days.length) {
+    document.getElementById('hdr-date').textContent =
+      `${fmtDate(days[0] + 'T12:00:00')} · ${days.length} día${days.length > 1 ? 's' : ''}`;
+  }
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('es-CO', {
+        hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz()
+      });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── COUNTDOWN ─────────────────────────────────────────────────────────────────
+function startCountdown() {
+  updateCountdown();
+  cdInterval = setInterval(updateCountdown, 1000);
+}
+
+function updateCountdown() {
+  const now      = Date.now();
+  const upcoming = sessions
+    .filter(s => s.status !== 'done' && s.status !== 'cancelled' && new Date(s.starts_at).getTime() > now)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const next = upcoming[0];
+
+  if (!next) {
+    document.getElementById('cd-next').textContent   = 'Fin del programa';
+    document.getElementById('cd-timer').textContent  = '—';
+    document.getElementById('cd-starts').textContent = '—';
+    return;
+  }
+
+  const diff = Math.max(0, Math.floor((new Date(next.starts_at).getTime() - now) / 1000));
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  const timer = h > 0
+    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+  document.getElementById('cd-next').textContent   = next.name;
+  document.getElementById('cd-timer').textContent  = timer;
+  document.getElementById('cd-starts').textContent = fmtTime(next.starts_at);
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function renderStats(st) {
+  const total = st.total              || 0;
+  const today = st.checked_in_today  || 0;
+  const pend  = st.pending            || 0;
+  const hist  = st.checked_in_total  || 0;
+  const cap   = eventInfo?.config?.max_capacity || 0;
+  const pct   = cap > 0 ? Math.round(today / cap * 100)
+              : total > 0 ? Math.round(today / total * 100) : 0;
+
+  document.getElementById('st-today').textContent  = today;
+  document.getElementById('st-total').textContent  = total;
+  document.getElementById('st-pend').textContent   = pend;
+  document.getElementById('st-hist').textContent   = hist;
+  document.getElementById('msb-today').textContent = today;
+  document.getElementById('msb-total').textContent = total;
+  document.getElementById('msb-pend').textContent  = pend;
+  document.getElementById('cap-pct').textContent   = pct + '%';
+  document.getElementById('cap-fill').style.width  = Math.min(pct, 100) + '%';
+}
+
+// ── FEED ──────────────────────────────────────────────────────────────────────
+function renderFeed(items) {
+  const el = document.getElementById('mini-feed');
+  document.getElementById('feed-count').textContent = items.length;
+  el.innerHTML = items.slice(0, 8).map((item, i) =>
+    `<div class="feed-item${i === 0 ? ' fresh' : ''}">
+      <div class="feed-dot"></div>
+      <div class="feed-name">${esc(item.attendee_name)}</div>
+      <div class="feed-time">${fmtTime(item.checked_in_at)}</div>
+    </div>`
+  ).join('');
+}
+
+// ── DAY SELECTOR ──────────────────────────────────────────────────────────────
+function getEventDays() {
+  return [...new Set(sessions.map(s => dayKey(s.starts_at)))].sort();
+}
+
+function renderDaySelector(days) {
+  const el = document.getElementById('day-selector');
+  if (days.length <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = days.map((d, i) =>
+    `<button class="day-btn${d === selectedDay ? ' active' : ''}"
+             onclick="selectDay('${d}')">Día ${i + 1}</button>`
+  ).join('');
+}
+
+function selectDay(day) {
+  selectedDay = day;
+  document.querySelectorAll('.day-btn').forEach((b, i) => {
+    b.classList.toggle('active', getEventDays()[i] === day);
+  });
+  renderRundown();
+}
+
+// ── RUNDOWN ───────────────────────────────────────────────────────────────────
+function sessionState(s) {
+  if (s.status === 'in_progress') return 'current';
+  if (s.status === 'done')        return 'done';
+  const now = Date.now();
+  const st  = new Date(s.starts_at).getTime();
+  const en  = new Date(s.ends_at).getTime();
+  if (now >= st && now <= en) return 'current';
+  if (now > en)               return 'done';
+  return 'upcoming';
+}
+
+function renderRundown() {
+  const list = document.getElementById('rundown-list');
+  const day  = sessions.filter(s =>
+    dayKey(s.starts_at) === selectedDay && s.status !== 'cancelled'
+  );
+
+  if (!day.length) {
+    list.innerHTML = '<div class="loading">Sin sesiones para este día</div>';
+    return;
+  }
+
+  // Agrupar por starts_at (sesiones paralelas comparten el mismo starts_at)
+  const slotMap = new Map();
+  for (const s of day) {
+    const k = s.starts_at;
+    if (!slotMap.has(k)) slotMap.set(k, []);
+    slotMap.get(k).push(s);
+  }
+  const slots = [...slotMap.entries()].sort((a, b) => new Date(a[0]) - new Date(b[0]));
+
+  list.innerHTML = slots.map(([time, items]) => {
+    const states  = items.map(sessionState);
+    const hasCur  = states.includes('current');
+    const allDone = states.every(s => s === 'done');
+    const slotCls = hasCur ? 'has-current' : allDone ? 'is-done' : '';
+
+    const cards = items.map(s => {
+      const state = sessionState(s);
+      const reg   = s.registered_count || 0;
+      const cap   = s.capacity || 0;
+      const pct   = cap > 0 ? Math.round(reg / cap * 100) : 0;
+      const full  = cap > 0 && reg >= cap;
+      const almst = pct >= 80 && !full;
+
+      let actionBtn = '';
+      if (state === 'upcoming') {
+        actionBtn = `<button class="action-btn start-btn" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">▶ Iniciar</button>`;
+      } else if (state === 'current' && s.status === 'in_progress') {
+        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')">✓ Cerrar sesión</button>`;
+      } else if (state === 'done') {
+        actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">↺ Reabrir</button>`;
+      }
+
+      return `<div class="sess-card ${state}" id="sess-${s.id}" onclick="toggleSess('${s.id}')">
+        <div class="sess-head">
+          <div class="sess-name">${esc(s.name)}</div>
+          <div class="sess-toggle">▾</div>
+        </div>
+        <div class="sess-badges">
+          ${state === 'current' ? '<span class="badge current">▶ En curso</span>' : ''}
+          ${state === 'done'    ? '<span class="badge done">✓ Finalizado</span>'  : ''}
+          ${cap ? `<span class="badge ${full?'warn':almst?'warn':'cap'}">${reg}/${cap}${full?' · LLENO':almst?' · Casi lleno':''}</span>` : ''}
+          <span style="font-size:10px;color:var(--muted);padding:2px 0">${fmtTime(s.starts_at)}–${fmtTime(s.ends_at)}</span>
+        </div>
+        <div class="sess-body">
+          ${s.venue_zone ? `<div class="sess-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <strong>${esc(s.venue_zone)}</strong>
+          </div>` : ''}
+          ${s.description ? `<div class="sess-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            <span>${esc(s.description)}</span>
+          </div>` : ''}
+          ${cap ? `<div class="sess-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Registrados: <strong style="color:${full?'var(--amber)':'var(--text)'}">${reg} de ${cap}</strong></span>
+          </div>` : ''}
+          ${actionBtn ? `<div class="sess-actions">${actionBtn}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="time-slot ${slotCls}">
+      <div class="time-label">${fmtTime(time)}</div>
+      <div class="time-line"><div class="time-dot"></div></div>
+      <div class="slot-sessions">${cards}</div>
+    </div>`;
+  }).join('');
+
+  // Auto-abrir sesiones actuales + scroll
+  sessions.filter(s => sessionState(s) === 'current').forEach(s => {
+    document.getElementById('sess-' + s.id)?.classList.add('open');
+  });
+  const cur = list.querySelector('.sess-card.current');
+  if (cur) cur.closest('.time-slot')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── TOGGLE CARD ───────────────────────────────────────────────────────────────
+function toggleSess(id) {
+  document.getElementById('sess-' + id)?.classList.toggle('open');
+}
+
+// ── MARK SESSION ──────────────────────────────────────────────────────────────
+async function markSession(sessionId, newStatus) {
+  const idx = sessions.findIndex(s => s.id === sessionId);
+  const prev = idx !== -1 ? sessions[idx].status : null;
+  if (idx !== -1) sessions[idx].status = newStatus; // optimistic
+  renderRundown();
+
+  try {
+    const res = await fetch(`/api/events/${eventId}/sessions/${sessionId}/status`, {
+      method: 'PATCH', headers: H, body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok) {
+      if (idx !== -1) sessions[idx].status = prev; // revert
+      renderRundown();
+    }
+  } catch (err) {
+    if (idx !== -1) sessions[idx].status = prev;
+    renderRundown();
+    console.error('markSession:', err);
+  }
+}
+
+// ── SCREEN BROADCAST ──────────────────────────────────────────────────────────
+async function sendBroadcast() {
+  const input = document.getElementById('screen-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  try {
+    const res = await fetch(`/api/events/${eventId}/screen-message`, {
+      method: 'POST', headers: H, body: JSON.stringify({ message: msg, type: 'info' })
+    });
+    if (res.ok) {
+      input.value = '';
+      const fb = document.getElementById('screen-feedback');
+      fb.textContent = '✓ Enviado a pantallas';
+      setTimeout(() => { fb.textContent = ''; }, 3000);
+    }
+  } catch (err) {
+    console.error('sendBroadcast:', err);
+  }
+}
+
+// ── REFRESH STATS ─────────────────────────────────────────────────────────────
+async function refreshStats() {
+  try {
+    const res = await apiFetch(`/api/events/${eventId}/stats/live`);
+    if (res && res.ok) { statsNow = await res.json(); renderStats(statsNow); }
+  } catch (_) { /* non-fatal */ }
+}
+
+// ── ERROR ─────────────────────────────────────────────────────────────────────
+function showError(msg) {
+  document.getElementById('rundown-list').innerHTML =
+    `<div class="error-msg">${esc(msg)}</div>`;
+  document.getElementById('hdr-event').textContent = 'Error';
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

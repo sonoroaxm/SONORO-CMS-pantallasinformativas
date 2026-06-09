@@ -7860,6 +7860,14 @@ io.on('connection', (socket) => {
     socket.join(`counter_${counterId}`);
   });
 
+  socket.on('join_event', ({ event_id } = {}) => {
+    if (!event_id) return;
+    socket.join(`event_${event_id}`);
+    socket.join(`event_checkin_${event_id}`);
+    socket.join(`event_screen_${event_id}`);
+    console.log(`🎪 Socket ${socket.id} unido a salas event_${event_id}`);
+  });
+
   socket.on('disconnect', () => {
     console.log(`🔴 Cliente desconectado: ${socket.id} (${socket.role})`);
   });

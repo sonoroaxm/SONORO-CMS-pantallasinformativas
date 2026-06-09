@@ -488,4 +488,162 @@ router.delete('/:id/registrations/:regId', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── RESOLVER SLUG → EVENTO (autenticado, todos los estados) ──────────────────
+router.get('/by-slug/:slug', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, slug, status, starts_at, ends_at, timezone,
+              venue_name, venue_address, config, user_id
+       FROM events.events
+       WHERE slug = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.slug] : [req.params.slug, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ GET /api/events/by-slug/:slug:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── DASHBOARD DE PRODUCCIÓN (snapshot completo) ───────────────────────────────
+router.get('/:id/dashboard', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evRes = await pool.query(
+      `SELECT id, name, slug, status, starts_at, ends_at, timezone, venue_name, venue_address, config
+       FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const event    = evRes.rows[0];
+    const { timezone } = event;
+
+    const [statsRes, sessionsRes, checkinsRes] = await Promise.all([
+      pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status!='cancelled')::int AS total,
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status='confirmed')::int  AS confirmed,
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status='pending')::int    AS pending,
+           (SELECT COUNT(DISTINCT registration_id) FROM events.registration_checkins
+            WHERE event_id=$1)::int AS checked_in_total,
+           (SELECT COUNT(DISTINCT registration_id) FROM events.registration_checkins
+            WHERE event_id=$1
+              AND event_day=(CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE)::int AS checked_in_today,
+           (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE::text AS event_day`,
+        [req.params.id, timezone]
+      ),
+      pool.query(
+        `SELECT s.id, s.name, s.session_type, s.venue_zone, s.starts_at, s.ends_at,
+                s.capacity, s.status, s.description,
+                COUNT(DISTINCT rs.registration_id)::int AS registered_count
+         FROM events.event_sessions s
+         LEFT JOIN events.registration_sessions rs ON rs.session_id = s.id
+         WHERE s.event_id = $1 AND s.status != 'cancelled'
+         GROUP BY s.id ORDER BY s.starts_at`,
+        [req.params.id]
+      ),
+      pool.query(
+        `SELECT a.name AS attendee_name, c.checked_in_at, c.event_day::text
+         FROM events.registration_checkins c
+         JOIN events.registrations r ON r.id = c.registration_id
+         JOIN events.attendees a ON a.id = r.attendee_id
+         WHERE c.event_id = $1
+         ORDER BY c.checked_in_at DESC LIMIT 20`,
+        [req.params.id]
+      ),
+    ]);
+
+    res.json({
+      event,
+      stats:           statsRes.rows[0],
+      sessions:        sessionsRes.rows,
+      recent_checkins: checkinsRes.rows,
+    });
+  } catch (err) {
+    console.error('❌ GET /api/events/:id/dashboard:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── ÚLTIMOS CHECK-INS (feed tiempo real) ──────────────────────────────────────
+router.get('/:id/checkins/recent', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `SELECT a.name AS attendee_name, c.checked_in_at, c.event_day::text
+       FROM events.registration_checkins c
+       JOIN events.registrations r ON r.id = c.registration_id
+       JOIN events.attendees a ON a.id = r.attendee_id
+       WHERE c.event_id = $1
+       ORDER BY c.checked_in_at DESC LIMIT $2`,
+      [req.params.id, limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /api/events/:id/checkins/recent:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── ACTUALIZAR ESTADO DE SESIÓN ───────────────────────────────────────────────
+router.patch('/:id/sessions/:sessionId/status', auth, async (req, res) => {
+  const pool = global.pool;
+  const { status } = req.body;
+  const VALID = ['scheduled', 'in_progress', 'done', 'cancelled'];
+  if (!VALID.includes(status)) return res.status(400).json({ error: 'status inválido' });
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `UPDATE events.event_sessions SET status = $1
+       WHERE id = $2 AND event_id = $3
+       RETURNING id, name, status, starts_at, ends_at`,
+      [status, req.params.sessionId, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Sesión no encontrada' });
+    global.io?.to(`event_${req.params.id}`).emit('session.status_changed', {
+      session_id: rows[0].id, name: rows[0].name, status, event_id: req.params.id,
+    });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ PATCH /api/events/:id/sessions/:sessionId/status:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── BROADCAST A PANTALLAS ─────────────────────────────────────────────────────
+router.post('/:id/screen-message', auth, async (req, res) => {
+  const pool = global.pool;
+  const { message, type = 'info' } = req.body;
+  if (!message?.trim()) return res.status(400).json({ error: 'message requerido' });
+  const VALID_TYPES = ['info', 'alert', 'custom'];
+  if (!VALID_TYPES.includes(type)) return res.status(400).json({ error: 'type inválido' });
+  const isAdmin = req.user.role === 'admin';
+  const evCheck = await pool.query(
+    `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+    isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+  );
+  if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+  const payload = { event_id: req.params.id, message: message.trim(), type, sent_at: new Date().toISOString() };
+  global.io?.to(`event_screen_${req.params.id}`).emit('screen.broadcast', payload);
+  global.io?.to(`event_${req.params.id}`).emit('screen.broadcast', payload);
+  console.log(`📡 Screen broadcast event_${req.params.id}: [${type}] ${message.slice(0, 60)}`);
+  res.json({ ok: true, sent_at: payload.sent_at });
+});
+
 module.exports = router;
