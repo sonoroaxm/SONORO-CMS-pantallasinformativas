@@ -277,11 +277,19 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
   <!-- RIGHT PANEL -->
   <main class="right-panel">
     <div class="rundown-header">
-      <div class="rundown-title">Libreto del evento</div>
+      <div style="display:flex;gap:0;background:var(--bg);border-radius:8px;padding:2px;flex-shrink:0;">
+        <button id="toggle-sessions" onclick="switchRundownView('sessions')"
+          style="padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:var(--amber);color:#000;transition:.15s;">Sesiones</button>
+        <button id="toggle-libreto" onclick="switchRundownView('libreto')"
+          style="padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:.15s;">Libreto</button>
+      </div>
       <div class="day-selector" id="day-selector"></div>
     </div>
     <div class="rundown-list" id="rundown-list">
       <div class="loading">Conectando...</div>
+    </div>
+    <div class="rundown-list" id="cue-list" style="display:none;">
+      <div class="loading">Cargando libreto...</div>
     </div>
     <div class="screen-bar">
       <span class="screen-bar-label">Pantallas</span>
@@ -386,7 +394,7 @@ async function init() {
 
     // 6. Polling stats cada 30s + re-render rundown cada 60s (auto-estado por tiempo)
     setInterval(refreshStats, 30000);
-    setInterval(renderRundown, 60000);
+    setInterval(() => { renderRundown(); if (rundownView === "libreto") renderCues(); }, 60000);
 
   } catch (err) {
     console.error('init error:', err);
@@ -422,6 +430,12 @@ function connectSocket() {
     if (data.event_id !== eventId) return;
     const idx = sessions.findIndex(s => s.id === data.session_id);
     if (idx !== -1) { sessions[idx].status = data.status; renderRundown(); }
+  });
+
+  socket.on('cue.status_changed', (data) => {
+    if (data.event_id !== eventId) return;
+    const idx = cues.findIndex(c => c.id === data.cue_id);
+    if (idx !== -1) { cues[idx].status = data.status; if (rundownView === 'libreto') renderCues(); }
   });
 
   socket.on('screen.broadcast', (data) => {
@@ -715,6 +729,100 @@ function showError(msg) {
   document.getElementById('rundown-list').innerHTML =
     `<div class="error-msg">${esc(msg)}</div>`;
   document.getElementById('hdr-event').textContent = 'Error';
+}
+
+// ── RUNDOWN VIEW TOGGLE ──────────────────────────────────────────────────────
+let rundownView = 'sessions'; // 'sessions' | 'libreto'
+let cues = [];
+
+function switchRundownView(view) {
+  rundownView = view;
+  document.getElementById('rundown-list').style.display = view === 'sessions' ? '' : 'none';
+  document.getElementById('cue-list').style.display = view === 'libreto' ? '' : 'none';
+  const btnS = document.getElementById('toggle-sessions');
+  const btnL = document.getElementById('toggle-libreto');
+  if (btnS) {
+    btnS.style.background = view === 'sessions' ? 'var(--amber)' : 'transparent';
+    btnS.style.color = view === 'sessions' ? '#000' : 'var(--muted)';
+    btnL.style.background = view === 'libreto' ? 'var(--amber)' : 'transparent';
+    btnL.style.color = view === 'libreto' ? '#000' : 'var(--muted)';
+  }
+  if (view === 'libreto' && cues.length === 0) loadCues();
+}
+
+async function loadCues() {
+  try {
+    const res = await apiFetch(`/api/events/${eventId}/rundown`);
+    if (res && res.ok) { cues = await res.json(); renderCues(); }
+  } catch (_) {}
+}
+
+function renderCues() {
+  const list = document.getElementById('cue-list');
+  const tz = eventInfo && eventInfo.timezone ? eventInfo.timezone : 'America/Bogota';
+
+  // filter by selected day if we have one
+  const dayStr = selectedDay; // YYYY-MM-DD set by renderDaySelector
+  const dayCues = dayStr
+    ? cues.filter(c => c.scheduled_at && c.scheduled_at.substring(0, 10) === dayStr)
+    : cues;
+
+  if (!dayCues.length) {
+    list.innerHTML = '<div class="loading">Sin cues para este día</div>';
+    return;
+  }
+
+  const statusLabel = { pending: 'Pendiente', in_progress: 'En curso', done: 'Finalizado', skipped: 'Omitido', delayed: 'Con retraso' };
+  const statusColor = { pending: 'var(--muted)', in_progress: 'var(--amber)', done: '#22c55e', skipped: '#6b7280', delayed: '#ef4444' };
+
+  list.innerHTML = dayCues.map(c => {
+    const timeStr = new Date(c.scheduled_at).toLocaleTimeString('es-CO', {
+      hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz
+    });
+    const st = c.status || 'pending';
+    let actionBtn = '';
+    if (st === 'pending' || st === 'delayed') {
+      actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')">▶ Iniciar</button>`;
+    } else if (st === 'in_progress') {
+      actionBtn = `<button class="action-btn done-btn" onclick="markCue('${c.id}','done')">✓ Cerrar</button>
+                   <button class="action-btn" style="background:rgba(107,114,128,.15);color:var(--muted);border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" onclick="markCue('${c.id}','skipped')">⊘ Omitir</button>`;
+    } else if (st === 'done' || st === 'skipped') {
+      actionBtn = `<button class="action-btn reopen-btn" onclick="markCue('${c.id}','pending')">↺ Reabrir</button>`;
+    }
+
+    return `<div class="sess-card ${st === 'in_progress' ? 'current' : st === 'done' ? 'done' : ''}" id="cue-${c.id}" style="margin-bottom:0;border-radius:0;border-bottom:1px solid var(--border);">
+      <div class="sess-head" style="padding:10px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+          ${c.cue_number ? `<span style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;">${c.cue_number}</span>` : ''}
+          <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${timeStr}${c.duration_min ? ' · ' + c.duration_min + 'min' : ''}</span>
+          <span class="sess-name" style="font-size:13px;">${c.title}</span>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:${statusColor[st]};flex-shrink:0;margin-left:8px;">${statusLabel[st] || st}</span>
+      </div>
+      ${c.technical_notes || c.location ? `<div style="padding:0 14px 8px;font-size:11px;color:var(--muted);">${c.location ? '📍 ' + c.location + ' ' : ''}${c.technical_notes || ''}</div>` : ''}
+      ${actionBtn ? `<div class="sess-actions" style="padding:0 14px 10px;">${actionBtn}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // auto-scroll to first in_progress cue
+  const cur = list.querySelector('.sess-card.current');
+  if (cur) cur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function markCue(cueId, newStatus) {
+  const idx = cues.findIndex(c => c.id === cueId);
+  const prev = idx !== -1 ? cues[idx].status : null;
+  if (idx !== -1) cues[idx].status = newStatus; // optimistic
+  renderCues();
+  try {
+    const res = await fetch(`/api/events/${eventId}/rundown/${cueId}`, {
+      method: 'PATCH', headers: H, body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok && idx !== -1) { cues[idx].status = prev; renderCues(); }
+  } catch (err) {
+    if (idx !== -1) { cues[idx].status = prev; renderCues(); }
+    console.error('markCue:', err);
+  }
 }
 
 // ── START ─────────────────────────────────────────────────────────────────────

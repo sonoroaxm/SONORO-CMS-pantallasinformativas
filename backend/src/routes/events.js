@@ -972,4 +972,115 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+
+
+// ── RUNDOWN / LIBRETO ─────────────────────────────────────────────────────────
+router.get('/:id/rundown', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const rows = await pool.query(
+      `SELECT c.*, es.name AS responsible_name
+       FROM events.rundown_cues c
+       LEFT JOIN events.event_staff es ON es.id = c.responsible_id
+       WHERE c.event_id = $1
+       ORDER BY c.scheduled_at, c.cue_number`,
+      [req.params.id]
+    );
+    res.json(rows.rows);
+  } catch (err) {
+    console.error('\u274C GET rundown:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/:id/rundown', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const { cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id } = req.body;
+  if (!title || !scheduled_at) return res.status(400).json({ error: 'title y scheduled_at son requeridos' });
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const row = await pool.query(
+      `INSERT INTO events.rundown_cues
+         (event_id, user_id, cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
+       RETURNING *`,
+      [req.params.id, req.user.id, cue_number || null, title, scheduled_at,
+       duration_min ? parseInt(duration_min) : null, location || null,
+       technical_notes || null, description || null, session_id || null]
+    );
+    res.status(201).json(row.rows[0]);
+  } catch (err) {
+    console.error('\u274C POST rundown:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.patch('/:id/rundown/:cueId', auth, async (req, res) => {
+  const pool = global.pool;
+  const io = global.io;
+  const isAdmin = req.user.role === 'admin';
+  const allowed = ['cue_number','title','scheduled_at','duration_min','location','technical_notes','description','status','delay_minutes','session_id'];
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const fields = Object.keys(req.body).filter(k => allowed.includes(k));
+    if (!fields.length) return res.status(400).json({ error: 'Sin campos a actualizar' });
+    const sets = fields.map((f, i) => `${f} = $${i + 3}`);
+    const values = fields.map(f => req.body[f]);
+    const row = await pool.query(
+      `UPDATE events.rundown_cues SET ${sets.join(', ')}, updated_at = NOW()
+       WHERE id = $1 AND event_id = $2 RETURNING *`,
+      [req.params.cueId, req.params.id, ...values]
+    );
+    if (!row.rowCount) return res.status(404).json({ error: 'Cue no encontrado' });
+    if (req.body.status && io) {
+      io.to(`event_${req.params.id}`).emit('cue.status_changed', {
+        event_id: req.params.id,
+        cue_id: req.params.cueId,
+        status: req.body.status,
+        delay_minutes: req.body.delay_minutes || 0
+      });
+    }
+    res.json(row.rows[0]);
+  } catch (err) {
+    console.error('\u274C PATCH rundown/:cueId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/:id/rundown/:cueId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const del = await pool.query(
+      'DELETE FROM events.rundown_cues WHERE id = $1 AND event_id = $2',
+      [req.params.cueId, req.params.id]
+    );
+    if (!del.rowCount) return res.status(404).json({ error: 'Cue no encontrado' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('\u274C DELETE rundown/:cueId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;

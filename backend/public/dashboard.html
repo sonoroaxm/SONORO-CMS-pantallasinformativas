@@ -1460,6 +1460,7 @@
             <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
             <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
             <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
+            <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Libreto</button>
           </div>
 
           <!-- SUB-TAB: Información -->
@@ -1916,6 +1917,65 @@
             </div>
 
           </div><!-- /ev-sub-suppliers -->
+
+          <!-- SUB-TAB: Libreto -->
+          <div id="ev-sub-rundown" class="ev-sub-panel hidden">
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:15px;">Libreto del evento</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddCue()">+ Agregar cue</button>
+              </div>
+
+              <!-- Formulario agregar/editar cue -->
+              <div id="ev-add-cue-form" style="display:none;background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px;">
+                <input type="hidden" id="ev-cue-edit-id">
+                <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Nro</label>
+                    <input id="ev-cue-number" type="text" placeholder="01" maxlength="20"
+                      style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Título *</label>
+                    <input id="ev-cue-title" type="text" placeholder="Apertura del evento" maxlength="200"
+                      style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Hora programada *</label>
+                    <input id="ev-cue-scheduled" type="datetime-local"
+                      style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Duración (min)</label>
+                    <input id="ev-cue-duration" type="number" min="1" max="999" placeholder="30"
+                      style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Zona / Espacio</label>
+                    <input id="ev-cue-location" type="text" placeholder="Auditorio principal" maxlength="100"
+                      style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Notas técnicas</label>
+                  <textarea id="ev-cue-notes" rows="2" placeholder="Audio: mic inalámbrico. Video: slide 1..." maxlength="500"
+                    style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddCue()">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveCue()">Guardar</button>
+                </div>
+              </div>
+
+              <!-- Cabecera tabla -->
+              <div style="display:grid;grid-template-columns:48px 90px 1fr 60px 120px 90px auto;gap:8px;padding:0 0 8px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">
+                <div>Nro</div><div>Hora</div><div>Título</div><div>Dur.</div><div>Zona</div><div>Estado</div><div></div>
+              </div>
+              <div id="ev-rundown-list"></div>
+            </div>
+          </div><!-- /ev-sub-rundown -->
 
         </div><!-- /ev-detail-view -->
 
@@ -4257,6 +4317,7 @@ function evSwitchSubTab(tab) {
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
   if (tab === 'staff') evLoadStaff();
   if (tab === 'suppliers') evLoadSuppliers();
+  if (tab === 'rundown') evLoadRundown();
 }
 
 // ── INFORMACIÓN ────────────────────────────────────────────────
@@ -5429,5 +5490,128 @@ async function evDeleteCurrentEvent() {
   </div>
 </div>
 
+<script>
+
+// ── RUNDOWN / LIBRETO ────────────────────────────────────────────────────────────────────────────
+let evRundownList = [];
+
+async function evLoadRundown() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/rundown`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    evRundownList = res.ok ? await res.json() : [];
+    evRenderRundown();
+  } catch(e) { console.error('evLoadRundown:', e); }
+}
+
+function evRenderRundown() {
+  const el = document.getElementById('ev-rundown-list');
+  if (!el) return;
+  if (!evRundownList.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0;">Sin cues. Agrega el primero con el botón de arriba.</div>';
+    return;
+  }
+  const statusLabel = { pending: 'Pendiente', in_progress: 'En curso', done: 'Finalizado', skipped: 'Omitido', delayed: 'Con retraso' };
+  const statusColor = { pending: 'var(--muted)', in_progress: '#f59e0b', done: '#22c55e', skipped: '#6b7280', delayed: '#ef4444' };
+  const tz = evCurrentEvent && evCurrentEvent.timezone ? evCurrentEvent.timezone : 'America/Bogota';
+  el.innerHTML = evRundownList.map(c => {
+    const timeStr = c.scheduled_at
+      ? new Date(c.scheduled_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz })
+      : '—';
+    const sColor = statusColor[c.status] || 'var(--muted)';
+    const sLabel = statusLabel[c.status] || c.status;
+    return `<div style="display:grid;grid-template-columns:48px 90px 1fr 60px 120px 90px auto;align-items:start;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div style="color:var(--muted);font-weight:600;padding-top:2px;">${c.cue_number || '—'}</div>
+      <div style="color:var(--muted);padding-top:2px;">${timeStr}</div>
+      <div>
+        <div style="font-weight:500;">${c.title}</div>
+        ${c.technical_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${c.technical_notes}</div>` : ''}
+      </div>
+      <div style="color:var(--muted);padding-top:2px;">${c.duration_min ? c.duration_min + 'm' : '—'}</div>
+      <div style="color:var(--muted);font-size:12px;padding-top:2px;">${c.location || '—'}</div>
+      <div style="font-size:11px;font-weight:600;color:${sColor};padding-top:2px;">${sLabel}</div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditCue('${c.id}')">Editar</button>
+        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteCue('${c.id}')">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function evShowAddCue() {
+  document.getElementById('ev-cue-edit-id').value = '';
+  document.getElementById('ev-cue-number').value = '';
+  document.getElementById('ev-cue-title').value = '';
+  document.getElementById('ev-cue-scheduled').value = '';
+  document.getElementById('ev-cue-duration').value = '';
+  document.getElementById('ev-cue-location').value = '';
+  document.getElementById('ev-cue-notes').value = '';
+  document.getElementById('ev-add-cue-form').style.display = 'block';
+  document.getElementById('ev-cue-title').focus();
+}
+
+function evCloseAddCue() {
+  document.getElementById('ev-add-cue-form').style.display = 'none';
+}
+
+function evEditCue(id) {
+  const c = evRundownList.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('ev-cue-edit-id').value = c.id;
+  document.getElementById('ev-cue-number').value = c.cue_number || '';
+  document.getElementById('ev-cue-title').value = c.title || '';
+  document.getElementById('ev-cue-scheduled').value = c.scheduled_at ? c.scheduled_at.substring(0, 16) : '';
+  document.getElementById('ev-cue-duration').value = c.duration_min || '';
+  document.getElementById('ev-cue-location').value = c.location || '';
+  document.getElementById('ev-cue-notes').value = c.technical_notes || '';
+  document.getElementById('ev-add-cue-form').style.display = 'block';
+  document.getElementById('ev-cue-title').focus();
+}
+
+async function evSaveCue() {
+  const editId = document.getElementById('ev-cue-edit-id').value;
+  const title = document.getElementById('ev-cue-title').value.trim();
+  const scheduled_at = document.getElementById('ev-cue-scheduled').value;
+  if (!title || !scheduled_at) { showStatus('Título y hora son requeridos', 'error'); return; }
+  const durVal = parseInt(document.getElementById('ev-cue-duration').value);
+  const body = {
+    cue_number: document.getElementById('ev-cue-number').value.trim() || null,
+    title,
+    scheduled_at: new Date(scheduled_at).toISOString(),
+    duration_min: isNaN(durVal) ? null : durVal,
+    location: document.getElementById('ev-cue-location').value.trim() || null,
+    technical_notes: document.getElementById('ev-cue-notes').value.trim() || null
+  };
+  try {
+    const url = editId
+      ? `${API_URL}/api/events/${evCurrentEventId}/rundown/${editId}`
+      : `${API_URL}/api/events/${evCurrentEventId}/rundown`;
+    const res = await fetch(url, {
+      method: editId ? 'PATCH' : 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (!res.ok) { showStatus(d.error || 'Error', 'error'); return; }
+    evCloseAddCue();
+    await evLoadRundown();
+    showStatus(editId ? 'Cue actualizado' : 'Cue agregado', 'success');
+  } catch(e) { showStatus('Error al guardar cue', 'error'); }
+}
+
+async function evDeleteCue(id) {
+  if (!confirm('¿Eliminar este cue?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/rundown/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { showStatus('Error al eliminar', 'error'); return; }
+    await evLoadRundown();
+    showStatus('Cue eliminado', 'success');
+  } catch(e) { showStatus('Error al eliminar cue', 'error'); }
+}
+
+</script>
 </body>
 </html>
