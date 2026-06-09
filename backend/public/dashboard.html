@@ -1456,6 +1456,7 @@
             <button class="ev-sub-tab" data-evtab="form" onclick="evSwitchSubTab('form')">Formulario</button>
             <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
             <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
+            <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
           </div>
 
           <!-- SUB-TAB: Información -->
@@ -1786,6 +1787,132 @@
               <div id="ev-staff-list" style="display:flex;flex-direction:column;gap:0;"></div>
             </div>
           </div>
+
+          <!-- SUB-TAB: Proveedores -->
+          <div id="ev-sub-suppliers" class="ev-sub-panel hidden">
+
+            <!-- PRESUPUESTO -->
+            <div class="card" style="margin-bottom:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:15px;">Presupuesto del evento</h3>
+                <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()">Editar presupuesto</button>
+              </div>
+              <div id="ev-budget-edit" style="display:none;margin-bottom:16px;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <input id="ev-budget-input" type="number" min="0" step="1000" placeholder="Presupuesto total (COP)"
+                    style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;">
+                  <button class="btn btn-primary btn-sm" onclick="evSaveBudget()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-budget-edit').style.display='none'">Cancelar</button>
+                </div>
+              </div>
+              <div id="ev-budget-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Presupuesto</div>
+                  <div id="ev-budget-total" style="font-size:18px;font-weight:700;color:var(--text);">–</div>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Contratado</div>
+                  <div id="ev-budget-contracted" style="font-size:18px;font-weight:700;color:#f59e0b;">–</div>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Comprometido</div>
+                  <div id="ev-budget-committed" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Disponible</div>
+                  <div id="ev-budget-avail" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PROVEEDORES CONTRATADOS PARA ESTE EVENTO -->
+            <div class="card" style="margin-bottom:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:15px;">Proveedores contratados</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddContract()">+ Agregar</button>
+              </div>
+
+              <!-- Formulario agregar contrato -->
+              <div id="ev-add-contract-form" style="display:none;background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                  <div style="grid-column:1/-1;">
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor del directorio *</label>
+                    <select id="ev-contract-supplier-id"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                      <option value="">— Selecciona proveedor —</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Descripción del servicio</label>
+                    <input id="ev-contract-role" type="text" placeholder="Ej: Sonido principal, Cobertura fotográfica"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Monto contratado (COP)</label>
+                    <input id="ev-contract-amount" type="number" min="0" step="1000" placeholder="0"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Notas</label>
+                  <input id="ev-contract-notes" type="text" placeholder="Observaciones"
+                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddContract()">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveContract()">Guardar</button>
+                </div>
+              </div>
+
+              <div id="ev-contracts-list" style="display:flex;flex-direction:column;gap:0;"></div>
+            </div>
+
+            <!-- DIRECTORIO DE PROVEEDORES (tenant) -->
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;font-size:15px;">Directorio de proveedores</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddSupplier()">+ Nuevo</button>
+              </div>
+
+              <!-- Formulario nuevo proveedor -->
+              <div id="ev-add-supplier-form" style="display:none;background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre *</label>
+                    <input id="ev-sup-name" type="text" placeholder="Nombre empresa o persona"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Categoría</label>
+                    <input id="ev-sup-category" type="text" placeholder="Ej: Sonido, Fotografía, Catering"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Contacto</label>
+                    <input id="ev-sup-contact" type="text" placeholder="Nombre contacto"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Teléfono</label>
+                    <input id="ev-sup-phone" type="text" placeholder="+57 300 0000000"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div style="grid-column:1/-1;">
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+                    <input id="ev-sup-email" type="email" placeholder="proveedor@ejemplo.com"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddSupplier()">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveSupplier()">Guardar</button>
+                </div>
+              </div>
+
+              <div id="ev-supplier-dir-list" style="display:flex;flex-direction:column;gap:0;"></div>
+            </div>
+
+          </div><!-- /ev-sub-suppliers -->
 
         </div><!-- /ev-detail-view -->
 
@@ -4126,6 +4253,7 @@ function evSwitchSubTab(tab) {
   if (tab === 'form') { evRenderActive(); evRenderCatalog(); }
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
   if (tab === 'staff') evLoadStaff();
+  if (tab === 'suppliers') evLoadSuppliers();
 }
 
 // ── INFORMACIÓN ────────────────────────────────────────────────
@@ -4825,6 +4953,255 @@ async function evDeleteStaff(staffId, staffName) {
     evStaffList = evStaffList.filter(s => s.id !== staffId);
     evRenderStaff();
     showStatus('Staff eliminado', 'success');
+  } catch(e) { showStatus('Error al eliminar', 'error'); }
+}
+
+// ── PROVEEDORES ────────────────────────────────────────────────────────────
+let evSupplierDir = [];    // tenant catalog
+let evEventContracts = []; // this event's contracted suppliers
+let evBudgetData = {};
+
+const EV_CONTRACT_STATUS_LABELS = {
+  pending: 'Pendiente', partial: 'Parcial', paid: 'Pagado', cancelled: 'Cancelado'
+};
+const EV_CONTRACT_STATUS_COLORS = {
+  pending: '#f59e0b', partial: '#3b82f6', paid: '#22c55e', cancelled: '#94a3b8'
+};
+
+async function evLoadSuppliers() {
+  try {
+    const [dir, contracts, budget] = await Promise.all([
+      fetch(`${API_URL}/api/events/suppliers`, { headers: { 'Authorization': `Bearer ${authToken}` } }).then(r => r.json()),
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers`, { headers: { 'Authorization': `Bearer ${authToken}` } }).then(r => r.json()),
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } }).then(r => r.json())
+    ]);
+    evSupplierDir = Array.isArray(dir) ? dir : [];
+    evEventContracts = Array.isArray(contracts) ? contracts : [];
+    evBudgetData = budget || {};
+    evRenderBudget();
+    evRenderContracts();
+    evRenderSupplierDir();
+  } catch(e) { showStatus('Error cargando proveedores', 'error'); }
+}
+
+function evFmtCOP(n) {
+  if (!n && n !== 0) return '–';
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+}
+
+function evRenderBudget() {
+  const { total_budget = 0, total_contracted = 0, committed = 0 } = evBudgetData;
+  const avail = total_budget - total_contracted;
+  document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : 'No definido';
+  document.getElementById('ev-budget-contracted').textContent = evFmtCOP(total_contracted);
+  document.getElementById('ev-budget-committed').textContent = evFmtCOP(committed);
+  document.getElementById('ev-budget-avail').textContent = total_budget ? evFmtCOP(avail) : '–';
+  if (total_budget) document.getElementById('ev-budget-input').value = total_budget;
+}
+
+function evShowBudgetEdit() {
+  document.getElementById('ev-budget-edit').style.display = '';
+  document.getElementById('ev-budget-input').focus();
+}
+
+async function evSaveBudget() {
+  const val = parseFloat(document.getElementById('ev-budget-input').value);
+  if (isNaN(val) || val < 0) { showStatus('Ingresa un valor válido', 'error'); return; }
+  try {
+    // Save total_budget into event config via PATCH /api/events/:id
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config_patch: { total_budget: val } })
+    });
+    if (!res.ok) { const d = await res.json(); showStatus(d.error || 'Error', 'error'); return; }
+    evBudgetData.total_budget = val;
+    evRenderBudget();
+    document.getElementById('ev-budget-edit').style.display = 'none';
+    showStatus('Presupuesto guardado', 'success');
+  } catch(e) { showStatus('Error al guardar presupuesto', 'error'); }
+}
+
+function evRenderContracts() {
+  const el = document.getElementById('ev-contracts-list');
+  if (!el) return;
+  if (!evEventContracts.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Sin proveedores contratados aún.</div>`;
+    return;
+  }
+  el.innerHTML = evEventContracts.map(c => {
+    const ps = c.payment_status || 'pending';
+    const color = EV_CONTRACT_STATUS_COLORS[ps] || '#94a3b8';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:13px;font-weight:600;">${c.supplier_name}</div>
+        ${c.service_description ? `<div style="font-size:11px;color:var(--muted);">${c.service_description}</div>` : ''}
+        ${c.contact_phone ? `<div style="font-size:11px;color:var(--muted);">${c.contact_phone}</div>` : ''}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);min-width:80px;text-align:right;">${evFmtCOP(c.contracted_amount)}</div>
+      <select style="padding:4px 8px;border-radius:6px;border:1px solid ${color};background:${color}22;color:${color};font-size:12px;font-weight:600;"
+        onchange="evUpdateContractStatus('${c.id}', this.value)">
+        ${Object.entries(EV_CONTRACT_STATUS_LABELS).map(([k,v]) =>
+          `<option value="${k}" ${k === ps ? 'selected' : ''}>${v}</option>`
+        ).join('')}
+      </select>
+      <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
+        onclick="evDeleteContract('${c.id}','${(c.supplier_name||'').replace(/'/g,'')}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function evShowAddContract() {
+  if (!evSupplierDir.length) {
+    showStatus('Agrega proveedores al directorio primero', 'error');
+    return;
+  }
+  const sel = document.getElementById('ev-contract-supplier-id');
+  sel.innerHTML = `<option value="">— Selecciona proveedor —</option>` +
+    evSupplierDir.map(s => `<option value="${s.id}">${s.name}${s.category ? ` · ${s.category}` : ''}</option>`).join('');
+  sel.onchange = function() {
+    const found = evSupplierDir.find(s => s.id == this.value);
+    if (found) {
+      document.getElementById('ev-contract-name').value = found.name;
+      document.getElementById('ev-contract-role').value = found.category || '';
+    }
+  };
+  document.getElementById('ev-add-contract-form').style.display = '';
+  sel.focus();
+}
+
+function evCloseAddContract() {
+  document.getElementById('ev-add-contract-form').style.display = 'none';
+  ['ev-contract-role','ev-contract-amount','ev-contract-notes'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('ev-contract-supplier-id').value = '';
+}
+
+async function evSaveContract() {
+  const supId = document.getElementById('ev-contract-supplier-id').value;
+  const role = document.getElementById('ev-contract-role').value.trim();
+  const amount = parseFloat(document.getElementById('ev-contract-amount').value) || 0;
+  const notes = document.getElementById('ev-contract-notes').value.trim();
+  if (!supId) { showStatus('Selecciona un proveedor del directorio', 'error'); return; }
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supplier_id: supId, service_description: role||undefined, contracted_amount: amount, notes: notes||undefined })
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
+    evEventContracts.push(data);
+    evBudgetData.total_contracted = (evBudgetData.total_contracted || 0) + amount;
+    evRenderBudget();
+    evRenderContracts();
+    evCloseAddContract();
+    showStatus('Proveedor agregado', 'success');
+  } catch(e) { showStatus('Error al guardar', 'error'); }
+}
+
+async function evUpdateContractStatus(contractId, newStatus) {
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_status: newStatus })
+    });
+    if (!res.ok) { showStatus('Error al actualizar estado', 'error'); evLoadSuppliers(); return; }
+    const idx = evEventContracts.findIndex(c => c.id == contractId);
+    if (idx >= 0) evEventContracts[idx].payment_status = newStatus;
+    evRenderContracts();
+    // Refresh budget committed
+    fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
+  } catch(e) { showStatus('Error', 'error'); }
+}
+
+async function evDeleteContract(contractId, name) {
+  if (!confirm(`¿Quitar a "${name}" de este evento?`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
+    const removed = evEventContracts.find(c => c.id == contractId);
+    evEventContracts = evEventContracts.filter(c => c.id != contractId);
+    if (removed) evBudgetData.total_contracted = Math.max(0, (evBudgetData.total_contracted||0) - parseFloat(removed.contracted_amount||0));
+    evRenderBudget();
+    evRenderContracts();
+    showStatus('Proveedor quitado del evento', 'success');
+  } catch(e) { showStatus('Error al eliminar', 'error'); }
+}
+
+function evRenderSupplierDir() {
+  const el = document.getElementById('ev-supplier-dir-list');
+  if (!el) return;
+  if (!evSupplierDir.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Directorio vacío. Agrega proveedores frecuentes para reutilizarlos en futuros eventos.</div>`;
+    return;
+  }
+  el.innerHTML = evSupplierDir.map(s => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:13px;font-weight:600;">${s.name}</div>
+        ${s.category ? `<div style="font-size:11px;color:var(--muted);">${s.category}</div>` : ''}
+        ${s.contact_name ? `<div style="font-size:11px;color:var(--muted);">${s.contact_name}${s.contact_phone ? ` · ${s.contact_phone}` : ''}</div>` : ''}
+        ${s.contact_email ? `<div style="font-size:11px;color:var(--muted);">${s.contact_email}</div>` : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
+        onclick="evDeleteSupplier('${s.id}','${(s.name||'').replace(/'/g,'')}')">✕</button>
+    </div>`).join('');
+}
+
+function evShowAddSupplier() {
+  document.getElementById('ev-add-supplier-form').style.display = '';
+  document.getElementById('ev-sup-name').focus();
+}
+
+function evCloseAddSupplier() {
+  document.getElementById('ev-add-supplier-form').style.display = 'none';
+  ['ev-sup-name','ev-sup-category','ev-sup-contact','ev-sup-phone','ev-sup-email'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+}
+
+async function evSaveSupplier() {
+  const name = document.getElementById('ev-sup-name').value.trim();
+  if (!name) { showStatus('Nombre requerido', 'error'); return; }
+  const body = {
+    name,
+    category: document.getElementById('ev-sup-category').value.trim() || undefined,
+    contact_name: document.getElementById('ev-sup-contact').value.trim() || undefined,
+    contact_phone: document.getElementById('ev-sup-phone').value.trim() || undefined,
+    contact_email: document.getElementById('ev-sup-email').value.trim() || undefined
+  };
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
+    evSupplierDir.push(data);
+    evRenderSupplierDir();
+    evCloseAddSupplier();
+    showStatus('Proveedor guardado en directorio', 'success');
+  } catch(e) { showStatus('Error al guardar', 'error'); }
+}
+
+async function evDeleteSupplier(supId, name) {
+  if (!confirm(`¿Eliminar "${name}" del directorio?`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers/${supId}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const d = await res.json();
+    if (!res.ok) { showStatus(d.error || 'Error', 'error'); return; }
+    evSupplierDir = evSupplierDir.filter(s => s.id != supId);
+    evRenderSupplierDir();
+    showStatus('Proveedor eliminado del directorio', 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 

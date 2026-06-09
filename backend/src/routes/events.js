@@ -78,6 +78,87 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// ── CATÁLOGO DE PROVEEDORES (tenant) ─────────────────────────────────────────
+// NOTA: estas rutas deben estar ANTES de /:id para no ser capturadas por ese handler
+
+router.get('/suppliers', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM events.suppliers WHERE user_id = $1 ORDER BY name`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /suppliers:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/suppliers', auth, async (req, res) => {
+  const pool = global.pool;
+  const { name, category, contact_name, contact_email, contact_phone, notes } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO events.suppliers (user_id, name, category, contact_name, contact_email, contact_phone, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.user.id, name.trim(), category || null, contact_name || null,
+       contact_email || null, contact_phone || null, notes || null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ POST /suppliers:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.patch('/suppliers/:supId', auth, async (req, res) => {
+  const pool = global.pool;
+  const { name, category, contact_name, contact_email, contact_phone, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE events.suppliers SET
+         name          = COALESCE($1, name),
+         category      = COALESCE($2, category),
+         contact_name  = COALESCE($3, contact_name),
+         contact_email = COALESCE($4, contact_email),
+         contact_phone = COALESCE($5, contact_phone),
+         notes         = COALESCE($6, notes)
+       WHERE id = $7 AND user_id = $8 RETURNING *`,
+      [name || null, category || null, contact_name || null,
+       contact_email || null, contact_phone || null, notes || null,
+       req.params.supId, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ PATCH /suppliers/:supId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/suppliers/:supId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*) FROM events.event_suppliers WHERE supplier_id = $1`,
+      [req.params.supId]
+    );
+    if (parseInt(rows[0].count) > 0) {
+      return res.status(400).json({ error: 'Proveedor en uso por uno o más eventos. Desvincula primero.' });
+    }
+    await pool.query(
+      `DELETE FROM events.suppliers WHERE id = $1 AND user_id = $2`,
+      [req.params.supId, req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ DELETE /suppliers/:supId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // ── OBTENER EVENTO ────────────────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
   const pool = global.pool;
@@ -138,10 +219,32 @@ router.patch('/:id', auth, async (req, res) => {
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
                    'venue_name', 'venue_address', 'cover_image_url', 'config'];
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
-  if (!fields.length) return res.status(400).json({ error: 'Nada que actualizar' });
+  const hasConfigPatch = req.body.config_patch !== undefined;
+  if (!fields.length && !hasConfigPatch) return res.status(400).json({ error: 'Nada que actualizar' });
 
   const params = fields.map(f => f === 'config' ? JSON.stringify(req.body[f]) : req.body[f]);
   const sets   = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+  // config_patch merges into existing config JSONB via ||
+  if (hasConfigPatch) {
+    params.push(JSON.stringify(req.body.config_patch));
+    const pIdx = params.length;
+    const configSet = `config = COALESCE(config, '{}'::jsonb) || $${pIdx}::jsonb`;
+    const allSets = [sets, configSet].filter(Boolean).join(', ');
+    params.push(req.params.id);
+    let where = `id = $${params.length}`;
+    if (!isAdmin) { params.push(req.user.id); where += ` AND user_id = $${params.length}`; }
+    try {
+      const { rows } = await pool.query(
+        `UPDATE events.events SET ${allSets}, updated_at = NOW() WHERE ${where} RETURNING *`,
+        params
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+      return res.json(rows[0]);
+    } catch (err) {
+      console.error('❌ PATCH /api/events/:id (config_patch):', err);
+      return res.status(500).json({ error: 'Error interno' });
+    }
+  }
   params.push(req.params.id);
   let where = `id = $${params.length}`;
   if (!isAdmin) { params.push(req.user.id); where += ` AND user_id = $${params.length}`; }
@@ -644,6 +747,134 @@ router.post('/:id/screen-message', auth, async (req, res) => {
   global.io?.to(`event_${req.params.id}`).emit('screen.broadcast', payload);
   console.log(`📡 Screen broadcast event_${req.params.id}: [${type}] ${message.slice(0, 60)}`);
   res.json({ ok: true, sent_at: payload.sent_at });
+});
+
+// ── PROVEEDORES DEL EVENTO ────────────────────────────────────────────────────
+// Schema real: event_suppliers.supplier_id NOT NULL (FK), payment_status, service_description
+
+router.get('/:id/suppliers', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id } = req.params;
+  const isAdmin = req.user.role === 'admin';
+  const params = isAdmin ? [id] : [id, req.user.id];
+  const ownerFilter = isAdmin ? '' : 'AND es.user_id = $2';
+  try {
+    const { rows } = await pool.query(
+      `SELECT es.id, es.supplier_id, es.service_description, es.contracted_amount,
+              es.currency, es.arrival_at, es.departure_at, es.payment_status, es.notes,
+              s.name AS supplier_name, s.category, s.contact_name, s.contact_email, s.contact_phone
+       FROM events.event_suppliers es
+       JOIN events.suppliers s ON s.id = es.supplier_id
+       WHERE es.event_id = $1 ${ownerFilter}
+       ORDER BY s.name`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /:id/suppliers:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/:id/suppliers', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id } = req.params;
+  const { supplier_id, service_description, contracted_amount, payment_status, notes } = req.body;
+  if (!supplier_id) return res.status(400).json({ error: 'supplier_id requerido' });
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${req.user.role !== 'admin' ? 'AND user_id = $2' : ''}`,
+      req.user.role !== 'admin' ? [id, req.user.id] : [id]
+    );
+    if (!evCheck.rowCount) return res.status(403).json({ error: 'Acceso denegado' });
+    const { rows } = await pool.query(
+      `INSERT INTO events.event_suppliers
+         (event_id, user_id, supplier_id, service_description, contracted_amount, payment_status, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [id, req.user.id, supplier_id,
+       service_description || null, contracted_amount || 0,
+       payment_status || 'pending', notes || null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ POST /:id/suppliers:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id, contractId } = req.params;
+  const { service_description, contracted_amount, payment_status, notes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE events.event_suppliers SET
+         service_description = COALESCE($1, service_description),
+         contracted_amount   = COALESCE($2, contracted_amount),
+         payment_status      = COALESCE($3, payment_status),
+         notes               = COALESCE($4, notes)
+       WHERE id = $5 AND event_id = $6 AND user_id = $7 RETURNING *`,
+      [service_description ?? null,
+       contracted_amount != null ? contracted_amount : null,
+       payment_status || null, notes ?? null,
+       contractId, id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Contrato no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ PATCH /:id/suppliers/:contractId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/:id/suppliers/:contractId', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id, contractId } = req.params;
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM events.event_suppliers WHERE id = $1 AND event_id = $2 AND user_id = $3`,
+      [contractId, id, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Contrato no encontrado' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ DELETE /:id/suppliers/:contractId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/:id/budget', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id } = req.params;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const [eventR, suppliersR] = await Promise.all([
+      pool.query(
+        `SELECT config FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+        isAdmin ? [id] : [id, req.user.id]
+      ),
+      pool.query(
+        `SELECT payment_status, SUM(contracted_amount)::NUMERIC AS total
+         FROM events.event_suppliers WHERE event_id = $1 AND user_id = $2
+         GROUP BY payment_status`,
+        [id, req.user.id]
+      )
+    ]);
+    if (!eventR.rowCount) return res.status(403).json({ error: 'Acceso denegado' });
+    const total_budget = parseFloat(eventR.rows[0]?.config?.total_budget || 0);
+    const breakdown = {};
+    let committed = 0;
+    let total_contracted = 0;
+    for (const row of suppliersR.rows) {
+      breakdown[row.payment_status] = parseFloat(row.total);
+      total_contracted += parseFloat(row.total);
+      if (['partial', 'paid'].includes(row.payment_status)) committed += parseFloat(row.total);
+    }
+    res.json({ total_budget, total_contracted, committed, breakdown });
+  } catch (err) {
+    console.error('❌ GET /:id/budget:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
 });
 
 module.exports = router;
