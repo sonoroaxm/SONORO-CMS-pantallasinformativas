@@ -1153,7 +1153,7 @@ function fmtDate(iso, tz) {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: tz || 'America/Bogota' });
 }
 function statusLabel(s) {
-  return { pending: 'Pendiente', partial: 'Abono', paid: 'Pagado', cancelled: 'Cancelado', cotizado: 'Cotizado', enviada: 'Enviada', recibida: 'Recibida', aceptada: 'Aceptada', rechazada: 'Rechazada' }[s] || s || '—';
+  return { pending: 'Pendiente', partial: 'Abono', paid: 'Pagado', cancelled: 'Cancelado', cotizado: 'Sin pago', abono: 'Abono', pagado: 'Pagado', enviada: 'Enviada', recibida: 'Recibida', aceptada: 'Aceptada', rechazada: 'Rechazada' }[s] || s || '—';
 }
 
 async function getReportData(pool, eventId, userId, isAdmin) {
@@ -1199,8 +1199,8 @@ async function getReportData(pool, eventId, userId, isAdmin) {
   const totalBudget = parseFloat(ev.total_budget || 0);
   const totalContracted = contracts.reduce((a, c) => a + parseFloat(c.contracted_amount || 0), 0);
   const totalCommitted = contracts
-    .filter(c => c.payment_status === 'partial' || c.payment_status === 'paid')
-    .reduce((a, c) => a + parseFloat(c.payment_status === 'paid' ? c.contracted_amount : (c.abono_amount || 0)), 0);
+    .filter(c => c.payment_status === 'abono' || c.payment_status === 'pagado')
+    .reduce((a, c) => a + parseFloat(c.payment_status === 'pagado' ? c.contracted_amount : (c.abono_amount || 0)), 0);
   const totalQuoted = contracts.reduce((a, c) => a + parseFloat(c.quoted_amount || 0), 0);
 
   return { ev, contracts, totalBudget, totalContracted, totalCommitted, totalQuoted };
