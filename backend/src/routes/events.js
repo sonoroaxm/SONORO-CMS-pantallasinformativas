@@ -283,13 +283,17 @@ router.post('/:id/sessions', auth, async (req, res) => {
   );
   if (!evCheck.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
   try {
+    const tz = evCheck.rows[0].timezone || 'America/Bogota';
     const { rows } = await pool.query(
       `INSERT INTO events.event_sessions
          (event_id, user_id, name, description, session_type, venue_zone,
           starts_at, ends_at, capacity, requires_registration)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,
+         ($7::timestamp AT TIME ZONE $11),
+         ($8::timestamp AT TIME ZONE $11),
+         $9,$10) RETURNING *`,
       [req.params.id, evCheck.rows[0].user_id, name.trim(), description || null,
-       session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration]
+       session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -731,6 +735,60 @@ router.patch('/:id/sessions/:sessionId/status', auth, async (req, res) => {
 });
 
 // ── BROADCAST A PANTALLAS ─────────────────────────────────────────────────────
+router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const { name, starts_at, ends_at, capacity, venue_zone, description, session_type } = req.body;
+  try {
+    const evCheck = await pool.query(
+      `SELECT id, timezone FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const tz = evCheck.rows[0].timezone || 'America/Bogota';
+    const { rows } = await pool.query(
+      `UPDATE events.event_sessions SET
+         name = COALESCE($3, name),
+         starts_at = COALESCE(($4::timestamp AT TIME ZONE $9), starts_at),
+         ends_at   = COALESCE(($5::timestamp AT TIME ZONE $9), ends_at),
+         capacity  = $6,
+         venue_zone = COALESCE($7, venue_zone),
+         description = COALESCE($8, description)
+       WHERE id = $1 AND event_id = $2 RETURNING *`,
+      [req.params.sessionId, req.params.id,
+       name?.trim() || null, starts_at || null, ends_at || null,
+       capacity !== undefined ? (capacity || null) : undefined,
+       venue_zone || null, description || null, tz]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Sesión no encontrada' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('\u274C PATCH /sessions/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/:id/sessions/:sessionId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const del = await pool.query(
+      'DELETE FROM events.event_sessions WHERE id = $1 AND event_id = $2',
+      [req.params.sessionId, req.params.id]
+    );
+    if (!del.rowCount) return res.status(404).json({ error: 'Sesión no encontrada' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('\u274C DELETE /sessions/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 router.post('/:id/screen-message', auth, async (req, res) => {
   const pool = global.pool;
   const { message, type = 'info' } = req.body;

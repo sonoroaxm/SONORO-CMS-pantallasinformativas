@@ -1511,6 +1511,7 @@
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
                 <div id="ev-add-session-form" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                  <input type="hidden" id="ev-sess-edit-id">
                   <div style="display:grid;gap:10px;">
                     <div class="form-group" style="margin:0;"><label>Nombre de la sesión</label><input type="text" id="ev-sess-name" placeholder="Ej: Día 1 — Mañana"></div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -4436,6 +4437,7 @@ async function evLoadSessions(eventId) {
   try {
     const res = await fetch(`${API_URL}/api/events/${eventId}/sessions`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const sessions = await res.json();
+    evSessionsList = sessions;
     if (!sessions.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Sin sesiones. Agrega una arriba.</div>'; return; }
     list.innerHTML = sessions.map(s => {
       const tz = evCurrentEvent?.timezone || 'UTC';
@@ -4444,10 +4446,14 @@ async function evLoadSessions(eventId) {
       const dateStr = startDt.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz });
       const startT = startDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
       const endT = endDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-        <div>
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
+        <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;">${s.name}</div>
           <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' cupos' : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">Editar</button>
+          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteSession('${s.id}')">×</button>
         </div>
       </div>`;
     }).join('');
@@ -4459,9 +4465,39 @@ function evOpenAddSession() {
 }
 function evCloseAddSession() {
   document.getElementById('ev-add-session-form').classList.add('hidden');
-  ['ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end'].forEach(id => { document.getElementById(id).value = ''; });
+  ['ev-sess-edit-id','ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end'].forEach(id => { document.getElementById(id).value = ''; });
 }
+let evSessionsList = [];
+
+function evEditSession(id) {
+  const s = evSessionsList.find(x => x.id === id);
+  if (!s) return;
+  const tz = evCurrentEvent?.timezone || 'UTC';
+  document.getElementById('ev-sess-edit-id').value = s.id;
+  document.getElementById('ev-sess-name').value = s.name || '';
+  // Convert stored UTC to event timezone for the inputs
+  document.getElementById('ev-sess-date').value = new Date(s.starts_at).toLocaleDateString('sv-SE', { timeZone: tz });
+  document.getElementById('ev-sess-start').value = new Date(s.starts_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  document.getElementById('ev-sess-end').value = new Date(s.ends_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  document.getElementById('ev-sess-cap').value = s.capacity || '';
+  document.getElementById('ev-add-session-form').classList.remove('hidden');
+  document.getElementById('ev-sess-name').focus();
+}
+
+async function evDeleteSession(id) {
+  if (!confirm('¿Eliminar esta sesión?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { showStatus('Error al eliminar', 'error'); return; }
+    evLoadSessions(evCurrentEventId);
+    showStatus('Sesión eliminada', 'success');
+  } catch(e) { showStatus('Error al eliminar', 'error'); }
+}
+
 async function evSaveSession() {
+  const editId = document.getElementById('ev-sess-edit-id').value;
   const name = document.getElementById('ev-sess-name').value.trim();
   const date = document.getElementById('ev-sess-date').value;
   const startT = document.getElementById('ev-sess-start').value;
@@ -4474,14 +4510,17 @@ async function evSaveSession() {
     capacity: document.getElementById('ev-sess-cap').value || null
   };
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, {
-      method: 'POST',
+    const url = editId
+      ? `${API_URL}/api/events/${evCurrentEventId}/sessions/${editId}`
+      : `${API_URL}/api/events/${evCurrentEventId}/sessions`;
+    const res = await fetch(url, {
+      method: editId ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify(body)
     });
     const data = await res.json();
     if (data.id) {
-      showStatus('Sesión agregada', 'success');
+      showStatus(editId ? 'Sesión actualizada' : 'Sesión agregada', 'success');
       evCloseAddSession();
       evLoadSessions(evCurrentEventId);
     } else { showStatus(data.error || 'Error', 'error'); }
