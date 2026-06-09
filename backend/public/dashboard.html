@@ -1800,7 +1800,11 @@
             <div class="card" style="margin-bottom:20px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
                 <h3 style="margin:0;font-size:15px;">Presupuesto del evento</h3>
-                <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()">Editar presupuesto</button>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn btn-outline btn-sm" onclick="evExportCSV()" title="Descargar CSV">⬇ CSV</button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportPDF()" title="Descargar PDF">⬇ PDF</button>
+                  <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()">Editar presupuesto</button>
+                </div>
               </div>
               <div id="ev-budget-edit" style="display:none;margin-bottom:16px;">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -5649,6 +5653,48 @@ async function evDeleteCue(id) {
     await evLoadRundown();
     showStatus('Cue eliminado', 'success');
   } catch(e) { showStatus('Error al eliminar cue', 'error'); }
+}
+
+</script>
+<script>
+
+// ── EXPORTES PROVEEDORES ───────────────────────────────────────────────────────
+function evExportCSV() {
+  if (!evCurrentEventId) return;
+  const a = document.createElement('a');
+  a.href = `${API_URL}/api/events/${evCurrentEventId}/report/csv`;
+  a.download = '';
+  // Pass token via query param not possible with auth middleware — use fetch + blob
+  fetch(`${API_URL}/api/events/${evCurrentEventId}/report/csv`, {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  }).then(r => {
+    const disp = r.headers.get('Content-Disposition') || '';
+    const nameMatch = disp.match(/filename="([^"]+)"/);
+    const filename = nameMatch ? nameMatch[1] : 'proveedores.csv';
+    return r.blob().then(b => ({ b, filename }));
+  }).then(({ b, filename }) => {
+    const url = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }).catch(() => showStatus('Error al generar CSV', 'error'));
+}
+
+function evExportPDF() {
+  if (!evCurrentEventId) return;
+  fetch(`${API_URL}/api/events/${evCurrentEventId}/report/pdf`, {
+    headers: { 'Authorization': `Bearer ${authToken}` }
+  }).then(r => {
+    const disp = r.headers.get('Content-Disposition') || '';
+    const nameMatch = disp.match(/filename="([^"]+)"/);
+    const filename = nameMatch ? nameMatch[1] : 'proveedores.pdf';
+    return r.blob().then(b => ({ b, filename }));
+  }).then(({ b, filename }) => {
+    const url = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }).catch(() => showStatus('Error al generar PDF', 'error'));
 }
 
 </script>

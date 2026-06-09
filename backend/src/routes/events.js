@@ -10,6 +10,7 @@ const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendSupplierQuoteEmail } = require('../services/email');
 const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -1138,6 +1139,269 @@ router.delete('/:id/rundown/:cueId', auth, async (req, res) => {
   } catch (err) {
     console.error('\u274C DELETE rundown/:cueId:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fmtCOP(n) {
+  if (!n && n !== 0) return '—';
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(n));
+}
+function fmtDate(iso, tz) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: tz || 'America/Bogota' });
+}
+function statusLabel(s) {
+  return { pending: 'Pendiente', partial: 'Abono', paid: 'Pagado', cancelled: 'Cancelado', cotizado: 'Cotizado', enviada: 'Enviada', recibida: 'Recibida', aceptada: 'Aceptada', rechazada: 'Rechazada' }[s] || s || '—';
+}
+
+async function getReportData(pool, eventId, userId, isAdmin) {
+  const evRes = await pool.query(
+    `SELECT id, name, starts_at, ends_at, venue_name, status, timezone,
+            config->>'total_budget' AS total_budget
+     FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+    isAdmin ? [eventId] : [eventId, userId]
+  );
+  if (!evRes.rowCount) return null;
+  const ev = evRes.rows[0];
+
+  const rows = await pool.query(
+    `SELECT
+       s.name        AS supplier_name,
+       s.category,
+       s.contact_name,
+       s.contact_email,
+       s.contact_phone,
+       es.service_description,
+       es.contracted_amount,
+       es.abono_amount,
+       es.payment_status,
+       es.notes,
+       sq.data->>'total_con_iva'  AS quoted_amount,
+       sq.data->>'descripcion'    AS quote_desc,
+       sq.status                  AS quote_status,
+       sq.submitted_at            AS quote_date
+     FROM events.event_suppliers es
+     JOIN events.suppliers s ON s.id = es.supplier_id
+     LEFT JOIN LATERAL (
+       SELECT data, status, submitted_at
+       FROM events.supplier_quotes
+       WHERE event_supplier_id = es.id
+       ORDER BY submitted_at DESC NULLS LAST LIMIT 1
+     ) sq ON true
+     WHERE es.event_id = $1
+     ORDER BY s.category NULLS LAST, s.name`,
+    [eventId]
+  );
+
+  const contracts = rows.rows;
+  const totalBudget = parseFloat(ev.total_budget || 0);
+  const totalContracted = contracts.reduce((a, c) => a + parseFloat(c.contracted_amount || 0), 0);
+  const totalCommitted = contracts
+    .filter(c => c.payment_status === 'partial' || c.payment_status === 'paid')
+    .reduce((a, c) => a + parseFloat(c.payment_status === 'paid' ? c.contracted_amount : (c.abono_amount || 0)), 0);
+  const totalQuoted = contracts.reduce((a, c) => a + parseFloat(c.quoted_amount || 0), 0);
+
+  return { ev, contracts, totalBudget, totalContracted, totalCommitted, totalQuoted };
+}
+
+// ── CSV REPORT ────────────────────────────────────────────────────────────────
+router.get('/:id/report/csv', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts } = d;
+    const tz = ev.timezone || 'America/Bogota';
+
+    const headers = ['Proveedor','Categoría','Contacto','Email','Teléfono','Servicio','Monto Pactado COP','Abono COP','Estado Pago','Total Cotizado COP','Estado Cotización','Fecha Cotización'];
+    const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+    let csv = '﻿'; // BOM for Excel
+    csv += headers.map(escape).join(',') + '\r\n';
+    for (const c of contracts) {
+      csv += [
+        c.supplier_name,
+        c.category || '',
+        c.contact_name || '',
+        c.contact_email || '',
+        c.contact_phone || '',
+        c.service_description || '',
+        c.contracted_amount ? Math.round(c.contracted_amount) : 0,
+        c.abono_amount ? Math.round(c.abono_amount) : 0,
+        statusLabel(c.payment_status),
+        c.quoted_amount ? Math.round(c.quoted_amount) : 0,
+        statusLabel(c.quote_status),
+        c.quote_date ? fmtDate(c.quote_date, tz) : ''
+      ].map(escape).join(',') + '\r\n';
+    }
+    // Totals row
+    csv += [
+      'TOTAL','','','','','',
+      Math.round(d.totalContracted),
+      Math.round(d.totalCommitted),
+      '','',Math.round(d.totalQuoted),''
+    ].map(escape).join(',') + '\r\n';
+
+    const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('❌ GET report/csv:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── PDF REPORT ────────────────────────────────────────────────────────────────
+router.get('/:id/report/pdf', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts, totalBudget, totalContracted, totalCommitted, totalQuoted } = d;
+    const tz = ev.timezone || 'America/Bogota';
+
+    const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true });
+    doc.pipe(res);
+
+    const W = 595 - 96; // page width minus margins
+    const AMBER = '#f59e0b';
+    const DARK  = '#111827';
+    const GRAY  = '#6b7280';
+    const LIGHT = '#f3f4f6';
+    const WHITE = '#ffffff';
+
+    // ── HEADER ──────────────────────────────────────────────────────────────
+    doc.rect(0, 0, 595, 80).fill('#18181b');
+    doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(18).text('SONORO', 48, 20);
+    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text('Reporte de Proveedores', 48, 44);
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13).text(ev.name, 48, 58, { width: W - 100 });
+
+    // ── EVENT INFO ──────────────────────────────────────────────────────────
+    let y = 96;
+    const dateRange = `${fmtDate(ev.starts_at, tz)}${ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at, tz) : ''}`;
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(`${dateRange}   ·   ${ev.venue_name || 'Sin sede'}   ·   Estado: ${statusLabel(ev.status)}`, 48, y);
+    doc.fillColor(GRAY).fontSize(8).text(`Generado: ${new Date().toLocaleString('es-CO', { timeZone: tz, day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true })}`, 48, y + 13);
+    y += 36;
+
+    // ── BUDGET SUMMARY ──────────────────────────────────────────────────────
+    const boxW = (W - 9) / 4;
+    const budgetBoxes = [
+      { label: 'Presupuesto', value: fmtCOP(totalBudget), color: DARK },
+      { label: 'Total pactado', value: fmtCOP(totalContracted), color: '#f59e0b' },
+      { label: 'Desembolsado', value: fmtCOP(totalCommitted), color: '#ef4444' },
+      { label: 'Total cotizado', value: fmtCOP(totalQuoted), color: '#3b82f6' }
+    ];
+    budgetBoxes.forEach((b, i) => {
+      const bx = 48 + i * (boxW + 3);
+      doc.roundedRect(bx, y, boxW, 44, 4).fill(LIGHT);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(8).text(b.label, bx + 8, y + 8, { width: boxW - 16 });
+      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(11).text(b.value, bx + 8, y + 20, { width: boxW - 16 });
+    });
+    y += 56;
+
+    // ── TABLE HEADER ────────────────────────────────────────────────────────
+    const cols = [
+      { label: 'Proveedor',       w: 120 },
+      { label: 'Categoría',       w: 70  },
+      { label: 'Servicio',        w: 140 },
+      { label: 'Pactado',         w: 70  },
+      { label: 'Cotizado',        w: 70  },
+      { label: 'Estado',          w: 55  },
+    ];
+    doc.rect(48, y, W, 18).fill('#18181b');
+    let cx = 48;
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
+    cols.forEach(c => {
+      doc.text(c.label, cx + 4, y + 5, { width: c.w - 8, lineBreak: false });
+      cx += c.w;
+    });
+    y += 18;
+
+    // ── TABLE ROWS ──────────────────────────────────────────────────────────
+    const rowH = 22;
+    contracts.forEach((c, i) => {
+      if (y + rowH > 780) { doc.addPage(); y = 48; }
+      doc.rect(48, y, W, rowH).fill(i % 2 === 0 ? WHITE : LIGHT);
+      cx = 48;
+      const vals = [
+        c.supplier_name || '—',
+        c.category || '—',
+        c.service_description || '—',
+        c.contracted_amount ? fmtCOP(c.contracted_amount) : '—',
+        c.quoted_amount ? fmtCOP(c.quoted_amount) : '—',
+        statusLabel(c.payment_status)
+      ];
+      doc.fillColor(DARK).font('Helvetica').fontSize(8);
+      cols.forEach((col, ci) => {
+        doc.text(vals[ci], cx + 4, y + 7, { width: col.w - 8, lineBreak: false, ellipsis: true });
+        cx += col.w;
+      });
+
+      // Quote status pill
+      if (c.quote_status) {
+        const pillColor = { recibida: '#22c55e', aceptada: '#3b82f6', rechazada: '#ef4444', enviada: '#f59e0b' }[c.quote_status] || GRAY;
+        doc.roundedRect(48 + W - 52, y + 5, 46, 12, 3).fill(pillColor);
+        doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(7).text(statusLabel(c.quote_status), 48 + W - 50, y + 8, { width: 42, lineBreak: false });
+      }
+      y += rowH;
+    });
+
+    // ── TOTALS ROW ───────────────────────────────────────────────────────────
+    if (contracts.length) {
+      if (y + rowH > 780) { doc.addPage(); y = 48; }
+      doc.rect(48, y, W, rowH).fill('#18181b');
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
+      cx = 48;
+      const totals = ['TOTAL', '', '', fmtCOP(totalContracted), fmtCOP(totalQuoted), ''];
+      cols.forEach((col, ci) => {
+        doc.text(totals[ci], cx + 4, y + 7, { width: col.w - 8, lineBreak: false });
+        cx += col.w;
+      });
+      y += rowH;
+    }
+
+    // ── QUOTES DETAIL (if any received) ─────────────────────────────────────
+    const withQuotes = contracts.filter(c => c.quote_status === 'recibida' || c.quote_status === 'aceptada');
+    if (withQuotes.length) {
+      y += 20;
+      if (y + 30 > 780) { doc.addPage(); y = 48; }
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text('Detalle de cotizaciones recibidas', 48, y);
+      y += 16;
+      withQuotes.forEach(c => {
+        if (y + 50 > 780) { doc.addPage(); y = 48; }
+        doc.roundedRect(48, y, W, 2).fill(AMBER);
+        y += 6;
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(9).text(c.supplier_name, 48, y);
+        doc.fillColor(GRAY).font('Helvetica').fontSize(8)
+           .text(`Servicio: ${c.service_description || '—'}   ·   Cotizado: ${fmtCOP(c.quoted_amount)}   ·   ${fmtDate(c.quote_date, tz)}`, 48, y + 12);
+        if (c.quote_desc) {
+          doc.fillColor(GRAY).fontSize(7).text(c.quote_desc.substring(0, 200), 48, y + 24, { width: W });
+          y += 38;
+        } else { y += 30; }
+      });
+    }
+
+    // ── FOOTER ───────────────────────────────────────────────────────────────
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7)
+         .text(`SONORO CMS · ${ev.name} · Pág ${i + 1} de ${pages.count}`, 48, 820, { width: W, align: 'center' });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET report/pdf:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
   }
 });
 
