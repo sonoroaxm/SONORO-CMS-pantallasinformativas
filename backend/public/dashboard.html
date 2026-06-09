@@ -4960,6 +4960,7 @@ async function evDeleteStaff(staffId, staffName) {
 let evSupplierDir = [];    // tenant catalog
 let evEventContracts = []; // this event's contracted suppliers
 let evBudgetData = {};
+let evEditingSupplierId = null;
 
 const EV_CONTRACT_STATUS_LABELS = {
   cotizado: 'Cotizado', abono: 'Abono', pagado: 'Pagado'
@@ -5038,11 +5039,11 @@ function evRenderContracts() {
     // Quote badge
     let quoteBadge = '';
     if (c.quote_status === 'recibida' || c.quote_status === 'aceptada') {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#22c55e;color:#22c55e;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">📄 Ver cotización</button>`;
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#22c55e;color:#22c55e;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">Ver cotización</button>`;
     } else if (c.quote_status === 'enviada') {
-      quoteBadge = `<span style="font-size:11px;color:#f59e0b;font-weight:600;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">⏳ Esperando respuesta</span>`;
+      quoteBadge = `<span style="font-size:11px;color:#f59e0b;font-weight:600;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">Esperando respuesta</span>`;
     } else if (c.contact_email) {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" title="Enviar formato de cotización a ${c.contact_email}" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">✉ Cotizar</button>`;
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" title="Enviar formato de cotización a ${c.contact_email}" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">Cotizar</button>`;
     }
     return `<div id="ev-cr-${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -5209,18 +5210,35 @@ function evRenderSupplierDir() {
         ${s.contact_name ? `<div style="font-size:11px;color:var(--muted);">${s.contact_name}${s.contact_phone ? ` · ${s.contact_phone}` : ''}</div>` : ''}
         ${s.contact_email ? `<div style="font-size:11px;color:var(--muted);">${s.contact_email}</div>` : ''}
       </div>
+      <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px;"
+        onclick="evEditSupplier('${s.id}')">Editar</button>
       <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
         onclick="evDeleteSupplier('${s.id}','${(s.name||'').replace(/'/g,'')}')">✕</button>
     </div>`).join('');
 }
 
 function evShowAddSupplier() {
+  evEditingSupplierId = null;
+  document.getElementById('ev-add-supplier-form').style.display = '';
+  document.getElementById('ev-sup-name').focus();
+}
+
+function evEditSupplier(supId) {
+  const s = evSupplierDir.find(x => x.id === supId);
+  if (!s) return;
+  evEditingSupplierId = supId;
+  document.getElementById('ev-sup-name').value = s.name || '';
+  document.getElementById('ev-sup-category').value = s.category || '';
+  document.getElementById('ev-sup-contact').value = s.contact_name || '';
+  document.getElementById('ev-sup-phone').value = s.contact_phone || '';
+  document.getElementById('ev-sup-email').value = s.contact_email || '';
   document.getElementById('ev-add-supplier-form').style.display = '';
   document.getElementById('ev-sup-name').focus();
 }
 
 function evCloseAddSupplier() {
   document.getElementById('ev-add-supplier-form').style.display = 'none';
+  evEditingSupplierId = null;
   ['ev-sup-name','ev-sup-category','ev-sup-contact','ev-sup-phone','ev-sup-email'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
@@ -5237,17 +5255,24 @@ async function evSaveSupplier() {
     contact_email: document.getElementById('ev-sup-email').value.trim() || undefined
   };
   try {
-    const res = await fetch(`${API_URL}/api/events/suppliers`, {
-      method: 'POST',
+    const isEdit = !!evEditingSupplierId;
+    const url = isEdit ? `${API_URL}/api/events/suppliers/${evEditingSupplierId}` : `${API_URL}/api/events/suppliers`;
+    const res = await fetch(url, {
+      method: isEdit ? 'PATCH' : 'POST',
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
-    evSupplierDir.push(data);
+    if (isEdit) {
+      const idx = evSupplierDir.findIndex(s => s.id === evEditingSupplierId);
+      if (idx >= 0) evSupplierDir[idx] = data;
+    } else {
+      evSupplierDir.push(data);
+    }
     evRenderSupplierDir();
     evCloseAddSupplier();
-    showStatus('Proveedor guardado en directorio', 'success');
+    showStatus(isEdit ? 'Proveedor actualizado' : 'Proveedor guardado en directorio', 'success');
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
@@ -5315,7 +5340,7 @@ function evShowQuoteModal(q) {
       ${row('Condición de pago', data.condicion_pago)}
       ${row('Notas', data.notes)}
     </table>
-    ${q.pdf_path ? `<a href="${q.pdf_path}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:7px;text-decoration:none;color:var(--text);font-size:13px;font-weight:600;">📎 Ver PDF adjunto ↗</a>` : ''}
+    ${q.pdf_path ? `<a href="${q.pdf_path}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);border-radius:7px;text-decoration:none;color:var(--text);font-size:13px;font-weight:600;">Ver PDF adjunto ↗</a>` : ''}
   `;
   // Use a simple overlay modal
   let modal = document.getElementById('ev-quote-modal');

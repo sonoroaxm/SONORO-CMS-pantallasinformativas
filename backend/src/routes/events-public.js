@@ -26,7 +26,7 @@ const pdfUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') cb(null, true);
-    else cb(new Error('Solo se aceptan archivos PDF'));
+    else cb(null, false);
   }
 });
 

@@ -185,7 +185,7 @@
         <input type="file" id="pdf-input" name="pdf" accept=".pdf,application/pdf" onchange="evPdfSelected(this)">
       </div>
 
-      <button type="submit" class="btn-submit" id="btn-submit">Enviar cotización →</button>
+      <button type="submit" class="btn-submit" id="btn-submit">Enviar cotización</button>
     </form>
   </div>
 
@@ -307,12 +307,19 @@
     btn.disabled = true; btn.textContent = 'Enviando...';
 
     try {
-      const fd = new FormData(document.getElementById('quote-form'));
+      const fd = new FormData();
+      ['description','unit_price','qty','subtotal','iva_pct','total_con_iva','vigencia_fecha','condicion_pago','notes'].forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) fd.append(name, el.value);
+      });
+      const pdfInput = document.getElementById('pdf-input');
+      if (pdfInput.files[0]) fd.append('pdf', pdfInput.files[0]);
       const res = await fetch(`${API}/api/events/public/cotizacion/${token}`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Error al enviar'); btn.disabled = false; btn.textContent = 'Enviar cotización →'; return; }
+      let data = {};
+      try { data = await res.json(); } catch { /* non-JSON response */ }
+      if (!res.ok) { alert(data.error || 'Error al enviar'); btn.disabled = false; btn.textContent = 'Enviar cotización'; return; }
       showSubmitted();
-    } catch(err) { alert('Error de conexión'); btn.disabled = false; btn.textContent = 'Enviar cotización →'; }
+    } catch(err) { alert('Error de conexión'); btn.disabled = false; btn.textContent = 'Enviar cotización'; }
   });
 
   function fmtCOP(n) {

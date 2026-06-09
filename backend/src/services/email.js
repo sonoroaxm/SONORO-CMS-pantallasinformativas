@@ -636,7 +636,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td align="center">
         <a href="${quoteUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700;">
-          Enviar mi cotización →
+          Enviar mi cotización
         </a>
       </td></tr>
     </table>
