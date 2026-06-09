@@ -338,12 +338,12 @@
   function showSubmitted() {
     document.getElementById('loading-view').style.display = 'none';
     document.getElementById('form-view').style.display = 'none';
-    document.getElementById('submitted-view').style.display = '';
+    document.getElementById('submitted-view').style.display = 'block';
   }
   function showError(msg) {
     document.getElementById('loading-view').style.display = 'none';
     document.getElementById('error-msg').textContent = msg;
-    document.getElementById('error-view').style.display = '';
+    document.getElementById('error-view').style.display = 'block';
   }
 
   init();

@@ -947,4 +947,29 @@ router.get('/:id/suppliers/:contractId/quote', auth, async (req, res) => {
   }
 });
 
+// ── ELIMINAR EVENTO ───────────────────────────────────────────────────────────
+router.delete('/:id', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    await withTransaction(pool, async (client) => {
+      // Limpiar FKs sin CASCADE antes de borrar el evento
+      await client.query(`DELETE FROM events.service_redemptions WHERE event_id = $1`, [req.params.id]);
+      await client.query(`DELETE FROM events.registration_checkins WHERE event_id = $1`, [req.params.id]);
+      await client.query(`DELETE FROM events.supplier_quotes WHERE event_id = $1`, [req.params.id]);
+      // Borrar evento — CASCADE limpia el resto (registrations, sessions, staff, rundown_cues, event_suppliers)
+      await client.query(`DELETE FROM events.events WHERE id = $1`, [req.params.id]);
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ DELETE /api/events/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
