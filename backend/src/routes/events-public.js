@@ -9,26 +9,14 @@ const express    = require('express');
 const router     = express.Router();
 const rateLimit  = require('express-rate-limit');
 const jwt        = require('jsonwebtoken');
-const multer     = require('multer');
 const path       = require('path');
 const fs         = require('fs');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendEventPendingEmail } = require('../services/email');
 
-// Multer para PDF de cotizaciones
+// Directorio para PDFs de cotizaciones (express-fileupload ya está global en index.js)
 const cotizacionDir = path.join(process.cwd(), 'uploads', 'cotizaciones');
 if (!fs.existsSync(cotizacionDir)) fs.mkdirSync(cotizacionDir, { recursive: true });
-const pdfUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, cotizacionDir),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${req.params.token.slice(0, 12)}.pdf`)
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') cb(null, true);
-    else cb(null, false);
-  }
-});
 
 const eventPublicReadLimiter = rateLimit({
   windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
@@ -310,8 +298,9 @@ router.get('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
   }
 });
 
-router.post('/cotizacion/:token', eventPublicReadLimiter, pdfUpload.single('pdf'), async (req, res) => {
+router.post('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
   const pool = global.pool;
+  let savedFilePath = null;
   try {
     const { rows } = await pool.query(
       `SELECT id, status FROM events.supplier_quotes WHERE token = $1`,
@@ -321,7 +310,22 @@ router.post('/cotizacion/:token', eventPublicReadLimiter, pdfUpload.single('pdf'
     if (rows[0].status === 'recibida') return res.status(409).json({ error: 'Esta cotización ya fue enviada' });
 
     const data = { ...req.body };
-    const pdf_path = req.file ? `/uploads/cotizaciones/${req.file.filename}` : null;
+    let pdf_path = null;
+
+    // express-fileupload pone el archivo en req.files (ya está global en index.js)
+    const pdfFile = req.files?.pdf;
+    if (pdfFile) {
+      if (pdfFile.mimetype !== 'application/pdf') {
+        return res.status(400).json({ error: 'Solo se aceptan archivos PDF' });
+      }
+      if (pdfFile.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: 'El PDF no puede superar 10 MB' });
+      }
+      const filename = `${Date.now()}-${req.params.token.slice(0, 12)}.pdf`;
+      savedFilePath = path.join(cotizacionDir, filename);
+      await pdfFile.mv(savedFilePath);
+      pdf_path = `/uploads/cotizaciones/${filename}`;
+    }
 
     await pool.query(
       `UPDATE events.supplier_quotes
@@ -331,7 +335,7 @@ router.post('/cotizacion/:token', eventPublicReadLimiter, pdfUpload.single('pdf'
     );
     res.json({ ok: true });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
+    if (savedFilePath) fs.unlink(savedFilePath, () => {});
     console.error('❌ POST /cotizacion/:token:', err);
     res.status(500).json({ error: 'Error interno' });
   }
