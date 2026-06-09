@@ -207,15 +207,25 @@
   const API = '';
 
   async function init() {
+    console.log('[cotizacion] token:', token, '| path:', window.location.pathname);
+    if (!token) { showError('Enlace inválido — token no encontrado en URL'); return; }
     try {
-      const res = await fetch(`${API}/api/events/public/cotizacion/${token}`);
-      const data = await res.json();
-      if (!res.ok) { showError(data.error || 'Enlace inválido'); return; }
+      const url = `${API}/api/events/public/cotizacion/${token}`;
+      console.log('[cotizacion] GET', url);
+      const res = await fetch(url);
+      console.log('[cotizacion] response status:', res.status);
+      let data;
+      try { data = await res.json(); } catch(je) { showError('Respuesta inválida del servidor'); console.error('[cotizacion] JSON parse error:', je); return; }
+      if (!res.ok) { showError(data.error || 'Enlace inválido'); console.error('[cotizacion] API error:', data); return; }
       if (data.status === 'recibida') { showSubmitted(); return; }
+      console.log('[cotizacion] populateContext data:', data);
       populateContext(data);
       document.getElementById('loading-view').style.display = 'none';
-      document.getElementById('form-view').style.display = '';
-    } catch(e) { showError('Error cargando el formulario'); }
+      document.getElementById('form-view').style.display = 'block';
+    } catch(e) {
+      console.error('[cotizacion] init() catch:', e);
+      showError('Error cargando el formulario: ' + e.message);
+    }
   }
 
   function populateContext(d) {
