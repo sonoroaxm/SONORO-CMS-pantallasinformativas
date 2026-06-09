@@ -1572,6 +1572,21 @@
                     <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
                   </div>
                 </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- Dashboard Producción -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,27,141,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF1B8D" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h7M17 14v7"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Dashboard Producción</div>
+                    <div id="ev-produccion-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-produccion-url')" style="border-color:#FF1B8D;color:#FF1B8D;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-produccion-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -4137,6 +4152,8 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-staff-url-link').href = `${baseUrl}/staff`;
   document.getElementById('ev-kiosko-url').textContent = `${baseUrl}/kiosko`;
   document.getElementById('ev-kiosko-url-link').href = `${baseUrl}/kiosko`;
+  document.getElementById('ev-produccion-url').textContent = `${baseUrl}/produccion`;
+  document.getElementById('ev-produccion-url-link').href = `${baseUrl}/produccion`;
   const pubBtn = document.getElementById('ev-publish-btn');
   if (ev.status === 'published' || ev.status === 'live') {
     pubBtn.textContent = 'Despublicar';
