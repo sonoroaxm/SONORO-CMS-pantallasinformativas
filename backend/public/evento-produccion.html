@@ -20,6 +20,14 @@
   --blue:   #60a5fa;
   --purple: #a78bfa;
 }
+[data-theme='light'] {
+  --bg:     #f1f5f9;
+  --s1:     #ffffff;
+  --s2:     #f8fafc;
+  --border: #e2e8f0;
+  --text:   #0f172a;
+  --muted:  #94a3b8;
+}
 html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
 
 /* ── LAYOUT ── */
@@ -51,6 +59,8 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 .hdr-clock-wrap { text-align:right; }
 .hdr-clock { font-size:26px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-1.5px; line-height:1; }
+.theme-btn { display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--s2); color:var(--text); cursor:pointer; font-size:16px; transition:background .15s,border-color .15s; flex-shrink:0; }
+.theme-btn:hover { background:var(--border); }
 .hdr-tz    { font-size:9px; color:var(--muted); }
 
 /* ── HEADER COUNTDOWN ── */
@@ -218,6 +228,7 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
       </div>
     </div>
     <div class="hdr-right">
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
       <div class="live-pill" id="live-pill" style="display:none">
         <div class="live-dot"></div>EN VIVO
       </div>
@@ -824,6 +835,22 @@ async function markCue(cueId, newStatus) {
     console.error('markCue:', err);
   }
 }
+
+// ── THEME ──────────────────────────────────────────────────────────────────────
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = t === 'light' ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'light' ? '' : 'light';
+  localStorage.setItem('produccion-theme', next);
+  applyTheme(next);
+}
+(function() {
+  const saved = localStorage.getItem('produccion-theme') || '';
+  applyTheme(saved);
+})();
 
 // ── START ─────────────────────────────────────────────────────────────────────
 init();
