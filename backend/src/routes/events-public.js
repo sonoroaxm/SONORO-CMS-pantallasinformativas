@@ -204,16 +204,19 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     // Email — async, no bloquea la respuesta
     // auto_confirm=true → correo de confirmación con QR
     // auto_confirm=false → correo de inscripción pendiente (QR llega al confirmar)
+    const emailConfig = { from_name: event.config?.email_from_name || null, reply_to: event.config?.email_reply_to || null };
     if (autoConfirm) {
       sendEventRegistrationEmail(
         { name: name.trim(), email: cleanEmail },
         event,
-        registration
+        registration,
+        emailConfig
       ).catch(e => console.error('⚠️ Email confirmación evento fallido:', e.message));
     } else {
       sendEventPendingEmail(
         { name: name.trim(), email: cleanEmail },
-        event
+        event,
+        emailConfig
       ).catch(e => console.error('⚠️ Email inscripción pendiente fallido:', e.message));
     }
 
@@ -303,7 +306,7 @@ router.post('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
   let savedFilePath = null;
   try {
     const { rows } = await pool.query(
-      `SELECT id, status FROM events.supplier_quotes WHERE token = $1`,
+      `SELECT id, status, event_supplier_id, event_id FROM events.supplier_quotes WHERE token = $1`,
       [req.params.token]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Token inválido' });
@@ -333,6 +336,16 @@ router.post('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
        WHERE token = $3`,
       [JSON.stringify(data), pdf_path, req.params.token]
     );
+    if (rows[0].event_supplier_id) {
+      await pool.query(
+        `UPDATE events.event_suppliers SET payment_status = 'quote_received' WHERE id = $1`,
+        [rows[0].event_supplier_id]
+      );
+      global.io?.to(`event_${rows[0].event_id}`).emit('supplier.quote_received', {
+        event_id: rows[0].event_id,
+        event_supplier_id: rows[0].event_supplier_id,
+      });
+    }
     res.json({ ok: true });
   } catch (err) {
     if (savedFilePath) fs.unlink(savedFilePath, () => {});

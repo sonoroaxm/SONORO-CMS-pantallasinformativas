@@ -974,19 +974,20 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
     }
     if (payment_status === 'accepted' && rows[0].supplier_id) {
       pool.query(
-        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name
+        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name, e.config AS event_config
          FROM events.suppliers s
          JOIN events.events e ON e.id = $1
          WHERE s.id = $2 AND s.user_id = $3`,
         [id, rows[0].supplier_id, req.user.id]
       ).then(supR => {
         if (supR.rows[0]?.contact_email) {
+          const eCfgAcc = { from_name: supR.rows[0].event_config?.email_from_name || null, reply_to: supR.rows[0].event_config?.email_reply_to || null };
           sendSupplierAcceptedEmail({
             supplier_name: supR.rows[0].supplier_name,
             contact_email: supR.rows[0].contact_email,
             event_name:    supR.rows[0].event_name,
             contracted_amount: rows[0].contracted_amount,
-          }).catch(e => console.error('⚠️ Email aceptación proveedor:', e.message));
+          }, eCfgAcc).catch(e => console.error('⚠️ Email aceptación proveedor:', e.message));
         }
       }).catch(() => {});
     }
@@ -1108,7 +1109,7 @@ router.post('/:id/suppliers/:contractId/send-quote', auth, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT es.id, es.service_description, es.contracted_amount,
               s.name AS supplier_name, s.contact_email,
-              e.name AS event_name, e.starts_at, e.timezone
+              e.name AS event_name, e.starts_at, e.timezone, e.config AS event_config
        FROM events.event_suppliers es
        JOIN events.suppliers s ON s.id = es.supplier_id
        JOIN events.events e ON e.id = es.event_id
@@ -1126,7 +1127,8 @@ router.post('/:id/suppliers/:contractId/send-quote', auth, async (req, res) => {
       [id, contractId, req.user.id, token, contract.contact_email]
     );
     const quoteUrl = `${process.env.CMS_URL || 'https://cms.sonoro.com.co'}/cotizacion/${token}`;
-    await sendSupplierQuoteEmail(contract, quoteUrl);
+    const emailCfgQ = { from_name: contract.event_config?.email_from_name || null, reply_to: contract.event_config?.email_reply_to || null };
+    await sendSupplierQuoteEmail(contract, quoteUrl, emailCfgQ);
     await pool.query(
       `UPDATE events.event_suppliers SET payment_status = 'quote_sent' WHERE id = $1`,
       [contractId]

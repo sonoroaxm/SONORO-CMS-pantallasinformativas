@@ -1787,6 +1787,24 @@
             </div>
           </div>
 
+          <!-- Configuración de correos -->
+            <div class="card" style="margin-top:16px;">
+              <div class="card-title">Configuración de correos</div>
+              <div style="display:grid;gap:12px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                  <div class="form-group" style="margin:0;">
+                    <label>Nombre del remitente <span style="font-size:10px;font-weight:400;color:var(--text-muted);">(aparece en el inbox del destinatario)</span></label>
+                    <input type="text" id="ev-edit-email-from" placeholder="SONORO CMS (por defecto)">
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Reply-To <span style="font-size:10px;font-weight:400;color:var(--text-muted);">(a quién responde el destinatario)</span></label>
+                    <input type="email" id="ev-edit-email-reply" placeholder="Vacío = sin reply-to">
+                  </div>
+                </div>
+                <p style="margin:0;font-size:11px;color:var(--text-muted);line-height:1.5;">Los correos siempre se envían desde <strong>cms@sonoro.com.co</strong>. El nombre del remitente y el Reply-To son visibles para el destinatario. Aplica a confirmaciones de registro y correos de cotización a proveedores.</p>
+              </div>
+            </div>
+
           <!-- SUB-TAB: Formulario -->
           <div id="ev-sub-form" class="ev-sub-panel hidden">
             <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">
@@ -6218,6 +6236,8 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-edit-start').value = ev.starts_at ? ev.starts_at.substring(0,10) : '';
   document.getElementById('ev-edit-end').value = ev.ends_at ? ev.ends_at.substring(0,10) : '';
   document.getElementById('ev-edit-tz').value = ev.timezone || 'America/Bogota';
+  document.getElementById('ev-edit-email-from').value = ev.config?.email_from_name || '';
+  document.getElementById('ev-edit-email-reply').value = ev.config?.email_reply_to || '';
   evSelectConfirmMode(ev.config?.auto_confirm ? 'auto' : 'manual');
   const ticketTypes = (ev.config && ev.config.ticket_types) || [];
   document.getElementById('ev-edit-ticket-types').value = ticketTypes.join('\n');
@@ -6278,7 +6298,9 @@ async function evSaveInfo() {
     config: {
       ...(evCurrentEvent.config || {}),
       max_capacity: capVal ? parseInt(capVal) : null,
-      ticket_types: document.getElementById('ev-edit-ticket-types').value.split('\n').map(s=>s.trim()).filter(Boolean)
+      ticket_types: document.getElementById('ev-edit-ticket-types').value.split('\n').map(s=>s.trim()).filter(Boolean),
+      email_from_name: document.getElementById('ev-edit-email-from').value.trim() || null,
+      email_reply_to: document.getElementById('ev-edit-email-reply').value.trim() || null
     }
   };
   try {

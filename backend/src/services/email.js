@@ -483,7 +483,7 @@ async function sendPasswordResetEmail(user, resetLink) {
 }
 
 // ── EMAIL: INSCRIPCIÓN RECIBIDA (pendiente de confirmación) ──
-async function sendEventPendingEmail(attendee, event) {
+async function sendEventPendingEmail(attendee, event, emailConfig = {}) {
   const opts = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
   const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
 
@@ -524,12 +524,15 @@ async function sendEventPendingEmail(attendee, event) {
     </p>
   `);
 
-  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Inscripción recibida — ${event.name}`, html });
+  const _fromPend = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const moP = { from: _fromPend, to: attendee.email, subject: `Inscripción recibida — ${event.name}`, html };
+  if (emailConfig.reply_to) moP.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(moP);
   console.log(`✅ Email inscripción pendiente enviado a ${attendee.email}`);
 }
 
 // ── EMAIL DE CONFIRMACIÓN DE REGISTRO A EVENTO ───────────────
-async function sendEventRegistrationEmail(attendee, event, registration) {
+async function sendEventRegistrationEmail(attendee, event, registration, emailConfig = {}) {
   const QRCode  = require('qrcode');
   const qrLink  = `${CMS_URL}/evento/${event.slug}/mi-registro/${registration.qr_token}`;
   const opts    = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
@@ -600,12 +603,15 @@ async function sendEventRegistrationEmail(attendee, event, registration) {
     </p>
   `);
 
-  await transporter.sendMail({ from: FROM, to: attendee.email, subject: `Tu pase para ${event.name}`, html, attachments });
+  const _fromReg = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const moR = { from: _fromReg, to: attendee.email, subject: `Tu pase para ${event.name}`, html, attachments };
+  if (emailConfig.reply_to) moR.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(moR);
   console.log(`✅ Email de registro de evento enviado a ${attendee.email}`);
 }
 
 // ── SOLICITUD DE COTIZACIÓN A PROVEEDOR ──────────────────────
-async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name, starts_at, timezone, service_description }, quoteUrl) {
+async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name, starts_at, timezone, service_description }, quoteUrl, emailConfig = {}) {
   const dateStr = starts_at
     ? new Date(starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: timezone || 'America/Bogota' })
     : '';
@@ -636,7 +642,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td align="center">
         <a href="${quoteUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700;">
-          Enviar mi cotización
+          Enviar mi cotización →
         </a>
       </td></tr>
     </table>
@@ -645,8 +651,42 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
       Este enlace es de uso único para ${supplier_name}. No reenvíes este correo.
     </p>
   `);
-  await transporter.sendMail({ from: FROM, to: contact_email, subject: `Solicitud de cotización — ${event_name}`, html });
+  const _fromQ = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const moQ = { from: _fromQ, to: contact_email, subject: `Solicitud de cotización — ${event_name}`, html };
+  if (emailConfig.reply_to) moQ.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(moQ);
   console.log(`✅ Email cotización enviado a ${contact_email} (${event_name})`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, verifyConnection };
+async function sendSupplierAcceptedEmail({ supplier_name, contact_email, event_name, contracted_amount }, emailConfig = {}) {
+  const amountStr = contracted_amount
+    ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(contracted_amount)
+    : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f0f0f;">
+      Tu cotización ha sido aceptada
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${supplier_name}</strong>,<br>
+      Nos complace informarte que tu cotización para el siguiente evento ha sido <strong style="color:#22c55e;">aceptada</strong>.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0 0 12px;font-size:16px;color:#0f0f0f;font-weight:700;">${event_name}</p>
+        ${amountStr ? `<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Monto acordado</p>
+        <p style="margin:0;font-size:15px;color:#22c55e;font-weight:700;">${amountStr}</p>` : ''}
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
+      El equipo de producción se comunicará contigo para coordinar los próximos pasos. ¡Gracias por tu propuesta!
+    </p>
+  `);
+  const _fromA = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const moA = { from: _fromA, to: contact_email, subject: `Cotización aceptada — ${event_name}`, html };
+  if (emailConfig.reply_to) moA.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(moA);
+  console.log(`✅ Email aceptación enviado a ${contact_email} (${event_name})`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, verifyConnection };
