@@ -1702,6 +1702,16 @@
                       <div class="form-group" style="margin:0;"><label>Hora inicio</label><input type="time" id="ev-sess-start"></div>
                       <div class="form-group" style="margin:0;"><label>Hora fin</label><input type="time" id="ev-sess-end"></div>
                     </div>
+                    <div class="form-group" style="margin:0;"><label>Responsable</label>
+                      <select id="ev-sess-staff"
+                        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                        <option value="">&#8212; Sin asignar &#8212;</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin:0;"><label>Observaciones</label>
+                      <textarea id="ev-sess-obs" rows="2" placeholder="Notas o indicaciones especiales..."
+                        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                    </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;">
                       <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()">Cancelar</button>
                       <button class="btn btn-primary btn-sm" onclick="evSaveSession()">Guardar sesión</button>
@@ -1894,7 +1904,8 @@
           <!-- SUB-TAB: Registros -->
           <div id="ev-sub-regs" class="ev-sub-panel hidden">
             <!-- Stat cards -->
-            <div id="ev-regs-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px;"></div>
+            <div id="ev-regs-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:12px;"></div>
+            <div id="ev-regs-chart" style="margin-bottom:20px;"></div>
             <!-- Toolbar -->
             <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
               <input type="text" id="ev-regs-search" placeholder="Buscar por nombre o email..." style="flex:1;min-width:200px;" oninput="evRegsSearchInput()">
@@ -1999,17 +2010,21 @@
                   <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Presupuesto</div>
                   <div id="ev-budget-total" style="font-size:18px;font-weight:700;color:var(--text);">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de todos los contratos (cotizaciones + abonos + pagados)">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total pactado</div>
-                  <div id="ev-budget-contracted" style="font-size:18px;font-weight:700;color:#f59e0b;">–</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de cotizaciones recibidas o aceptadas">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total cotizado</div>
+                  <div id="ev-budget-cotizado" style="font-size:18px;font-weight:700;color:#a78bfa;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Dinero que ya salió: abonos realizados + contratos pagados en su totalidad">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Desembolsado</div>
-                  <div id="ev-budget-committed" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de contratos aceptados (comprometido)">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total aprobado</div>
+                  <div id="ev-budget-aprobado" style="font-size:18px;font-weight:700;color:#f59e0b;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total pactado">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Saldo libre</div>
-                  <div id="ev-budget-avail" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Dinero que ya salió: abonos + pagados">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total pagado</div>
+                  <div id="ev-budget-pagado" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total aprobado (puede ser negativo)">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Saldo disponible</div>
+                  <div id="ev-budget-saldo" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
                 </div>
               </div>
             </div>
@@ -2017,12 +2032,12 @@
             <!-- PROVEEDORES CONTRATADOS PARA ESTE EVENTO -->
             <div class="card" style="margin-bottom:20px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                <h3 style="margin:0;font-size:15px;">Proveedores contratados</h3>
+                <h3 style="margin:0;font-size:15px;">Proveedores</h3>
                 <button class="btn btn-primary btn-sm" onclick="evShowAddContract()">+ Agregar</button>
               </div>
 
               <!-- Formulario agregar contrato -->
-              <div id="ev-add-contract-form" style="display:none;background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px;">
+              <div id="ev-add-contract-form" style="display:none;background:var(--surface2,#f8f9fa);border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid var(--border);">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                   <div style="grid-column:1/-1;">
                     <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor del directorio *</label>
@@ -2037,7 +2052,7 @@
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Monto contratado (COP)</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Presupuesto aproximado (COP)</label>
                     <input id="ev-contract-amount" type="number" min="0" step="1000" placeholder="0"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
@@ -2064,7 +2079,7 @@
               </div>
 
               <!-- Formulario nuevo proveedor -->
-              <div id="ev-add-supplier-form" style="display:none;background:var(--bg);border-radius:8px;padding:16px;margin-bottom:16px;">
+              <div id="ev-add-supplier-form" style="display:none;background:var(--surface2,#f8f9fa);border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid var(--border);">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                   <div>
                     <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre *</label>
@@ -2090,6 +2105,41 @@
                     <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
                     <input id="ev-sup-email" type="email" placeholder="proveedor@ejemplo.com"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Tipo ID</label>
+                    <select id="ev-sup-id-type"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                      <option value="NIT">NIT</option>
+                      <option value="CC">CC</option>
+                      <option value="CE">CE</option>
+                      <option value="PA">PA</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">N° identificación</label>
+                    <input id="ev-sup-id-number" type="text" placeholder="900.123.456-7"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div id="ev-sup-docs-section" style="display:none;margin-bottom:8px;">
+                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Documentos legales</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <label id="ev-sup-rut-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
+                      RUT
+                      <input type="file" id="ev-sup-rut" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
+                        onchange="evSupDocUpload(evEditingSupplierId,'rut',this)">
+                    </label>
+                    <label id="ev-sup-cert-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
+                      Cert. bancario
+                      <input type="file" id="ev-sup-cert" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
+                        onchange="evSupDocUpload(evEditingSupplierId,'cert_bancario',this)">
+                    </label>
+                    <label id="ev-sup-camara-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
+                      Cámara comercio
+                      <input type="file" id="ev-sup-camara" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
+                        onchange="evSupDocUpload(evEditingSupplierId,'camara_comercio',this)">
+                    </label>
                   </div>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -2142,6 +2192,13 @@
                     <input id="ev-cue-location" type="text" placeholder="Auditorio principal" maxlength="100"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
+                </div>
+                <div style="margin-bottom:10px;">
+                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Responsable</label>
+                  <select id="ev-cue-responsible"
+                    style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;">
+                    <option value="">&#8212; Sin asignar &#8212;</option>
+                  </select>
                 </div>
                 <div style="margin-bottom:12px;">
                   <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Notas técnicas</label>
@@ -6263,6 +6320,7 @@ function evCopyLink(elementId) {
 async function evLoadSessions(eventId) {
   const list = document.getElementById('ev-sessions-list');
   list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Cargando...</div>';
+  await evEnsureStaff();
   try {
     const res = await fetch(`${API_URL}/api/events/${eventId}/sessions`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const sessions = await res.json();
@@ -6279,6 +6337,7 @@ async function evLoadSessions(eventId) {
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;">${s.name}</div>
           <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' cupos' : ''}</div>
+          ${s.assigned_staff_name ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">👤 ${s.assigned_staff_name}</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">Editar</button>
@@ -6290,11 +6349,13 @@ async function evLoadSessions(eventId) {
 }
 
 function evOpenAddSession() {
+  evPopulateStaffSelect('ev-sess-staff');
   document.getElementById('ev-add-session-form').classList.remove('hidden');
 }
 function evCloseAddSession() {
   document.getElementById('ev-add-session-form').classList.add('hidden');
-  ['ev-sess-edit-id','ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end'].forEach(id => { document.getElementById(id).value = ''; });
+  ['ev-sess-edit-id','ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end','ev-sess-obs'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const staffSel = document.getElementById('ev-sess-staff'); if(staffSel) staffSel.value = '';
 }
 let evSessionsList = [];
 
@@ -6309,6 +6370,9 @@ function evEditSession(id) {
   document.getElementById('ev-sess-start').value = new Date(s.starts_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   document.getElementById('ev-sess-end').value = new Date(s.ends_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
   document.getElementById('ev-sess-cap').value = s.capacity || '';
+  evPopulateStaffSelect('ev-sess-staff');
+  document.getElementById('ev-sess-staff').value = s.assigned_staff_id || '';
+  document.getElementById('ev-sess-obs').value = s.observations || '';
   document.getElementById('ev-add-session-form').classList.remove('hidden');
   document.getElementById('ev-sess-name').focus();
 }
@@ -6336,7 +6400,9 @@ async function evSaveSession() {
     name,
     starts_at: `${date}T${startT}:00`,
     ends_at: `${date}T${endT}:00`,
-    capacity: document.getElementById('ev-sess-cap').value || null
+    capacity: document.getElementById('ev-sess-cap').value || null,
+    assigned_staff_id: document.getElementById('ev-sess-staff').value || null,
+    observations: document.getElementById('ev-sess-obs').value.trim() || null
   };
   try {
     const url = editId
@@ -6656,6 +6722,22 @@ async function evLoadRegistrations() {
             ${extraFields || '<span style="color:var(--text-muted)">Sin datos adicionales</span>'}
             ${r.sessions?.length ? `&nbsp;&nbsp;·&nbsp;&nbsp;<span><b>Sesiones:</b> ${sessions}</span>` : ''}
           </div>
+          <div style="margin-bottom:10px;">
+            ${r.checkins?.length ? `
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">Check-ins</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                ${r.checkins.map(c => {
+                  const isSession = !!c.session_id;
+                  const label = isSession ? (c.session_name || 'Sesión') : 'Entrada general';
+                  const time = new Date(c.checked_in_at).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz });
+                  const day  = new Date(c.checked_in_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', timeZone: tz });
+                  const color = isSession ? '#60a5fa' : '#00e676';
+                  const bg    = isSession ? 'rgba(96,165,250,.12)' : 'rgba(0,230,118,.10)';
+                  const border= isSession ? 'rgba(96,165,250,.35)' : 'rgba(0,230,118,.35)';
+                  return `<span style="font-size:11px;font-weight:700;color:${color};background:${bg};border:1px solid ${border};padding:3px 9px;border-radius:6px;white-space:nowrap;">${label}&thinsp;·&thinsp;${day}&thinsp;${time}</span>`;
+                }).join('')}
+              </div>` : `<span style="font-size:11px;color:var(--text-muted);">Sin check-ins registrados</span>`}
+          </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${actionBtns}
             ${cancelBtn}
@@ -6666,6 +6748,39 @@ async function evLoadRegistrations() {
     }).join('');
     evRenderRegsPagination(data.total);
   } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">Error cargando registros.</td></tr>'; }
+  // Cargar gráfica de check-ins por sesión
+  evLoadSessionChart();
+}
+
+async function evLoadSessionChart() {
+  const chartEl = document.getElementById('ev-regs-chart');
+  if (!chartEl) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/checkin-stats`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { chartEl.innerHTML = ''; return; }
+    const rows = await res.json();
+    if (!rows.length) { chartEl.innerHTML = ''; return; }
+    const max = rows[0].count || 1;
+    const bars = rows.map(r => {
+      const isGeneral = !r.session_id;
+      const pct = Math.max(4, Math.round((r.count / max) * 100));
+      const color = isGeneral ? '#00e676' : '#60a5fa';
+      const bg    = isGeneral ? 'rgba(0,230,118,.7)' : 'rgba(96,165,250,.7)';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+        <div style="width:160px;font-size:11px;font-weight:600;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;">${r.name}</div>
+        <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${bg};border-radius:4px;transition:width .4s;"></div>
+        </div>
+        <div style="width:28px;text-align:right;font-size:12px;font-weight:800;color:${color};flex-shrink:0;">${r.count}</div>
+      </div>`;
+    }).join('');
+    chartEl.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:14px;">Check-ins por sesión</div>
+      ${bars}
+    </div>`;
+  } catch(e) { chartEl.innerHTML = ''; }
 }
 
 function evToggleRegDetail(detailRowId) {
@@ -6895,10 +7010,12 @@ let evBudgetData = {};
 let evEditingSupplierId = null;
 
 const EV_CONTRACT_STATUS_LABELS = {
-  cotizado: 'Cotizado', abono: 'Abono', pagado: 'Pagado'
+  quote_requested: 'Cot. solicitada', quote_sent: 'Cot. enviada', quote_received: 'Cot. recibida',
+  accepted: 'Aceptada', rejected: 'Rechazada', partial: 'Abonada', paid: 'Pagada', cancelled: 'Cancelada'
 };
 const EV_CONTRACT_STATUS_COLORS = {
-  cotizado: '#f59e0b', abono: '#3b82f6', pagado: '#22c55e'
+  quote_requested: '#94a3b8', quote_sent: '#f59e0b', quote_received: '#a78bfa',
+  accepted: '#22c55e', rejected: '#ef4444', partial: '#3b82f6', paid: '#10b981', cancelled: '#6b7280'
 };
 
 async function evLoadSuppliers() {
@@ -6923,12 +7040,14 @@ function evFmtCOP(n) {
 }
 
 function evRenderBudget() {
-  const { total_budget = 0, total_pactado = 0, desembolsado = 0 } = evBudgetData;
-  const avail = total_budget - total_pactado;
+  const { total_budget = 0, total_cotizado = 0, total_aprobado = 0, total_pagado = 0, saldo_disponible = 0 } = evBudgetData;
   document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : 'No definido';
-  document.getElementById('ev-budget-contracted').textContent = evFmtCOP(total_pactado);
-  document.getElementById('ev-budget-committed').textContent = evFmtCOP(desembolsado);
-  document.getElementById('ev-budget-avail').textContent = total_budget ? evFmtCOP(avail) : '–';
+  document.getElementById('ev-budget-cotizado').textContent = evFmtCOP(total_cotizado);
+  document.getElementById('ev-budget-aprobado').textContent = evFmtCOP(total_aprobado);
+  document.getElementById('ev-budget-pagado').textContent = evFmtCOP(total_pagado);
+  const saldoEl = document.getElementById('ev-budget-saldo');
+  saldoEl.textContent = total_budget ? evFmtCOP(saldo_disponible) : '–';
+  saldoEl.style.color = saldo_disponible < 0 ? '#ef4444' : '#22c55e';
   if (total_budget) document.getElementById('ev-budget-input').value = total_budget;
 }
 
@@ -6959,23 +7078,31 @@ function evRenderContracts() {
   const el = document.getElementById('ev-contracts-list');
   if (!el) return;
   if (!evEventContracts.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Sin proveedores contratados aún.</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Sin proveedores aún.</div>`;
     return;
   }
   el.innerHTML = evEventContracts.map(c => {
-    const ps = c.payment_status || 'cotizado';
+    const ps = c.payment_status || 'quote_requested';
     const color = EV_CONTRACT_STATUS_COLORS[ps] || '#94a3b8';
-    const abonoInfo = ps === 'abono' && c.abono_amount > 0
-      ? `<div style="font-size:11px;color:#3b82f6;font-weight:600;">Abono: ${evFmtCOP(c.abono_amount)} de ${evFmtCOP(c.contracted_amount)}</div>`
+    const depositInfo = ps === 'partial' && c.deposit_amount > 0
+      ? `<div style="font-size:11px;color:#3b82f6;font-weight:600;">Abono: ${evFmtCOP(c.deposit_amount)} de ${evFmtCOP(c.contracted_amount)}</div>`
+      : '';
+    const amountDisplay = ['accepted','partial','paid','rejected'].includes(ps)
+      ? evFmtCOP(c.contracted_amount)
+      : evFmtCOP(c.estimated_amount || c.contracted_amount);
+    const proofSection = ['partial','paid'].includes(ps)
+      ? (c.payment_proof_url
+          ? `<div style="margin-top:3px;"><a href="${c.payment_proof_url}" target="_blank" style="font-size:11px;color:#22c55e;font-weight:600;text-decoration:none;">Ver comprobante ↗</a></div>`
+          : `<label style="font-size:11px;color:#3b82f6;cursor:pointer;font-weight:600;display:inline-block;margin-top:3px;">↑ Subir comprobante<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="evUploadPaymentProof('${c.id}',this)"></label>`)
       : '';
     // Quote badge
     let quoteBadge = '';
-    if (c.quote_status === 'recibida' || c.quote_status === 'aceptada') {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#22c55e;color:#22c55e;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">Ver cotización</button>`;
-    } else if (c.quote_status === 'enviada') {
-      quoteBadge = `<span style="font-size:11px;color:#f59e0b;font-weight:600;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">Esperando respuesta</span>`;
-    } else if (c.contact_email) {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" title="Enviar formato de cotización a ${c.contact_email}" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">Cotizar</button>`;
+    if (ps === 'quote_received') {
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#a78bfa;color:#a78bfa;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">Ver cotización</button>`;
+    } else if (ps === 'quote_sent') {
+      quoteBadge = `<span style="font-size:11px;color:#f59e0b;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">Esperando resp.</span>`;
+    } else if (ps === 'quote_requested' && c.contact_email) {
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">Solicitar cotización</button>`;
     }
     return `<div id="ev-cr-${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -6983,9 +7110,10 @@ function evRenderContracts() {
           <div style="font-size:13px;font-weight:600;">${c.supplier_name || '—'}</div>
           ${c.service_description ? `<div style="font-size:11px;color:var(--muted);">${c.service_description}</div>` : ''}
           ${c.contact_phone ? `<div style="font-size:11px;color:var(--muted);">${c.contact_phone}</div>` : ''}
-          ${abonoInfo}
+          ${depositInfo}
+          ${proofSection}
         </div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);min-width:90px;text-align:right;">${evFmtCOP(c.contracted_amount)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);min-width:90px;text-align:right;">${amountDisplay}</div>
         <select style="padding:4px 8px;border-radius:6px;border:1px solid ${color};background:${color}22;color:${color};font-size:12px;font-weight:600;"
           onchange="evUpdateContractStatus('${c.id}', this.value, '${ps}')">
           ${Object.entries(EV_CONTRACT_STATUS_LABELS).map(([k,v]) =>
@@ -7006,6 +7134,20 @@ function evRenderContracts() {
           <button class="btn btn-outline btn-sm" onclick="evCancelAbono('${c.id}','${ps}')">Cancelar</button>
         </div>
       </div>
+      ${c.history && c.history.length ? `<div style="margin-top:8px;padding:8px 0 4px;border-top:1px solid var(--border);">
+        ${c.history.map(h => {
+          const hDate = new Date(h.at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'America/Bogota'});
+          const hColor = ({accepted:'#22c55e',partial:'#3b82f6',paid:'#22c55e',rejected:'#ef4444',cancelled:'#94a3b8'})[h.status]||'var(--muted)';
+          const hLabel = ({accepted:'Aceptada',partial:'Abono',paid:'Pago completo',rejected:'Rechazada',cancelled:'Cancelada'})[h.status]||h.status;
+          const hIcon  = ({accepted:'✓',partial:'◎',paid:'✓✓',rejected:'✕',cancelled:'—'})[h.status]||'·';
+          const hAmt   = h.amount ? ' · ' + evFmtCOP(h.amount) : '';
+          return `<div style="font-size:11px;display:flex;gap:6px;align-items:center;padding:2px 0;">
+            <span style="color:${hColor};font-weight:700;min-width:14px;">${hIcon}</span>
+            <span style="color:${hColor};font-weight:600;">${hLabel}${hAmt}</span>
+            <span style="color:var(--muted);">— ${hDate}</span>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -7059,18 +7201,31 @@ async function evSaveContract() {
       data.contact_phone = sup.contact_phone;
     }
     evEventContracts.push(data);
-    evBudgetData.total_pactado = (evBudgetData.total_pactado || 0) + amount;
-    evRenderBudget();
     evRenderContracts();
+    fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
     evCloseAddContract();
     showStatus('Proveedor agregado', 'success');
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
 function evUpdateContractStatus(contractId, newStatus, prevStatus) {
-  if (newStatus === 'abono') {
+  if (newStatus === 'partial') {
     document.getElementById(`ev-abono-${contractId}`).style.display = '';
     document.getElementById(`ev-abono-val-${contractId}`).focus();
+    return;
+  }
+  const msgs = {
+    accepted:  '¿Aceptar esta cotización? Se registrará como aprobada en el historial.',
+    rejected:  '¿Marcar como rechazada? El proveedor quedará fuera del presupuesto.',
+    paid:      '¿Confirmar pago completo? Se registrará en el historial.',
+    cancelled: '¿Cancelar este contrato? La acción quedará registrada.',
+  };
+  const msg = msgs[newStatus];
+  if (msg && !confirm(msg)) {
+    // Revertir el <select> al valor anterior
+    const sel = document.querySelector(`select[onchange*="evUpdateContractStatus('${contractId}'"]`);
+    if (sel) sel.value = prevStatus || '';
     return;
   }
   evPatchContractStatus(contractId, newStatus, null);
@@ -7087,12 +7242,12 @@ async function evConfirmAbono(contractId) {
   const val = parseFloat(document.getElementById(`ev-abono-val-${contractId}`).value);
   if (isNaN(val) || val <= 0) { showStatus('Ingresa un monto válido', 'error'); return; }
   document.getElementById(`ev-abono-${contractId}`).style.display = 'none';
-  evPatchContractStatus(contractId, 'abono', val);
+  evPatchContractStatus(contractId, 'partial', val);
 }
 
 async function evPatchContractStatus(contractId, newStatus, abonoAmount) {
   const body = { payment_status: newStatus };
-  if (abonoAmount !== null) body.abono_amount = abonoAmount;
+  if (abonoAmount !== null) body.deposit_amount = abonoAmount;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
       method: 'PATCH',
@@ -7118,11 +7273,10 @@ async function evDeleteContract(contractId, name) {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
     });
     if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
-    const removed = evEventContracts.find(c => c.id == contractId);
     evEventContracts = evEventContracts.filter(c => c.id != contractId);
-    if (removed) evBudgetData.total_pactado = Math.max(0, (evBudgetData.total_pactado||0) - parseFloat(removed.contracted_amount||0));
-    evRenderBudget();
     evRenderContracts();
+    fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
     showStatus('Proveedor quitado del evento', 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
@@ -7141,6 +7295,12 @@ function evRenderSupplierDir() {
         ${s.category ? `<div style="font-size:11px;color:var(--muted);">${s.category}</div>` : ''}
         ${s.contact_name ? `<div style="font-size:11px;color:var(--muted);">${s.contact_name}${s.contact_phone ? ` · ${s.contact_phone}` : ''}</div>` : ''}
         ${s.contact_email ? `<div style="font-size:11px;color:var(--muted);">${s.contact_email}</div>` : ''}
+        ${s.id_number ? `<div style="font-size:11px;color:var(--muted);">${s.id_type || 'NIT'}: ${s.id_number}</div>` : ''}
+        ${(s.rut_url || s.cert_bancario_url || s.camara_comercio_url) ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
+          ${s.rut_url ? `<a href="${s.rut_url}" target="_blank" style="font-size:10px;padding:2px 7px;border:1px solid #22c55e;border-radius:4px;color:#22c55e;text-decoration:none;font-weight:600;">RUT ↗</a>` : ''}
+          ${s.cert_bancario_url ? `<a href="${s.cert_bancario_url}" target="_blank" style="font-size:10px;padding:2px 7px;border:1px solid #22c55e;border-radius:4px;color:#22c55e;text-decoration:none;font-weight:600;">Cert. bancario ↗</a>` : ''}
+          ${s.camara_comercio_url ? `<a href="${s.camara_comercio_url}" target="_blank" style="font-size:10px;padding:2px 7px;border:1px solid #22c55e;border-radius:4px;color:#22c55e;text-decoration:none;font-weight:600;">Ámara comercio ↗</a>` : ''}
+        </div>` : ''}
       </div>
       <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px;"
         onclick="evEditSupplier('${s.id}')">Editar</button>
@@ -7151,6 +7311,7 @@ function evRenderSupplierDir() {
 
 function evShowAddSupplier() {
   evEditingSupplierId = null;
+  document.getElementById('ev-sup-docs-section').style.display = 'none';
   document.getElementById('ev-add-supplier-form').style.display = '';
   document.getElementById('ev-sup-name').focus();
 }
@@ -7164,6 +7325,16 @@ function evEditSupplier(supId) {
   document.getElementById('ev-sup-contact').value = s.contact_name || '';
   document.getElementById('ev-sup-phone').value = s.contact_phone || '';
   document.getElementById('ev-sup-email').value = s.contact_email || '';
+  const idTypeEl = document.getElementById('ev-sup-id-type');
+  if (idTypeEl) idTypeEl.value = s.id_type || 'NIT';
+  document.getElementById('ev-sup-id-number').value = s.id_number || '';
+  document.getElementById('ev-sup-docs-section').style.display = '';
+  const rutBtn = document.getElementById('ev-sup-rut-btn');
+  const certBtn = document.getElementById('ev-sup-cert-btn');
+  const camaraBtn = document.getElementById('ev-sup-camara-btn');
+  if (rutBtn) rutBtn.style.borderColor = s.rut_url ? '#22c55e' : '';
+  if (certBtn) certBtn.style.borderColor = s.cert_bancario_url ? '#22c55e' : '';
+  if (camaraBtn) camaraBtn.style.borderColor = s.camara_comercio_url ? '#22c55e' : '';
   document.getElementById('ev-add-supplier-form').style.display = '';
   document.getElementById('ev-sup-name').focus();
 }
@@ -7171,9 +7342,11 @@ function evEditSupplier(supId) {
 function evCloseAddSupplier() {
   document.getElementById('ev-add-supplier-form').style.display = 'none';
   evEditingSupplierId = null;
-  ['ev-sup-name','ev-sup-category','ev-sup-contact','ev-sup-phone','ev-sup-email'].forEach(id => {
+  ['ev-sup-name','ev-sup-category','ev-sup-contact','ev-sup-phone','ev-sup-email','ev-sup-id-number'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
+  const idTypeEl = document.getElementById('ev-sup-id-type'); if(idTypeEl) idTypeEl.value = 'NIT';
+  document.getElementById('ev-sup-docs-section').style.display = 'none';
 }
 
 async function evSaveSupplier() {
@@ -7184,7 +7357,9 @@ async function evSaveSupplier() {
     category: document.getElementById('ev-sup-category').value.trim() || undefined,
     contact_name: document.getElementById('ev-sup-contact').value.trim() || undefined,
     contact_phone: document.getElementById('ev-sup-phone').value.trim() || undefined,
-    contact_email: document.getElementById('ev-sup-email').value.trim() || undefined
+    contact_email: document.getElementById('ev-sup-email').value.trim() || undefined,
+    id_type: document.getElementById('ev-sup-id-type').value || undefined,
+    id_number: document.getElementById('ev-sup-id-number').value.trim() || undefined
   };
   try {
     const isEdit = !!evEditingSupplierId;
@@ -7363,7 +7538,66 @@ async function evDeleteCurrentEvent() {
 // ── RUNDOWN / LIBRETO ────────────────────────────────────────────────────────────────────────────
 let evRundownList = [];
 
+function evPopulateStaffSelect(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">&#8212; Sin asignar &#8212;</option>' +
+    evStaffList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  sel.value = current;
+}
+
+async function evEnsureStaff() {
+  if (!evCurrentEventId || evStaffList.length) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (res.ok) evStaffList = await res.json();
+  } catch(e) {}
+}
+
+async function evSupDocUpload(supId, docType, fileInput) {
+  const file = fileInput.files[0];
+  if (!file || !supId) return;
+  const fd = new FormData();
+  fd.append('document', file);
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers/${supId}/documents/${docType}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: fd
+    });
+    const d = await res.json();
+    if (!res.ok) { showStatus(d.error || 'Error subiendo documento', 'error'); return; }
+    const s = evSupplierDir.find(x => x.id === supId);
+    if (s) s[docType + '_url'] = d.url;
+    const btn = fileInput.closest('label');
+    if (btn) btn.style.borderColor = '#22c55e';
+    showStatus('Documento guardado', 'success');
+  } catch(e) { showStatus('Error al subir documento', 'error'); }
+}
+
+async function evUploadPaymentProof(contractId, fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('proof', file);
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}/payment-proof`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: fd
+    });
+    const d = await res.json();
+    if (!res.ok) { showStatus(d.error || 'Error al subir comprobante', 'error'); return; }
+    const idx = evEventContracts.findIndex(c => c.id === contractId);
+    if (idx >= 0) evEventContracts[idx].payment_proof_url = d.url;
+    evRenderContracts();
+    showStatus('Comprobante guardado', 'success');
+  } catch(e) { showStatus('Error al subir comprobante', 'error'); }
+}
+
 async function evLoadRundown() {
+  await evEnsureStaff();
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/rundown`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
@@ -7415,6 +7649,8 @@ function evShowAddCue() {
   document.getElementById('ev-cue-duration').value = '';
   document.getElementById('ev-cue-location').value = '';
   document.getElementById('ev-cue-notes').value = '';
+  evPopulateStaffSelect('ev-cue-responsible');
+  document.getElementById('ev-cue-responsible').value = '';
   document.getElementById('ev-add-cue-form').style.display = 'block';
   document.getElementById('ev-cue-title').focus();
 }
@@ -7433,6 +7669,8 @@ function evEditCue(id) {
   document.getElementById('ev-cue-duration').value = c.duration_min || '';
   document.getElementById('ev-cue-location').value = c.location || '';
   document.getElementById('ev-cue-notes').value = c.technical_notes || '';
+  evPopulateStaffSelect('ev-cue-responsible');
+  document.getElementById('ev-cue-responsible').value = c.responsible_id || '';
   document.getElementById('ev-add-cue-form').style.display = 'block';
   document.getElementById('ev-cue-title').focus();
 }
@@ -7449,7 +7687,8 @@ async function evSaveCue() {
     scheduled_at: new Date(scheduled_at).toISOString(),
     duration_min: isNaN(durVal) ? null : durVal,
     location: document.getElementById('ev-cue-location').value.trim() || null,
-    technical_notes: document.getElementById('ev-cue-notes').value.trim() || null
+    technical_notes: document.getElementById('ev-cue-notes').value.trim() || null,
+    responsible_id: document.getElementById('ev-cue-responsible').value || null
   };
   try {
     const url = editId

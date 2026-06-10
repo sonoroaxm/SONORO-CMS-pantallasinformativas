@@ -56,6 +56,26 @@
     color: var(--brand); font-size: 13px; font-weight: 700; cursor: pointer;
   }
 
+  /* ── SESSION PICKER ─────────────────────────── */
+  #s-session { flex: 1; display: flex; flex-direction: column; }
+  .sess-pick-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sess-pick-btn {
+    width: 100%; padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--muted);
+    border-radius: 12px; color: var(--text);
+    text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .sess-pick-btn:active { background: #1e1e1e; }
+  .sess-pick-btn.general { border-left-color: var(--brand); }
+  .sess-pick-btn.session  { border-left-color: var(--blue); }
+  .sess-pick-label { font-size: 15px; font-weight: 700; }
+  .sess-pick-meta  { font-size: 12px; color: var(--muted); }
+
   /* ── SCANNER ───────────────────────────────── */
   #s-scanner { flex: 1; display: flex; flex-direction: column; }
 
@@ -187,7 +207,7 @@
     padding: 32px;
   }
   #s-result.success { background: var(--green-bg); }
-  #s-result.already { background: var(--amber-bg); }
+  #s-result.already { background: var(--red-bg); }
   #s-result.error   { background: var(--red-bg); }
 
   .result-body {
@@ -200,14 +220,14 @@
     font-size: 36px; flex-shrink: 0;
   }
   .success .result-icon-wrap { background: rgba(0,230,118,.15); }
-  .already .result-icon-wrap { background: rgba(245,158,11,.15); }
+  .already .result-icon-wrap { background: rgba(239,68,68,.15); }
   .error   .result-icon-wrap { background: rgba(239,68,68,.15); }
 
   .result-status {
     font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
   }
   .success .result-status { color: var(--green); }
-  .already .result-status { color: var(--amber); }
+  .already .result-status { color: var(--red); }
   .error   .result-status { color: var(--red); }
 
   .result-name {
@@ -245,6 +265,24 @@
   <button class="init-retry" onclick="autoInit()">Reintentar</button>
 </div>
 
+<!-- ══════════════ SESSION PICKER ══════════════ -->
+<div id="s-session" class="hidden">
+  <div class="ev-header">
+    <div style="min-width:0;">
+      <div class="ev-name" id="sess-ev-name">—</div>
+      <div class="ev-meta">Selecciona tu punto de check-in</div>
+    </div>
+    <div class="staff-badge">
+      <div class="staff-avatar" id="sess-staff-av">?</div>
+      <div>
+        <div class="staff-info-name" id="sess-staff-name">—</div>
+        <div class="staff-info-role" id="sess-staff-role">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="sess-pick-body" id="sess-pick-list"></div>
+</div>
+
 <!-- ══════════════ SCANNER ══════════════ -->
 <div id="s-scanner" class="hidden">
 
@@ -252,6 +290,7 @@
     <div style="min-width:0;">
       <div class="ev-name" id="ev-name">—</div>
       <div class="ev-meta"><span id="ev-day-label">—</span> &nbsp;·&nbsp; <span class="clock" id="clock">—</span></div>
+      <div style="font-size:11px;color:var(--blue);margin-top:3px;cursor:pointer;" onclick="showSessionPicker()"><span id="ev-sess-active">—</span> <span style="color:var(--muted);font-size:10px;">cambiar</span></div>
     </div>
     <div class="staff-badge">
       <div class="staff-avatar" id="staff-av">?</div>
@@ -294,7 +333,7 @@
       <div class="sp-title">Hoy</div>
       <div class="sp-card green">
         <div class="sp-num" id="sp-today">—</div>
-        <div class="sp-lbl">Check-ins hoy</div>
+        <div class="sp-lbl" id="sp-today-lbl">Check-ins hoy</div>
       </div>
       <div class="sp-card blue">
         <div class="sp-num" id="sp-total">—</div>
@@ -337,9 +376,10 @@ let token     = null;
 let eventId   = null;
 let eventData = null;
 let staffData = null;
-let processing = false;
-let scanActive = false;
-let scanRAF    = null;
+let processing     = false;
+let scanActive     = false;
+let scanRAF        = null;
+let currentSession = undefined; // undefined=no elegida, null=entrada general, {id,name,meta}=sesion
 
 // HID scanner buffer (lectores de código de barras mandan texto rápido + Enter)
 let hidBuffer = '';
@@ -352,6 +392,7 @@ let hidTimer  = null;
     try {
       const s = JSON.parse(saved);
       token = s.token; eventId = s.eventId; eventData = s.event; staffData = s.staff;
+      currentSession = ('session' in s) ? s.session : undefined;
       startScanner();
       return;
     } catch(e) { sessionStorage.removeItem('staff_session'); }
@@ -404,11 +445,15 @@ function showInitError(msg) {
 
 // ── SCANNER ───────────────────────────────────────────────────
 function startScanner() {
+  if (currentSession === undefined) { showSessionPicker(); return; }
+
   document.getElementById('ev-name').textContent        = eventData.name || '—';
   document.getElementById('staff-name-lbl').textContent = staffData?.name || 'Staff';
   document.getElementById('staff-role-lbl').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
   document.getElementById('staff-av').textContent =
     (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('ev-sess-active').textContent =
+    currentSession ? currentSession.name : 'Entrada general';
 
   show('s-scanner');
   startCamera();
@@ -471,6 +516,8 @@ function scanLoop(video, canvas) {
       : null;
     if (code?.data) {
       doCheckin(code.data);
+      // Mantener RAF activo; processing=true lo pausa hasta que vuelva el scanner
+      scanRAF = requestAnimationFrame(() => scanLoop(video, canvas));
       return;
     }
   }
@@ -514,12 +561,13 @@ async function doCheckin(qrToken) {
     const res  = await fetch(`${API}/api/events/staff/${eventId}/checkin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ qr_token: qrToken }),
+      body: JSON.stringify({ qr_token: qrToken, session_id: currentSession?.id || null }),
     });
     const data = await res.json();
 
     if (res.ok) {
-      showResult('success', data.name, 'Bienvenido', formatDay(data.event_day));
+      const dayLabel = currentSession ? currentSession.name : formatDay(data.event_day);
+      showResult('success', data.name, 'Bienvenido', dayLabel);
       addLog(data.name, 'g');
       bumpStat('sp-today');
     } else if (res.status === 401 || res.status === 403) {
@@ -527,11 +575,12 @@ async function doCheckin(qrToken) {
       sessionStorage.removeItem('staff_session');
       stopCamera();
       token = eventId = eventData = staffData = null;
+      currentSession = undefined;
       autoInit();
       processing = false;
       return;
     } else if (data.code === 'ALREADY_CHECKED_IN') {
-      showResult('already', data.attendee_name || '—', 'Ya registrado hoy', 'Llegada registrada anteriormente');
+      showResult('already', data.attendee_name || '—', 'Ya registrado', data.error || 'Entrada registrada anteriormente');
       addLog(data.attendee_name || '—', 'a');
     } else if (data.code === 'CANCELLED') {
       showResult('error', 'Inscripción cancelada', 'No válido', data.error || '');
@@ -545,11 +594,86 @@ async function doCheckin(qrToken) {
   }
 }
 
+// ── SESSION PICKER ────────────────────────────────────────────
+async function showSessionPicker() {
+  document.getElementById('sess-ev-name').textContent    = eventData.name || '—';
+  document.getElementById('sess-staff-name').textContent = staffData?.name || 'Staff';
+  document.getElementById('sess-staff-role').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
+  document.getElementById('sess-staff-av').textContent   =
+    (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  show('s-session');
+
+  const list = document.getElementById('sess-pick-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:20px 0;">Cargando sesiones…</div>';
+
+  try {
+    const res = await fetch(`${API}/api/events/staff/${eventId}/sessions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const sessions = res.ok ? await res.json() : [];
+    const tz = eventData.timezone || 'America/Bogota';
+
+    const generalSection = [
+      '<div class="sess-group-lbl">Acceso general</div>',
+      `<button class="sess-pick-btn general" onclick="pickSession(null,'Entrada general',null)">
+        <div class="sess-pick-label">Entrada general</div>
+        <div class="sess-pick-meta">Registro de llegada al evento</div>
+       </button>`,
+    ];
+    const sessionSection = sessions.length ? [
+      '<div class="sess-group-lbl">Sesiones</div>',
+      ...sessions.map(s => {
+        const t = new Date(s.starts_at).toLocaleTimeString('es-CO',
+          { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz });
+        const meta = [t, s.venue_zone].filter(Boolean).join(' · ');
+        const safeName = s.name.replace(/"/g, '&quot;');
+        const safeMeta = meta.replace(/"/g, '&quot;');
+        return `<button class="sess-pick-btn session"
+          data-sid="${s.id}" data-sname="${safeName}" data-smeta="${safeMeta}"
+          onclick="pickSessionFromBtn(this)">
+          <div class="sess-pick-label">${esc(s.name)}</div>
+          <div class="sess-pick-meta">${meta ? esc(meta) : '—'}</div>
+         </button>`;
+      })
+    ] : [];
+    list.innerHTML = [...generalSection, ...sessionSection].join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:20px 0;">Error cargando sesiones</div>';
+  }
+}
+
+function pickSessionFromBtn(btn) {
+  pickSession(btn.dataset.sid || null, btn.dataset.sname, btn.dataset.smeta || null);
+}
+
+function pickSession(id, name, meta) {
+  currentSession = id ? { id, name, meta } : null;
+  try {
+    const s = JSON.parse(sessionStorage.getItem('staff_session') || '{}');
+    s.session = currentSession;
+    sessionStorage.setItem('staff_session', JSON.stringify(s));
+  } catch(e) {}
+  stopCamera(); // reiniciar camara limpia al volver
+  scanActive = false;
+  startScanner();
+}
+
 // ── RESULT SCREEN ─────────────────────────────────────────────
 function showResult(type, name, status, msg) {
   const el = document.getElementById('s-result');
   el.className = type;
-  document.getElementById('r-icon').textContent   = type === 'success' ? '✓' : type === 'already' ? '⚠' : '✗';
+  const _iconEl = document.getElementById('r-icon');
+  if (type === 'success') {
+    _iconEl.innerHTML = '<svg width="42" height="42" viewBox="0 0 42 42" fill="none">'
+      + '<polyline points="9,22 17,30 33,13" stroke="#00e676" stroke-width="3"'
+      + ' stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  } else {
+    _iconEl.innerHTML = '<svg width="42" height="42" viewBox="0 0 42 42" fill="none">'
+      + '<line x1="11" y1="11" x2="31" y2="31" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>'
+      + '<line x1="31" y1="11" x2="11" y2="31" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>'
+      + '</svg>';
+  }
   document.getElementById('r-status').textContent = status;
   document.getElementById('r-name').textContent   = name || '—';
   document.getElementById('r-msg').textContent    = msg || '';
@@ -559,14 +683,18 @@ function showResult(type, name, status, msg) {
 function backToScanner() {
   processing = false;
   show('s-scanner');
-  // Refocus en HID
+  // Reiniciar camara si el stream se perdio
+  const video = document.getElementById('camera-video');
+  if (!video.srcObject || !scanActive) startCamera();
   document.getElementById('manual-inp').blur();
 }
 
 // ── STATS ─────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const res  = await fetch(`${API}/api/events/staff/${eventId}/stats`, {
+    const sid = currentSession?.id ?? '';
+    const url = `${API}/api/events/staff/${eventId}/stats${sid ? `?session_id=${sid}` : ''}`;
+    const res = await fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!res.ok) return;
@@ -574,6 +702,9 @@ async function loadStats() {
     document.getElementById('sp-today').textContent   = d.checked_in_today ?? '—';
     document.getElementById('sp-total').textContent   = d.total ?? '—';
     document.getElementById('sp-pending').textContent = d.pending ?? '—';
+    // Label dinamico: nombre de sesion o 'Check-ins hoy'
+    const lbl = document.getElementById('sp-today-lbl');
+    if (lbl) lbl.textContent = currentSession ? currentSession.name : 'Check-ins hoy';
     // Actualizar label del día
     if (d.event_day) {
       const tz = eventData?.timezone || 'America/Bogota';
@@ -613,7 +744,7 @@ function startClock() {
 
 // ── HELPERS ───────────────────────────────────────────────────
 function show(id) {
-  ['s-loading','s-error','s-scanner','s-result'].forEach(s => {
+  ['s-loading','s-error','s-session','s-scanner','s-result'].forEach(s => {
     document.getElementById(s).classList.toggle('hidden', s !== id);
   });
 }

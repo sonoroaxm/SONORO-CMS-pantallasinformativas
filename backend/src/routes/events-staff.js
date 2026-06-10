@@ -99,6 +99,14 @@ router.get('/:eventId/stats', authenticateEventStaff, async (req, res) => {
     );
     if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
     const { timezone } = evRes.rows[0];
+    const sessionId = req.query.session_id || null;
+    const ctxCount = sessionId
+      ? `(SELECT COUNT(DISTINCT registration_id) FROM events.registration_checkins
+          WHERE event_id = $1 AND session_id = $3)::int`
+      : `(SELECT COUNT(DISTINCT registration_id) FROM events.registration_checkins
+          WHERE event_id = $1 AND session_id IS NULL
+            AND event_day = (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE)::int`;
+    const params2 = sessionId ? [req.params.eventId, timezone, sessionId] : [req.params.eventId, timezone];
     const { rows } = await pool.query(
       `SELECT
          (SELECT COUNT(*) FROM events.registrations
@@ -107,16 +115,31 @@ router.get('/:eventId/stats', authenticateEventStaff, async (req, res) => {
           WHERE event_id = $1 AND status = 'pending')::int            AS pending,
          (SELECT COUNT(DISTINCT registration_id)
           FROM events.registration_checkins WHERE event_id = $1)::int AS checked_in_total,
-         (SELECT COUNT(DISTINCT registration_id)
-          FROM events.registration_checkins
-          WHERE event_id = $1
-            AND event_day = (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE)::int AS checked_in_today,
+         ${ctxCount}                                                   AS checked_in_today,
          (CURRENT_TIMESTAMP AT TIME ZONE $2)::DATE::text               AS event_day`,
-      [req.params.eventId, timezone]
+      params2
     );
     res.json(rows[0]);
   } catch (err) {
     console.error('❌ GET /api/events/staff/:id/stats:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── SESIONES DEL EVENTO (para selector de check-in) ──────────────────────────────
+router.get('/:eventId/sessions', authenticateEventStaff, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, session_type, venue_zone, starts_at, ends_at
+       FROM events.event_sessions
+       WHERE event_id = $1 AND status != 'cancelled'
+       ORDER BY starts_at`,
+      [req.params.eventId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /api/events/staff/:id/sessions:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
@@ -151,7 +174,8 @@ router.get('/:eventId/lookup/:qr', authenticateEventStaff, async (req, res) => {
 // P-6: hot path — target < 200ms
 router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (req, res) => {
   const pool = global.pool;
-  const { qr_token } = req.body;
+  const { qr_token, session_id: _sid } = req.body;
+  const session_id = _sid || null;
   if (!qr_token?.trim()) return res.status(400).json({ error: 'qr_token requerido' });
 
   const t0 = Date.now();
@@ -193,24 +217,34 @@ router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (
         err.httpStatus = 409; err.code = 'CANCELLED'; throw err;
       }
 
-      // 4. Verificar check-in del día (P-1 multi-día: una fila por día, no por evento)
-      const existsRes = await client.query(
-        `SELECT id FROM events.registration_checkins
-         WHERE registration_id = $1 AND event_day = $2`,
-        [reg.id, event_day]
-      );
+      // 4. Verificar unicidad: general = una vez por dia, sesion = una vez por sesion
+      let existsRes;
+      if (session_id) {
+        existsRes = await client.query(
+          `SELECT id FROM events.registration_checkins
+           WHERE registration_id = $1 AND session_id = $2`,
+          [reg.id, session_id]
+        );
+      } else {
+        existsRes = await client.query(
+          `SELECT id FROM events.registration_checkins
+           WHERE registration_id = $1 AND event_day = $2 AND session_id IS NULL`,
+          [reg.id, event_day]
+        );
+      }
       if (existsRes.rows[0]) {
-        const err = new Error('Ya registró su llegada hoy');
+        const errMsg = session_id ? 'Ya registró su entrada a esta sesión' : 'Ya registró su llegada hoy';
+        const err = new Error(errMsg);
         err.httpStatus = 409; err.code = 'ALREADY_CHECKED_IN'; err.attendee_name = reg.name; throw err;
       }
 
-      // 5. Registrar check-in (P-1: en registration_checkins, no en registrations)
-      // checked_in_by = staff UUID si aplica (null para organizer CMS)
+      // 5. Registrar check-in con session_id (null = entrada general)
       const checkedInBy = req.staff.staff_id || null;
       await client.query(
-        `INSERT INTO events.registration_checkins (registration_id, event_id, event_day, checked_in_by)
-         VALUES ($1, $2, $3, $4)`,
-        [reg.id, req.params.eventId, event_day, checkedInBy]
+        `INSERT INTO events.registration_checkins
+           (registration_id, event_id, event_day, session_id, checked_in_by)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [reg.id, req.params.eventId, event_day, session_id, checkedInBy]
       );
 
       // 6. Auto-confirmar si estaba pendiente
@@ -223,7 +257,7 @@ router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (
       }
 
       return { registration_id: reg.id, name: reg.name, email: reg.email,
-               ticket_type: reg.ticket_type, status: finalStatus, event_day };
+               ticket_type: reg.ticket_type, status: finalStatus, event_day, session_id };
     });
 
     const ms = Date.now() - t0;

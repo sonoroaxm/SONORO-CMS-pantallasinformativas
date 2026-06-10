@@ -8,11 +8,31 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail, sendSupplierQuoteEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail } = require('../services/email');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+const path = require('path');
+const fs   = require('fs');
+
+function makeDocStorage(subdir) {
+  return multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(__dirname, '../../uploads', subdir);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.pdf';
+      const id  = req.params.supId || req.params.contractId || 'file';
+      cb(null, id + '-' + Date.now() + ext);
+    }
+  });
+}
+const uploadSupplierDoc  = multer({ storage: makeDocStorage('supplier-docs'),  limits: { fileSize: 10 * 1024 * 1024 } });
+const uploadPaymentProof = multer({ storage: makeDocStorage('payment-proofs'), limits: { fileSize: 10 * 1024 * 1024 } });
 
 function auth(req, res, next) {
   const token = (req.headers['authorization'] || '').split(' ')[1];
@@ -157,6 +177,40 @@ router.delete('/suppliers/:supId', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('❌ DELETE /suppliers/:supId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── SUBIR DOCUMENTOS LEGALES DEL PROVEEDOR ─────────────────────────────
+// docType: rut | cert_bancario | camara_comercio
+const VALID_DOC_TYPES = ['rut', 'cert_bancario', 'camara_comercio'];
+router.post('/suppliers/:supId/documents/:docType', auth, async (req, res) => {
+  const pool = global.pool;
+  const { supId, docType } = req.params;
+  if (!VALID_DOC_TYPES.includes(docType)) return res.status(400).json({ error: 'docType invalido' });
+  const docFile = req.files?.document;
+  if (!docFile) return res.status(400).json({ error: 'Archivo requerido (campo: document)' });
+  if (docFile.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'Archivo demasiado grande (max 10MB)' });
+  const colName = docType + '_url';
+  const ext = path.extname(docFile.name).toLowerCase() || '.pdf';
+  const filename = supId + '-' + docType + '-' + Date.now() + ext;
+  const uploadDir = path.join(__dirname, '../../uploads/supplier-docs');
+  const filePath  = path.join(uploadDir, filename);
+  try {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    await docFile.mv(filePath);
+    const fileUrl = '/uploads/supplier-docs/' + filename;
+    const { rows } = await pool.query(
+      'UPDATE events.suppliers SET ' + colName + ' = $1 WHERE id = $2 AND user_id = $3 RETURNING id, ' + colName,
+      [fileUrl, supId, req.user.id]
+    );
+    if (!rows[0]) {
+      fs.unlink(filePath, () => {});
+      return res.status(404).json({ error: 'Proveedor no encontrado' });
+    }
+    res.json({ ok: true, url: fileUrl });
+  } catch (err) {
+    console.error('❌ POST /suppliers/:supId/documents:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
@@ -311,7 +365,9 @@ router.get('/:id/sessions', auth, async (req, res) => {
   const join   = isAdmin ? '' : 'JOIN events.events e ON e.id = s.event_id AND e.user_id = $2';
   try {
     const { rows } = await pool.query(
-      `SELECT s.* FROM events.event_sessions s ${join}
+      `SELECT s.*, estf.name AS assigned_staff_name
+       FROM events.event_sessions s ${join}
+       LEFT JOIN events.event_staff estf ON estf.id = s.assigned_staff_id
        WHERE s.event_id = $1 ORDER BY s.starts_at`,
       params
     );
@@ -348,8 +404,11 @@ router.get('/:id/registrations', auth, async (req, res) => {
                  WHERE rs.registration_id = r.id) AS sessions,
                 (SELECT json_agg(json_build_object(
                    'event_day', c.event_day::text,
-                   'checked_in_at', c.checked_in_at))
+                   'checked_in_at', c.checked_in_at,
+                   'session_id', c.session_id,
+                   'session_name', sess.name) ORDER BY c.checked_in_at)
                  FROM events.registration_checkins c
+                 LEFT JOIN events.event_sessions sess ON sess.id = c.session_id
                  WHERE c.registration_id = r.id) AS checkins
          FROM events.registrations r
          JOIN events.attendees a ON a.id = r.attendee_id
@@ -647,12 +706,14 @@ router.get('/:id/dashboard', auth, async (req, res) => {
       ),
       pool.query(
         `SELECT s.id, s.name, s.session_type, s.venue_zone, s.starts_at, s.ends_at,
-                s.capacity, s.status, s.description,
+                s.capacity, s.status, s.description, s.assigned_staff_id,
+                estf.name AS assigned_staff_name,
                 COUNT(DISTINCT rs.registration_id)::int AS registered_count
          FROM events.event_sessions s
          LEFT JOIN events.registration_sessions rs ON rs.session_id = s.id
+         LEFT JOIN events.event_staff estf ON estf.id = s.assigned_staff_id
          WHERE s.event_id = $1 AND s.status != 'cancelled'
-         GROUP BY s.id ORDER BY s.starts_at`,
+         GROUP BY s.id, estf.name ORDER BY s.starts_at`,
         [req.params.id]
       ),
       pool.query(
@@ -739,7 +800,8 @@ router.patch('/:id/sessions/:sessionId/status', auth, async (req, res) => {
 router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
-  const { name, starts_at, ends_at, capacity, venue_zone, description, session_type } = req.body;
+  const { name, starts_at, ends_at, capacity, venue_zone, description, session_type,
+          assigned_staff_id, observations } = req.body;
   try {
     const evCheck = await pool.query(
       `SELECT id, timezone FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -754,12 +816,15 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
          ends_at   = COALESCE(($5::timestamp AT TIME ZONE $9), ends_at),
          capacity  = $6,
          venue_zone = COALESCE($7, venue_zone),
-         description = COALESCE($8, description)
+         description       = COALESCE($8, description),
+         assigned_staff_id = COALESCE($10, assigned_staff_id),
+         observations      = COALESCE($11, observations)
        WHERE id = $1 AND event_id = $2 RETURNING *`,
       [req.params.sessionId, req.params.id,
        name?.trim() || null, starts_at || null, ends_at || null,
        capacity !== undefined ? (capacity || null) : undefined,
-       venue_zone || null, description || null, tz]
+       venue_zone || null, description || null, tz,
+       assigned_staff_id || null, observations || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Sesión no encontrada' });
     res.json(rows[0]);
@@ -822,12 +887,15 @@ router.get('/:id/suppliers', auth, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT es.id, es.supplier_id, es.service_description, es.contracted_amount,
               es.currency, es.payment_status, es.abono_amount, es.notes,
+              es.deposit_amount, es.payment_date, es.payment_proof_url, es.history,
               s.name AS supplier_name, s.category, s.contact_name, s.contact_email, s.contact_phone,
-              sq.status AS quote_status, sq.submitted_at AS quote_submitted_at, sq.id AS quote_id
+              s.id_type, s.id_number, s.rut_url, s.cert_bancario_url, s.camara_comercio_url,
+              sq.status AS quote_status, sq.submitted_at AS quote_submitted_at, sq.id AS quote_id,
+              sq.data AS quote_data
        FROM events.event_suppliers es
        JOIN events.suppliers s ON s.id = es.supplier_id
        LEFT JOIN LATERAL (
-         SELECT id, status, submitted_at FROM events.supplier_quotes
+         SELECT id, status, submitted_at, data FROM events.supplier_quotes
          WHERE event_supplier_id = es.id ORDER BY created_at DESC LIMIT 1
        ) sq ON TRUE
        WHERE es.event_id = $1 ${ownerFilter}
@@ -858,7 +926,7 @@ router.post('/:id/suppliers', auth, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [id, req.user.id, supplier_id,
        service_description || null, contracted_amount || 0,
-       payment_status || 'cotizado', notes || null]
+       payment_status || 'quote_requested', notes || null]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -870,7 +938,8 @@ router.post('/:id/suppliers', auth, async (req, res) => {
 router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
   const pool = global.pool;
   const { id, contractId } = req.params;
-  const { service_description, contracted_amount, payment_status, abono_amount, notes } = req.body;
+  const { service_description, contracted_amount, payment_status, abono_amount, notes,
+          deposit_amount, payment_date, payment_proof_url } = req.body;
   try {
     const { rows } = await pool.query(
       `UPDATE events.event_suppliers SET
@@ -878,19 +947,84 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
          contracted_amount   = COALESCE($2, contracted_amount),
          payment_status      = COALESCE($3, payment_status),
          abono_amount        = COALESCE($4, abono_amount),
-         notes               = COALESCE($5, notes)
-       WHERE id = $6 AND event_id = $7 AND user_id = $8 RETURNING *`,
+         notes               = COALESCE($5, notes),
+         deposit_amount      = COALESCE($6, deposit_amount),
+         payment_date        = COALESCE($7, payment_date),
+         payment_proof_url   = COALESCE($8, payment_proof_url)
+       WHERE id = $9 AND event_id = $10 AND user_id = $11 RETURNING *`,
       [service_description ?? null,
        contracted_amount != null ? contracted_amount : null,
        payment_status || null,
        abono_amount != null ? abono_amount : null,
        notes ?? null,
+       deposit_amount != null ? deposit_amount : null,
+       payment_date || null,
+       payment_proof_url || null,
        contractId, id, req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Contrato no encontrado' });
+    if (['accepted','partial','paid','rejected','cancelled'].includes(payment_status)) {
+      const hEntry = JSON.stringify([{ status: payment_status, at: new Date().toISOString(),
+        amount: deposit_amount != null ? deposit_amount : (rows[0].contracted_amount ?? null) }]);
+      await pool.query(
+        `UPDATE events.event_suppliers SET history = COALESCE(history,'[]'::jsonb) || $1::jsonb
+         WHERE id = $2 AND event_id = $3 AND user_id = $4`,
+        [hEntry, contractId, id, req.user.id]
+      );
+    }
+    if (payment_status === 'accepted' && rows[0].supplier_id) {
+      pool.query(
+        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name
+         FROM events.suppliers s
+         JOIN events.events e ON e.id = $1
+         WHERE s.id = $2 AND s.user_id = $3`,
+        [id, rows[0].supplier_id, req.user.id]
+      ).then(supR => {
+        if (supR.rows[0]?.contact_email) {
+          sendSupplierAcceptedEmail({
+            supplier_name: supR.rows[0].supplier_name,
+            contact_email: supR.rows[0].contact_email,
+            event_name:    supR.rows[0].event_name,
+            contracted_amount: rows[0].contracted_amount,
+          }).catch(e => console.error('⚠️ Email aceptación proveedor:', e.message));
+        }
+      }).catch(() => {});
+    }
     res.json(rows[0]);
   } catch (err) {
     console.error('❌ PATCH /:id/suppliers/:contractId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── SUBIR COMPROBANTE DE PAGO ─────────────────────────────────────────────
+router.post('/:id/suppliers/:contractId/payment-proof', auth, async (req, res) => {
+  const pool = global.pool;
+  const { id, contractId } = req.params;
+  const proofFile = req.files?.proof;
+  if (!proofFile) return res.status(400).json({ error: 'Archivo requerido (campo: proof)' });
+  if (proofFile.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'Archivo demasiado grande (max 10MB)' });
+  const ext = path.extname(proofFile.name).toLowerCase() || '.pdf';
+  const filename = contractId + '-proof-' + Date.now() + ext;
+  const uploadDir = path.join(__dirname, '../../uploads/payment-proofs');
+  const filePath  = path.join(uploadDir, filename);
+  try {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    await proofFile.mv(filePath);
+    const fileUrl = `/uploads/payment-proofs/${filename}`;
+    const { rows } = await pool.query(
+      `UPDATE events.event_suppliers SET payment_proof_url = $1
+       WHERE id = $2 AND event_id = $3 AND user_id = $4
+       RETURNING id, payment_proof_url`,
+      [fileUrl, contractId, id, req.user.id]
+    );
+    if (!rows[0]) {
+      fs.unlink(filePath, () => {});
+      return res.status(404).json({ error: 'Contrato no encontrado' });
+    }
+    res.json({ ok: true, url: fileUrl });
+  } catch (err) {
+    console.error('❌ POST payment-proof:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
@@ -916,34 +1050,49 @@ router.get('/:id/budget', auth, async (req, res) => {
   const { id } = req.params;
   const isAdmin = req.user.role === 'admin';
   try {
-    const [eventR, suppliersR] = await Promise.all([
+    const [eventR, suppliersR, quotesR] = await Promise.all([
       pool.query(
         `SELECT config FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
         isAdmin ? [id] : [id, req.user.id]
       ),
       pool.query(
         `SELECT payment_status,
-                SUM(contracted_amount)::NUMERIC AS contracted_total,
-                SUM(COALESCE(abono_amount, 0))::NUMERIC AS abono_total
-         FROM events.event_suppliers WHERE event_id = $1 AND user_id = $2
+                SUM(contracted_amount)::NUMERIC  AS contracted_total,
+                SUM(COALESCE(deposit_amount, 0))::NUMERIC AS deposit_total
+         FROM events.event_suppliers WHERE event_id = $1
          GROUP BY payment_status`,
-        [id, req.user.id]
+        [id]
+      ),
+      pool.query(
+        `SELECT COALESCE(SUM((sq.data->>'total_con_iva')::NUMERIC), 0)::NUMERIC AS total_cotizado
+         FROM events.event_suppliers es
+         JOIN LATERAL (
+           SELECT data FROM events.supplier_quotes
+           WHERE event_supplier_id = es.id AND status IN ('recibida','aceptada')
+           ORDER BY created_at DESC LIMIT 1
+         ) sq ON TRUE
+         WHERE es.event_id = $1`,
+        [id]
       )
     ]);
     if (!eventR.rowCount) return res.status(403).json({ error: 'Acceso denegado' });
-    const total_budget = parseFloat(eventR.rows[0]?.config?.total_budget || 0);
-    let total_pactado = 0;
-    let desembolsado = 0;
-    const breakdown = {};
+
+    const total_budget   = parseFloat(eventR.rows[0]?.config?.total_budget || 0);
+    const total_cotizado = parseFloat(quotesR.rows[0]?.total_cotizado || 0);
+
+    let total_aprobado = 0;
+    let total_pagado   = 0;
     for (const row of suppliersR.rows) {
-      const ct = parseFloat(row.contracted_total);
-      const at = parseFloat(row.abono_total);
-      total_pactado += ct;
-      breakdown[row.payment_status] = { contracted: ct, abono: at };
-      if (row.payment_status === 'abono')   desembolsado += at;
-      if (row.payment_status === 'pagado')  desembolsado += ct;
+      const ct = parseFloat(row.contracted_total || 0);
+      const dt = parseFloat(row.deposit_total || 0);
+      if (['accepted','partial','paid'].includes(row.payment_status)) {
+        total_aprobado += ct;
+      }
+      if (row.payment_status === 'partial') total_pagado += dt;
+      if (row.payment_status === 'paid')    total_pagado += ct;
     }
-    res.json({ total_budget, total_pactado, desembolsado, breakdown });
+    const saldo_disponible = total_budget - total_aprobado;
+    res.json({ total_budget, total_cotizado, total_aprobado, total_pagado, saldo_disponible });
   } catch (err) {
     console.error('❌ GET /:id/budget:', err);
     res.status(500).json({ error: 'Error interno' });
@@ -978,6 +1127,10 @@ router.post('/:id/suppliers/:contractId/send-quote', auth, async (req, res) => {
     );
     const quoteUrl = `${process.env.CMS_URL || 'https://cms.sonoro.com.co'}/cotizacion/${token}`;
     await sendSupplierQuoteEmail(contract, quoteUrl);
+    await pool.query(
+      `UPDATE events.event_suppliers SET payment_status = 'quote_sent' WHERE id = $1`,
+      [contractId]
+    );
     res.json({ ok: true, sent_to: contract.contact_email, quote_url: quoteUrl });
   } catch (err) {
     console.error('❌ POST /:id/suppliers/:contractId/send-quote:', err);
@@ -1061,7 +1214,7 @@ router.get('/:id/rundown', auth, async (req, res) => {
 router.post('/:id/rundown', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
-  const { cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id } = req.body;
+  const { cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id, responsible_id } = req.body;
   if (!title || !scheduled_at) return res.status(400).json({ error: 'title y scheduled_at son requeridos' });
   try {
     const evCheck = await pool.query(
@@ -1071,12 +1224,13 @@ router.post('/:id/rundown', auth, async (req, res) => {
     if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const row = await pool.query(
       `INSERT INTO events.rundown_cues
-         (event_id, user_id, cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending')
+         (event_id, user_id, cue_number, title, scheduled_at, duration_min, location, technical_notes, description, session_id, responsible_id, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending')
        RETURNING *`,
       [req.params.id, req.user.id, cue_number || null, title, scheduled_at,
        duration_min ? parseInt(duration_min) : null, location || null,
-       technical_notes || null, description || null, session_id || null]
+       technical_notes || null, description || null, session_id || null,
+       responsible_id || null]
     );
     res.status(201).json(row.rows[0]);
   } catch (err) {
@@ -1089,7 +1243,7 @@ router.patch('/:id/rundown/:cueId', auth, async (req, res) => {
   const pool = global.pool;
   const io = global.io;
   const isAdmin = req.user.role === 'admin';
-  const allowed = ['cue_number','title','scheduled_at','duration_min','location','technical_notes','description','status','delay_minutes','session_id'];
+  const allowed = ['cue_number','title','scheduled_at','duration_min','location','technical_notes','description','status','delay_minutes','session_id','responsible_id'];
   try {
     const evCheck = await pool.query(
       `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -1097,21 +1251,39 @@ router.patch('/:id/rundown/:cueId', auth, async (req, res) => {
     );
     if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const fields = Object.keys(req.body).filter(k => allowed.includes(k));
-    if (!fields.length) return res.status(400).json({ error: 'Sin campos a actualizar' });
+    if (!fields.length && req.body.status !== 'in_progress') return res.status(400).json({ error: 'Sin campos a actualizar' });
+
+    // Al activar un cue, registrar started_at y calcular delay real
+    let extraSets = '';
+    let extraVals = [];
+    if (req.body.status === 'in_progress') {
+      const cueR = await pool.query(
+        `SELECT scheduled_at FROM events.rundown_cues WHERE id = $1 AND event_id = $2`,
+        [req.params.cueId, req.params.id]
+      );
+      if (cueR.rowCount) {
+        const diffMin = Math.round((Date.now() - new Date(cueR.rows[0].scheduled_at).getTime()) / 60000);
+        extraSets = `, started_at = NOW(), delay_minutes = $${3 + fields.length}`;
+        extraVals = [diffMin > 0 ? diffMin : 0];
+      }
+    }
+
     const sets = fields.map((f, i) => `${f} = $${i + 3}`);
     const values = fields.map(f => req.body[f]);
     const row = await pool.query(
-      `UPDATE events.rundown_cues SET ${sets.join(', ')}, updated_at = NOW()
+      `UPDATE events.rundown_cues SET ${sets.length ? sets.join(', ') + ',' : ''} updated_at = NOW()${extraSets}
        WHERE id = $1 AND event_id = $2 RETURNING *`,
-      [req.params.cueId, req.params.id, ...values]
+      [req.params.cueId, req.params.id, ...values, ...extraVals]
     );
     if (!row.rowCount) return res.status(404).json({ error: 'Cue no encontrado' });
     if (req.body.status && io) {
+      const cue = row.rows[0];
       io.to(`event_${req.params.id}`).emit('cue.status_changed', {
         event_id: req.params.id,
         cue_id: req.params.cueId,
         status: req.body.status,
-        delay_minutes: req.body.delay_minutes || 0
+        delay_minutes: cue.delay_minutes || 0,
+        started_at: cue.started_at || null
       });
     }
     res.json(row.rows[0]);
@@ -1153,7 +1325,12 @@ function fmtDate(iso, tz) {
   return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: tz || 'America/Bogota' });
 }
 function statusLabel(s) {
-  return { pending: 'Pendiente', partial: 'Abono', paid: 'Pagado', cancelled: 'Cancelado', cotizado: 'Sin pago', abono: 'Abono', pagado: 'Pagado', enviada: 'Enviada', recibida: 'Recibida', aceptada: 'Aceptada', rechazada: 'Rechazada' }[s] || s || '—';
+  return {
+    quote_requested: 'Cot. solicitada', quote_sent: 'Cot. enviada', quote_received: 'Cot. recibida',
+    accepted: 'Aceptada', rejected: 'Rechazada', partial: 'Abonada', paid: 'Pagada', cancelled: 'Cancelada',
+    pending: 'Pendiente', cotizado: 'Sin pago', abono: 'Abono', pagado: 'Pagado',
+    enviada: 'Enviada', recibida: 'Recibida', aceptada: 'Aceptada', rechazada: 'Rechazada'
+  }[s] || s || '—';
 }
 
 async function getReportData(pool, eventId, userId, isAdmin) {
@@ -1176,6 +1353,7 @@ async function getReportData(pool, eventId, userId, isAdmin) {
        es.service_description,
        es.contracted_amount,
        es.abono_amount,
+       es.deposit_amount,
        es.payment_status,
        es.notes,
        sq.data->>'total_con_iva'  AS quoted_amount,
@@ -1198,12 +1376,22 @@ async function getReportData(pool, eventId, userId, isAdmin) {
   const contracts = rows.rows;
   const totalBudget = parseFloat(ev.total_budget || 0);
   const totalContracted = contracts.reduce((a, c) => a + parseFloat(c.contracted_amount || 0), 0);
-  const totalCommitted = contracts
-    .filter(c => c.payment_status === 'abono' || c.payment_status === 'pagado')
-    .reduce((a, c) => a + parseFloat(c.payment_status === 'pagado' ? c.contracted_amount : (c.abono_amount || 0)), 0);
-  const totalQuoted = contracts.reduce((a, c) => a + parseFloat(c.quoted_amount || 0), 0);
+  let totalAprobado = 0, totalPagado = 0;
+  for (const c of contracts) {
+    const ct = parseFloat(c.contracted_amount || 0);
+    const dt = parseFloat(c.deposit_amount || 0);
+    if (['accepted','partial','paid'].includes(c.payment_status)) totalAprobado += ct;
+    if (c.payment_status === 'partial') totalPagado += dt;
+    if (c.payment_status === 'paid')    totalPagado += ct;
+  }
+  const saldoDisponible = totalBudget - totalAprobado;
+  const totalCotizado = contracts
+    .filter(c => c.quote_status === 'recibida' || c.quote_status === 'aceptada')
+    .reduce((a, c) => a + parseFloat(c.quoted_amount || 0), 0);
+  const totalCommitted = totalPagado; // alias legacy CSV
+  const totalQuoted = totalCotizado;  // alias legacy CSV
 
-  return { ev, contracts, totalBudget, totalContracted, totalCommitted, totalQuoted };
+  return { ev, contracts, totalBudget, totalContracted, totalAprobado, totalPagado, saldoDisponible, totalCotizado, totalCommitted, totalQuoted };
 }
 
 // ── CSV REPORT ────────────────────────────────────────────────────────────────
@@ -1230,7 +1418,7 @@ router.get('/:id/report/csv', auth, async (req, res) => {
         c.contact_phone || '',
         c.service_description || '',
         c.contracted_amount ? Math.round(c.contracted_amount) : 0,
-        c.abono_amount ? Math.round(c.abono_amount) : 0,
+        c.deposit_amount ? Math.round(c.deposit_amount) : 0,
         statusLabel(c.payment_status),
         c.quoted_amount ? Math.round(c.quoted_amount) : 0,
         statusLabel(c.quote_status),
@@ -1240,9 +1428,9 @@ router.get('/:id/report/csv', auth, async (req, res) => {
     // Totals row
     csv += [
       'TOTAL','','','','','',
-      Math.round(d.totalContracted),
-      Math.round(d.totalCommitted),
-      '','',Math.round(d.totalQuoted),''
+      Math.round(d.totalAprobado),
+      Math.round(d.totalPagado),
+      '','',Math.round(d.totalCotizado),''
     ].map(escape).join(',') + '\r\n';
 
     const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
@@ -1262,7 +1450,7 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
   try {
     const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
     if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
-    const { ev, contracts, totalBudget, totalContracted, totalCommitted, totalQuoted } = d;
+    const { ev, contracts, totalBudget, totalAprobado, totalPagado, saldoDisponible, totalCotizado } = d;
     const tz = ev.timezone || 'America/Bogota';
 
     const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
@@ -1293,29 +1481,30 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
     y += 36;
 
     // ── BUDGET SUMMARY ──────────────────────────────────────────────────────
-    const boxW = (W - 9) / 4;
+    const boxW5 = (W - 12) / 5;
     const budgetBoxes = [
-      { label: 'Presupuesto', value: fmtCOP(totalBudget), color: DARK },
-      { label: 'Total pactado', value: fmtCOP(totalContracted), color: '#f59e0b' },
-      { label: 'Desembolsado', value: fmtCOP(totalCommitted), color: '#ef4444' },
-      { label: 'Total cotizado', value: fmtCOP(totalQuoted), color: '#3b82f6' }
+      { label: 'Presupuesto',  value: fmtCOP(totalBudget),   color: DARK },
+      { label: 'Cotizado',     value: fmtCOP(totalCotizado), color: '#a78bfa' },
+      { label: 'Aprobado',     value: fmtCOP(totalAprobado), color: '#f59e0b' },
+      { label: 'Pagado',       value: fmtCOP(totalPagado),   color: '#3b82f6' },
+      { label: 'Saldo',        value: totalBudget ? fmtCOP(saldoDisponible) : '—', color: saldoDisponible < 0 ? '#ef4444' : '#22c55e' }
     ];
     budgetBoxes.forEach((b, i) => {
-      const bx = 48 + i * (boxW + 3);
-      doc.roundedRect(bx, y, boxW, 44, 4).fill(LIGHT);
-      doc.fillColor(GRAY).font('Helvetica').fontSize(8).text(b.label, bx + 8, y + 8, { width: boxW - 16 });
-      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(11).text(b.value, bx + 8, y + 20, { width: boxW - 16 });
+      const bx = 48 + i * (boxW5 + 3);
+      doc.roundedRect(bx, y, boxW5, 44, 4).fill(LIGHT);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7.5).text(b.label, bx + 6, y + 8, { width: boxW5 - 12 });
+      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(10).text(b.value, bx + 6, y + 20, { width: boxW5 - 12 });
     });
     y += 56;
 
     // ── TABLE HEADER ────────────────────────────────────────────────────────
     const cols = [
-      { label: 'Proveedor',       w: 120 },
-      { label: 'Categoría',       w: 70  },
-      { label: 'Servicio',        w: 140 },
-      { label: 'Pactado',         w: 70  },
-      { label: 'Cotizado',        w: 70  },
-      { label: 'Estado',          w: 55  },
+      { label: 'Proveedor',   w: 110 },
+      { label: 'Categoría',   w: 55  },
+      { label: 'Servicio',    w: 130 },
+      { label: 'Aprobado',    w: 72  },
+      { label: 'Pagado',      w: 72  },
+      { label: 'Estado',      w: 60  },
     ];
     doc.rect(48, y, W, 18).fill('#18181b');
     let cx = 48;
@@ -1336,8 +1525,8 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
         c.supplier_name || '—',
         c.category || '—',
         c.service_description || '—',
-        c.contracted_amount ? fmtCOP(c.contracted_amount) : '—',
-        c.quoted_amount ? fmtCOP(c.quoted_amount) : '—',
+        ['accepted','partial','paid'].includes(c.payment_status) ? fmtCOP(c.contracted_amount) : '—',
+        c.payment_status === 'paid' ? fmtCOP(c.contracted_amount) : (c.payment_status === 'partial' ? fmtCOP(c.deposit_amount) : '—'),
         statusLabel(c.payment_status)
       ];
       doc.fillColor(DARK).font('Helvetica').fontSize(8);
@@ -1346,12 +1535,6 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
         cx += col.w;
       });
 
-      // Quote status pill
-      if (c.quote_status) {
-        const pillColor = { recibida: '#22c55e', aceptada: '#3b82f6', rechazada: '#ef4444', enviada: '#f59e0b' }[c.quote_status] || GRAY;
-        doc.roundedRect(48 + W - 52, y + 5, 46, 12, 3).fill(pillColor);
-        doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(7).text(statusLabel(c.quote_status), 48 + W - 50, y + 8, { width: 42, lineBreak: false });
-      }
       y += rowH;
     });
 
@@ -1361,7 +1544,7 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
       doc.rect(48, y, W, rowH).fill('#18181b');
       doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
       cx = 48;
-      const totals = ['TOTAL', '', '', fmtCOP(totalContracted), fmtCOP(totalQuoted), ''];
+      const totals = ['TOTAL', '', '', fmtCOP(totalAprobado), fmtCOP(totalPagado), ''];
       cols.forEach((col, ci) => {
         doc.text(totals[ci], cx + 4, y + 7, { width: col.w - 8, lineBreak: false });
         cx += col.w;
@@ -1402,6 +1585,35 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
   } catch (err) {
     console.error('❌ GET report/pdf:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── CHECK-IN STATS POR SESIÓN (para gráfica en dashboard) ──────────────────
+router.get('/:id/checkin-stats', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const evRes = await pool.query(
+      `SELECT user_id FROM events.events WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    if (evRes.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Sin acceso' });
+    const { rows } = await pool.query(
+      `SELECT
+         sess.id                                                  AS session_id,
+         COALESCE(sess.name, 'Entrada general')                   AS name,
+         COUNT(DISTINCT c.registration_id)::int                   AS count
+       FROM events.registration_checkins c
+       LEFT JOIN events.event_sessions sess ON sess.id = c.session_id
+       WHERE c.event_id = $1
+       GROUP BY sess.id, sess.name
+       ORDER BY count DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /api/events/:id/checkin-stats:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
