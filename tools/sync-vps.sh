@@ -46,6 +46,7 @@ TRACKED=(
   "backend/src/routes/events-public.js"
   "backend/src/routes/events-staff.js"
   "backend/src/routes/admin.js"
+  "backend/src/queues/videoConversionQueue.js"
 )
 
 # ── Colores ───────────────────────────────────────────────────────────────────
