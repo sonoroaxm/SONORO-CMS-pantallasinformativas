@@ -319,6 +319,10 @@ if (!JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET no definido en .env');
   process.exit(1);
 }
+if (JWT_SECRET.length < 32) {
+  console.error('❌ FATAL: JWT_SECRET debe tener mínimo 32 caracteres');
+  process.exit(1);
+}
 const JWT_EXPIRES_IN = '24h';
 
 // ========================================
@@ -659,7 +663,7 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
   }
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
@@ -695,9 +699,9 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
     const file = req.files.file;
     const userId = req.user.id; // ✅ DEL JWT
-    const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png'];
+    const allowedMimes = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png']);
 
-    if (!allowedMimes.some(mime => file.mimetype.includes(mime.split('/')[0]))) {
+    if (!allowedMimes.has(file.mimetype)) {
       return res.status(400).json({
         error: 'Tipo de archivo no soportado',
         supported: 'Videos (MP4, WebM, MOV, MKV) o Imágenes (JPG, PNG)'
@@ -886,7 +890,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const filepath = path.join(uploadsDir, filename);
 
     // Verificar que la ruta resultante siga dentro de uploads (previene path traversal)
-    if (!filepath.startsWith(uploadsDir + path.sep) && filepath !== uploadsDir) {
+    if (!filepath.startsWith(uploadsDir + path.sep)) {
       return res.status(400).json({ error: 'Nombre de archivo inválido' });
     }
 
@@ -1332,6 +1336,9 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(device_id)) return res.status(400).json({ error: 'device_id inválido' });
+
     const deviceResult = await pool.query(
       `SELECT d.*, u.features
        FROM devices d
@@ -1487,7 +1494,7 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
   const { ip } = req.body;
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
     if (error) {
       console.warn(`⚠️ Reboot enviado a ${ip} (puede ser normal si SSH cierra):`, error.message);
     }
@@ -1504,7 +1511,7 @@ app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) =
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
     const ip = result.rows[0].ip_address;
     if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP del dispositivo inválida' });
-    execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
+    execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
       if (error && !error.message.includes('closed') && !error.message.includes('exit')) {
         console.warn(`⚠️ SSH reboot ${ip}:`, error.message);
       }
@@ -7793,7 +7800,7 @@ io.on('connection', (socket) => {
       const ip = result.rows[0].ip_address;
       if (!ip || !isValidIP(ip)) return socket.emit('reboot_result', { success: false, error: 'IP del dispositivo inválida' });
       console.log(`🔄 Reiniciando dispositivo ${device_id} en ${ip}`);
-      execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
+      execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
         if (error && error.code !== null && error.signal !== 'SIGTERM') {
           console.error('❌ Reboot error:', error.message);
           socket.emit('reboot_result', { success: false, error: error.message });

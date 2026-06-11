@@ -14,7 +14,7 @@ set -uo pipefail
 KEY="${SONORO_SSH_KEY:-/c/Users/sonor/Documents/Documentos/1. SONORO 2026/CONTRATOS-PROYECTOS/SIGNAGE PI/SERVER CON WEB/Key/ssh_sonoro.key}"
 VPS="debian@45.181.156.171"
 VPS_ROOT="/opt/sonoro-cms"
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 
