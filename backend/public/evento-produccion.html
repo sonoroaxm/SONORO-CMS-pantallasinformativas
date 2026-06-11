@@ -656,6 +656,10 @@ function renderRundown() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
             <span>${esc(s.description)}</span>
           </div>` : ''}
+          ${s.assigned_staff_name ? `<div class="sess-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span style="font-style:italic">${esc(s.assigned_staff_name)}</span>
+          </div>` : ''}
           ${cap ? `<div class="sess-row">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Registrados: <strong style="color:${full?'var(--amber)':'var(--text)'}">${reg} de ${cap}</strong></span>
@@ -791,6 +795,11 @@ function renderCues() {
       hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz
     });
     const st = c.status || 'pending';
+    const delayBadge = (c.delay_minutes !== null && c.delay_minutes !== undefined && (st === 'in_progress' || st === 'done' || st === 'delayed'))
+      ? (c.delay_minutes === 0
+          ? '<span style="font-size:10px;font-weight:700;color:#22c55e;flex-shrink:0;">&#10003; A tiempo</span>'
+          : `<span style="font-size:10px;font-weight:700;color:${c.delay_minutes > 5 ? '#ef4444' : '#f59e0b'};flex-shrink:0;">+${c.delay_minutes} min</span>`)
+      : '';
     let actionBtn = '';
     if (st === 'pending' || st === 'delayed') {
       actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')">▶ Iniciar</button>`;
@@ -807,10 +816,12 @@ function renderCues() {
           ${c.cue_number ? `<span style="font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;">${c.cue_number}</span>` : ''}
           <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${timeStr}${c.duration_min ? ' · ' + c.duration_min + 'min' : ''}</span>
           <span class="sess-name" style="font-size:13px;">${c.title}</span>
+          ${delayBadge}
         </div>
         <span style="font-size:10px;font-weight:700;color:${statusColor[st]};flex-shrink:0;margin-left:8px;">${statusLabel[st] || st}</span>
       </div>
       ${c.technical_notes || c.location ? `<div style="padding:0 14px 8px;font-size:11px;color:var(--muted);">${c.location ? '📍 ' + c.location + ' ' : ''}${c.technical_notes || ''}</div>` : ''}
+      ${c.responsible_name ? `<div style="padding:0 14px 4px;font-size:11px;color:var(--muted);font-style:italic;">👤 ${c.responsible_name}</div>` : ''}
       ${actionBtn ? `<div class="sess-actions" style="padding:0 14px 10px;">${actionBtn}</div>` : ''}
     </div>`;
   }).join('');
@@ -823,7 +834,15 @@ function renderCues() {
 async function markCue(cueId, newStatus) {
   const idx = cues.findIndex(c => c.id === cueId);
   const prev = idx !== -1 ? cues[idx].status : null;
-  if (idx !== -1) cues[idx].status = newStatus; // optimistic
+  if (idx !== -1) {
+    cues[idx].status = newStatus;
+    if (newStatus === 'in_progress' && cues[idx].scheduled_at) {
+      const scheduled = new Date(cues[idx].scheduled_at).getTime();
+      const now = Date.now();
+      cues[idx].started_at = new Date(now).toISOString();
+      cues[idx].delay_minutes = Math.max(0, Math.round((now - scheduled) / 60000));
+    }
+  }
   renderCues();
   try {
     const res = await fetch(`/api/events/${eventId}/rundown/${cueId}`, {

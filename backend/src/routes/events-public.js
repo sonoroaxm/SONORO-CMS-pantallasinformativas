@@ -354,4 +354,82 @@ router.post('/cotizacion/:token', eventPublicReadLimiter, async (req, res) => {
   }
 });
 
+router.get('/proveedor-registro/:token', eventPublicReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT token, status, event_id, event_name_cache, invited_by_name, expires_at
+       FROM events.supplier_invite_tokens WHERE token = $1`,
+      [req.params.token]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Enlace inválido o no encontrado' });
+    if (rows[0].status === 'completed') return res.status(409).json({ error: 'already_completed', event_name: rows[0].event_name_cache });
+    if (new Date(rows[0].expires_at) < new Date()) return res.status(410).json({ error: 'Enlace expirado' });
+    res.json({ event_name: rows[0].event_name_cache, invited_by: rows[0].invited_by_name });
+  } catch (err) {
+    console.error('❌ GET /proveedor-registro/:token:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/proveedor-registro/:token', eventPublicReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows: tRows } = await pool.query(
+      `SELECT * FROM events.supplier_invite_tokens WHERE token = $1`,
+      [req.params.token]
+    );
+    if (!tRows[0]) return res.status(404).json({ error: 'Enlace inválido' });
+    if (tRows[0].status === 'completed') return res.status(409).json({ error: 'Este enlace ya fue usado' });
+    if (new Date(tRows[0].expires_at) < new Date()) return res.status(410).json({ error: 'Enlace expirado' });
+    const t = tRows[0];
+    const { name, category, contact_name, contact_email, contact_phone, id_type, id_number, notes } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Nombre de empresa requerido' });
+    // Handle optional doc uploads (express-fileupload is global)
+    const DOC_TYPES = ['rut', 'camara_comercio', 'cert_bancario', 'portafolio'];
+    const uploadDir  = path.join(process.cwd(), 'uploads', 'supplier-docs');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const docUrls = {};
+    for (const dt of DOC_TYPES) {
+      const f = req.files?.[dt];
+      if (f && f.size <= 10 * 1024 * 1024) {
+        const ext      = path.extname(f.name).toLowerCase() || '.pdf';
+        const filename = `pub-${dt}-${Date.now()}${ext}`;
+        await f.mv(path.join(uploadDir, filename));
+        docUrls[dt + '_url'] = '/uploads/supplier-docs/' + filename;
+      }
+    }
+    const supplier = await withTransaction(pool, async (client) => {
+      const { rows: sup } = await client.query(
+        `INSERT INTO events.suppliers
+           (user_id, name, category, contact_name, contact_email, contact_phone,
+            id_type, id_number, notes,
+            rut_url, camara_comercio_url, cert_bancario_url, portafolio_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+        [t.user_id, name.trim(), category||null, contact_name||null, contact_email||null,
+         contact_phone||null, id_type||null, id_number||null, notes||null,
+         docUrls.rut_url||null, docUrls.camara_comercio_url||null,
+         docUrls.cert_bancario_url||null, docUrls.portafolio_url||null]
+      );
+      const supplierId = sup[0].id;
+      if (t.event_id) {
+        await client.query(
+          `INSERT INTO events.event_suppliers (event_id, supplier_id, user_id, payment_status)
+           VALUES ($1,$2,$3,'pending') ON CONFLICT DO NOTHING`,
+          [t.event_id, supplierId, t.user_id]
+        );
+      }
+      await client.query(
+        `UPDATE events.supplier_invite_tokens SET status='completed', supplier_id=$1 WHERE token=$2`,
+        [supplierId, req.params.token]
+      );
+      return sup[0];
+    });
+    res.json({ ok: true, supplier_name: supplier.name });
+  } catch (err) {
+    console.error('❌ POST /proveedor-registro/:token:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;

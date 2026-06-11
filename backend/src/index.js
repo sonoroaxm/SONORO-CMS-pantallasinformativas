@@ -7153,6 +7153,9 @@ app.get('/evento/:slug/kiosko', (req, res) => {
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
 });
+app.get('/proveedor-registro/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'proveedor-registro.html'));
+});
 
 app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
@@ -9635,6 +9638,9 @@ app.delete('/api/admin/fids/playlists/:id/items/:mediaId', authenticateToken, re
     res.status(500).json({ error: 'Error interno' });
   }
 });
+
+const mailerRouter = require('./routes/mailer');
+app.use(mailerRouter);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);

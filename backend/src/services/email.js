@@ -6,6 +6,8 @@
  */
 
 const nodemailer = require('nodemailer');
+const path = require('path');
+const fs   = require('fs');
 
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST || 'mail.sonoro.com.co',
@@ -689,4 +691,82 @@ async function sendSupplierAcceptedEmail({ supplier_name, contact_email, event_n
   console.log(`✅ Email aceptación enviado a ${contact_email} (${event_name})`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, verifyConnection };
+
+// ── ABONO A PROVEEDOR ────────────────────────────────────────
+async function sendSupplierDepositEmail({ supplier_name, contact_email, event_name, deposit_amount, contracted_amount, payment_proof_url }, emailConfig = {}) {
+  const fmtCOP = n => n != null ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n) : '';
+  const depositStr  = fmtCOP(deposit_amount);
+  const pendingAmt  = (contracted_amount != null && deposit_amount != null) ? contracted_amount - deposit_amount : null;
+  const pendingStr  = fmtCOP(pendingAmt);
+  const proofLine   = payment_proof_url ? '<p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">Se adjunta el comprobante de pago para tu registro.</p>' : '';
+  const pendingLine = pendingAmt != null ? `<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Saldo pendiente</p><p style="margin:0;font-size:15px;color:#f59e0b;font-weight:700;">${pendingStr}</p>` : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f0f0f;">Abono registrado</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${supplier_name}</strong>,<br>
+      Hemos registrado un abono para tu contrato en el siguiente evento:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0 0 14px;font-size:16px;color:#0f0f0f;font-weight:700;">${event_name}</p>
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Abono recibido</p>
+        <p style="margin:0 0 14px;font-size:18px;color:#3b82f6;font-weight:800;">${depositStr}</p>
+        ${pendingLine}
+      </td></tr>
+    </table>
+    ${proofLine}
+    <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
+      Ante cualquier consulta, responde este correo y nuestro equipo te atenderá.
+    </p>
+  `);
+  const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const mo = { from: _from, to: contact_email, subject: `Abono registrado — ${event_name}`, html };
+  if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
+  if (payment_proof_url) {
+    const filePath = path.join(__dirname, '../public', payment_proof_url);
+    if (fs.existsSync(filePath)) {
+      mo.attachments = [{ filename: 'comprobante_abono.pdf', path: filePath }];
+    }
+  }
+  await transporter.sendMail(mo);
+  console.log(`✅ Email abono enviado a ${contact_email} (${event_name})`);
+}
+
+// ── PAGO COMPLETO A PROVEEDOR ────────────────────────────────
+async function sendSupplierPaidEmail({ supplier_name, contact_email, event_name, contracted_amount, payment_proof_url }, emailConfig = {}) {
+  const amountStr = contracted_amount != null ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(contracted_amount) : '';
+  const proofLine = payment_proof_url ? '<p style="margin:0 0 24px;font-size:14px;color:#555;line-height:1.6;">Se adjunta el comprobante del pago final para tu archivo.</p>' : '';
+  const amountLine = amountStr ? `<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Total pagado</p><p style="margin:0;font-size:18px;color:#10b981;font-weight:800;">${amountStr}</p>` : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f0f0f;">Pago completo registrado</h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${supplier_name}</strong>,<br>
+      Nos complace informarte que hemos registrado el <strong style="color:#10b981;">pago completo</strong> de tu contrato.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0 0 14px;font-size:16px;color:#0f0f0f;font-weight:700;">${event_name}</p>
+        ${amountLine}
+      </td></tr>
+    </table>
+    ${proofLine}
+    <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
+      ¡Gracias por tu excelente trabajo! Esperamos contar contigo en futuros eventos.
+    </p>
+  `);
+  const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const mo = { from: _from, to: contact_email, subject: `Pago completado — ${event_name}`, html };
+  if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
+  if (payment_proof_url) {
+    const filePath = path.join(__dirname, '../public', payment_proof_url);
+    if (fs.existsSync(filePath)) {
+      mo.attachments = [{ filename: 'comprobante_pago_final.pdf', path: filePath }];
+    }
+  }
+  await transporter.sendMail(mo);
+  console.log(`✅ Email pago completo enviado a ${contact_email} (${event_name})`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };

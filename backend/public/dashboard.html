@@ -1166,6 +1166,7 @@
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="events">Mis Eventos</button>
+            <button class="tab-btn" data-tab="ev-proveedores">Proveedores</button>
           </div>
         </div>
       </div>
@@ -2270,6 +2271,115 @@
 
       </div><!-- /events-tab -->
 
+      <!-- PROVEEDORES TAB -->
+      <div id="ev-proveedores-tab" class="container hidden">
+          <div class="section-header" style="margin-bottom:16px;">
+            <div class="section-title">Proveedores</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="evOpenInvitePanel()">Invitar ↗</button>
+              <button class="btn btn-grad" onclick="evOpenGlobalSupForm(null)">+ Nuevo Proveedor</button>
+            </div>
+          </div>
+          <!-- Panel invitación -->
+          <div id="ev-invite-panel" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;">Generar enlace de registro para proveedor</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
+              <div style="flex:1;min-width:200px;">
+                <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Vincular a un evento (opcional)</label>
+                <select id="ev-invite-event-sel" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                  <option value="">Sin evento específico</option>
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="evGenerateInviteLink()">Generar enlace</button>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-invite-panel').style.display='none'">✕</button>
+            </div>
+            <div id="ev-invite-link-box" style="display:none;">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Enlace generado · válido 7 días · un solo uso:</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="ev-invite-link-input" readonly
+                  style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;font-family:monospace;">
+                <button class="btn btn-outline btn-sm" id="ev-invite-copy-btn" onclick="evCopyInviteLink()">Copiar</button>
+              </div>
+            </div>
+          </div>
+          <input type="text" id="ev-gsup-search" placeholder="Buscar por nombre o categoría..."
+            style="margin-bottom:16px;width:100%;max-width:380px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"
+            oninput="evFilterGlobalSup()">
+          <!-- Formulario inline nuevo/editar proveedor -->
+          <div id="ev-gsup-form" style="display:none;background:var(--surface2);border-radius:8px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;" id="ev-gsup-form-title">Nuevo Proveedor</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre *</label>
+                <input id="ev-gsup-name" type="text" placeholder="Nombre empresa o persona"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Categoría</label>
+                <input id="ev-gsup-category" type="text" placeholder="Ej: Sonido, Fotografía, Catering"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Contacto</label>
+                <input id="ev-gsup-contact" type="text" placeholder="Nombre contacto"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Teléfono</label>
+                <input id="ev-gsup-phone" type="text" placeholder="+57 300 0000000"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+                <input id="ev-gsup-email" type="email" placeholder="proveedor@ejemplo.com"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Tipo ID</label>
+                <select id="ev-gsup-id-type"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                  <option value="NIT">NIT</option>
+                  <option value="CC">CC</option>
+                  <option value="CE">CE</option>
+                  <option value="PA">PA</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">N° identificación</label>
+                <input id="ev-gsup-id-number" type="text" placeholder="900.123.456-7"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+            </div>
+            <div id="ev-gsup-docs-section" style="display:none;margin-bottom:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Documentos Legales</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <label style="display:block;cursor:pointer;">
+                  <div id="ev-gsup-rut-btn" style="padding:8px 10px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;color:var(--text-muted);">RUT</div>
+                  <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="evSupDocUpload(evGlobalEditingSupplierId,'rut',this)">
+                </label>
+                <label style="display:block;cursor:pointer;">
+                  <div id="ev-gsup-camara-btn" style="padding:8px 10px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;color:var(--text-muted);">Cam. Comercio</div>
+                  <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="evSupDocUpload(evGlobalEditingSupplierId,'camara_comercio',this)">
+                </label>
+                <label style="display:block;cursor:pointer;">
+                  <div id="ev-gsup-cert-btn" style="padding:8px 10px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;color:var(--text-muted);">Cert. Bancario</div>
+                  <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="evSupDocUpload(evGlobalEditingSupplierId,'cert_bancario',this)">
+                </label>
+                <label style="display:block;cursor:pointer;">
+                  <div id="ev-gsup-portafolio-btn" style="padding:8px 10px;border:1px dashed var(--border);border-radius:6px;text-align:center;font-size:12px;color:var(--text-muted);">Portafolio</div>
+                  <input type="file" accept=".pdf,.jpg,.png" style="display:none;" onchange="evSupDocUpload(evGlobalEditingSupplierId,'portafolio',this)">
+                </label>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button class="btn btn-outline btn-sm" onclick="evCloseGlobalSupForm()">Cancelar</button>
+              <button class="btn btn-primary btn-sm" onclick="evGlobalSaveSupplier()">Guardar</button>
+            </div>
+          </div>
+          <!-- Lista -->
+          <div id="ev-gsup-list" style="display:flex;flex-direction:column;gap:0;"></div>
+      </div><!-- /ev-proveedores-tab -->
+
     </div><!-- /main -->
   </div><!-- /layout -->
 
@@ -2499,6 +2609,7 @@ function setupTabs() {
       if (tabName === 'queue') loadQueueTab();
       if (tabName === 'appointments') loadAppointmentsTab();
       if (tabName === 'events') loadEventsTab();
+      if (tabName === 'ev-proveedores') { evGlobalSupLoaded = false; evLoadGlobalSuppliers(); }
     });
   });
 }
@@ -5852,7 +5963,7 @@ function _r2UpdateBulkToolbar() {
     el.style.display = _pendingTotal > 0 ? 'inline-block' : 'none';
   }
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof socket === 'undefined') return;
+    if (!socket) return;
     socket.on('appointment.pending_reschedule', d => _updateBadge((d && d.count) || 0));
     socket.on('time_block.applied', d => {
       if (d && d.pending_reschedule > 0) _updateBadge(_pendingTotal + d.pending_reschedule);
@@ -6163,6 +6274,196 @@ function evShowView(view) {
   document.getElementById('ev-list-view').classList.toggle('hidden', view !== 'list');
   document.getElementById('ev-new-view').classList.toggle('hidden', view !== 'new');
   document.getElementById('ev-detail-view').classList.toggle('hidden', view !== 'detail');
+}
+
+// ── SECCIÓN GLOBAL: switcher + CRM proveedores ─────────────────
+let evGlobalSupLoaded = false;
+let evGlobalSupList   = [];
+let evGlobalEditingSupplierId = null;
+
+function evSwitchSection(section) { /* retired */ }
+
+async function evLoadGlobalSuppliers() {
+  const el = document.getElementById('ev-gsup-list');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    evGlobalSupList = await res.json();
+    evRenderGlobalSuppliers();
+  } catch(e) { el.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:16px 0;">Error cargando proveedores.</div>'; }
+}
+
+function evFilterGlobalSup() {
+  const q = (document.getElementById('ev-gsup-search')?.value || '').trim().toLowerCase();
+  evRenderGlobalSuppliers(q);
+}
+
+function evRenderGlobalSuppliers(filter) {
+  filter = filter || '';
+  const el = document.getElementById('ev-gsup-list');
+  if (!el) return;
+  const list = filter
+    ? evGlobalSupList.filter(s => (s.name||'').toLowerCase().includes(filter) || (s.category||'').toLowerCase().includes(filter))
+    : evGlobalSupList;
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">${filter ? 'Sin resultados.' : 'No hay proveedores todavía. Crea el primero con + Nuevo Proveedor.'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const docDefs  = [{k:'rut_url',l:'RUT'},{k:'camara_comercio_url',l:'Cám'},{k:'cert_bancario_url',l:'Cert'},{k:'portafolio_url',l:'Port'}];
+    const docLinks = docDefs.filter(d => s[d.k]).map(d =>
+      `<a href="${s[d.k]}" target="_blank" style="font-size:10px;font-weight:700;padding:2px 7px;border:1px solid #22c55e;border-radius:4px;color:#22c55e;white-space:nowrap;text-decoration:none;">${d.l} ↗</a>`
+    );
+    const docsEl   = docLinks.length
+      ? docLinks.join('')
+      : `<span style="font-size:10px;padding:2px 7px;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);white-space:nowrap;">Sin docs</span>`;
+    const evInfo   = s.last_event_name
+      ? `<span style="font-size:11px;color:var(--text-muted);">↳ ${s.last_event_name}${s.event_count > 1 ? ` +${s.event_count - 1} más` : ''}</span>`
+      : `<span style="font-size:11px;color:var(--text-muted);">Sin eventos</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--accent);flex-shrink:0;">${(s.name||'?').charAt(0).toUpperCase()}</div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:13px;font-weight:700;">${s.name}${s.category ? ` <span style="font-size:11px;font-weight:400;color:var(--text-muted);">· ${s.category}</span>` : ''}</div>
+        ${s.contact_name ? `<div style="font-size:11px;color:var(--text-muted);">${s.contact_name}${s.contact_email ? ` · ${s.contact_email}` : ''}${s.contact_phone ? ` · ${s.contact_phone}` : ''}</div>` : (s.contact_email ? `<div style="font-size:11px;color:var(--text-muted);">${s.contact_email}</div>` : '')}
+        ${evInfo}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">${docsEl}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="evOpenGlobalSupForm('${s.id}')">Editar</button>
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,.4);color:#ef4444;" onclick="evGlobalDeleteSupplier('${s.id}','${(s.name||'').replace(/'/g,'')}')">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function evOpenGlobalSupForm(supId) {
+  evGlobalEditingSupplierId = supId || null;
+  document.getElementById('ev-gsup-form-title').textContent = supId ? 'Editar Proveedor' : 'Nuevo Proveedor';
+  ['ev-gsup-name','ev-gsup-category','ev-gsup-contact','ev-gsup-phone','ev-gsup-email','ev-gsup-id-number'].forEach(id => {
+    const el2 = document.getElementById(id); if (el2) el2.value = '';
+  });
+  const idTypeEl = document.getElementById('ev-gsup-id-type'); if (idTypeEl) idTypeEl.value = 'NIT';
+  if (supId) {
+    const s = evGlobalSupList.find(x => String(x.id) === String(supId));
+    if (s) {
+      document.getElementById('ev-gsup-name').value    = s.name || '';
+      document.getElementById('ev-gsup-category').value = s.category || '';
+      document.getElementById('ev-gsup-contact').value  = s.contact_name || '';
+      document.getElementById('ev-gsup-phone').value    = s.contact_phone || '';
+      document.getElementById('ev-gsup-email').value    = s.contact_email || '';
+      if (idTypeEl) idTypeEl.value = s.id_type || 'NIT';
+      document.getElementById('ev-gsup-id-number').value = s.id_number || '';
+    }
+  }
+  const docsSection = document.getElementById('ev-gsup-docs-section');
+  if (docsSection) {
+    docsSection.style.display = supId ? '' : 'none';
+    if (supId) {
+      const sForDocs = evGlobalSupList.find(x => String(x.id) === String(supId));
+      if (sForDocs) {
+        const rutBtn    = document.getElementById('ev-gsup-rut-btn');
+        const camaraBtn = document.getElementById('ev-gsup-camara-btn');
+        const certBtn   = document.getElementById('ev-gsup-cert-btn');
+        if (rutBtn)    rutBtn.textContent    = sForDocs.rut_url             ? 'RUT ✓'            : 'RUT';
+        if (camaraBtn) camaraBtn.textContent = sForDocs.camara_comercio_url ? 'Cam. Comercio ✓' : 'Cam. Comercio';
+        if (certBtn)   certBtn.textContent   = sForDocs.cert_bancario_url   ? 'Cert. Bancario ✓': 'Cert. Bancario';
+        const portBtn  = document.getElementById('ev-gsup-portafolio-btn');
+        if (portBtn)   portBtn.textContent   = sForDocs.portafolio_url      ? 'Portafolio ✓'    : 'Portafolio';
+      }
+    }
+  }
+  const form = document.getElementById('ev-gsup-form');
+  form.style.display = '';
+  form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('ev-gsup-name').focus();
+}
+
+function evCloseGlobalSupForm() {
+  document.getElementById('ev-gsup-form').style.display = 'none';
+  evGlobalEditingSupplierId = null;
+}
+
+async function evGlobalSaveSupplier() {
+  const name = document.getElementById('ev-gsup-name').value.trim();
+  if (!name) { showStatus('Nombre requerido', 'error'); return; }
+  const body = {
+    name,
+    category:      document.getElementById('ev-gsup-category').value.trim() || undefined,
+    contact_name:  document.getElementById('ev-gsup-contact').value.trim() || undefined,
+    contact_phone: document.getElementById('ev-gsup-phone').value.trim() || undefined,
+    contact_email: document.getElementById('ev-gsup-email').value.trim() || undefined,
+    id_type:       document.getElementById('ev-gsup-id-type').value || undefined,
+    id_number:     document.getElementById('ev-gsup-id-number').value.trim() || undefined,
+  };
+  try {
+    const url    = evGlobalEditingSupplierId ? `${API_URL}/api/events/suppliers/${evGlobalEditingSupplierId}` : `${API_URL}/api/events/suppliers`;
+    const method = evGlobalEditingSupplierId ? 'PATCH' : 'POST';
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
+    evCloseGlobalSupForm();
+    evGlobalSupLoaded = false;
+    await evLoadGlobalSuppliers();
+    showStatus(evGlobalEditingSupplierId ? 'Proveedor actualizado' : 'Proveedor creado', 'success');
+  } catch(e) { showStatus('Error al guardar', 'error'); }
+}
+
+async function evOpenInvitePanel() {
+  const panel = document.getElementById('ev-invite-panel');
+  panel.style.display = '';
+  document.getElementById('ev-invite-link-box').style.display = 'none';
+  const sel = document.getElementById('ev-invite-event-sel');
+  sel.innerHTML = '<option value="">Sin evento específico</option>';
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const events = await res.json();
+    if (Array.isArray(events)) events.forEach(e => {
+      const opt = document.createElement('option'); opt.value = e.id; opt.textContent = e.name; sel.appendChild(opt);
+    });
+  } catch(e) {}
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function evGenerateInviteLink() {
+  const eventId = document.getElementById('ev-invite-event-sel').value || null;
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(eventId ? { event_id: eventId } : {})
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al generar enlace', 'error'); return; }
+    const url = `${window.location.origin}/proveedor-registro/${data.token}`;
+    document.getElementById('ev-invite-link-input').value = url;
+    document.getElementById('ev-invite-link-box').style.display = '';
+  } catch(e) { showStatus('Error al generar enlace', 'error'); }
+}
+
+function evCopyInviteLink() {
+  const val = document.getElementById('ev-invite-link-input').value;
+  navigator.clipboard?.writeText(val).then(() => {
+    const btn = document.getElementById('ev-invite-copy-btn');
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => { btn.textContent = 'Copiar'; }, 2000);
+  });
+}
+
+async function evGlobalDeleteSupplier(supId, supName) {
+  if (!confirm(`¿Eliminar a "${supName}" del directorio? Esta acción no se puede deshacer.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/suppliers/${supId}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
+    evGlobalSupList = evGlobalSupList.filter(s => String(s.id) !== String(supId));
+    evRenderGlobalSuppliers();
+    showStatus('Proveedor eliminado', 'success');
+  } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
 // ── LISTA ──────────────────────────────────────────────────────
@@ -6813,23 +7114,31 @@ async function evLoadSessionChart() {
     if (!res.ok) { chartEl.innerHTML = ''; return; }
     const rows = await res.json();
     if (!rows.length) { chartEl.innerHTML = ''; return; }
-    const max = rows[0].count || 1;
-    const bars = rows.map(r => {
+    const C = 2 * Math.PI * 20;
+    const donuts = rows.map(r => {
       const isGeneral = !r.session_id;
-      const pct = Math.max(4, Math.round((r.count / max) * 100));
-      const color = isGeneral ? '#00e676' : '#60a5fa';
-      const bg    = isGeneral ? 'rgba(0,230,118,.7)' : 'rgba(96,165,250,.7)';
-      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
-        <div style="width:160px;font-size:11px;font-weight:600;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;">${r.name}</div>
-        <div style="flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;">
-          <div style="height:100%;width:${pct}%;background:${bg};border-radius:4px;transition:width .4s;"></div>
+      const total  = r.total_registered || 1;
+      const pct    = Math.round((r.count / total) * 100);
+      const color  = isGeneral ? '#00e676' : '#60a5fa';
+      const track  = isGeneral ? 'rgba(0,230,118,.10)' : 'rgba(96,165,250,.10)';
+      const offset = (C * (1 - pct / 100)).toFixed(2);
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;">
+        <div style="position:relative;width:76px;height:76px;">
+          <svg viewBox="0 0 50 50" width="76" height="76" style="transform:rotate(-90deg);">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="${track}" stroke-width="6"/>
+            <circle cx="25" cy="25" r="20" fill="none" stroke="${color}" stroke-width="6"
+                    stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${offset}"
+                    stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:${color};">${pct}%</div>
         </div>
-        <div style="width:28px;text-align:right;font-size:12px;font-weight:800;color:${color};flex-shrink:0;">${r.count}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-align:center;line-height:1.35;word-break:break-word;max-width:110px;">${r.name}</div>
+        <div style="font-size:11px;font-weight:600;color:${color};">${r.count} <span style="color:var(--text-muted);font-weight:400;">/ ${r.total_registered}</span></div>
       </div>`;
     }).join('');
     chartEl.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
       <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:14px;">Check-ins por sesión</div>
-      ${bars}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">${donuts}</div>
     </div>`;
   } catch(e) { chartEl.innerHTML = ''; }
 }

@@ -8,7 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail } = require('../services/email');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 
@@ -107,7 +107,19 @@ router.get('/suppliers', auth, async (req, res) => {
   const pool = global.pool;
   try {
     const { rows } = await pool.query(
-      `SELECT * FROM events.suppliers WHERE user_id = $1 ORDER BY name`,
+      `SELECT s.*,
+              COUNT(DISTINCT es.event_id)::int        AS event_count,
+              (SELECT e2.name
+               FROM events.event_suppliers es2
+               JOIN events.events e2 ON e2.id = es2.event_id
+               WHERE es2.supplier_id = s.id
+               ORDER BY e2.starts_at DESC NULLS LAST
+               LIMIT 1)                              AS last_event_name
+       FROM events.suppliers s
+       LEFT JOIN events.event_suppliers es ON es.supplier_id = s.id
+       WHERE s.user_id = $1
+       GROUP BY s.id
+       ORDER BY s.name`,
       [req.user.id]
     );
     res.json(rows);
@@ -183,7 +195,7 @@ router.delete('/suppliers/:supId', auth, async (req, res) => {
 
 // ── SUBIR DOCUMENTOS LEGALES DEL PROVEEDOR ─────────────────────────────
 // docType: rut | cert_bancario | camara_comercio
-const VALID_DOC_TYPES = ['rut', 'cert_bancario', 'camara_comercio'];
+const VALID_DOC_TYPES = ['rut', 'cert_bancario', 'camara_comercio', 'portafolio'];
 router.post('/suppliers/:supId/documents/:docType', auth, async (req, res) => {
   const pool = global.pool;
   const { supId, docType } = req.params;
@@ -991,6 +1003,37 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
         }
       }).catch(() => {});
     }
+    if ((payment_status === 'partial' || payment_status === 'paid') && rows[0].supplier_id) {
+      pool.query(
+        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name, e.config AS event_config
+         FROM events.suppliers s
+         JOIN events.events e ON e.id = $1
+         WHERE s.id = $2 AND s.user_id = $3`,
+        [id, rows[0].supplier_id, req.user.id]
+      ).then(supR => {
+        if (supR.rows[0]?.contact_email) {
+          const eCfg = { from_name: supR.rows[0].event_config?.email_from_name || null, reply_to: supR.rows[0].event_config?.email_reply_to || null };
+          if (payment_status === 'partial') {
+            sendSupplierDepositEmail({
+              supplier_name:     supR.rows[0].supplier_name,
+              contact_email:     supR.rows[0].contact_email,
+              event_name:        supR.rows[0].event_name,
+              deposit_amount:    rows[0].deposit_amount,
+              contracted_amount: rows[0].contracted_amount,
+              payment_proof_url: rows[0].payment_proof_url,
+            }, eCfg).catch(e => console.error('⚠️ Email abono proveedor:', e.message));
+          } else {
+            sendSupplierPaidEmail({
+              supplier_name:     supR.rows[0].supplier_name,
+              contact_email:     supR.rows[0].contact_email,
+              event_name:        supR.rows[0].event_name,
+              contracted_amount: rows[0].contracted_amount,
+              payment_proof_url: rows[0].payment_proof_url,
+            }, eCfg).catch(e => console.error('⚠️ Email pago completo proveedor:', e.message));
+          }
+        }
+      }).catch(() => {});
+    }
     res.json(rows[0]);
   } catch (err) {
     console.error('❌ PATCH /:id/suppliers/:contractId:', err);
@@ -1601,20 +1644,59 @@ router.get('/:id/checkin-stats', auth, async (req, res) => {
     if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
     if (evRes.rows[0].user_id !== req.user.id) return res.status(403).json({ error: 'Sin acceso' });
     const { rows } = await pool.query(
-      `SELECT
-         sess.id                                                  AS session_id,
-         COALESCE(sess.name, 'Entrada general')                   AS name,
-         COUNT(DISTINCT c.registration_id)::int                   AS count
+      `WITH
+         total_regs AS (
+           SELECT COUNT(*)::int AS n FROM events.registrations WHERE event_id = $1
+         ),
+         session_regs AS (
+           SELECT rs.session_id, COUNT(DISTINCT rs.registration_id)::int AS total_registered
+           FROM events.registration_sessions rs
+           JOIN events.registrations r ON r.id = rs.registration_id
+           WHERE r.event_id = $1
+           GROUP BY rs.session_id
+         )
+       SELECT
+         sess.id                                                              AS session_id,
+         COALESCE(sess.name, 'Entrada general')                              AS name,
+         COUNT(DISTINCT c.registration_id)::int                              AS count,
+         COALESCE(sr.total_registered, (SELECT n FROM total_regs))::int      AS total_registered
        FROM events.registration_checkins c
        LEFT JOIN events.event_sessions sess ON sess.id = c.session_id
+       LEFT JOIN session_regs sr ON sr.session_id = sess.id
        WHERE c.event_id = $1
-       GROUP BY sess.id, sess.name
+       GROUP BY sess.id, sess.name, sr.total_registered
        ORDER BY count DESC`,
       [req.params.id]
     );
     res.json(rows);
   } catch (err) {
     console.error('❌ GET /api/events/:id/checkin-stats:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/suppliers/invite', auth, async (req, res) => {
+  const pool = global.pool;
+  const { event_id } = req.body;
+  try {
+    const userRes = await pool.query('SELECT name, email FROM public.users WHERE id = $1', [req.user.id]);
+    const invitedBy = userRes.rows[0]?.name || userRes.rows[0]?.email || 'El equipo';
+    let eventName = null;
+    if (event_id) {
+      const evRes = await pool.query(
+        'SELECT name FROM events.events WHERE id = $1 AND user_id = $2',
+        [event_id, req.user.id]
+      );
+      eventName = evRes.rows[0]?.name || null;
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO events.supplier_invite_tokens (user_id, event_id, event_name_cache, invited_by_name)
+       VALUES ($1, $2, $3, $4) RETURNING token`,
+      [req.user.id, event_id || null, eventName, invitedBy]
+    );
+    res.json({ token: rows[0].token });
+  } catch (err) {
+    console.error('❌ POST /suppliers/invite:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
