@@ -7873,12 +7873,25 @@ io.on('connection', (socket) => {
     socket.join(`counter_${counterId}`);
   });
 
-  socket.on('join_event', ({ event_id } = {}) => {
-    if (!event_id) return;
-    socket.join(`event_${event_id}`);
-    socket.join(`event_checkin_${event_id}`);
-    socket.join(`event_screen_${event_id}`);
-    console.log(`🎪 Socket ${socket.id} unido a salas event_${event_id}`);
+  socket.on('join_event', async ({ event_id } = {}) => {
+    if (!event_id || socket.role !== 'user') {
+      return socket.emit('auth_error', { error: 'JWT requerido para join_event' });
+    }
+    try {
+      const isAdmin = socket.user.role === 'admin';
+      const ev = await pool.query(
+        `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+        isAdmin ? [event_id] : [event_id, socket.user.id]
+      );
+      if (!ev.rowCount) return socket.emit('auth_error', { error: 'Evento no encontrado o no autorizado' });
+      socket.join(`event_${event_id}`);
+      socket.join(`event_checkin_${event_id}`);
+      socket.join(`event_screen_${event_id}`);
+      console.log(`🎪 user_id=${socket.user.id} → salas event_${event_id}`);
+    } catch (e) {
+      console.error('join_event error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
   });
 
   socket.on('disconnect', () => {
