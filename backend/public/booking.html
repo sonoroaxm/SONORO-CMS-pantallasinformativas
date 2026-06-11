@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SONORO · Agendar cita</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --magenta: #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --grad:    linear-gradient(135deg, #FF1B8D 0%, #FF8C00 55%, #FFE566 100%);
+      --bg:      #f5f4f2;
+      --surface: #ffffff;
+      --border:  #e0ddd8;
+      --text:    #1a1a1a;
+      --muted:   #8a8680;
+      --danger:  #e53e3e;
+      --success: #38a169;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+    }
+
+    /* ── LAYOUT ── */
+    .booking-wrap {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 0 0 80px;
+      min-height: 100vh;
+    }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      padding: 20px 24px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tenant-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── STEP INDICATOR ── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .step-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+    .step-dot.active {
+      background: var(--magenta);
+      transform: scale(1.4);
+    }
+    .step-dot.done {
+      background: var(--orange);
+    }
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 4px;
+      transition: background 0.3s;
+    }
+    .step-line.done { background: var(--orange); }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 24px; }
+    .screen.active { display: block; }
+
+    .screen-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .screen-sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+
+    /* ── LOADING ── */
+    #loadingScreen {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      gap: 20px;
+    }
+    #loadingScreen.active { display: flex; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--magenta);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* ── ERROR ── */
+    #errorScreen { display: none; padding: 24px; }
+    #errorScreen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      text-align: center;
+    }
+    .error-icon { font-size: 48px; margin-bottom: 16px; }
+    .error-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .error-msg { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+    /* ── CARDS ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .card-grid.single { grid-template-columns: 1fr; }
+
+    .item-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .item-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-color, var(--grad));
+      border-radius: 16px 16px 0 0;
+    }
+    .item-card:active, .item-card:hover {
+      border-color: var(--magenta);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(255,27,141,0.12);
+    }
+    .item-card-name {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .item-card-sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* ── DATE PICKER ── */
+    .date-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .date-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .day-name {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .date-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .date-nav-title {
+      font-size: 16px;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+    .nav-btn {
+      width: 36px; height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover { border-color: var(--magenta); color: var(--magenta); }
+    .nav-btn:disabled { opacity: 0.3; cursor: default; }
+    .day-cell {
+      aspect-ratio: 1;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .day-cell:hover:not(.disabled):not(.past) { border-color: var(--magenta); color: var(--magenta); }
+    .day-cell.selected {
+      background: var(--magenta);
+      border-color: var(--magenta);
+      color: #fff;
+    }
+    .day-cell.today { font-weight: 900; }
+    .day-cell.disabled, .day-cell.past, .day-cell.empty {
+      opacity: 0.3;
+      cursor: default;
+    }
+    .day-cell.empty { border: none; background: none; }
+
+    /* ── SLOTS ── */
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .slot-btn {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      transition: all 0.15s;
+    }
+    .slot-btn:hover:not(.taken) { border-color: var(--magenta); color: var(--magenta); }
+    .slot-btn.selected {
+      background: var(--magenta);
+      border-color: var(--magenta);
+      color: #fff;
+    }
+    .slot-btn.taken {
+      opacity: 0.3;
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+    .slot-btn.blocked { opacity: 0.3; cursor: not-allowed; }
+    .slots-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 40px 0;
+    }
+
+    /* ── FORM ── */
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 13px 14px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--magenta); }
+    .form-input.error { border-color: var(--danger); }
+    .form-error {
+      font-size: 12px;
+      color: var(--danger);
+      font-weight: 600;
+      margin-top: 4px;
+      display: none;
+    }
+    .form-error.visible { display: block; }
+
+    /* honeypot — invisible para humanos, trampa para bots */
+    .hp-trap { opacity: 0; height: 0; overflow: hidden; position: absolute; pointer-events: none; }
+
+    .habeas-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    .habeas-check {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all 0.15s;
+    }
+    .habeas-check.checked {
+      background: var(--magenta);
+      border-color: var(--magenta);
+    }
+    .habeas-check.checked::after {
+      content: '✓';
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .habeas-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── REVIEW ── */
+    .review-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .review-header {
+      padding: 14px 18px;
+      background: linear-gradient(135deg, #FF1B8D22, #FF8C0011);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--magenta);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .review-row {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .review-row:last-child { border-bottom: none; }
+    .review-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .review-val {
+      font-size: 14px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* ── SUCCESS ── */
+    #successScreen {
+      display: none;
+      padding: 24px;
+    }
+    #successScreen.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding-top: 60px;
+    }
+    .success-icon {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      margin-bottom: 24px;
+    }
+    .success-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .success-msg {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 500;
+      line-height: 1.6;
+      max-width: 340px;
+      margin-bottom: 32px;
+    }
+    .success-appt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+    .success-field { margin-bottom: 10px; }
+    .success-field-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+    .success-field-val { font-size: 15px; font-weight: 700; }
+    .pending-badge {
+      display: inline-block;
+      background: #FFF3CD;
+      color: #856404;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary {
+      background: var(--grad);
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      color: var(--text);
+      margin-top: 10px;
+    }
+    .btn-secondary:hover { border-color: var(--magenta); color: var(--magenta); }
+    .btn-loading::after {
+      content: '';
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--danger);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      max-width: 320px;
+      text-align: center;
+      z-index: 100;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok { background: var(--success); }
+  </style>
+</head>
+<body>
+<div class="booking-wrap">
+
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <span class="logo">SONORO</span>
+    <span class="tenant-name" id="tenantName">Cargando...</span>
+  </header>
+
+  <!-- STEP INDICATOR (visible when not loading/error/success) -->
+  <nav class="steps" id="stepsBar" style="display:none">
+    <div class="step-dot" id="sd0"></div>
+    <div class="step-line" id="sl0"></div>
+    <div class="step-dot" id="sd1"></div>
+    <div class="step-line" id="sl1"></div>
+    <div class="step-dot" id="sd2"></div>
+    <div class="step-line" id="sl2"></div>
+    <div class="step-dot" id="sd3"></div>
+    <div class="step-line" id="sl3"></div>
+    <div class="step-dot" id="sd4"></div>
+  </nav>
+
+  <!-- SCREEN: loading -->
+  <section id="loadingScreen" class="screen active">
+    <div class="spinner"></div>
+    <span class="loading-text">Cargando disponibilidad...</span>
+  </section>
+
+  <!-- SCREEN: error -->
+  <section id="errorScreen" class="screen">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">No disponible</div>
+    <div class="error-msg" id="errorMsg">Este servicio de reservas no está disponible en este momento.</div>
+  </section>
+
+  <!-- SCREEN: branch selection (only shown if >1 branch) -->
+  <section id="branchScreen" class="screen">
+    <div class="screen-title">¿En qué sucursal?</div>
+    <div class="screen-sub">Selecciona la sede de tu preferencia</div>
+    <div class="card-grid" id="branchGrid"></div>
+  </section>
+
+  <!-- SCREEN: service selection -->
+  <section id="serviceScreen" class="screen">
+    <div class="screen-title">¿Qué servicio necesitas?</div>
+    <div class="screen-sub" id="serviceSubtitle">Selecciona el servicio</div>
+    <div class="card-grid" id="serviceGrid"></div>
+    <button class="btn btn-secondary" id="backFromService" style="margin-top:20px">← Cambiar sucursal</button>
+  </section>
+
+  <!-- SCREEN: date picker -->
+  <section id="dateScreen" class="screen">
+    <div class="screen-title">¿Qué día?</div>
+    <div class="screen-sub">Elige una fecha disponible</div>
+    <div class="date-nav">
+      <button class="nav-btn" id="prevMonth">‹</button>
+      <span class="date-nav-title" id="calMonthLabel"></span>
+      <button class="nav-btn" id="nextMonth">›</button>
+    </div>
+    <div class="date-header">
+      <div class="day-name">Do</div><div class="day-name">Lu</div>
+      <div class="day-name">Ma</div><div class="day-name">Mi</div>
+      <div class="day-name">Ju</div><div class="day-name">Vi</div>
+      <div class="day-name">Sá</div>
+    </div>
+    <div class="date-grid" id="calGrid"></div>
+    <button class="btn btn-secondary" id="backFromDate">← Cambiar servicio</button>
+  </section>
+
+  <!-- SCREEN: slots -->
+  <section id="slotsScreen" class="screen">
+    <div class="screen-title">¿A qué hora?</div>
+    <div class="screen-sub" id="slotsSubtitle">Elige un horario disponible</div>
+    <div id="slotsContainer"></div>
+    <button class="btn btn-secondary" id="backFromSlots">← Cambiar fecha</button>
+  </section>
+
+  <!-- SCREEN: form -->
+  <section id="formScreen" class="screen">
+    <div class="screen-title">Tus datos</div>
+    <div class="screen-sub">Para confirmar tu cita necesitamos tu información</div>
+
+    <!-- Honeypot trap -->
+    <div class="hp-trap" aria-hidden="true">
+      <input type="text" id="hpField" autocomplete="off" tabindex="-1">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="fName">Nombre completo *</label>
+      <input class="form-input" type="text" id="fName" placeholder="Tu nombre completo" maxlength="120">
+      <div class="form-error" id="errName">Ingresa tu nombre completo</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="fId">Número de cédula *</label>
+      <input class="form-input" type="text" id="fId" placeholder="Ej: 1234567890" maxlength="20" inputmode="numeric">
+      <div class="form-error" id="errId">Número de cédula requerido</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="fPhone">Teléfono</label>
+      <input class="form-input" type="tel" id="fPhone" placeholder="Ej: 3001234567" maxlength="20" inputmode="tel">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="fEmail">Correo electrónico</label>
+      <input class="form-input" type="email" id="fEmail" placeholder="correo@ejemplo.com" maxlength="100">
+    </div>
+
+    <div class="habeas-row" id="habeasRow">
+      <div class="habeas-check" id="habeasCheck"></div>
+      <div class="habeas-text">Autorizo el tratamiento de mis datos personales conforme a la política de privacidad de la empresa, de acuerdo con la Ley 1581 de 2012 (Habeas Data).</div>
+    </div>
+
+    <button class="btn btn-primary" id="btnContinueForm">Revisar cita →</button>
+    <button class="btn btn-secondary" id="backFromForm">← Cambiar horario</button>
+  </section>
+
+  <!-- SCREEN: review -->
+  <section id="reviewScreen" class="screen">
+    <div class="screen-title">Confirma tu cita</div>
+    <div class="screen-sub">Revisa los detalles antes de agendar</div>
+
+    <div class="review-card">
+      <div class="review-header">Detalle de la cita</div>
+      <div class="review-row">
+        <span class="review-label">Sucursal</span>
+        <span class="review-val" id="rvBranch">—</span>
+      </div>
+      <div class="review-row">
+        <span class="review-label">Servicio</span>
+        <span class="review-val" id="rvService">—</span>
+      </div>
+      <div class="review-row">
+        <span class="review-label">Fecha</span>
+        <span class="review-val" id="rvDate">—</span>
+      </div>
+      <div class="review-row">
+        <span class="review-label">Hora</span>
+        <span class="review-val" id="rvTime">—</span>
+      </div>
+    </div>
+
+    <div class="review-card">
+      <div class="review-header">Tus datos</div>
+      <div class="review-row">
+        <span class="review-label">Nombre</span>
+        <span class="review-val" id="rvName">—</span>
+      </div>
+      <div class="review-row">
+        <span class="review-label">Cédula</span>
+        <span class="review-val" id="rvId">—</span>
+      </div>
+      <div class="review-row" id="rvPhoneRow">
+        <span class="review-label">Teléfono</span>
+        <span class="review-val" id="rvPhone">—</span>
+      </div>
+      <div class="review-row" id="rvEmailRow">
+        <span class="review-label">Email</span>
+        <span class="review-val" id="rvEmail">—</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btnSubmit">Agendar cita</button>
+    <button class="btn btn-secondary" id="backFromReview">← Editar datos</button>
+  </section>
+
+  <!-- SCREEN: success -->
+  <section id="successScreen" class="screen">
+    <div class="success-icon">✓</div>
+    <div class="success-title" id="successTitle">¡Cita agendada!</div>
+    <div class="success-msg" id="successMsg">Tu cita ha sido registrada exitosamente.</div>
+    <div class="success-appt-card" id="successCard">
+      <div class="success-field">
+        <div class="success-field-label">Sucursal</div>
+        <div class="success-field-val" id="scBranch">—</div>
+      </div>
+      <div class="success-field">
+        <div class="success-field-label">Servicio</div>
+        <div class="success-field-val" id="scService">—</div>
+      </div>
+      <div class="success-field">
+        <div class="success-field-label">Fecha y hora</div>
+        <div class="success-field-val" id="scDateTime">—</div>
+      </div>
+      <div id="scPendingNote"></div>
+    </div>
+    <div id="scQrWrap" style="text-align:center;margin:20px 0 12px;display:none;">
+      <img id="scQrImg" src="" alt="QR de tu cita" width="160" height="160"
+           style="border-radius:8px;border:1px solid #e5e5e5;">
+      <p style="font-size:12px;color:#888;margin:8px 0 0;">Guarda este QR para presentarlo en sucursal</p>
+    </div>
+    <button class="btn btn-secondary" style="max-width:360px;width:100%" onclick="location.reload()">Agendar otra cita</button>
+  </section>
+
+</div><!-- /.booking-wrap -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ──────────────────────────────────────────────────────
+   SONORO CMS — booking.html — R1.5 Slice A
+   Wizard de reserva pública: slug → tenant/branches/services
+   → date → slots → form → review → success
+   ────────────────────────────────────────────────────── */
+
+const SLUG = location.pathname.split('/agendar/')[1]?.split('/')[0] || '';
+
+const _st = {
+  tenant: null,
+  branches: [],
+  selectedBranch: null,
+  selectedService: null,
+  calYear: 0,
+  calMonth: 0,
+  selectedDate: null,      // 'YYYY-MM-DD'
+  slots: [],
+  selectedSlot: null,      // ISO string
+  formStartedAt: 0,
+  habeasAccepted: false,
+};
+
+// Step index: 0=branch 1=service 2=date 3=slot 4=form
+const STEP_SCREENS = ['branchScreen','serviceScreen','dateScreen','slotsScreen','formScreen'];
+
+/* ── Helpers ── */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showToast(msg, ok = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (ok ? ' ok' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function setStepBar(step) {
+  document.getElementById('stepsBar').style.display = 'flex';
+  for (let i = 0; i <= 4; i++) {
+    const dot = document.getElementById('sd' + i);
+    if (i < step)       dot.className = 'step-dot done';
+    else if (i === step) dot.className = 'step-dot active';
+    else                 dot.className = 'step-dot';
+  }
+  for (let i = 0; i <= 3; i++) {
+    document.getElementById('sl' + i).className = 'step-line' + (i < step ? ' done' : '');
+  }
+}
+
+function hideStepBar() {
+  document.getElementById('stepsBar').style.display = 'none';
+}
+
+function fmtDateEs(isoDate) {
+  const [y,m,d] = isoDate.split('-').map(Number);
+  const names = ['enero','febrero','marzo','abril','mayo','junio',
+                 'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const days  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const dt    = new Date(y, m-1, d);
+  return `${days[dt.getDay()]} ${d} de ${names[m-1]} de ${y}`;
+}
+
+function fmtTime(isoStr) {
+  const d = new Date(isoStr);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function todayStr() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+}
+
+/* ── Init ── */
+async function init() {
+  if (!SLUG) {
+    showError('Enlace inválido. No se encontró el identificador del establecimiento.');
+    return;
+  }
+  try {
+    const r = await fetch(`/api/queue/public/${encodeURIComponent(SLUG)}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showError(err.error || 'Servicio no disponible.');
+      return;
+    }
+    const data = await r.json();
+    _st.tenant   = data.tenant;
+    _st.branches = data.branches;
+    document.getElementById('tenantName').textContent = data.tenant.name;
+
+    if (!_st.branches.length) {
+      showError('No hay sucursales disponibles para reservas en este momento.');
+      return;
+    }
+
+    if (_st.branches.length === 1) {
+      _st.selectedBranch = _st.branches[0];
+      goToService();
+    } else {
+      goBranch();
+    }
+  } catch (e) {
+    showError('Error de conexión. Verifica tu internet e intenta de nuevo.');
+  }
+}
+
+function showError(msg) {
+  hideStepBar();
+  document.getElementById('errorMsg').textContent = msg;
+  show('errorScreen');
+}
+
+/* ── Branch screen ── */
+function goBranch() {
+  const grid = document.getElementById('branchGrid');
+  grid.innerHTML = '';
+  grid.className = 'card-grid' + (_st.branches.length === 1 ? ' single' : '');
+  _st.branches.forEach(b => {
+    const el = document.createElement('div');
+    el.className = 'item-card';
+    el.innerHTML = `<div class="item-card-name">${b.name}</div>
+      ${b.address ? `<div class="item-card-sub">${b.address}</div>` : ''}
+      <div class="item-card-sub" style="margin-top:4px">
+        ${b.open_time ? `${b.open_time.slice(0,5)} – ${b.close_time.slice(0,5)}` : ''}
+      </div>`;
+    el.addEventListener('click', () => {
+      _st.selectedBranch = b;
+      goToService();
+    });
+    grid.appendChild(el);
+  });
+  setStepBar(0);
+  show('branchScreen');
+}
+
+/* ── Service screen ── */
+function goToService() {
+  const branch = _st.selectedBranch;
+  document.getElementById('serviceSubtitle').textContent =
+    `Sucursal: ${branch.name}`;
+  document.getElementById('backFromService').style.display =
+    _st.branches.length > 1 ? 'block' : 'none';
+
+  const grid = document.getElementById('serviceGrid');
+  grid.innerHTML = '';
+  const svcs = branch.services || [];
+  if (!svcs.length) {
+    grid.innerHTML = '<div class="slots-empty">No hay servicios configurados.</div>';
+  } else {
+    grid.className = 'card-grid' + (svcs.length === 1 ? ' single' : '');
+    svcs.forEach(s => {
+      const el = document.createElement('div');
+      el.className = 'item-card';
+      if (s.color) el.style.setProperty('--card-color', s.color);
+      const dur = s.slot_duration_minutes || s.avg_attention_min;
+      el.innerHTML = `<div class="item-card-name">${s.name}</div>
+        ${s.description ? `<div class="item-card-sub">${s.description}</div>` : ''}
+        ${dur ? `<div class="item-card-sub">${dur} min</div>` : ''}`;
+      el.addEventListener('click', () => {
+        _st.selectedService = s;
+        goToDate();
+      });
+      grid.appendChild(el);
+    });
+  }
+  setStepBar(1);
+  show('serviceScreen');
+}
+
+/* ── Date screen ── */
+function goToDate() {
+  const now = new Date();
+  _st.calYear  = now.getFullYear();
+  _st.calMonth = now.getMonth();
+  _st.selectedDate = null;
+  renderCal();
+  setStepBar(2);
+  show('dateScreen');
+}
+
+function renderCal() {
+  const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('calMonthLabel').textContent =
+    `${months[_st.calMonth]} ${_st.calYear}`;
+
+  const now     = new Date();
+  const today   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const firstDay = new Date(_st.calYear, _st.calMonth, 1).getDay();
+  const daysIn   = new Date(_st.calYear, _st.calMonth+1, 0).getDate();
+  const maxDate  = new Date(now); maxDate.setDate(now.getDate() + 60);
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  // empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div');
+    el.className = 'day-cell empty';
+    grid.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysIn; d++) {
+    const dateStr = `${_st.calYear}-${String(_st.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dt      = new Date(_st.calYear, _st.calMonth, d);
+    const isPast  = dateStr < today;
+    const isFar   = dt > maxDate;
+    const isToday = dateStr === today;
+    const isSel   = dateStr === _st.selectedDate;
+    const isSun   = dt.getDay() === 0;
+
+    const el = document.createElement('div');
+    el.className = 'day-cell' +
+      (isToday ? ' today' : '') +
+      (isSel   ? ' selected' : '') +
+      (isPast || isFar || isSun ? ' past' : '');
+    el.textContent = d;
+    if (!isPast && !isFar && !isSun) {
+      el.addEventListener('click', () => selectDate(dateStr));
+    }
+    grid.appendChild(el);
+  }
+
+  const now2 = new Date();
+  const curMonth = now2.getFullYear() * 12 + now2.getMonth();
+  const calMonth = _st.calYear * 12 + _st.calMonth;
+  document.getElementById('prevMonth').disabled = calMonth <= curMonth;
+  document.getElementById('nextMonth').disabled = calMonth >= curMonth + 2;
+}
+
+async function selectDate(dateStr) {
+  _st.selectedDate = dateStr;
+  renderCal();
+  await loadSlots(dateStr);
+}
+
+/* ── Slots screen ── */
+async function loadSlots(dateStr) {
+  document.getElementById('slotsSubtitle').textContent = fmtDateEs(dateStr);
+  const container = document.getElementById('slotsContainer');
+  container.innerHTML = '<div class="slots-empty"><div class="spinner" style="margin:0 auto 12px"></div>Cargando horarios...</div>';
+  setStepBar(3);
+  show('slotsScreen');
+
+  try {
+    const params = new URLSearchParams({
+      branch_id:  _st.selectedBranch.id,
+      service_id: _st.selectedService.id,
+      date:       dateStr,
+    });
+    const r = await fetch(`/api/queue/public/${encodeURIComponent(SLUG)}/slots?${params}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      container.innerHTML = `<div class="slots-empty">${err.error || 'Error cargando horarios.'}</div>`;
+      return;
+    }
+    const data = await r.json();
+    _st.slots = data.slots || [];
+    renderSlots();
+  } catch (e) {
+    container.innerHTML = '<div class="slots-empty">Error de conexión.</div>';
+  }
+}
+
+function renderSlots() {
+  const container = document.getElementById('slotsContainer');
+  const available = _st.slots.filter(s => s.available === true);
+
+  if (!_st.slots.length) {
+    container.innerHTML = '<div class="slots-empty">No hay horarios configurados para este día.</div>';
+    return;
+  }
+  if (!available.length) {
+    container.innerHTML = '<div class="slots-empty">No hay horarios disponibles para este día.<br><br><small>Prueba con otra fecha.</small></div>';
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'slot-grid';
+
+  _st.slots.forEach(slot => {
+    const btn = document.createElement('button');
+    btn.className = 'slot-btn';
+    btn.textContent = fmtTime(slot.starts_at);
+
+    if (!slot.available) {
+      btn.classList.add(slot.reason === 'occupied' ? 'taken' : 'blocked');
+      btn.disabled = true;
+    } else {
+      if (slot.starts_at === _st.selectedSlot) btn.classList.add('selected');
+      btn.addEventListener('click', () => {
+        _st.selectedSlot = slot.starts_at;
+        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        setTimeout(() => goToForm(), 300);
+      });
+    }
+    grid.appendChild(btn);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(grid);
+}
+
+/* ── Form screen ── */
+function goToForm() {
+  _st.formStartedAt = Date.now();
+  _st.habeasAccepted = false;
+  document.getElementById('habeasCheck').className = 'habeas-check';
+  setStepBar(4);
+  show('formScreen');
+}
+
+/* ── Review screen ── */
+function goToReview() {
+  const name  = document.getElementById('fName').value.trim();
+  const idNum = document.getElementById('fId').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+
+  let valid = true;
+  if (!name) {
+    document.getElementById('errName').classList.add('visible');
+    document.getElementById('fName').classList.add('error');
+    valid = false;
+  } else {
+    document.getElementById('errName').classList.remove('visible');
+    document.getElementById('fName').classList.remove('error');
+  }
+  if (!idNum) {
+    document.getElementById('errId').classList.add('visible');
+    document.getElementById('fId').classList.add('error');
+    valid = false;
+  } else {
+    document.getElementById('errId').classList.remove('visible');
+    document.getElementById('fId').classList.remove('error');
+  }
+  if (!_st.habeasAccepted) {
+    showToast('Debes aceptar la política de tratamiento de datos');
+    return;
+  }
+  if (!valid) return;
+
+  document.getElementById('rvBranch').textContent  = _st.selectedBranch.name;
+  document.getElementById('rvService').textContent = _st.selectedService.name;
+  document.getElementById('rvDate').textContent    = fmtDateEs(_st.selectedDate);
+  document.getElementById('rvTime').textContent    = fmtTime(_st.selectedSlot);
+  document.getElementById('rvName').textContent    = name;
+  document.getElementById('rvId').textContent      = idNum;
+
+  const phoneRow = document.getElementById('rvPhoneRow');
+  const emailRow = document.getElementById('rvEmailRow');
+  phoneRow.style.display = phone ? 'flex' : 'none';
+  emailRow.style.display = email ? 'flex' : 'none';
+  document.getElementById('rvPhone').textContent = phone;
+  document.getElementById('rvEmail').textContent = email;
+
+  show('reviewScreen');
+}
+
+/* ── Submit ── */
+async function submitBooking() {
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.textContent = 'Agendando';
+
+  const hp = document.getElementById('hpField').value;
+
+  try {
+    const r = await fetch(`/api/queue/public/${encodeURIComponent(SLUG)}/appointments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Form-Started-At': String(_st.formStartedAt),
+      },
+      body: JSON.stringify({
+        branch_id:          _st.selectedBranch.id,
+        service_id:         _st.selectedService.id,
+        scheduled_at:       _st.selectedSlot,
+        client_name:        document.getElementById('fName').value.trim(),
+        client_id_number:   document.getElementById('fId').value.trim(),
+        client_phone:       document.getElementById('fPhone').value.trim() || null,
+        client_email:       document.getElementById('fEmail').value.trim().toLowerCase() || null,
+        accepted_habeas_data: true,
+        hp_field:           hp,
+      }),
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      showToast(data.error || 'Error al agendar. Intenta de nuevo.');
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Agendar cita';
+      return;
+    }
+
+    // Success
+    const isPending = data.status === 'pending';
+    hideStepBar();
+    document.getElementById('successTitle').textContent =
+      isPending ? 'Solicitud enviada' : '¡Cita agendada!';
+    document.getElementById('successMsg').textContent = data.message ||
+      (isPending
+        ? 'Tu solicitud fue recibida y está pendiente de confirmación.'
+        : 'Tu cita ha sido confirmada exitosamente.');
+    document.getElementById('scBranch').textContent   = _st.selectedBranch.name;
+    document.getElementById('scService').textContent  = _st.selectedService.name;
+    document.getElementById('scDateTime').textContent =
+      `${fmtDateEs(_st.selectedDate)} · ${fmtTime(_st.selectedSlot)}`;
+
+    if (isPending) {
+      document.getElementById('scPendingNote').innerHTML =
+        '<span class="pending-badge">Pendiente de confirmación</span>';
+    }
+    show('successScreen');
+    // QR de la cita
+    if (data.public_token) {
+      const citaUrl = `${location.origin}/cita/${data.public_token}`;
+      document.getElementById('scQrImg').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&data=${encodeURIComponent(citaUrl)}`;
+      document.getElementById('scQrWrap').style.display = 'block';
+    }
+  } catch (e) {
+    showToast('Error de conexión. Verifica tu internet.');
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.textContent = 'Agendar cita';
+  }
+}
+
+/* ── Event listeners ── */
+document.getElementById('prevMonth').addEventListener('click', () => {
+  const d = new Date(_st.calYear, _st.calMonth - 1, 1);
+  _st.calYear  = d.getFullYear();
+  _st.calMonth = d.getMonth();
+  renderCal();
+});
+document.getElementById('nextMonth').addEventListener('click', () => {
+  const d = new Date(_st.calYear, _st.calMonth + 1, 1);
+  _st.calYear  = d.getFullYear();
+  _st.calMonth = d.getMonth();
+  renderCal();
+});
+
+document.getElementById('backFromService').addEventListener('click', goBranch);
+document.getElementById('backFromDate').addEventListener('click', goToService);
+document.getElementById('backFromSlots').addEventListener('click', () => {
+  setStepBar(2); show('dateScreen');
+});
+document.getElementById('backFromForm').addEventListener('click', () => {
+  setStepBar(3); show('slotsScreen');
+});
+document.getElementById('backFromReview').addEventListener('click', () => {
+  setStepBar(4); show('formScreen');
+});
+
+document.getElementById('habeasRow').addEventListener('click', () => {
+  _st.habeasAccepted = !_st.habeasAccepted;
+  document.getElementById('habeasCheck').className =
+    'habeas-check' + (_st.habeasAccepted ? ' checked' : '');
+});
+
+document.getElementById('btnContinueForm').addEventListener('click', goToReview);
+document.getElementById('btnSubmit').addEventListener('click', submitBooking);
+
+/* ── Boot ── */
+init();
+</script>
+</body>
+</html>
