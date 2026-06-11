@@ -1931,7 +1931,7 @@ async function loadFidsMedia() {
         ${dur ? `<small>${dur}</small>` : ''}
       </div>
       <button class="btn btn-outline btn-sm" onclick="previewFidsFile('${escHtml(f.file_path)}','${f.type}')">&#9654;</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteFidsMedia(${f.id},'${escHtml(f.title)}')">&#x2715;</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsMedia(${f.id},'${escOnclick(f.title)}')">&#x2715;</button>
     </div>`;
   }).join('');
 }
@@ -2017,7 +2017,7 @@ async function loadFidsPlaylists() {
         <small>${pl.item_count || 0} elemento${pl.item_count !== 1 ? 's' : ''}</small>
       </div>
       <button class="btn btn-outline btn-sm" onclick="editFidsPlaylist(${pl.id})">&#x270F; Editar</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteFidsPlaylist(${pl.id},'${escHtml(pl.name)}')">&#x2715;</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsPlaylist(${pl.id},'${escOnclick(pl.name)}')">&#x2715;</button>
     </div>
   `).join('');
 }
@@ -2252,11 +2252,11 @@ async function loadProcesses() {
           </div>
         </div>
         <div class="process-actions">
-          <button class="btn btn-outline btn-sm" onclick="pmAction('${p.name}','restart')">Reiniciar</button>
-          <button class="btn btn-${p.isRunning?'warn':'outline'} btn-sm" onclick="pmAction('${p.name}','${p.isRunning?'stop':'start'}')">
+          <button class="btn btn-outline btn-sm" onclick="pmAction('${escOnclick(p.name)}','restart')">Reiniciar</button>
+          <button class="btn btn-${p.isRunning?'warn':'outline'} btn-sm" onclick="pmAction('${escOnclick(p.name)}','${p.isRunning?'stop':'start'}')">
             ${p.isRunning ? 'Parar' : 'Iniciar'}
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${p.name}')">Logs</button>
+          <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${escOnclick(p.name)}')">Logs</button>
         </div>
       </div>`).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando procesos</div>'; }
@@ -2982,9 +2982,9 @@ async function loadUsers() {
               <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
             </select>
             <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id})">Renovar</button>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${escOnclick(u.name || u.email)}')">Ver Dispositivos</button>
             ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();renewLicense(${u.id})">Reactivar</button>`}
-            <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
+            <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${escOnclick(u.name || u.email)}')" style="margin-left:auto;">Eliminar</button>
           </div>
           ${renderBaseFeatures(u)}
           ${renderQ2Features(u)}
@@ -3082,7 +3082,7 @@ function renderFeatureRows(defs, u) {
         <button class="q2-act-btn q2-disabled" disabled>No disponible</button>
       </div>`;
     }
-    const safeUser = (u.name || u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const safeUser = escOnclick(u.name || u.email || '');
     return `<div class="q2-feat-row">
       <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
       <span class="q2-badge ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
@@ -3240,7 +3240,7 @@ function renderAllDevices(devices) {
             <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
             ${!isWin
               ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
-              : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
+              : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
           </div>
         </div>`;
       }).join('')}
@@ -3389,12 +3389,12 @@ function renderRpis(devices) {
         <div class="rpi-actions">
           <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>
           <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-          <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Screenshot</button>
+          <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${escOnclick(d.name||d.device_id)}')">Screenshot</button>
           ${!isWin ? `
           <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
           <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
           ` : `
-          <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener player</button>
+          <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener player</button>
           `}
         </div>
         ${!isWin ? `
@@ -3510,7 +3510,7 @@ async function loadAllDevices() {
               <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
               ${!isWin
                 ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
-                : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
+                : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
             </div>
           </div>`;
         }).join('')}
@@ -3529,6 +3529,18 @@ function row(label, val, cls = '') {
 
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escOnclick(s) {
+  // Encodifica un valor para usarlo como string literal JS dentro de onclick="fn('...')"
+  // Aplica doble escaping: JS (backslash+quote) + HTML (entidades para & " < >)
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3629,7 +3641,7 @@ async function loadFidsGrupos() {
           <button class="btn btn-outline btn-sm" onclick="openFidsModal(${g.id})">Editar</button>
           ${previewBtn}
           <button class="btn btn-outline btn-sm" onclick="generateFidsSlave(${g.id}, this)">+ Enlace</button>
-          <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="deleteFidsGrupo(${g.id},'${escHtml(g.name)}')">Eliminar</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="deleteFidsGrupo(${g.id},'${escOnclick(g.name)}')">Eliminar</button>
         </div>
         ${fidsSlavesHtml(g.slaves, g.id)}
       </div>
@@ -3681,7 +3693,7 @@ async function loadFidsDevices() {
           <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${roleBadge}</td>
           <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${statusDot}${isOnline ? 'Online' : 'Offline'}</td>
           <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
-            <button class="btn btn-outline btn-sm" onclick="openFidsAssignModal('${escHtml(d.device_id)}','${escHtml(d.name || d.device_id)}',${d.fids_group_id || 'null'},'${d.fids_role || ''}')">
+            <button class="btn btn-outline btn-sm" onclick="openFidsAssignModal('${d.device_id}','${escOnclick(d.name || d.device_id)}',${d.fids_group_id || 'null'},'${d.fids_role || ''}')">
               ${d.fids_group_id ? 'Reasignar' : 'Asignar a grupo'}
             </button>
           </td>

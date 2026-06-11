@@ -2489,6 +2489,18 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
 const API_URL = '';
+function escOnclick(s) {
+  // Encodifica un valor para usarlo como string literal JS dentro de onclick="fn('...')"
+  // Aplica doble escaping: JS (backslash+quote) + HTML (entidades para & " < >)
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 let socket = null;
@@ -2896,7 +2908,7 @@ function displayFiles(files) {
         <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
         ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
       </div>
-      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${file.title}','${file.type}')">▶</button>
+      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${escOnclick(file.title)}','${file.type}')">▶</button>
       <button class="btn btn-danger btn-sm" onclick="deleteFile(${file.id})">✕</button>
     </div>
   `).join('');
@@ -3601,9 +3613,9 @@ async function loadDevices(silent = false) {
               <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
               <div class="dc-footer-actions">
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
-                <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${d.name}')">Captura</button>
+                <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>
                 ${isWin
-                  ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${d.name}')">Detener player</button>`
+                  ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${escOnclick(d.name)}')">Detener player</button>`
                   : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`}
                 <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
               </div>
@@ -4235,11 +4247,11 @@ async function loadBranches() {
             <div class="queue-card-sub">${b.city || ''} ${b.address ? '· ' + b.address : ''}</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:nowrap;flex-shrink:0;">
-            <button class="btn btn-outline btn-sm" onclick="openServicesModal('${b.id}','${b.name}')">Servicios</button>
-            <button class="btn btn-outline btn-sm" onclick="openCountersModal('${b.id}','${b.name}')">Ventanillas</button>
-            <button class="btn btn-outline btn-sm" onclick="openAgentsModal('${b.id}','${b.name}')">Agentes</button>
+            <button class="btn btn-outline btn-sm" onclick="openServicesModal('${b.id}','${escOnclick(b.name)}')">Servicios</button>
+            <button class="btn btn-outline btn-sm" onclick="openCountersModal('${b.id}','${escOnclick(b.name)}')">Ventanillas</button>
+            <button class="btn btn-outline btn-sm" onclick="openAgentsModal('${b.id}','${escOnclick(b.name)}')">Agentes</button>
             <button class="btn btn-outline btn-sm" onclick="editBranch('${b.id}')">Editar</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteBranch('${b.id}','${b.name}')">Eliminar</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteBranch('${b.id}','${escOnclick(b.name)}')">Eliminar</button>
           </div>
         </div>
         <div style="display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
@@ -6331,7 +6343,7 @@ function evRenderGlobalSuppliers(filter) {
       <div style="display:flex;gap:6px;align-items:center;">${docsEl}</div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-outline btn-sm" onclick="evOpenGlobalSupForm('${s.id}')">Editar</button>
-        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,.4);color:#ef4444;" onclick="evGlobalDeleteSupplier('${s.id}','${(s.name||'').replace(/'/g,'')}')">Eliminar</button>
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,.4);color:#ef4444;" onclick="evGlobalDeleteSupplier('${s.id}','${escOnclick(s.name||'')}')">Eliminar</button>
       </div>
     </div>`;
   }).join('');
@@ -7303,7 +7315,7 @@ function evRenderStaff() {
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--surface2);padding:4px 10px;border-radius:6px;color:var(--text);" title="PIN de check-in">${s.pin}</div>
-        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;" onclick="evDeleteStaff('${s.id}','${(s.name||'').replace(/'/g,'')}')">✕</button>
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;" onclick="evDeleteStaff('${s.id}','${escOnclick(s.name||'')}')">✕</button>
       </div>
     </div>`;
   }).join('');
@@ -7462,7 +7474,7 @@ function evRenderContracts() {
     } else if (ps === 'quote_sent') {
       quoteBadge = `<span style="font-size:11px;color:#f59e0b;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">Esperando resp.</span>`;
     } else if (ps === 'quote_requested' && c.contact_email) {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" onclick="evSendQuote('${c.id}','${(c.contact_email||'').replace(/'/g,'')}')">Solicitar cotización</button>`;
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" onclick="evSendQuote('${c.id}','${escOnclick(c.contact_email||'')}')">Solicitar cotización</button>`;
     }
     return `<div id="ev-cr-${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -7482,7 +7494,7 @@ function evRenderContracts() {
         </select>
         ${quoteBadge}
         <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
-          onclick="evDeleteContract('${c.id}','${(c.supplier_name||'').replace(/'/g,'')}')">✕</button>
+          onclick="evDeleteContract('${c.id}','${escOnclick(c.supplier_name||'')}')">✕</button>
       </div>
       <!-- Inline abono input -->
       <div id="ev-abono-${c.id}" style="display:none;margin-top:10px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;">
@@ -7665,7 +7677,7 @@ function evRenderSupplierDir() {
       <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px;"
         onclick="evEditSupplier('${s.id}')">Editar</button>
       <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
-        onclick="evDeleteSupplier('${s.id}','${(s.name||'').replace(/'/g,'')}')">✕</button>
+        onclick="evDeleteSupplier('${s.id}','${escOnclick(s.name||'')}')">✕</button>
     </div>`).join('');
 }
 
