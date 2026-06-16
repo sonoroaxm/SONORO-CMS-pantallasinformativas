@@ -1963,6 +1963,7 @@
               </label>
               <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()">Exportar CSV</button>
               <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()">Exportar PDF</button>
+              <button class="btn btn-outline btn-sm" onclick="evPrintAllLabels()" title="Imprimir etiquetas QR de todos los registros">🖨 Imprimir todos</button>
             </div>
             <div id="ev-regs-table-wrap" style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -2488,6 +2489,7 @@
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script>
 const API_URL = '';
 function escOnclick(s) {
@@ -7054,6 +7056,8 @@ async function evLoadRegistrations() {
         'Confirmados') +
       (pend ? evDonut(null, '#f59e0b', pend, 'pendientes de confirmar', 'Pendientes') : '');
     const rows = data.registrations || [];
+    evRegsCache = {};
+    rows.forEach(r => { evRegsCache[r.id] = r; });
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }
     const tz = evCurrentEvent?.timezone || 'America/Bogota';
     tbody.innerHTML = rows.map(r => {
@@ -7079,7 +7083,10 @@ async function evLoadRegistrations() {
         <td style="padding:10px 12px;font-size:12px;">${r.ticket_type || '—'}</td>
         <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${statusLabel}</span></td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">${date}</td>
-        <td style="padding:10px 12px;text-align:right;"><span style="font-size:16px;color:var(--text-muted);" id="reg-chevron-${r.id}">▸</span></td>
+        <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
+          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 8px;border-radius:6px;margin-right:6px;font-size:14px;" title="Imprimir etiqueta QR" onclick="event.stopPropagation();evPrintLabel('${r.id}')">🖨</button>
+          <span style="font-size:16px;color:var(--text-muted);" id="reg-chevron-${r.id}">▸</span>
+        </td>
       </tr>
       <tr id="reg-detail-${r.id}" class="hidden">
         <td colspan="6" style="padding:12px 16px 16px 16px;background:var(--surface2);border-bottom:2px solid var(--border);">
@@ -7269,6 +7276,97 @@ async function evExportRegsPDF() {
     const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
     URL.revokeObjectURL(url);
   } catch(e) { showStatus('Error generando PDF', 'error'); }
+}
+
+// ── IMPRESIÓN ETIQUETAS QR ────────────────────────────────────────────────────
+let evRegsCache = {};
+
+function evBloodType(customFields) {
+  if (!customFields) return null;
+  const key = Object.keys(customFields).find(k => /sangre|blood/i.test(k));
+  return key ? String(customFields[key]).trim() : null;
+}
+
+function evBuildLabelHTML(regs, eventName) {
+  const labelsHTML = regs.map(r => {
+    const blood = evBloodType(r.custom_fields);
+    const bloodLine = blood ? `<div class="blood">Tipo sangre: <strong>${blood}</strong></div>` : '';
+    return `
+      <div class="label">
+        <canvas class="qr-canvas" data-token="${r.qr_token}"></canvas>
+        <div class="info">
+          <div class="name">${(r.attendee_name || '').replace(/</g,'&lt;')}</div>
+          ${bloodLine}
+        </div>
+      </div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 62mm auto; margin: 1.5mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #fff; }
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    padding: 2mm 2mm;
+    width: 59mm;
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+  .label:last-child { page-break-after: auto; }
+  .qr-canvas { flex-shrink: 0; width: 26mm !important; height: 26mm !important; }
+  .info { flex: 1; min-width: 0; }
+  .name { font-size: 8.5pt; font-weight: bold; word-break: break-word; line-height: 1.2; margin-bottom: 2mm; }
+  .blood { font-size: 7.5pt; color: #333; }
+</style>
+</head>
+<body>
+${labelsHTML}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"><\/script>
+<script>
+  var canvases = document.querySelectorAll('.qr-canvas');
+  var pending = canvases.length;
+  if (!pending) { window.print(); }
+  canvases.forEach(function(c) {
+    QRCode.toCanvas(c, c.dataset.token, { width: 98, margin: 0, color: { dark:'#000', light:'#fff' } }, function() {
+      pending--;
+      if (pending === 0) { setTimeout(function(){ window.print(); }, 150); }
+    });
+  });
+<\/script>
+</body>
+</html>`;
+}
+
+function evPrintLabel(regId) {
+  const r = evRegsCache[regId];
+  if (!r) return;
+  const evName = evCurrentEvent?.name || '';
+  const w = window.open('', '_blank', 'width=400,height=350');
+  if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
+  w.document.write(evBuildLabelHTML([r], evName));
+  w.document.close();
+}
+
+async function evPrintAllLabels() {
+  if (!evCurrentEventId) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations?limit=9999`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const data = await res.json();
+    const regs = (data.registrations || []).filter(r => r.status !== 'cancelled');
+    if (!regs.length) { showStatus('Sin registros para imprimir', 'info'); return; }
+    const evName = evCurrentEvent?.name || '';
+    const w = window.open('', '_blank', 'width=500,height=600');
+    if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
+    w.document.write(evBuildLabelHTML(regs, evName));
+    w.document.close();
+  } catch(e) { showStatus('Error al preparar impresión', 'error'); }
 }
 
 // ── STAFF ─────────────────────────────────────────────────────────────────────
