@@ -1961,8 +1961,8 @@
                 Importar CSV
                 <input type="file" accept=".csv" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
               </label>
-              <button class="btn btn-outline btn-sm" onclick="evExportCSV()">Exportar CSV</button>
-              <button class="btn btn-outline btn-sm" onclick="evExportPDF()">Exportar PDF</button>
+              <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()">Exportar CSV</button>
+              <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()">Exportar PDF</button>
             </div>
             <div id="ev-regs-table-wrap" style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -7242,7 +7242,7 @@ async function evImportCSV(input) {
   input.value = '';
 }
 
-async function evExportCSV() {
+async function evExportRegsCSV() {
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/csv`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
@@ -7256,7 +7256,7 @@ async function evExportCSV() {
   } catch(e) { showStatus('Error exportando CSV', 'error'); }
 }
 
-async function evExportPDF() {
+async function evExportRegsPDF() {
   if (!evCurrentEventId) return;
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/pdf`,
