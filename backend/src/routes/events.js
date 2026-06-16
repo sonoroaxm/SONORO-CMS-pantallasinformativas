@@ -668,6 +668,379 @@ router.delete('/:id/registrations/:regId', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── EXPORTAR REGISTROS CSV ────────────────────────────────────────────────────
+router.get('/:id/registrations/export/csv', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evRes = await pool.query(
+      `SELECT e.name, e.timezone FROM events.events e WHERE e.id = $1 ${isAdmin ? '' : 'AND e.user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { name: evName, timezone: tz } = evRes.rows[0];
+
+    const { rows } = await pool.query(
+      `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.origin, r.created_at AS registered_at,
+              r.custom_fields,
+              a.name AS attendee_name, a.email, a.phone, a.id_number, a.organization, a.job_title,
+              (SELECT string_agg(sess.name, ' | ' ORDER BY sess.starts_at)
+               FROM events.registration_sessions rs
+               JOIN events.event_sessions sess ON sess.id = rs.session_id
+               WHERE rs.registration_id = r.id) AS sessions,
+              (SELECT string_agg(c.event_day::text || ' ' ||
+                 to_char(c.checked_in_at AT TIME ZONE $2, 'HH12:MI AM'), ' | '
+                 ORDER BY c.checked_in_at)
+               FROM events.registration_checkins c WHERE c.registration_id = r.id) AS checkins
+       FROM events.registrations r
+       JOIN events.attendees a ON a.id = r.attendee_id
+       WHERE r.event_id = $1
+       ORDER BY r.created_at ASC`,
+      [req.params.id, tz]
+    );
+
+    const escCSV = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const statusLbl = s => s === 'confirmed' ? 'Confirmado' : s === 'cancelled' ? 'Cancelado' : 'Pendiente';
+
+    // Collect all custom_field keys across rows
+    const cfKeys = [...new Set(rows.flatMap(r => Object.keys(r.custom_fields || {})))];
+    const headers = [
+      'nombre', 'email', 'telefono', 'cedula', 'organizacion', 'cargo',
+      'tipo_entrada', 'estado', 'origen', 'sesiones_inscritas', 'check_ins', 'registrado_en',
+      ...cfKeys
+    ];
+
+    let csv = headers.map(escCSV).join(',') + '\r\n';
+    for (const r of rows) {
+      const cf = r.custom_fields || {};
+      csv += [
+        escCSV(r.attendee_name), escCSV(r.email), escCSV(r.phone), escCSV(r.id_number),
+        escCSV(r.organization), escCSV(r.job_title), escCSV(r.ticket_type),
+        escCSV(statusLbl(r.status)), escCSV(r.origin),
+        escCSV(r.sessions), escCSV(r.checkins),
+        escCSV(r.registered_at ? new Date(r.registered_at).toLocaleString('es-CO', { timeZone: tz, hour12: true }) : ''),
+        ...cfKeys.map(k => escCSV(cf[k]))
+      ].join(',') + '\r\n';
+    }
+
+    const filename = `registros_${evName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('﻿' + csv); // BOM para Excel
+  } catch (err) {
+    console.error('❌ GET registrations/export/csv:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── EXPORTAR REGISTROS PDF ────────────────────────────────────────────────────
+router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evRes = await pool.query(
+      `SELECT id, name, slug, status, starts_at, ends_at, timezone, venue_name, config
+       FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const ev = evRes.rows[0];
+    const tz = ev.timezone || 'America/Bogota';
+    const maxCap = ev.config?.max_capacity ? parseInt(ev.config.max_capacity) : null;
+
+    const [statsRes, sessionsRes, regsRes] = await Promise.all([
+      pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status!='cancelled')::int AS total,
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status='confirmed')::int  AS confirmed,
+           (SELECT COUNT(*) FROM events.registrations WHERE event_id=$1 AND status='pending')::int    AS pending,
+           (SELECT COUNT(DISTINCT registration_id) FROM events.registration_checkins WHERE event_id=$1)::int AS checked_in`,
+        [req.params.id]
+      ),
+      pool.query(
+        `WITH sr AS (
+           SELECT rs.session_id, COUNT(DISTINCT rs.registration_id)::int AS reg_count
+           FROM events.registration_sessions rs
+           JOIN events.registrations r ON r.id = rs.registration_id
+           WHERE r.event_id = $1 GROUP BY rs.session_id
+         ), ci AS (
+           SELECT session_id, COUNT(DISTINCT registration_id)::int AS ci_count
+           FROM events.registration_checkins WHERE event_id = $1 GROUP BY session_id
+         )
+         SELECT s.name, COALESCE(sr.reg_count,0) AS reg_count, COALESCE(ci.ci_count,0) AS ci_count,
+                s.capacity
+         FROM events.event_sessions s
+         LEFT JOIN sr ON sr.session_id = s.id
+         LEFT JOIN ci ON ci.session_id = s.id
+         WHERE s.event_id = $1 AND s.status != 'cancelled'
+         ORDER BY s.starts_at`,
+        [req.params.id]
+      ),
+      pool.query(
+        `SELECT a.name AS attendee_name, a.email, a.phone, r.ticket_type, r.status,
+                (SELECT string_agg(sess.name, ', ' ORDER BY sess.starts_at)
+                 FROM events.registration_sessions rs
+                 JOIN events.event_sessions sess ON sess.id = rs.session_id
+                 WHERE rs.registration_id = r.id) AS sessions,
+                (SELECT string_agg(c.event_day::text || ' ' ||
+                   to_char(c.checked_in_at AT TIME ZONE $2, 'HH12:MI AM'), ', '
+                   ORDER BY c.checked_in_at)
+                 FROM events.registration_checkins c WHERE c.registration_id = r.id) AS checkins,
+                r.created_at AS registered_at
+         FROM events.registrations r
+         JOIN events.attendees a ON a.id = r.attendee_id
+         WHERE r.event_id = $1
+         ORDER BY r.created_at ASC`,
+        [req.params.id, tz]
+      ),
+    ]);
+
+    const stats    = statsRes.rows[0];
+    const sessions = sessionsRes.rows;
+    const regs     = regsRes.rows;
+
+    // ── PDF setup ─────────────────────────────────────────────────────────────
+    const filename = `registros_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true });
+    doc.pipe(res);
+
+    const PAGE_W = 595;
+    const M      = 48;
+    const W      = PAGE_W - M * 2;       // 499
+    const AMBER  = '#f59e0b';
+    const GREEN  = '#22c55e';
+    const BLUE   = '#3b82f6';
+    const DARK   = '#111827';
+    const GRAY   = '#6b7280';
+    const LIGHT  = '#f3f4f6';
+    const WHITE  = '#ffffff';
+
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-CO',
+      { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const statusLbl = s => s === 'confirmed' ? 'Confirmado' : s === 'cancelled' ? 'Cancelado' : 'Pendiente';
+
+    // ── HEADER ────────────────────────────────────────────────────────────────
+    doc.rect(0, 0, PAGE_W, 78).fill('#18181b');
+    doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(18).text('SONORO', M, 18);
+    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text('Reporte de Registros', M, 40);
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13).text(ev.name, M, 56, { width: W - 80 });
+
+    let y = 90;
+    const dateRange = `${fmtDate(ev.starts_at)}${ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at) : ''}`;
+    const genAt = new Date().toLocaleString('es-CO', { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9)
+       .text(`${dateRange}   ·   ${ev.venue_name || 'Sin sede'}   ·   Estado: ${statusLbl(ev.status)}`, M, y);
+    doc.fillColor(GRAY).fontSize(8).text(`Generado: ${genAt}`, M, y + 12);
+    y += 30;
+
+    // ── DONUTS ────────────────────────────────────────────────────────────────
+    // Helper: draw a donut + text block, returns width used
+    const DONUT_R  = 28;
+    const DONUT_D  = DONUT_R * 2 + 8; // card inner padding
+    const CARD_H   = 70;
+
+    // Build donut data array
+    const donutData = [
+      {
+        pct: maxCap ? Math.min(100, Math.round((stats.total / maxCap) * 100)) : null,
+        color: AMBER, big: stats.total,
+        line1: maxCap ? `de ${maxCap} cupos` : 'sin límite', line2: 'INSCRITOS'
+      },
+      {
+        pct: stats.total ? Math.round((stats.confirmed / stats.total) * 100) : 0,
+        color: GREEN, big: stats.confirmed,
+        line1: `de ${stats.total} inscritos`, line2: 'CONFIRMADOS'
+      },
+      {
+        pct: stats.total ? Math.round((stats.checked_in / stats.total) * 100) : 0,
+        color: BLUE, big: stats.checked_in,
+        line1: `de ${stats.total} inscritos`, line2: 'CHECK-INS'
+      },
+    ];
+    if (stats.pending > 0) {
+      donutData.push({
+        pct: null, color: AMBER, big: stats.pending,
+        line1: 'por confirmar', line2: 'PENDIENTES'
+      });
+    }
+
+    const donutCount = donutData.length;
+    const cardW = Math.floor((W - (donutCount - 1) * 8) / donutCount);
+
+    donutData.forEach((d, i) => {
+      const cx = M + i * (cardW + 8);
+      doc.roundedRect(cx, y, cardW, CARD_H, 5).fill(LIGHT);
+
+      // Donut arc via SVG-style path simulation using ellipse strokes
+      const dcx = cx + DONUT_R + 10;
+      const dcy = y + CARD_H / 2;
+      const pct = d.pct ?? 0;
+
+      // Background circle
+      doc.circle(dcx, dcy, DONUT_R).lineWidth(5).strokeColor('rgba(128,128,128,0.2)').stroke();
+
+      // Foreground arc (approximate with many short lines)
+      if (pct > 0) {
+        const startAngle = -Math.PI / 2;
+        const endAngle   = startAngle + (pct / 100) * 2 * Math.PI;
+        const steps = Math.max(4, Math.round(pct * 0.8));
+        doc.save();
+        doc.lineWidth(5).strokeColor(d.color).lineCap('round');
+        doc.moveTo(dcx + DONUT_R * Math.cos(startAngle), dcy + DONUT_R * Math.sin(startAngle));
+        for (let s = 1; s <= steps; s++) {
+          const a = startAngle + (s / steps) * (endAngle - startAngle);
+          doc.lineTo(dcx + DONUT_R * Math.cos(a), dcy + DONUT_R * Math.sin(a));
+        }
+        doc.stroke();
+        doc.restore();
+      }
+
+      // % text inside donut
+      const pctLabel = d.pct !== null ? `${pct}%` : '—';
+      doc.fillColor(d.color).font('Helvetica-Bold').fontSize(8)
+         .text(pctLabel, dcx - DONUT_R, dcy - 5, { width: DONUT_R * 2, align: 'center', lineBreak: false });
+
+      // Right side text
+      const tx = dcx + DONUT_R + 8;
+      const tw = cardW - (tx - cx) - 6;
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(18)
+         .text(String(d.big), tx, y + 10, { width: tw, lineBreak: false });
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7)
+         .text(d.line1, tx, y + 32, { width: tw, lineBreak: false });
+      doc.fillColor(GRAY).font('Helvetica-Bold').fontSize(6.5)
+         .text(d.line2, tx, y + 44, { width: tw, lineBreak: false });
+    });
+    y += CARD_H + 14;
+
+    // ── SESSION PILLS ─────────────────────────────────────────────────────────
+    // General check-in row (no session_id) from checkin-stats logic
+    const generalCI = stats.checked_in - sessions.reduce((s, r) => s + r.ci_count, 0);
+
+    // Include "Entrada general" if there are check-ins without session
+    const pillRows = [...sessions];
+    if (generalCI > 0) {
+      pillRows.unshift({ name: 'Entrada general', reg_count: stats.total, ci_count: generalCI, capacity: null });
+    }
+
+    if (pillRows.length > 0) {
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text('Asistencia por sesión', M, y);
+      y += 14;
+
+      const PILLS_PER_ROW = 2;
+      const GAP           = 10;
+      const PILL_W        = Math.floor((W - GAP * (PILLS_PER_ROW - 1)) / PILLS_PER_ROW);
+      const PILL_H        = 52;
+      const BAR_MAX_W     = PILL_W - 24;  // internal bar never reaches pill edges
+      const BAR_H         = 6;
+
+      pillRows.forEach((s, i) => {
+        const col = i % PILLS_PER_ROW;
+        const row = Math.floor(i / PILLS_PER_ROW);
+        const px  = M + col * (PILL_W + GAP);
+        const py  = y + row * (PILL_H + 8);
+
+        if (py + PILL_H > 790) { doc.addPage(); y = M - row * (PILL_H + 8); }
+
+        const denom = s.capacity ? parseInt(s.capacity) : (s.reg_count || 1);
+        const pct   = denom > 0 ? Math.min(100, Math.round((s.ci_count / denom) * 100)) : 0;
+        const barW  = Math.round((pct / 100) * BAR_MAX_W);
+
+        // Pill background
+        doc.roundedRect(px, py, PILL_W, PILL_H, 5).fill(LIGHT);
+
+        // Session name
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(8)
+           .text(s.name || 'Sin nombre', px + 10, py + 9, { width: PILL_W - 80, lineBreak: false, ellipsis: true });
+
+        // % badge top-right
+        doc.fillColor(BLUE).font('Helvetica-Bold').fontSize(10)
+           .text(`${pct}%`, px + PILL_W - 46, py + 7, { width: 38, align: 'right', lineBreak: false });
+
+        // Bar track
+        doc.roundedRect(px + 10, py + 26, BAR_MAX_W, BAR_H, 3).fill('#d1d5db');
+        // Bar fill
+        if (barW > 0) {
+          doc.roundedRect(px + 10, py + 26, barW, BAR_H, 3).fill(BLUE);
+        }
+
+        // Count label
+        doc.fillColor(GRAY).font('Helvetica').fontSize(7)
+           .text(`${s.ci_count} de ${denom} asistentes`, px + 10, py + 37, { width: PILL_W - 20, lineBreak: false });
+      });
+
+      const totalPillRows = Math.ceil(pillRows.length / PILLS_PER_ROW);
+      y += totalPillRows * (PILL_H + 8) + 10;
+    }
+
+    // ── DIVIDER ───────────────────────────────────────────────────────────────
+    doc.rect(M, y, W, 1).fill('#e5e7eb');
+    y += 10;
+
+    // ── TABLE ─────────────────────────────────────────────────────────────────
+    const cols = [
+      { label: 'Nombre',   w: 110 },
+      { label: 'Email',    w: 120 },
+      { label: 'Teléfono', w: 68  },
+      { label: 'Tipo',     w: 55  },
+      { label: 'Estado',   w: 58  },
+      { label: 'Sesiones', w: 88  },
+    ];
+
+    doc.rect(M, y, W, 18).fill('#18181b');
+    let cx = M;
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(7.5);
+    cols.forEach(c => {
+      doc.text(c.label, cx + 4, y + 5, { width: c.w - 8, lineBreak: false });
+      cx += c.w;
+    });
+    y += 18;
+
+    const ROW_H = 20;
+    regs.forEach((r, i) => {
+      if (y + ROW_H > 790) { doc.addPage(); y = M; }
+      doc.rect(M, y, W, ROW_H).fill(i % 2 === 0 ? WHITE : LIGHT);
+      cx = M;
+      const stColor = r.status === 'confirmed' ? GREEN : r.status === 'cancelled' ? '#ef4444' : AMBER;
+      const vals = [
+        r.attendee_name || '—',
+        r.email || '—',
+        r.phone || '—',
+        r.ticket_type || '—',
+        statusLbl(r.status),
+        r.sessions || (r.checkins ? 'Check-in ✓' : '—'),
+      ];
+      doc.font('Helvetica').fontSize(7.5);
+      cols.forEach((col, ci) => {
+        doc.fillColor(ci === 4 ? stColor : DARK)
+           .text(vals[ci], cx + 4, y + 6, { width: col.w - 8, lineBreak: false, ellipsis: true });
+        cx += col.w;
+      });
+      y += ROW_H;
+    });
+
+    if (!regs.length) {
+      doc.fillColor(GRAY).font('Helvetica').fontSize(9).text('Sin registros.', M, y + 8);
+      y += 24;
+    }
+
+    // ── FOOTER ───────────────────────────────────────────────────────────────
+    const pages = doc.bufferedPageRange();
+    for (let p = 0; p < pages.count; p++) {
+      doc.switchToPage(p);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7)
+         .text(`SONORO CMS · ${ev.name} · Registros · Pág ${p + 1} de ${pages.count}`, M, 828, { width: W, align: 'center' });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET registrations/export/pdf:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // ── RESOLVER SLUG → EVENTO (autenticado, todos los estados) ──────────────────
 router.get('/by-slug/:slug', auth, async (req, res) => {
   const pool = global.pool;

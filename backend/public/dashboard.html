@@ -1962,6 +1962,7 @@
                 <input type="file" accept=".csv" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
               </label>
               <button class="btn btn-outline btn-sm" onclick="evExportCSV()">Exportar CSV</button>
+              <button class="btn btn-outline btn-sm" onclick="evExportPDF()">Exportar PDF</button>
             </div>
             <div id="ev-regs-table-wrap" style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -7243,24 +7244,31 @@ async function evImportCSV(input) {
 
 async function evExportCSV() {
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations?limit=9999`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const data = await res.json();
-    const rows = data.registrations || [];
-    if (!rows.length) { showStatus('Sin registros para exportar', 'info'); return; }
-    const headers = ['nombre','email','telefono','tipo_entrada','estado','registrado_en'];
-    const csv = [headers.join(','), ...rows.map(r => [
-      `"${(r.attendee_name||'').replace(/"/g,'""')}"`,
-      `"${(r.email||'').replace(/"/g,'""')}"`,
-      `"${(r.phone||'').replace(/"/g,'""')}"`,
-      `"${(r.ticket_type||'').replace(/"/g,'""')}"`,
-      r.status,
-      r.registered_at ? new Date(r.registered_at).toISOString().substring(0,16) : ''
-    ].join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/csv`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!r.ok) { showStatus('Error exportando CSV', 'error'); return; }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `registros_${evCurrentEventId}.csv`;
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `registros_${evCurrentEventId}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { showStatus('Error exportando', 'error'); }
+  } catch(e) { showStatus('Error exportando CSV', 'error'); }
+}
+
+async function evExportPDF() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/pdf`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!r.ok) { showStatus('Error generando PDF', 'error'); return; }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `registros_${evCurrentEventId}.pdf`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showStatus('Error generando PDF', 'error'); }
 }
 
 // ── STAFF ─────────────────────────────────────────────────────────────────────
