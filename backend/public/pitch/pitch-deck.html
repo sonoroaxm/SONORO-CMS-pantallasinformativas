@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONORO CMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+@font-face {
+  font-family: 'Photogenic';
+  src: url('photogenic/Photogenic.otf') format('opentype'),
+       url('photogenic/Photogenic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── TOKENS ── */
+:root {
+  --grad: linear-gradient(135deg,
+    oklch(76% 0.18 55),
+    oklch(68% 0.24 20),
+    oklch(58% 0.30 355),
+    oklch(50% 0.31 328));
+  --grad-h: linear-gradient(90deg,
+    oklch(76% 0.18 55),
+    oklch(68% 0.24 20),
+    oklch(58% 0.30 355),
+    oklch(50% 0.31 328));
+
+  --dark:        oklch(12% 0.018 330);
+  --dark-2:      oklch(16% 0.020 330);
+  --dark-3:      oklch(20% 0.015 330);
+
+  --light:       oklch(96% 0.004 330);
+  --light-body:  oklch(82% 0.006 330);
+  --light-muted: oklch(62% 0.006 330);
+  --light-dim:   oklch(42% 0.006 330);
+
+  --pink-d:      oklch(72% 0.22 345);
+  --orange-d:    oklch(82% 0.17 58);
+  --blue-d:      oklch(72% 0.16 220);
+
+  --text-label:  0.68rem;
+  --text-sm:     0.85rem;
+  --text-base:   1rem;
+  --text-md:     1.2rem;
+  --text-lg:     1.5rem;
+  --text-xl:     2rem;
+  --text-2xl:    3rem;
+  --text-3xl:    4.5rem;
+  --text-display: clamp(5rem, 9vw, 12rem);
+
+  --ease: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--dark);
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--light);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SLIDE SYSTEM ── */
+#deck {
+  position: relative;
+  width: 100vw;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 280ms var(--ease);
+}
+
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+/* ── PROGRESS BAR ── */
+#pb {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  background: var(--orange-d);
+  transition: width 300ms var(--ease);
+  z-index: 200;
+}
+
+/* ── SLIDE COUNTER ── */
+#sc {
+  position: fixed;
+  bottom: 28px; right: 36px;
+  font: 700 0.72rem/1 'Big Shoulders Display', sans-serif;
+  letter-spacing: 0.08em;
+  color: var(--light-muted);
+  z-index: 200;
+}
+
+/* ── LANGUAGE SWITCH ── */
+.lang-switch {
+  position: fixed;
+  top: 20px; right: 24px;
+  display: flex;
+  gap: 4px;
+  z-index: 200;
+}
+.lang-btn {
+  font: 700 1rem/1 'Big Shoulders Display', sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid oklch(100% 0 0 / 0.18);
+  color: var(--light-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+  min-height: 44px;
+  min-width: 54px;
+}
+.lang-btn.active {
+  background: var(--orange-d);
+  color: oklch(18% 0.018 330);
+  border-color: transparent;
+}
+
+/* ── BILINGUAL VISIBILITY ── */
+.en { display: none; }
+html[lang="en"] .es { display: none; }
+html[lang="en"] .en { display: revert; }
+
+/* ── SLIDE TYPE: IMPACT ── */
+.slide-impact {
+  background: var(--dark);
+  align-items: center;
+  justify-content: center;
+}
+.slide-impact.left {
+  align-items: flex-start;
+  padding: 0 8vw;
+  justify-content: center;
+}
+
+/* ── SLIDE TYPE: EDITORIAL SPLIT ── */
+.slide-editorial {
+  display: grid;
+  grid-template-columns: 54% 46%;
+  flex-direction: unset;
+}
+.panel-left {
+  background: var(--dark-2);
+  padding: 7vh 5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.panel-right {
+  background: var(--dark-3);
+  padding: 7vh 4.5vw;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ── SLIDE TYPE: DATA ── */
+.slide-data {
+  background: var(--dark-3);
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 7vw;
+}
+
+/* ── TYPOGRAPHY HELPERS ── */
+.ph { font-family: 'Photogenic', serif; font-weight: normal; letter-spacing: -0.025em; line-height: 0.92; }
+.label { font: 700 var(--text-label)/1 'Big Shoulders Display'; letter-spacing: 0.10em; text-transform: uppercase; color: var(--light-muted); }
+
+/* ── STAGE PILL ── */
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 700 0.68rem/1 'Big Shoulders Display';
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pink-d);
+  color: var(--pink-d);
+  width: fit-content;
+}
+
+/* ── STATUS DOT ── */
+.dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.dot-live { background: oklch(65% 0.25 145); animation: pulse 2s ease-in-out infinite; }
+.dot-ready { background: var(--orange-d); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* ── DIVIDER ── */
+.rule { width: 100%; height: 2px; background: var(--light); }
+.rule-thin { width: 100%; height: 1px; background: oklch(100% 0 0 / 0.10); }
+.rule-grad { width: 100%; height: 3px; background: var(--grad); }
+
+/* ── DATA TABLE ── */
+.dtable { width: 100%; border-collapse: collapse; }
+.dtable th {
+  font: 700 var(--text-label)/1 'Big Shoulders Display';
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--light-muted);
+  padding: 0.7rem 1rem 0.7rem 0;
+  border-bottom: 1px solid oklch(100% 0 0 / 0.18);
+  text-align: left;
+}
+.dtable td {
+  font: 600 var(--text-sm)/1.5 'Big Shoulders Display';
+  color: var(--light-body);
+  padding: 0.65rem 1rem 0.65rem 0;
+  border-bottom: 1px solid oklch(100% 0 0 / 0.08);
+  vertical-align: top;
+}
+.dtable td.pk { color: var(--pink-d); font-weight: 700; }
+.dtable td.or { color: var(--orange-d); font-weight: 700; }
+
+
+/* ── PRINT ── */
+@media print {
+  @page { size: A4 landscape; margin: 0; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body { overflow: visible; }
+  #deck { height: auto; overflow: visible; position: static; }
+  .slide {
+    position: relative !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    height: 100vh;
+    page-break-after: always;
+  }
+  .slide-editorial { display: grid !important; }
+  #pb, .lang-switch, #sc, .nav-arrow { display: none !important; }
+}
+
+/* ── NAV ARROWS ── */
+.nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  background: oklch(100% 0 0 / 0.08);
+  border: 1px solid oklch(100% 0 0 / 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 200ms ease-out, background 150ms ease-out;
+  pointer-events: none;
+  user-select: none;
+}
+.nav-arrow svg { width: 18px; height: 18px; stroke: oklch(82% 0.006 330); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.nav-arrow.prev { left: 20px; }
+.nav-arrow.next { right: 20px; }
+#deck:hover .nav-arrow { opacity: 1; pointer-events: auto; }
+.nav-arrow:hover { background: oklch(100% 0 0 / 0.16); }
+.nav-arrow.hidden { opacity: 0 !important; pointer-events: none !important; }
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Fixed chrome -->
+<div id="pb" style="width:8.33%"></div>
+<button class="nav-arrow prev hidden" id="nav-prev" onclick="prev()" aria-label="Anterior">
+  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<button class="nav-arrow next" id="nav-next" onclick="next()" aria-label="Siguiente">
+  <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+</button>
+<div class="lang-switch">
+  <button class="lang-btn active" id="btn-es" onclick="setLang('es')">ES</button>
+  <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+</div>
+<div id="sc">1 / 12</div>
+
+<div id="deck">
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 01 — COVER
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact active" id="s1" style="align-items:stretch; justify-content:stretch;">
+  <div style="width:100%;height:100%;display:flex;flex-direction:column;padding:5.5vh 8vw 6vh;">
+
+    <!-- Central block: wordmark + tagline -->
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:3vh 0 2vh;">
+
+      <h1 style="margin:0 0 3.5vh;line-height:0.9;white-space:nowrap;overflow:hidden;">
+        <span style="font:900 clamp(5.5rem,10.5vw,14rem)/0.88 'Big Shoulders Display';letter-spacing:0;color:var(--pink-d);">SONORO</span><span style="font:900 clamp(5.5rem,10.5vw,14rem)/0.88 'Big Shoulders Display';letter-spacing:0;color:var(--orange-d);"> CMS</span>
+      </h1>
+
+      <p style="font:900 clamp(1.3rem,2.3vw,3rem)/1.18 'Big Shoulders Display';color:var(--light);letter-spacing:-0.005em;max-width:36ch;">
+        <span class="es">Miles de pantallas encendidas que no le venden nada a nadie.<br><span style="color:var(--orange-d);">SONORO las activa.</span><br><span style="font-weight:400;color:var(--light-body);">Cualquier negocio. Cualquier vertical. Cualquier ciudad.</span></span>
+        <span class="en">Millions of screens on — selling nothing to anyone.<br><span style="color:var(--orange-d);">SONORO changes that.</span><br><span style="font-weight:400;color:var(--light-body);">Any business. Any vertical. Any city.</span></span>
+      </p>
+
+    </div>
+
+    <!-- Bottom row -->
+    <div style="display:flex;justify-content:flex-end;align-items:flex-end;">
+      <div style="text-align:right;font:400 var(--text-base)/1.9 'DM Sans';color:var(--light-muted);">
+        daniel@sonoro.com.co<br>
+        +57 314 446 0990<br>
+        cms.sonoro.com.co
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 02 — LOS DOLORES
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s2">
+  <div style="width:100%; max-width:1140px; padding:0 6vw; display:flex; flex-direction:column; align-items:center; gap:3.5vh;">
+
+    <div style="text-align:center;">
+      <div class="label" style="margin-bottom:1.2rem; color:var(--light-dim);">
+        <span class="es">EL DOLOR DE MERCADO</span>
+        <span class="en">MARKET PAIN</span>
+      </div>
+      <h2 style="font:900 clamp(3rem,5.5vw,7rem)/0.95 'Big Shoulders Display'; letter-spacing:-0.01em; max-width:22ch; margin:0 auto 1.8rem;">
+        <span class="es">Tres razones por las que el canal existe y <span style="color:var(--orange-d);">nadie lo está usando.</span></span>
+        <span class="en">Three reasons the channel exists — <span style="color:var(--orange-d);">and nobody's using it.</span></span>
+      </h2>
+      <p style="font:500 clamp(1rem,1.4vw,1.35rem)/1.6 'DM Sans'; color:var(--light-body); max-width:48ch; margin:0 auto;">
+        <span class="es">El hardware ya está instalado. El mercado existe. Solo falta el sistema correcto.</span>
+        <span class="en">The hardware is already installed. The market exists. It just needs the right system.</span>
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 5vw; width:100%; align-items:start;">
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:1.8rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.15em; right:-0.05em; font:normal clamp(5rem,8vw,9rem)/1 'Photogenic'; color:oklch(80% 0.18 58/0.14); pointer-events:none; user-select:none;">01</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.5rem,2.2vw,2.6rem)/1.05 'Big Shoulders Display'; color:oklch(80% 0.18 58); margin-bottom:1.1rem;">
+            <span class="es">La pantalla apagada</span>
+            <span class="en">The turned-off screen</span>
+          </div>
+          <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.75 'DM Sans'; color:var(--light-body); margin-bottom:1.3rem;">
+            <span class="es">El TV está, pero con la misma imagen de hace 1 año.<br>O solo sirve para ver noticias al medio día.<br>No saben qué poner y lo apagan.</span>
+            <span class="en">The TV is there, but showing last year's image.<br>Or just used for noon news.<br>They don't know what to show and turn it off.</span>
+          </div>
+          <div style="font:900 clamp(0.9rem,1.1vw,1.15rem)/1.4 'Big Shoulders Display'; color:var(--orange-d);">
+            <span class="es">"El canal existe y nadie lo está usando."</span>
+            <span class="en">"The channel exists — nobody is using it."</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:1.8rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.15em; right:-0.05em; font:normal clamp(5rem,8vw,9rem)/1 'Photogenic'; color:oklch(68% 0.27 355/0.14); pointer-events:none; user-select:none;">02</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.5rem,2.2vw,2.6rem)/1.05 'Big Shoulders Display'; color:oklch(68% 0.27 355); margin-bottom:1.1rem;">
+            <span class="es">La fricción en la adopción</span>
+            <span class="en">The adoption barrier</span>
+          </div>
+          <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.75 'DM Sans'; color:var(--light-body); margin-bottom:1.3rem;">
+            <span class="es">Ecosistema excluyente.<br>Desde USD$1,700 por pantalla + anualidades.<br>Dependencia de terceros para su gestión.</span>
+            <span class="en">A non-inclusive, specialized environment.<br>From USD$1,700 per screen + annual fees.<br>Dependent on third parties to manage it.</span>
+          </div>
+          <div style="font:900 clamp(0.9rem,1.1vw,1.15rem)/1.4 'Big Shoulders Display'; color:var(--pink-d);">
+            <span class="es">"Desisten antes de empezar."</span>
+            <span class="en">"They quit before they start."</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:1.8rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.15em; right:-0.05em; font:normal clamp(5rem,8vw,9rem)/1 'Photogenic'; color:oklch(72% 0.26 345/0.14); pointer-events:none; user-select:none;">03</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.5rem,2.2vw,2.6rem)/1.05 'Big Shoulders Display'; color:var(--pink-d); margin-bottom:1.1rem;">
+            <span class="es">El caos multi-sede</span>
+            <span class="en">The multi-site chaos</span>
+          </div>
+          <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.75 'DM Sans'; color:var(--light-body); margin-bottom:1.3rem;">
+            <span class="es">Logística de material impreso caótica e inmedible.<br>Uptime y ROI imposible de rastrear.<br>Vendor lock-in y pilotos de alto costo.</span>
+            <span class="en">Chaotic, unmeasurable printed material logistics.<br>Uptime and ROI impossible to track.<br>Vendor lock-in and high-cost pilots.</span>
+          </div>
+          <div style="font:900 clamp(0.9rem,1.1vw,1.15rem)/1.4 'Big Shoulders Display'; color:var(--orange-d);">
+            <span class="es">"Cada tienda, una isla."</span>
+            <span class="en">"Each store, an island."</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 03 — EL PRODUCTO
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s3" style="justify-content:center; align-items:center;">
+
+  <div style="width:100%; max-width:1100px; padding:0 7vw; display:flex; flex-direction:column; gap:6vh;">
+
+    <div>
+      <div class="label" style="margin-bottom:1.6rem;">
+        <span class="es">LA SOLUCIÓN — SONORO CMS</span>
+        <span class="en">THE SOLUTION — SONORO CMS</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.3rem;">
+        <p style="font:900 clamp(2.8rem,5vw,6.5rem)/1.0 'Big Shoulders Display'; letter-spacing:-0.005em; color:var(--light); margin:0;">
+          <span class="es">Cualquier TV con <span style="color:var(--orange-d);">HDMI.</span></span>
+          <span class="en">Any TV with <span style="color:var(--orange-d);">HDMI.</span></span>
+        </p>
+        <p style="font:900 clamp(2.8rem,5vw,6.5rem)/1.0 'Big Shoulders Display'; letter-spacing:-0.005em; color:var(--light); margin:0;">
+          <span style="color:var(--orange-d);">
+            <span class="es">10 minutos.</span>
+            <span class="en">10 minutes.</span>
+          </span>
+        </p>
+        <p style="font:900 clamp(2.8rem,5vw,6.5rem)/1.0 'Big Shoulders Display'; letter-spacing:-0.005em; color:var(--light-body); margin:0;">
+          <span class="es">Sin técnico. Sin contrato. Sin caos.</span>
+          <span class="en">No technician. No contract. No chaos.</span>
+        </p>
+      </div>
+      <p style="font:800 clamp(1rem,1.4vw,1.5rem)/1.4 'Big Shoulders Display'; margin-top:1.8rem; letter-spacing:0.03em;">
+        <span class="es"><span style="color:var(--orange-d);">Producto en producción</span> <span style="color:var(--light-dim);">·</span> <span style="color:var(--pink-d);">Construido por el fundador con IA</span> <span style="color:var(--light-dim);">·</span> <span style="color:var(--blue-d);">Sin deuda técnica</span></span>
+        <span class="en"><span style="color:var(--orange-d);">Product in production</span> <span style="color:var(--light-dim);">·</span> <span style="color:var(--pink-d);">Built by one founder with AI</span> <span style="color:var(--light-dim);">·</span> <span style="color:var(--blue-d);">Zero tech debt</span></span>
+      </p>
+    </div>
+
+    <div>
+      <div style="border-top:1px solid oklch(100% 0 0/0.12); padding-top:2vh; margin-bottom:2.5vh;">
+        <div style="font:800 clamp(0.9rem,1.3vw,1.5rem)/1 'Big Shoulders Display'; letter-spacing:0.06em; text-transform:uppercase; color:var(--light);">
+          <span class="es">Un sistema. Tres momentos de adopción.</span>
+          <span class="en">One system. Three adoption stages.</span>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr auto 1fr auto 1fr; grid-template-rows:auto auto; align-items:start; gap:0 1.8vw;">
+
+        <div style="border-top:3px solid var(--orange-d); border-radius:0 0 8px 8px; background:oklch(100% 0 0/0.03); padding:1.2rem 1.1rem 1.1rem;">
+          <div style="font:800 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.10em; text-transform:uppercase; color:var(--orange-d); margin-bottom:0.8rem;">Solopreneur</div>
+          <div style="font:900 clamp(1.5rem,2.1vw,2.6rem)/1 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:0; margin-bottom:0.9rem;">$200 USD</div>
+          <div style="font:400 0.84rem/1.7 'DM Sans'; color:var(--light-body);">
+            <span class="es">Se vincula con $200 USD.<br>Instala en 10 minutos.<br>Si no puede, lo apoyamos por WhatsApp.<br>Desde su celular gestiona su canal.</span>
+            <span class="en">Onboards for $200 USD.<br>Installs in 10 minutes.<br>If needed, we support via WhatsApp.<br>Manages their channel from their phone.</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; padding-top:3rem;">
+          <span style="font:900 2.6rem/1 'Big Shoulders Display'; color:var(--light-muted);">→</span>
+        </div>
+
+        <div style="border-top:3px solid oklch(78% 0.21 32); border-radius:0 0 8px 8px; background:oklch(100% 0 0/0.03); padding:1.2rem 1.1rem 1.1rem;">
+          <div style="font:800 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.10em; text-transform:uppercase; color:oklch(78% 0.21 32); margin-bottom:0.8rem;">
+            <span class="es">Expansión</span><span class="en">Expansion</span>
+          </div>
+          <div style="font:800 clamp(1rem,1.5vw,1.6rem)/1.2 'Big Shoulders Display'; color:oklch(78% 0.21 32); margin-bottom:0.9rem;">
+            <span class="es">El canal funciona. Ahora escala.</span>
+            <span class="en">The channel works. Now it scales.</span>
+          </div>
+          <div style="font:400 0.84rem/1.7 'DM Sans'; color:var(--light-body);">
+            <span class="es">Cuando el canal funciona, el negocio quiere más.<br>Más pantallas, más sedes, más contenido.<br>El sistema crece con él sin cambiar de plataforma.</span>
+            <span class="en">Once the channel works, the business wants more.<br>More screens, more locations, more content.<br>The system grows with them — same platform.</span>
+          </div>
+          <div style="font:700 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.08em; text-transform:uppercase; color:var(--pink-d); border-top:1px solid oklch(100% 0 0/0.15); margin-top:0.9rem; padding-top:0.65rem;">
+            <span class="es">SaaS recurrente · o lo gestionamos</span>
+            <span class="en">Recurring SaaS · or fully managed</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; padding-top:3rem;">
+          <span style="font:900 2.6rem/1 'Big Shoulders Display'; color:var(--light-muted);">→</span>
+        </div>
+
+        <div style="border-top:3px solid var(--pink-d); border-radius:0 0 8px 8px; background:oklch(100% 0 0/0.03); padding:1.2rem 1.1rem 1.1rem;">
+          <div style="font:800 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.10em; text-transform:uppercase; color:var(--pink-d); margin-bottom:0.8rem;">
+            <span class="es">Multisede</span><span class="en">Multi-site</span>
+          </div>
+          <div style="font:800 clamp(1rem,1.5vw,1.6rem)/1.2 'Big Shoulders Display'; color:var(--pink-d); margin-bottom:0.9rem;">Dashboard Admin</div>
+          <div style="font:400 0.84rem/1.7 'DM Sans'; color:var(--light-body);">
+            <span class="es">Dashboard para usuarios multisede listo.<br>Pilotos ágiles y de bajo costo.<br>Podemos gestionar su cuenta.</span>
+            <span class="en">Multi-site dashboard ready.<br>Agile, low-cost pilots.<br>We can manage their account.</span>
+          </div>
+          <div style="font:700 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.08em; text-transform:uppercase; color:var(--pink-d); border-top:1px solid oklch(100% 0 0/0.15); margin-top:0.9rem; padding-top:0.65rem;">
+            <span class="es">SaaS recurrente · o lo gestionamos</span>
+            <span class="en">Recurring SaaS · or fully managed</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 04 — EL PRODUCTO EN ACCIÓN (fotos)
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s4" style="overflow:hidden; padding:0; background:oklch(10% 0.018 330);">
+
+  <!-- VIDEO BACKGROUND -->
+  <div style="position:absolute; inset:0; overflow:hidden; z-index:0;">
+    <video id="vid-product" autoplay muted loop playsinline style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; display:block;">
+      <source src="vidoes/22.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div style="position:absolute; inset:0; background:oklch(10% 0.018 330/0.78); z-index:1;"></div>
+
+  <div style="position:relative; z-index:2; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:5vh 7vw; gap:4vh;">
+
+    <!-- TRES SKUs -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 4vw; width:100%; max-width:1100px;">
+
+      <div style="border-top:3px solid var(--orange-d); padding-top:1.6rem;">
+        <div style="font:900 0.8rem/1 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:0.10em; text-transform:uppercase; margin-bottom:1rem;">SKU 01</div>
+        <div style="font:900 clamp(2.2rem,3.8vw,4.8rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:0; margin-bottom:0.8rem;">
+          <span class="es">FHD<br>Pantalla<br>única</span>
+          <span class="en">FHD<br>Single<br>screen</span>
+        </div>
+        <div style="font:500 clamp(0.9rem,1.1vw,1.1rem)/1.6 'DM Sans'; color:var(--light-muted);">
+          <span class="es">1 TV FHD</span>
+          <span class="en">1 FHD TV</span>
+        </div>
+        <div style="font:900 clamp(1.4rem,2vw,2.4rem)/1 'Big Shoulders Display'; color:var(--orange-d); margin-top:0.8rem;">$200 USD</div>
+      </div>
+
+      <div style="border-top:3px solid var(--pink-d); padding-top:1.6rem;">
+        <div style="font:900 0.8rem/1 'Big Shoulders Display'; color:var(--pink-d); letter-spacing:0.10em; text-transform:uppercase; margin-bottom:1rem;">SKU 02</div>
+        <div style="font:900 clamp(2.2rem,3.8vw,4.8rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:0; margin-bottom:0.8rem;">
+          <span class="es">FHD<br>Pantalla<br>dual</span>
+          <span class="en">FHD<br>Dual<br>screen</span>
+        </div>
+        <div style="font:500 clamp(0.9rem,1.1vw,1.1rem)/1.6 'DM Sans'; color:var(--light-muted);">
+          <span class="es">2 TV FHD</span>
+          <span class="en">2 FHD TVs</span>
+        </div>
+        <div style="font:900 clamp(1.4rem,2vw,2.4rem)/1 'Big Shoulders Display'; color:var(--pink-d); margin-top:0.8rem;">$300 USD</div>
+      </div>
+
+      <div style="border-top:3px solid var(--blue-d); padding-top:1.6rem;">
+        <div style="font:900 0.8rem/1 'Big Shoulders Display'; color:var(--blue-d); letter-spacing:0.10em; text-transform:uppercase; margin-bottom:1rem;">SKU 03</div>
+        <div style="font:900 clamp(2.2rem,3.8vw,4.8rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:0; margin-bottom:0.8rem;">
+          <span class="es">4K<br>Pantalla<br>dual</span>
+          <span class="en">4K<br>Dual<br>screen</span>
+        </div>
+        <div style="font:500 clamp(0.9rem,1.1vw,1.1rem)/1.6 'DM Sans'; color:var(--light-muted);">
+          <span class="es">2 TV 4K</span>
+          <span class="en">2 4K TVs</span>
+        </div>
+        <div style="font:900 clamp(1.4rem,2vw,2.4rem)/1 'Big Shoulders Display'; color:var(--blue-d); margin-top:0.8rem;">$450 USD</div>
+      </div>
+
+    </div>
+
+    <!-- BARRA SOFTWARE TRANSVERSAL -->
+    <div style="width:100%; max-width:1100px; border-top:2px solid oklch(100% 0 0/0.12); padding-top:2.5vh; display:grid; grid-template-columns:1fr 1fr; gap:0 4vw;">
+
+      <div style="border-left:3px solid var(--orange-d); padding-left:1.4rem;">
+        <div style="font:900 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.10em; color:var(--orange-d); margin-bottom:0.6rem;">SONORO CMS</div>
+        <div style="font:900 clamp(1.4rem,2.2vw,2.8rem)/1 'Big Shoulders Display'; color:var(--light); letter-spacing:0; margin-bottom:0.5rem;">
+          <span class="es">Gestión de contenido</span>
+          <span class="en">Content management</span>
+        </div>
+        <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+          <span class="es">Playlists · programación · control remoto · analíticas</span>
+          <span class="en">Playlists · scheduling · remote control · analytics</span>
+        </div>
+      </div>
+
+      <div style="border-left:3px solid var(--blue-d); padding-left:1.4rem;">
+        <div style="font:900 0.78rem/1 'Big Shoulders Display'; letter-spacing:0.10em; color:var(--blue-d); margin-bottom:0.6rem;"><span class="es">SONORO GESTIÓN DE TURNOS</span><span class="en">SONORO QUEUE MANAGEMENT</span></div>
+        <div style="font:900 clamp(1.4rem,2.2vw,2.8rem)/1 'Big Shoulders Display'; color:var(--light); letter-spacing:0; margin-bottom:0.5rem;">
+          <span class="es">Turnos · calificación · desempeño</span>
+          <span class="en">Queue · ratings · performance</span>
+        </div>
+        <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+          <span class="es">Gestión de turnos · calificación del servicio · panel de desempeño de agentes · sala de espera</span>
+          <span class="en">Queue management · service rating · agent performance dashboard · waiting room</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 05 — LA PRUEBA
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s5" style="overflow:hidden; padding:0; background:oklch(10% 0.018 330);">
+
+  <div style="position:absolute; inset:0; overflow:hidden; z-index:0;">
+    <video id="vid-prueba" autoplay muted loop playsinline style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center center; display:block;">
+      <source src="GH010693.MP4" type="video/mp4">
+    </video>
+  </div>
+  <div style="position:absolute; inset:0; background:oklch(10% 0.018 330/0.72); z-index:1;"></div>
+
+  <div style="position:relative; z-index:2; width:100%; max-width:1240px; margin:auto; padding:5vh 6vw; display:grid; grid-template-columns:1.7fr 1fr; gap:0 4vw; align-items:center;">
+
+    <!-- LEFT: Track Record SONORO como empresa -->
+    <div style="display:flex; flex-direction:column; gap:3.5vh; padding-right:4vw; border-right:1px solid oklch(100% 0 0/0.15);">
+
+      <div>
+        <div class="label" style="margin-bottom:1.2rem; color:var(--light-dim);">
+          <span class="es">SONORO · Track Record · 2022–2025</span>
+          <span class="en">SONORO · Track Record · 2022–2025</span>
+        </div>
+        <div style="font:900 clamp(3.5rem,7vw,9rem)/0.85 'Big Shoulders Display'; letter-spacing:0; color:var(--light); display:inline-block; position:relative;">
+          SONORO<sup style="font-size:0.20em; position:absolute; top:0.08em; right:-0.6em; letter-spacing:0; color:var(--pink-d);">®</sup>
+        </div>
+        <div style="font:900 clamp(1.4rem,2.4vw,3rem)/1.05 'Big Shoulders Display'; color:var(--orange-d); margin-top:0.5rem;">
+          $185K USD Gross Revenue
+        </div>
+        <div style="font:400 clamp(0.82rem,1vw,1rem)/1.6 'DM Sans'; color:var(--light-body); margin-top:0.5rem;">
+          <span class="es">en proyectos de integración audiovisual · Eje Cafetero</span>
+          <span class="en">in audiovisual integration projects · Colombian Coffee Axis</span>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; border-top:1px solid oklch(100% 0 0/0.14); gap:0 1.5vw;">
+
+        <div style="padding:1.2rem 0 0;">
+          <div class="label" style="margin-bottom:0.7rem; color:var(--orange-d); font-size:0.72rem; font-weight:800;">
+            <span class="es">CAPITAL VALIDADO</span>
+            <span class="en">VALIDATED CAPITAL</span>
+          </div>
+          <div style="font:900 clamp(1rem,1.6vw,1.9rem)/1.1 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:0; margin-bottom:0.4rem;">$16K → $185K</div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">SENA Fondo Emprender · no reembolsable. Condonado por cumplimiento.</span>
+            <span class="en">SENA Fondo Emprender · non-refundable grant. Discharged.</span>
+          </div>
+        </div>
+
+        <div style="padding:1.2rem 0 0;">
+          <div class="label" style="margin-bottom:0.7rem; color:var(--orange-d); font-size:0.72rem; font-weight:800;">
+            <span class="es">RESPALDO</span>
+            <span class="en">BACKING</span>
+          </div>
+          <div style="font:500 clamp(0.88rem,1.1vw,1.1rem)/1.4 'DM Sans'; color:var(--light); margin-bottom:0.4rem;">
+            <span class="es">Integradores y socios de marcas líderes</span>
+            <span class="en">Integrators and partners of leading brands</span>
+          </div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">Crédito activo · 1 proyecto flagship por ciudad del Eje Cafetero.</span>
+            <span class="en">Active credit · 1 flagship project per Coffee Axis city.</span>
+          </div>
+        </div>
+
+        <div style="padding:1.2rem 0 0;">
+          <div class="label" style="margin-bottom:0.7rem; color:var(--orange-d); font-size:0.72rem; font-weight:800;">0 CODE · FULL IA</div>
+          <div style="font:500 clamp(0.88rem,1.1vw,1.1rem)/1.4 'DM Sans'; color:var(--light); margin-bottom:0.4rem;">
+            <span class="es">Conocimiento AV profundo. Cero código.</span>
+            <span class="en">Deep AV expertise. Zero code.</span>
+          </div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">Con IA se construye y valida SONORO CMS en red propia.</span>
+            <span class="en">AI-built and validated on own network.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: SONORO CMS hoy -->
+    <div style="display:flex; flex-direction:column; gap:2vh; padding-left:1vw;">
+
+      <div class="label" style="color:var(--orange-d); font-size:0.78rem; font-weight:800; display:flex; align-items:center; gap:0.6rem;">
+        <span style="width:7px; height:7px; border-radius:50%; background:var(--orange-d); display:inline-block; animation:pulse 2s ease-in-out infinite; flex-shrink:0;"></span>
+        <span class="es">SONORO CMS · HOY</span>
+        <span class="en">SONORO CMS · NOW</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:0.55rem;">
+        <div style="font:500 clamp(0.88rem,1.05vw,1.05rem)/1.6 'DM Sans'; color:var(--light-body);">
+          <span class="es">
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> Producto en producción<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> 3 meses de uptime continuo — Aeropuerto El Edén<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> Construido por el fundador con IA<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> Sin CTO · Sin deuda técnica
+          </span>
+          <span class="en">
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> Product in production<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> 3 months continuous uptime — El Edén Airport<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> Built by the founder with AI<br>
+            <span style="color:var(--orange-d); font-weight:700;">✓</span> No CTO · No tech debt
+          </span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.15); padding-top:1.8vh; display:flex; flex-direction:column; gap:0.6rem;">
+        <div class="label" style="color:var(--pink-d); font-size:0.72rem; font-weight:800;">
+          <span class="es">PRIMER REVENUE REAL</span>
+          <span class="en">FIRST REAL REVENUE</span>
+        </div>
+        <div style="font:500 clamp(0.88rem,1.05vw,1.05rem)/1.6 'DM Sans'; color:var(--light-body);">
+          <span class="es">Ingresos por venta de pauta publicitaria ejecutada en los players.<br>Modelo de retail media probado.</span>
+          <span class="en">Income from advertising sold and run on the players.<br>Retail media model validated.</span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.15); padding-top:1.8vh;">
+        <div style="font:900 clamp(1.1rem,1.6vw,1.9rem)/1.2 'Big Shoulders Display'; color:var(--light);">
+          <span class="es">Listo para escalar.<br><span style="color:var(--light-muted); font-weight:400;">Falta el capital.</span></span>
+          <span class="en">Ready to scale.<br><span style="color:var(--light-muted); font-weight:400;">Needs fuel.</span></span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 05 — EL FOUNDER
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s6" style="overflow:hidden; padding:0;">
+
+  <div style="position:absolute; inset:0; background:url('DSC03259.jpg') 30% 20%/cover no-repeat; z-index:0;"></div>
+  <div style="position:absolute; inset:0; background:oklch(10% 0.018 330/0.72); z-index:1;"></div>
+
+  <div style="position:relative; z-index:2; margin:auto; display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 8vw; max-width:1000px; width:100%;">
+
+    <div class="label" style="margin-bottom:1.2rem; color:var(--orange-d);">
+      <span class="es">EL FOUNDER</span>
+      <span class="en">THE FOUNDER</span>
+    </div>
+
+    <div style="font:900 clamp(3.5rem,7vw,9rem)/0.88 'Big Shoulders Display'; letter-spacing:0; color:var(--light); margin-bottom:1.8rem;">
+      Daniel E. Pulgarín
+    </div>
+
+    <div style="display:flex; flex-direction:column; align-items:center; gap:0.55rem; margin-bottom:1.4rem;">
+      <span style="font:400 clamp(0.88rem,1.05vw,1.05rem)/1.6 'DM Sans'; color:var(--light-body);">
+        <span class="es">Diseñador industrial &amp; músico</span>
+        <span class="en">Industrial designer &amp; musician</span>
+      </span>
+      <span style="font:400 clamp(0.88rem,1.05vw,1.05rem)/1.6 'DM Sans'; color:var(--light-body);">
+        <span class="es">+5 años en la industria AV</span>
+        <span class="en">+5 years in the AV industry</span>
+      </span>
+    </div>
+
+    <div style="margin-top:3.5vh; padding-top:2.5vh; border-top:1px solid oklch(100% 0 0/0.14); width:100%; max-width:740px;">
+
+      <div class="label" style="color:var(--light-dim); margin-bottom:1.4rem; text-align:center;">
+        <span class="es">POR QUÉ ÉL</span>
+        <span class="en">WHY HIM</span>
+      </div>
+
+      <div style="font:900 clamp(1.2rem,1.9vw,2.3rem)/1.05 'Big Shoulders Display'; color:var(--light); margin-bottom:2vh; text-align:center;">
+        <span class="es">Hablo el idioma del cliente, del diseño y de la IA — al mismo tiempo.</span>
+        <span class="en">Fluent in three languages: the customer, product design, and AI execution.</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 2vw; text-align:left;">
+
+        <div style="border-top:2px solid var(--orange-d); padding-top:1rem;">
+          <div style="font:900 0.76rem/1.2 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:0.06em; margin-bottom:0.5rem; text-transform:uppercase;">
+            <span class="es">Veterano AV</span>
+            <span class="en">AV Veteran</span>
+          </div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">Entiende el dolor del cliente desde adentro. Cierra sin intermediarios.</span>
+            <span class="en">Understands the client's pain from the inside. Closes without intermediaries.</span>
+          </div>
+        </div>
+
+        <div style="border-top:2px solid var(--pink-d); padding-top:1rem;">
+          <div style="font:900 0.76rem/1.2 'Big Shoulders Display'; color:var(--pink-d); letter-spacing:0.06em; margin-bottom:0.5rem; text-transform:uppercase;">
+            <span class="es">Product Designer</span>
+            <span class="en">Product Designer</span>
+          </div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">Diseña productos para personas que no son técnicas. El dueño de negocio lo instala y lo entiende desde el día 1.</span>
+            <span class="en">Designs for non-technical users. The business owner installs it and understands it from day one.</span>
+          </div>
+        </div>
+
+        <div style="border-top:2px solid var(--blue-d); padding-top:1rem;">
+          <div style="font:900 0.76rem/1.2 'Big Shoulders Display'; color:var(--blue-d); letter-spacing:0.06em; margin-bottom:0.5rem; text-transform:uppercase;">IA-Native</div>
+          <div style="font:500 clamp(0.9rem,1.1vw,1.15rem)/1.6 'DM Sans'; color:var(--light-body);">
+            <span class="es">5 años instalando sistemas AV le dieron el problema. La IA le dio las herramientas. Construyó SONORO CMS solo, sin CTO, y está en producción.</span>
+            <span class="en">5 years installing AV systems gave him the problem. AI gave him the tools. Built SONORO CMS alone, no CTO, and it's in production.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 06 — EL MOAT
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s7">
+  <div style="width:100%; max-width:980px; padding:0 5vw; display:flex; flex-direction:column; align-items:center; gap:3vh;">
+
+    <div class="label" style="color:var(--light-dim); align-self:flex-start;">
+      <span class="es">EL MOAT</span>
+      <span class="en">THE MOAT</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4vh 5vw; width:100%;">
+
+      <div style="border-top:2px solid oklch(80% 0.18 58/0.50); padding-top:1.6rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.08em; right:-0.02em; font:normal clamp(6rem,9vw,11rem)/1 'Photogenic'; color:oklch(80% 0.18 58/0.22); pointer-events:none; user-select:none;">01</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.8rem,2.6vw,3.2rem)/1.05 'Big Shoulders Display'; color:oklch(80% 0.18 58); margin-bottom:0.8rem;">Tech Brain</div>
+          <div style="font:400 clamp(0.9rem,1.1vw,1.1rem)/1.7 'DM Sans'; color:var(--light);">
+            <span class="es">LLM local con todo el stack técnico indexado, en aprendizaje constante. Un junior puede dar soporte desde el día 1. Soporte técnico escalable sin depender del fundador.</span>
+            <span class="en">Local LLM with the full tech stack indexed, in constant learning. A junior can support from day one. Scalable technical support without founder dependency.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:2px solid oklch(72% 0.16 220/0.50); padding-top:1.6rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.08em; right:-0.02em; font:normal clamp(6rem,9vw,11rem)/1 'Photogenic'; color:oklch(72% 0.16 220/0.22); pointer-events:none; user-select:none;">02</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.8rem,2.6vw,3.2rem)/1.05 'Big Shoulders Display'; color:var(--blue-d); margin-bottom:0.8rem;">
+            <span class="es">Manufactura global</span>
+            <span class="en">Global manufacturing</span>
+          </div>
+          <div style="font:400 clamp(0.9rem,1.1vw,1.1rem)/1.7 'DM Sans'; color:var(--light);">
+            <span class="es">Creado bajo el ecosistema Raspberry. Hardware disponible globalmente en Amazon. SO disponible en la nube. Sin aduanas, menor Growth CAPEX.</span>
+            <span class="en">Built on the Raspberry ecosystem. Hardware globally available on Amazon. OS in the cloud. No customs, lower growth CAPEX.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:2px solid oklch(72% 0.26 345/0.50); padding-top:1.6rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.08em; right:-0.02em; font:normal clamp(6rem,9vw,11rem)/1 'Photogenic'; color:oklch(72% 0.26 345/0.22); pointer-events:none; user-select:none;">03</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.8rem,2.6vw,3.2rem)/1.05 'Big Shoulders Display'; color:var(--pink-d); margin-bottom:0.8rem;">
+            <span class="es">Gestión global de cuentas</span>
+            <span class="en">Global account management</span>
+          </div>
+          <div style="font:400 clamp(0.9rem,1.1vw,1.1rem)/1.7 'DM Sans'; color:var(--light);">
+            <span class="es">Arbitraje de talento en diseño y marketing: menor costo, mayor calidad. Cercanía cultural e idiomática con LATAM y Hispanic USA. Sistema estructuralmente bilingüe desde el inicio.</span>
+            <span class="en">Talent arbitrage in design and marketing: lower cost, higher quality. Cultural and linguistic closeness to LATAM and Hispanic USA. Structurally bilingual from day one.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:2px solid oklch(68% 0.27 355/0.50); padding-top:1.6rem; position:relative; overflow:hidden;">
+        <div style="position:absolute; top:-0.08em; right:-0.02em; font:normal clamp(6rem,9vw,11rem)/1 'Photogenic'; color:oklch(68% 0.27 355/0.22); pointer-events:none; user-select:none;">04</div>
+        <div style="position:relative; z-index:1;">
+          <div style="font:900 clamp(1.8rem,2.6vw,3.2rem)/1.05 'Big Shoulders Display'; color:oklch(68% 0.27 355); margin-bottom:0.8rem;">
+            <span class="es">Inteligencia Creativa IA*</span>
+            <span class="en">Creative Intelligence AI*</span>
+          </div>
+          <div style="font:400 clamp(0.9rem,1.1vw,1.1rem)/1.7 'DM Sans'; color:var(--light);">
+            <span class="es">Capa placement/content aware bajo estándares globales. Diferenciador frente a la competencia local.</span>
+            <span class="en">Placement/content-aware layer built on global standards. A differentiator no local competitor is using.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="width:100%; max-width:980px; padding-top:2.5vh; border-top:1px solid oklch(100% 0 0/0.10);">
+      <p style="font:600 0.82rem/1.5 'DM Sans'; color:var(--light-muted);">
+        <span class="es">* En desarrollo — sugerencias de ubicación de pantallas y contenido por tipo de negocio.</span>
+        <span class="en">* In development — screen placement suggestions and content recommendations by business type.</span>
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 07 — POR QUÉ AHORA
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s8">
+  <div style="width:100%; max-width:1200px; padding:0 6vw; display:flex; flex-direction:column; gap:5vh; align-items:center;">
+
+    <div class="label" style="color:var(--light-dim);">
+      <span class="es">POR QUÉ AHORA</span>
+      <span class="en">WHY NOW</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 5vw; width:100%; align-items:start;">
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:2rem; text-align:center;">
+        <div style="font:900 clamp(1.8rem,3vw,3.8rem)/1.1 'Big Shoulders Display'; color:var(--pink-d); letter-spacing:-0.005em; margin-bottom:1rem;">
+          <span class="es">Armenia como<br>validación<br>difícil</span>
+          <span class="en">Armenia as<br>hard-mode<br>validation</span>
+        </div>
+        <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.7 'DM Sans'; color:var(--light-muted);">
+          <span class="es">Por primera vez, un experto de industria puede construir su propio software sin un equipo de desarrollo.<br><br>Si funciona en Armenia,<br>funciona en cualquier ciudad de LATAM.</span>
+          <span class="en">For the first time, an industry expert can build their own software without a dev team.<br><br>If it works in Armenia,<br>it works in any LATAM city.</span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:2rem; text-align:center;">
+        <div style="font:900 clamp(1.8rem,3vw,3.8rem)/1.1 'Big Shoulders Display'; color:var(--light); letter-spacing:-0.005em; margin-bottom:1rem;">
+          <span class="es">Democratización<br>del digital signage<br>en Colombia y LATAM</span>
+          <span class="en">Digital signage<br>democratization<br>in Colombia &amp; LATAM</span>
+        </div>
+        <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.7 'DM Sans'; color:var(--light-muted);">
+          <span class="es">El RAPPI de las pantallas no ha llegado.<br>Hay espacio y tiempo para hacerlo.</span>
+          <span class="en">The RAPPI of screens hasn't arrived.<br>There's room and time to do it.</span>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid oklch(100% 0 0/0.20); padding-top:2rem; text-align:center;">
+        <div style="font:900 clamp(1.8rem,3vw,3.8rem)/1.1 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:-0.005em; margin-bottom:1rem;">
+          <span class="es">El mercado hispano<br>en USA está<br>desatendido</span>
+          <span class="en">The US Hispanic<br>market is<br>underserved</span>
+        </div>
+        <div style="font:400 clamp(0.88rem,1.1vw,1.05rem)/1.7 'DM Sans'; color:var(--light-muted);">
+          <span class="es">No hay un líder claro.<br>4.9M negocios.</span>
+          <span class="en">No clear leader.<br>4.9M businesses.</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 08 — EL MERCADO
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-data" id="s9" style="align-items:center; justify-content:center; padding:0;">
+  <div style="width:100%; max-width:1200px; display:flex; flex-direction:column; padding:5.5vh 6vw; gap:0;">
+
+    <div class="label" style="margin-bottom:2.5vh;">
+      <span class="es">EL MERCADO</span>
+      <span class="en">THE MARKET</span>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; border-top:1px solid oklch(100% 0 0/0.18); margin-bottom:2.5vh; gap:0 3vw;">
+
+      <div style="padding:1.6rem 0;">
+        <div class="label" style="font-size:0.60rem; margin-bottom:0.8rem; color:var(--orange-d);">Colombia</div>
+        <div style="font:900 clamp(2rem,3.5vw,4.5rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:-0.005em; margin-bottom:0.8rem;">2.5M</div>
+        <div style="font:400 0.86rem/1.65 'DM Sans'; color:var(--light-body);">
+          <span class="es">de PYMEs que posiblemente tengan un TV subutilizado.</span>
+          <span class="en">SMBs likely with an underused TV on the wall.</span>
+        </div>
+      </div>
+
+      <div style="padding:1.6rem 0;">
+        <div class="label" style="font-size:0.60rem; margin-bottom:0.8rem; color:var(--orange-d);">LATAM</div>
+        <div style="font:900 clamp(2rem,3.5vw,4.5rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:-0.005em; margin-bottom:0.8rem;">$1.71B</div>
+        <div style="font:400 0.86rem/1.65 'DM Sans'; color:var(--light-body); margin-bottom:0.6rem;">
+          <span class="es">Mercado digital signage 2024.<br>Solo 20% penetración en PYMEs.</span>
+          <span class="en">Digital signage market 2024.<br>Only 20% PYME penetration.</span>
+        </div>
+      </div>
+
+      <div style="padding:1.6rem 0;">
+        <div class="label" style="font-size:0.60rem; margin-bottom:0.8rem; color:var(--orange-d);">Hispanic USA</div>
+        <div style="font:900 clamp(2rem,3.5vw,4.5rem)/0.9 'Big Shoulders Display'; color:var(--light); letter-spacing:-0.005em; margin-bottom:0.8rem;">4.9M</div>
+        <div style="font:400 0.86rem/1.65 'DM Sans'; color:var(--light-body); margin-bottom:0.6rem;">
+          <span class="es">4.9M negocios hispanos en USA.<br>Sin un líder claro en señalización.</span>
+          <span class="en">4.9M Hispanic-owned businesses in the US.<br>No clear signage leader.</span>
+        </div>
+      </div>
+
+      <div style="padding:1.6rem 0;">
+        <div class="label" style="font-size:0.60rem; margin-bottom:0.8rem; color:var(--orange-d);">Anglo USA</div>
+        <div style="font:900 clamp(2rem,3.5vw,4.5rem)/0.9 'Big Shoulders Display'; color:oklch(50% 0.008 330); letter-spacing:-0.005em; margin-bottom:0.8rem;">$10B+</div>
+        <div style="font:400 0.86rem/1.65 'DM Sans'; color:var(--light-muted); margin-bottom:0.6rem;">
+          <span class="es">Mercado total LATAM + USA para 2029.<br>Ventana de 5 años.</span>
+          <span class="en">Total LATAM + USA market by 2029.<br>5-year window.</span>
+        </div>
+        <div style="font:400 0.84rem/1.5 'DM Sans'; color:var(--light-dim);">
+          <span class="es">Fase 3 — expansión post-Serie A.</span>
+          <span class="en">Phase 3 — post-Series A expansion.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.3rem 1.4rem; align-items:baseline; justify-content:center; line-height:1.1; text-align:center;">
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(80% 0.18 58);">QSR</span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(76% 0.21 38);">Retail</span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(72% 0.24 20);"><span class="es">Salud</span><span class="en">Health</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(68% 0.27 355);"><span class="es">Hoteles</span><span class="en">Hotels</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(64% 0.29 348);"><span class="es">Entretenimiento</span><span class="en">Entertainment</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:var(--pink-d);"><span class="es">Centros comerciales</span><span class="en">Malls</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(58% 0.30 340);"><span class="es">Educación</span><span class="en">Education</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(54% 0.31 334);"><span class="es">Transporte</span><span class="en">Transport</span></span>
+        <span style="font:900 clamp(1.6rem,2.8vw,3.6rem)/1 'Big Shoulders Display'; letter-spacing:0; color:oklch(50% 0.31 328);"><span class="es">Gobierno</span><span class="en">Government</span></span>
+      </div>
+      <p style="font:300 0.68rem/1.5 'Big Shoulders Display'; color:var(--light-dim); margin-top:0.8rem; text-align:center;">
+        <span class="es">* Fuentes: Grand View Research, Statista Digital Signage Market 2024, US Census Bureau.</span>
+        <span class="en">* Sources: Grand View Research, Statista Digital Signage Market 2024, US Census Bureau.</span>
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 09 — USO DEL CAPITAL
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s10" style="justify-content:flex-start; align-items:center; padding-top:7vh;">
+  <div style="width:100%; max-width:1100px; padding:0 7vw; display:flex; flex-direction:column; gap:5vh;">
+
+    <div style="text-align:center;">
+      <div class="label" style="margin-bottom:1.2rem; color:var(--light-dim);">
+        <span class="es">USO DEL CAPITAL</span>
+        <span class="en">USE OF FUNDS</span>
+      </div>
+      <div style="font:900 clamp(0.95rem,1.2vw,1.3rem)/1 'Big Shoulders Display'; letter-spacing:0.06em; text-transform:uppercase; color:var(--light-body); margin-bottom:0.9rem;">
+        Pre-Seed &nbsp;·&nbsp; $300K USD &nbsp;·&nbsp; Cap $1.5M &nbsp;·&nbsp; 20% Equity
+      </div>
+      <div style="font:900 clamp(6rem,13vw,17rem)/0.85 'Big Shoulders Display'; letter-spacing:0; color:var(--light);">$300K</div>
+      <div style="font:500 clamp(1rem,1.3vw,1.3rem)/1.65 'DM Sans'; color:var(--light-body); margin-top:0.7rem;">
+        <span class="es">La solución está en Armenia. Necesita estar en Cali, Medellín y Bogotá. De ahí, LATAM y USA.</span>
+        <span class="en">The solution is in Armenia. It needs to be in Cali, Medellín, and Bogotá. From there, LATAM and USA.</span>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1.5fr 1fr 1fr; border-top:1px solid oklch(100% 0 0/0.14);">
+
+      <div style="padding:1.8rem 2rem 1.8rem 0; border-right:1px solid oklch(100% 0 0/0.10);">
+        <div class="label" style="margin-bottom:0.8rem; color:var(--orange-d); font-size:0.82rem; font-weight:800;">
+          <span class="es">PRODUCT &amp; BRAND AWARENESS</span>
+          <span class="en">PRODUCT &amp; BRAND AWARENESS</span>
+        </div>
+        <div style="font:900 2rem/1 'Big Shoulders Display'; color:var(--orange-d); letter-spacing:0; margin-bottom:0.7rem;">35%+</div>
+        <div style="font:500 clamp(1rem,1.3vw,1.3rem)/1.7 'DM Sans'; color:var(--light-body);">
+          <span class="es">Nuestro mayor dolor: la solución existe pero no se conoce. Mercadeo, comunicaciones y ventas. Talento TOP.</span>
+          <span class="en">Our biggest pain: the solution exists but nobody knows it. Marketing, communications, and sales. Top talent.</span>
+        </div>
+      </div>
+
+      <div style="padding:1.8rem 2rem; border-right:1px solid oklch(100% 0 0/0.10);">
+        <div class="label" style="margin-bottom:0.8rem; color:var(--pink-d); font-size:0.82rem; font-weight:800;">
+          <span class="es">OPERATIVIDAD</span>
+          <span class="en">OPERATIONS</span>
+        </div>
+        <div style="font:900 2rem/1 'Big Shoulders Display'; color:var(--pink-d); letter-spacing:0; margin-bottom:0.7rem;">35%</div>
+        <div style="font:500 clamp(1rem,1.3vw,1.3rem)/1.7 'DM Sans'; color:var(--light-body);">
+          <span class="es"><strong style="color:var(--light);">Talento:</strong> ejecutivo de ventas · soporte técnico · contador<br><strong style="color:var(--light);">Herramientas:</strong> CRM · onboarding</span>
+          <span class="en"><strong style="color:var(--light);">Talent:</strong> sales executive · tech support · accountant<br><strong style="color:var(--light);">Tools:</strong> CRM · onboarding</span>
+        </div>
+      </div>
+
+      <div style="padding:1.8rem 0 1.8rem 2rem;">
+        <div class="label" style="margin-bottom:0.8rem; color:var(--light-muted); font-size:0.82rem; font-weight:800;">
+          <span class="es">INFRAESTRUCTURA + INVENTARIO</span>
+          <span class="en">INFRASTRUCTURE + INVENTORY</span>
+        </div>
+        <div style="font:900 2rem/1 'Big Shoulders Display'; color:var(--light-muted); letter-spacing:0; margin-bottom:0.7rem;">30%</div>
+        <div style="font:500 clamp(1rem,1.3vw,1.3rem)/1.7 'DM Sans'; color:var(--light-body);">
+          <span class="es">Infra cloud, Creative Intelligence, inventario de players. Lo más adelantado del negocio. Escalar lo que ya funciona.</span>
+          <span class="en">Cloud infrastructure audit and test. Player inventory, ready to scale.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="border-top:1px solid oklch(100% 0 0/0.10); padding-top:1.8vh; text-align:center;">
+      <div style="font:600 clamp(0.95rem,1.2vw,1.25rem)/1.65 'DM Sans'; color:var(--light-body); max-width:80ch; margin:0 auto;">
+        <span class="es">Si el perfil del inversor lo requiere, el fundador está dispuesto a implementar una estructura <span style="color:var(--light); font-weight:800;">Delaware C-Corp</span> o <span style="color:var(--light); font-weight:800;">Cayman Sandwich</span>, con SONORO AV SAS como subsidiaria operadora en Colombia.</span>
+        <span class="en">If the investor's profile requires it, the founder is willing to implement a <span style="color:var(--light); font-weight:800;">Delaware C-Corp</span> or <span style="color:var(--light); font-weight:800;">Cayman Sandwich</span> structure, with SONORO AV SAS as the operating subsidiary in Colombia.</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 10 — LOS HITOS
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-data" id="s11" style="align-items:stretch; justify-content:stretch; padding:0; background:var(--dark);">
+  <div style="width:100%; height:100%; display:flex; flex-direction:column; padding:4.5vh 5vw 4vh;">
+
+    <!-- Label -->
+    <div class="label" style="margin-bottom:2.5vh; letter-spacing:0.12em;">
+      <span class="es">LOS HITOS &nbsp;·&nbsp; 24 MESES DE EJECUCIÓN</span>
+      <span class="en">MILESTONES &nbsp;·&nbsp; 24-MONTH EXECUTION</span>
+    </div>
+
+    <!-- MILESTONE GRID + BAR — centered as one unit -->
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0; gap:0;">
+      <div style="display:grid; grid-template-columns:repeat(6,1fr); width:100%; gap:0;">
+
+        <!-- H1 · M0 — Asignación de capital -->
+        <div style="border-top:1px solid oklch(100% 0 0/0.18); padding:2.5vh 2vw 2vh 0; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:var(--light-dim); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:var(--light-dim);">M0</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light-dim); letter-spacing:0;">
+            <span class="es">Asignación de capital</span>
+            <span class="en">Capital allocation</span>
+          </div>
+        </div>
+
+        <!-- H2 · M2 — Talento y primeras ventas -->
+        <div style="border-top:2px solid var(--orange-d); padding:2.5vh 2vw 2vh; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:var(--orange-d); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:var(--orange-d);">M2</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light); letter-spacing:0;">
+            <span class="es">Talento contratado. Primeras ventas activas.</span>
+            <span class="en">Talent hired. First sales active.</span>
+          </div>
+        </div>
+
+        <!-- H3 · M6 — Estrategia en ejecución -->
+        <div style="border-top:2px solid var(--blue-d); padding:2.5vh 2vw 2vh; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:var(--blue-d); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:var(--blue-d);">M6</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light); letter-spacing:0;">
+            <span class="es">Estrategia en ejecución. Pipeline validado.</span>
+            <span class="en">Strategy in execution. Pipeline validated.</span>
+          </div>
+        </div>
+
+        <!-- H4 · M12 — 3 clientes flagship -->
+        <div style="border-top:2px solid oklch(68% 0.27 355); padding:2.5vh 2vw 2vh; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:oklch(68% 0.27 355); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:oklch(68% 0.27 355);">M12</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light); letter-spacing:0;">
+            <span class="es">3 clientes flagship, no por tamaño sino por influencia. Apalancamiento de la credibilidad.</span>
+            <span class="en">3 flagship clients, not by size but by influence. Credibility leverage.</span>
+          </div>
+        </div>
+
+        <!-- H5 · M18 — 6 ciudades, Triángulo de Oro -->
+        <div style="border-top:2px solid var(--pink-d); padding:2.5vh 2vw 2vh; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:var(--pink-d); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:var(--pink-d);">M18</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light); letter-spacing:0;">
+            <span class="es">6 ciudades. 6 ejemplos. Triángulo de Oro.</span>
+            <span class="en">6 cities. 6 examples. Golden Triangle.</span>
+          </div>
+        </div>
+
+        <!-- H6 · M24 — Multi-sede + LATAM leads -->
+        <div style="border-top:2px solid var(--orange-d); padding:2.5vh 0 2vh 2vw; display:flex; flex-direction:column; gap:0.9rem; position:relative;">
+          <div style="position:absolute; width:10px; height:10px; border-radius:50%; background:var(--orange-d); top:-5px; left:0;"></div>
+          <div style="font:900 clamp(4.5rem,8vw,10.5rem)/0.78 'Big Shoulders Display'; letter-spacing:0; color:var(--orange-d);">M24</div>
+          <div style="font:900 clamp(0.95rem,1.3vw,1.45rem)/1.35 'Big Shoulders Display'; color:var(--light); letter-spacing:0;">
+            <span class="es">Primera cuenta multi-sede validada en Colombia. Leads calificados en LATAM.</span>
+            <span class="en">First multi-site account validated in Colombia. Qualified leads in LATAM.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PARALLEL TRACK: Proyectos de integración audiovisual -->
+      <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:0; margin-top:1.8vh;">
+        <div></div>
+        <!-- Bar: starts at M4, spans to M24 -->
+        <div style="grid-column:2/7; background:oklch(65% 0.25 145/0.07); border:1px solid oklch(65% 0.25 145/0.32); border-radius:10px; padding:1.4rem 2rem; display:flex; flex-direction:column; align-items:center; gap:0.6rem;">
+          <div style="display:flex; align-items:center; gap:0.9rem;">
+            <div style="width:10px; height:10px; border-radius:50%; background:oklch(65% 0.25 145); flex-shrink:0; animation:pulse 2s ease-in-out infinite;"></div>
+            <span style="font:900 clamp(1rem,1.4vw,1.6rem)/1 'Big Shoulders Display'; letter-spacing:0.10em; text-transform:uppercase; color:oklch(65% 0.25 145); white-space:nowrap;">
+              <span class="es">Proyectos de integración audiovisual</span>
+              <span class="en">Audiovisual integration projects</span>
+            </span>
+          </div>
+          <span style="font:600 clamp(0.9rem,1.1vw,1.1rem)/1.55 'DM Sans'; color:var(--light-body); text-align:center;">
+            <span class="es">Lo que SONORO ya ejecuta, en paralelo con la apuesta SONORO CMS</span>
+            <span class="en">What SONORO already runs, in parallel with the SONORO CMS bet</span>
+          </span>
+        </div>
+      </div>
+
+    </div><!-- /flex:1 wrapper — hitos + barra -->
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     SLIDE 11 — EL CIERRE
+═══════════════════════════════════════════════════════ -->
+<section class="slide slide-impact" id="s12" style="align-items:center; justify-content:center; background:var(--dark);">
+  <div style="text-align:center; display:flex; flex-direction:column; gap:0.2rem;">
+    <div style="font:900 clamp(5rem,8.5vw,12rem)/0.95 'Big Shoulders Display'; letter-spacing:0; color:var(--light);">
+      <span class="es">El mercado existe.</span>
+      <span class="en">The market exists.</span>
+    </div>
+    <div style="font:900 clamp(5rem,8.5vw,12rem)/0.95 'Big Shoulders Display'; letter-spacing:0; color:var(--light);">
+      <span class="es">El producto funciona.</span>
+      <span class="en">The product works.</span>
+    </div>
+    <div style="font:900 clamp(5rem,8.5vw,12rem)/0.95 'Big Shoulders Display'; letter-spacing:0; color:var(--orange-d);">
+      <span class="es">El tiempo es ahora.</span>
+      <span class="en">The time is now.</span>
+    </div>
+    <div style="margin-top:4vh; display:flex; flex-direction:column; gap:0.6rem; align-items:center;">
+      <div style="font:700 clamp(0.9rem,1.2vw,1.3rem)/1 'Big Shoulders Display'; letter-spacing:0.10em; text-transform:uppercase; color:var(--light-muted);">
+        Pre-Seed &nbsp;·&nbsp; $300K &nbsp;·&nbsp; Cap $1.5M &nbsp;·&nbsp; 20% &nbsp;·&nbsp; SAFE
+      </div>
+      <div style="font:500 clamp(0.9rem,1.1vw,1.1rem)/1 'DM Sans'; color:var(--light-dim);">
+        daniel@sonoro.com.co
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- /#deck -->
+
+<script>
+(function() {
+  var TOTAL = 12;
+  var current = 1;
+
+  function goTo(n) {
+    if (n < 1 || n > TOTAL) return;
+    var prevEl = document.getElementById('s' + current);
+    var nextEl = document.getElementById('s' + n);
+    if (!nextEl || prevEl === nextEl) return;
+    if (prevEl) prevEl.classList.remove('active');
+    nextEl.classList.add('active');
+    current = n;
+    document.getElementById('pb').style.width = (current / TOTAL * 100) + '%';
+    document.getElementById('sc').textContent = current + ' / ' + TOTAL;
+    document.getElementById('nav-prev').classList.toggle('hidden', current === 1);
+    document.getElementById('nav-next').classList.toggle('hidden', current === TOTAL);
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  window.setLang = function(l) {
+    document.documentElement.lang = l;
+    document.getElementById('btn-es').classList.toggle('active', l === 'es');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+  };
+
+  // Click zones
+  document.getElementById('deck').addEventListener('click', function(e) {
+    if (e.target.closest('.lang-switch') || e.target.closest('a') || e.target.closest('button')) return;
+    e.clientX < window.innerWidth * 0.3 ? prev() : next();
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  });
+
+  // Touch swipe
+  var tx = 0;
+  document.addEventListener('touchstart', function(e) { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
+  }, { passive: true });
+
+  // Video slow motion
+  var vp = document.getElementById('vid-prueba');
+  if (vp) { vp.addEventListener('canplay', function() { vp.playbackRate = 0.4; }); }
+
+  var prodVid = document.getElementById('vid-product');
+  if (prodVid) { prodVid.addEventListener('canplay', function() { prodVid.playbackRate = 0.5; }); }
+
+  // URL params: ?lang=en, ?print
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('lang') === 'en') setLang('en');
+  if (params.has('print')) { window.addEventListener('load', function() { window.print(); }); }
+
+  // Init
+  goTo(1);
+})();
+</script>
+
+</body>
+</html>
