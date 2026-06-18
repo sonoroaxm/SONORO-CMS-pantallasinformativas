@@ -562,15 +562,31 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
   let created = 0, skipped = 0;
   const errors = [];
 
+  // Claves estándar reconocidas (todo lo demás va a custom_fields)
+  const STD_KEYS = new Set([
+    'nombre','name','email','telefono','phone','cedula','id_number',
+    'tipo_documento','id_type','empresa','organization','cargo','job_title',
+    'tipo_ticket','ticket_type'
+  ]);
+
   for (let i = 0; i < rows.length; i++) {
-    const row   = rows[i];
-    const name  = (row.nombre  || row.name  || '').trim();
-    const email = (row.email   || '').toLowerCase().trim();
-    const phone = row.telefono || row.phone      || null;
-    const idNum = row.cedula   || row.id_number  || null;
-    const org   = row.empresa  || row.organization || null;
-    const job   = row.cargo    || row.job_title  || null;
+    const row    = rows[i];
+    const name   = (row.nombre  || row.name  || '').trim();
+    const email  = (row.email   || '').toLowerCase().trim();
+    const phone  = row.telefono || row.phone        || null;
+    const idNum  = row.cedula   || row.id_number    || null;
+    const idType = (row.tipo_documento || row.id_type || 'CC').toUpperCase().slice(0, 10);
+    const org    = row.empresa  || row.organization || null;
+    const job    = row.cargo    || row.job_title    || null;
     const ticket = row.tipo_ticket || row.ticket_type || 'general';
+
+    // Columnas extra → custom_fields
+    const customFields = {};
+    for (const k of Object.keys(row)) {
+      if (!STD_KEYS.has(k) && row[k] != null && String(row[k]).trim() !== '') {
+        customFields[k] = String(row[k]).trim();
+      }
+    }
 
     if (!name || !email) { errors.push({ row: i + 2, error: 'nombre y email requeridos' }); continue; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -581,24 +597,25 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
       // P-3: withTransaction — upsert attendee + insert registration atómicos
       const inserted = await withTransaction(pool, async (client) => {
         const att = await client.query(
-          `INSERT INTO events.attendees (user_id, email, name, phone, id_number, organization, job_title)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)
+          `INSERT INTO events.attendees (user_id, email, name, phone, id_number, id_type, organization, job_title)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
            ON CONFLICT (user_id, email) DO UPDATE SET
              name         = EXCLUDED.name,
              phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
              id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
+             id_type      = COALESCE(EXCLUDED.id_type,      events.attendees.id_type),
              organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
              job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
              updated_at   = NOW()
            RETURNING id`,
-          [userId, email, name, phone, idNum, org, job]
+          [userId, email, name, phone, idNum, idType, org, job]
         );
         const ins = await client.query(
           `INSERT INTO events.registrations
-             (event_id, attendee_id, user_id, ticket_type, origin, accepted_terms)
-           VALUES ($1,$2,$3,$4,'import',TRUE)
+             (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms)
+           VALUES ($1,$2,$3,$4,'import',$5,TRUE)
            ON CONFLICT (event_id, attendee_id) DO NOTHING`,
-          [req.params.id, att.rows[0].id, userId, ticket]
+          [req.params.id, att.rows[0].id, userId, ticket, JSON.stringify(customFields)]
         );
         return ins.rowCount; // 1 = creado, 0 = ya existía
       });

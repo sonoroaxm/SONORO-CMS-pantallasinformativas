@@ -1,0 +1,4 @@
+nombre,email,telefono,tipo_documento,cedula,empresa,cargo,tipo_ticket,tipo_sangre,alergias,eps,contacto_emergencia,telefono_emergencia,talla_camisa,dieta,notas
+Ana Pérez,ana.perez@empresa.com,3001234567,CC,1023456789,ACME SAS,Gerente,vip,O+,Ninguna,Sura,Carlos Pérez,3009876543,M,Vegetariana,Asiste ambos días
+Luis Gómez,luis@correo.com,3119876543,CC,1098765432,Sonoro,Productor,general,,,,,,L,,
+María Ruiz,maria.ruiz@correo.com,,,,,,,,,,,,,,
