@@ -2489,7 +2489,7 @@
 </div>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
 const API_URL = '';
 function escOnclick(s) {
@@ -7287,69 +7287,70 @@ function evBloodType(customFields) {
   return key ? String(customFields[key]).trim() : null;
 }
 
-function evBuildLabelHTML(regs, eventName) {
-  const labelsHTML = regs.map(r => {
-    const blood = evBloodType(r.custom_fields);
-    const bloodLine = blood ? `<div class="blood">Tipo sangre: <strong>${blood}</strong></div>` : '';
+function evCompany(customFields) {
+  if (!customFields) return null;
+  const key = Object.keys(customFields).find(k => /empresa|compa|company|organiz/i.test(k));
+  return key ? String(customFields[key]).trim() : null;
+}
+
+async function evBuildLabelHTML(regs, eventName) {
+  const items = await Promise.all(regs.map(async r => {
+    const company = evCompany(r.custom_fields);
+    const companyLine = company ? `<div class="company">${company.replace(/</g,'&lt;')}</div>` : '';
+    const qrUrl = await QRCode.toDataURL(r.qr_token, { width: 300, margin: 0, color: { dark:'#000', light:'#fff' } });
     return `
       <div class="label">
-        <canvas class="qr-canvas" data-token="${r.qr_token}"></canvas>
-        <div class="info">
-          <div class="name">${(r.attendee_name || '').replace(/</g,'&lt;')}</div>
-          ${bloodLine}
-        </div>
+        <img class="qr-canvas" src="${qrUrl}" alt="">
+        <div class="name">${(r.attendee_name || '').replace(/</g,'&lt;')}</div>
+        ${companyLine}
       </div>`;
-  }).join('');
+  }));
+  const labelsHTML = items.join('');
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: 62mm auto; margin: 1.5mm; }
+  @page { size: 90mm 38mm; margin: 1mm; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #fff; }
   .label {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 3mm;
-    padding: 2mm 2mm;
-    width: 59mm;
+    justify-content: center;
+    text-align: center;
+    gap: 1mm;
+    padding: 1mm;
+    width: 88mm;
+    height: 36mm;
     page-break-after: always;
     page-break-inside: avoid;
   }
   .label:last-child { page-break-after: auto; }
-  .qr-canvas { flex-shrink: 0; width: 26mm !important; height: 26mm !important; }
-  .info { flex: 1; min-width: 0; }
-  .name { font-size: 8.5pt; font-weight: bold; word-break: break-word; line-height: 1.2; margin-bottom: 2mm; }
-  .blood { font-size: 7.5pt; color: #333; }
+  .qr-canvas { width: 22mm !important; height: 22mm !important; }
+  .name { font-size: 14pt; font-weight: bold; word-break: break-word; line-height: 1.15; }
+  .company { font-size: 8.5pt; color: #333; line-height: 1.15; }
 </style>
 </head>
 <body>
 ${labelsHTML}
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"><\/script>
 <script>
-  var canvases = document.querySelectorAll('.qr-canvas');
-  var pending = canvases.length;
-  if (!pending) { window.print(); }
-  canvases.forEach(function(c) {
-    QRCode.toCanvas(c, c.dataset.token, { width: 98, margin: 0, color: { dark:'#000', light:'#fff' } }, function() {
-      pending--;
-      if (pending === 0) { setTimeout(function(){ window.print(); }, 150); }
-    });
-  });
+  window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 200); });
 <\/script>
 </body>
 </html>`;
 }
 
-function evPrintLabel(regId) {
+async function evPrintLabel(regId) {
   const r = evRegsCache[regId];
   if (!r) return;
   const evName = evCurrentEvent?.name || '';
+  const html = await evBuildLabelHTML([r], evName);
   const w = window.open('', '_blank', 'width=400,height=350');
   if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
-  w.document.write(evBuildLabelHTML([r], evName));
+  w.document.write(html);
   w.document.close();
 }
 
@@ -7362,9 +7363,10 @@ async function evPrintAllLabels() {
     const regs = (data.registrations || []).filter(r => r.status !== 'cancelled');
     if (!regs.length) { showStatus('Sin registros para imprimir', 'info'); return; }
     const evName = evCurrentEvent?.name || '';
+    const html = await evBuildLabelHTML(regs, evName);
     const w = window.open('', '_blank', 'width=500,height=600');
     if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
-    w.document.write(evBuildLabelHTML(regs, evName));
+    w.document.write(html);
     w.document.close();
   } catch(e) { showStatus('Error al preparar impresión', 'error'); }
 }
