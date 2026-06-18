@@ -450,6 +450,100 @@ router.get('/:id/registrations', auth, async (req, res) => {
   }
 });
 
+// ── EDITAR INSCRITO ───────────────────────────────────────────────────────────
+router.patch('/:id/registrations/:regId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const { name, email, phone, id_number, organization, job_title, custom_fields } = req.body || {};
+
+  const evCheck = await pool.query(
+    `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+    isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+  );
+  if (!evCheck.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+
+  try {
+    const result = await withTransaction(pool, async (client) => {
+      const regRes = await client.query(
+        `SELECT r.id, r.attendee_id FROM events.registrations r
+         WHERE r.id = $1 AND r.event_id = $2 FOR UPDATE`,
+        [req.params.regId, req.params.id]
+      );
+      if (!regRes.rows[0]) {
+        const err = new Error('Inscripción no encontrada'); err.httpStatus = 404; throw err;
+      }
+      const reg = regRes.rows[0];
+
+      const attendeeFields = { name, email, phone, id_number, organization, job_title };
+      const sets = []; const vals = []; let i = 1;
+      for (const [k, v] of Object.entries(attendeeFields)) {
+        if (v !== undefined) { sets.push(`${k} = $${i++}`); vals.push(v === '' ? null : v); }
+      }
+      if (sets.length) {
+        vals.push(reg.attendee_id);
+        await client.query(`UPDATE events.attendees SET ${sets.join(', ')} WHERE id = $${i}`, vals);
+      }
+
+      if (custom_fields !== undefined) {
+        await client.query(
+          `UPDATE events.registrations SET custom_fields = $1 WHERE id = $2`,
+          [custom_fields, reg.id]
+        );
+      }
+
+      const out = await client.query(
+        `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.custom_fields,
+                a.name AS attendee_name, a.email, a.phone, a.id_number, a.organization, a.job_title
+         FROM events.registrations r JOIN events.attendees a ON a.id = r.attendee_id
+         WHERE r.id = $1`,
+        [reg.id]
+      );
+      return out.rows[0];
+    });
+    res.json({ ok: true, registration: result });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ PATCH /api/events/:id/registrations/:regId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── REENVIAR QR POR EMAIL ─────────────────────────────────────────────────────
+router.post('/:id/registrations/:regId/resend-email', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+
+  try {
+    const evRes = await pool.query(
+      `SELECT * FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    const event = evRes.rows[0];
+    if (!event) return res.status(404).json({ error: 'Evento no encontrado' });
+
+    const regRes = await pool.query(
+      `SELECT r.*, a.name AS attendee_name, a.email AS attendee_email
+       FROM events.registrations r JOIN events.attendees a ON a.id = r.attendee_id
+       WHERE r.id = $1 AND r.event_id = $2`,
+      [req.params.regId, req.params.id]
+    );
+    const reg = regRes.rows[0];
+    if (!reg) return res.status(404).json({ error: 'Inscripción no encontrada' });
+    if (!reg.attendee_email) return res.status(400).json({ error: 'Inscrito sin email' });
+    if (reg.status === 'cancelled') return res.status(409).json({ error: 'Inscripción cancelada' });
+
+    const emailConfig = { from_name: event.config?.email_from_name || null, reply_to: event.config?.email_reply_to || null };
+    await sendEventRegistrationEmail(
+      { name: reg.attendee_name, email: reg.attendee_email },
+      event, reg, emailConfig
+    );
+    res.json({ ok: true, sent_to: reg.attendee_email });
+  } catch (err) {
+    console.error('❌ POST /api/events/:id/registrations/:regId/resend-email:', err);
+    res.status(500).json({ error: err.message || 'Error al enviar email' });
+  }
+});
+
 // ── IMPORTAR CSV ──────────────────────────────────────────────────────────────
 // Columnas requeridas: nombre,email  |  Opcionales: telefono,cedula,empresa,cargo,tipo_ticket
 router.post('/:id/registrations/import', auth, upload.single('file'), async (req, res) => {

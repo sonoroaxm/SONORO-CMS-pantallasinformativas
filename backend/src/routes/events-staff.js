@@ -12,6 +12,8 @@ const router    = express.Router();
 const rateLimit = require('express-rate-limit');
 const jwt       = require('jsonwebtoken');
 const { withTransaction } = require('../db/withTransaction');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
 
 const checkinLimiter = rateLimit({
   windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false,
@@ -30,7 +32,7 @@ const staffAuthLimiter = rateLimit({
 
 // Acepta JWT CMS (organizer) o JWT staff (generado por /auth)
 function authenticateEventStaff(req, res, next) {
-  const token = (req.headers['authorization'] || '').split(' ')[1];
+  const token = (req.headers['authorization'] || '').split(' ')[1] || req.query.t;
   if (!token) return res.status(401).json({ error: 'No autorizado' });
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) return res.status(403).json({ error: 'Token inválido o expirado' });
@@ -200,7 +202,7 @@ router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (
 
       // 3. Buscar registro — FOR UPDATE serializa escaneos simultáneos del mismo QR (P-6)
       const regRes = await client.query(
-        `SELECT r.id, r.status, r.ticket_type, a.name, a.email
+        `SELECT r.id, r.status, r.ticket_type, r.qr_token, r.custom_fields, a.name, a.email
          FROM events.registrations r
          JOIN events.attendees a ON a.id = r.attendee_id
          WHERE r.qr_token = $1 AND r.event_id = $2
@@ -257,7 +259,8 @@ router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (
       }
 
       return { registration_id: reg.id, name: reg.name, email: reg.email,
-               ticket_type: reg.ticket_type, status: finalStatus, event_day, session_id };
+               ticket_type: reg.ticket_type, status: finalStatus, event_day, session_id,
+               qr_token: reg.qr_token, custom_fields: reg.custom_fields };
     });
 
     const ms = Date.now() - t0;
@@ -283,6 +286,55 @@ router.post('/:eventId/checkin', checkinLimiter, authenticateEventStaff, async (
     }
     console.error('❌ POST /api/events/staff/:id/checkin:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── ETIQUETA PDF (Brother QL-810W DK-1208 90x38mm) ─────────────────────────────
+// GET /api/events/staff/:eventId/registrations/:regId/label.pdf?t=<jwt>
+router.get('/:eventId/registrations/:regId/label.pdf', authenticateEventStaff, async (req, res) => {
+  const pool = global.pool;
+  const mm = v => v * 2.8346456;
+
+  try {
+    const regRes = await pool.query(
+      `SELECT r.qr_token, r.custom_fields, a.name
+       FROM events.registrations r JOIN events.attendees a ON a.id = r.attendee_id
+       WHERE r.id = $1 AND r.event_id = $2`,
+      [req.params.regId, req.params.eventId]
+    );
+    if (!regRes.rows[0]) return res.status(404).json({ error: 'Inscripción no encontrada' });
+    const reg = regRes.rows[0];
+
+    const cf = reg.custom_fields || {};
+    const companyKey = Object.keys(cf).find(k => /empresa|compa|company|organiz/i.test(k));
+    const company = companyKey ? String(cf[companyKey] || '').trim() : '';
+
+    const qrPng = await QRCode.toBuffer(reg.qr_token, { type: 'png', width: 600, margin: 0 });
+
+    const doc = new PDFDocument({ size: [mm(90), mm(38)], margin: 0 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="etiqueta.pdf"');
+    doc.pipe(res);
+
+    const pageW = mm(90), pageH = mm(38);
+    const qrSize = mm(22);
+    const padTop = mm(1);
+
+    doc.image(qrPng, (pageW - qrSize) / 2, padTop, { width: qrSize, height: qrSize });
+
+    const textTop = padTop + qrSize + mm(1);
+    doc.font('Helvetica-Bold').fontSize(13);
+    doc.text(reg.name || '', mm(1), textTop, { width: pageW - mm(2), align: 'center', lineGap: 0 });
+
+    if (company) {
+      doc.font('Helvetica').fontSize(8).fillColor('#333');
+      doc.text(company, mm(1), doc.y + mm(0.5), { width: pageW - mm(2), align: 'center' });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET label.pdf:', err);
+    res.status(500).json({ error: 'Error al generar etiqueta' });
   }
 });
 

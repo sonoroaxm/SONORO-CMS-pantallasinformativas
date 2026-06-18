@@ -7084,6 +7084,7 @@ async function evLoadRegistrations() {
         <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${statusLabel}</span></td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">${date}</td>
         <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
+          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 10px;border-radius:6px;margin-right:6px;font-size:12px;" title="Editar datos del inscrito" onclick="event.stopPropagation();evEditReg('${r.id}')">Editar</button>
           <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 8px;border-radius:6px;margin-right:6px;font-size:14px;" title="Imprimir etiqueta QR" onclick="event.stopPropagation();evPrintLabel('${r.id}')">🖨</button>
           <span style="font-size:16px;color:var(--text-muted);" id="reg-chevron-${r.id}">▸</span>
         </td>
@@ -7369,6 +7370,107 @@ async function evPrintAllLabels() {
     w.document.write(html);
     w.document.close();
   } catch(e) { showStatus('Error al preparar impresión', 'error'); }
+}
+
+// ── EDITAR INSCRITO ───────────────────────────────────────────────────────────
+function evEditReg(regId) {
+  const r = evRegsCache[regId];
+  if (!r) return;
+  const cf = r.custom_fields || {};
+  const cfRows = Object.keys(cf).map(k => `
+    <div class="form-group" style="margin:0;">
+      <label style="font-size:11px;">${k.replace(/</g,'&lt;')}</label>
+      <input type="text" data-cfkey="${k.replace(/"/g,'&quot;')}" value="${String(cf[k]||'').replace(/"/g,'&quot;')}">
+    </div>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ev-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:var(--surface,#fff);color:var(--text,#111);border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="margin:0;font-size:16px;">Editar inscrito</h3>
+        <button type="button" onclick="evCloseEdit()" style="background:transparent;border:0;font-size:20px;cursor:pointer;color:var(--text-muted);">×</button>
+      </div>
+      <form id="ev-edit-form" onsubmit="event.preventDefault();evSaveReg('${regId}');">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Nombre</label><input type="text" id="ev-edit-name" value="${(r.attendee_name||'').replace(/"/g,'&quot;')}" required></div>
+          <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="ev-edit-email" value="${(r.email||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="text" id="ev-edit-phone" value="${(r.phone||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Documento</label><input type="text" id="ev-edit-id" value="${(r.id_number||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Cargo</label><input type="text" id="ev-edit-job" value="${(r.job_title||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Organización</label><input type="text" id="ev-edit-org" value="${(r.organization||'').replace(/"/g,'&quot;')}"></div>
+        </div>
+        ${cfRows ? `<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:8px;">Campos personalizados</div><div id="ev-edit-cf" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${cfRows}</div></div>` : '<div id="ev-edit-cf"></div>'}
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-outline" onclick="evResendQR('${regId}')">Reenviar QR</button>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn btn-outline" onclick="evCloseEdit()">Cancelar</button>
+            <button type="button" class="btn btn-outline" onclick="evSaveReg('${regId}', true)">Guardar y reenviar QR</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) evCloseEdit(); });
+}
+
+function evCloseEdit() {
+  const o = document.getElementById('ev-edit-overlay');
+  if (o) o.remove();
+}
+
+async function evResendQR(regId) {
+  if (!confirm('¿Reenviar correo con el QR al inscrito?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/resend-email`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    showStatus(`QR reenviado a ${data.sent_to}`, 'success');
+  } catch(e) { showStatus(e.message || 'Error al reenviar', 'error'); }
+}
+
+async function evSaveReg(regId, alsoResend) {
+  const cfInputs = document.querySelectorAll('#ev-edit-cf input[data-cfkey]');
+  const custom_fields = {};
+  cfInputs.forEach(i => { custom_fields[i.dataset.cfkey] = i.value; });
+  const body = {
+    name:         document.getElementById('ev-edit-name').value.trim(),
+    email:        document.getElementById('ev-edit-email').value.trim(),
+    phone:        document.getElementById('ev-edit-phone').value.trim(),
+    id_number:    document.getElementById('ev-edit-id').value.trim(),
+    job_title:    document.getElementById('ev-edit-job').value.trim(),
+    organization: document.getElementById('ev-edit-org').value.trim(),
+  };
+  if (cfInputs.length) body.custom_fields = custom_fields;
+
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    showStatus('Inscrito actualizado', 'success');
+    evCloseEdit();
+    if (typeof evLoadRegistrations === 'function') evLoadRegistrations();
+    if (alsoResend) {
+      try {
+        const r2 = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/resend-email`, {
+          method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const d2 = await r2.json();
+        if (!r2.ok) throw new Error(d2.error || 'Error');
+        showStatus(`QR reenviado a ${d2.sent_to}`, 'success');
+      } catch(e) { showStatus('Guardado, pero error al reenviar: ' + e.message, 'error'); }
+    }
+  } catch(e) {
+    showStatus(e.message || 'Error al guardar', 'error');
+  }
 }
 
 // ── STAFF ─────────────────────────────────────────────────────────────────────

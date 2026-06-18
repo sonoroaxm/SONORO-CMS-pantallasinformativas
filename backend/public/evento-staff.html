@@ -200,6 +200,8 @@
   .logout-btn:active { border-color: var(--red); color: var(--red); }
 
   /* ── RESULT ────────────────────────────────── */
+  /* iframe oculto para impresión */
+  #print-frame { position: fixed; right: -9999px; bottom: -9999px; width: 90mm; height: 38mm; border: 0; }
   #s-result {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -353,6 +355,9 @@
   </div>
 </div>
 
+<!-- iframe oculto para impresión de etiqueta -->
+<iframe id="print-frame"></iframe>
+
 <!-- ══════════════ RESULT ══════════════ -->
 <div id="s-result" class="hidden" onclick="backToScanner()">
   <div class="result-body">
@@ -360,12 +365,15 @@
     <div class="result-status" id="r-status"></div>
     <div class="result-name" id="r-name"></div>
     <div class="result-msg" id="r-msg"></div>
+    <button id="r-print" class="result-continue" style="display:none;background:#fff;color:#000;margin-bottom:8px;" onclick="event.stopPropagation();printLastLabel();">🖨 Imprimir etiqueta</button>
     <button class="result-continue" onclick="backToScanner()">Siguiente →</button>
   </div>
 </div>
 
 <!-- jsQR para decodificación de QR desde cámara -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<!-- qrcode para generar QR de etiquetas Brother QL -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
 'use strict';
 
@@ -377,6 +385,7 @@ let eventId   = null;
 let eventData = null;
 let staffData = null;
 let processing     = false;
+let lastCheckin    = null;
 let scanActive     = false;
 let scanRAF        = null;
 let currentSession = undefined; // undefined=no elegida, null=entrada general, {id,name,meta}=sesion
@@ -567,6 +576,7 @@ async function doCheckin(qrToken) {
 
     if (res.ok) {
       const dayLabel = currentSession ? currentSession.name : formatDay(data.event_day);
+      lastCheckin = { qr_token: data.qr_token, name: data.name, custom_fields: data.custom_fields, registration_id: data.registration_id };
       showResult('success', data.name, 'Bienvenido', dayLabel);
       addLog(data.name, 'g');
       bumpStat('sp-today');
@@ -677,7 +687,21 @@ function showResult(type, name, status, msg) {
   document.getElementById('r-status').textContent = status;
   document.getElementById('r-name').textContent   = name || '—';
   document.getElementById('r-msg').textContent    = msg || '';
+  document.getElementById('r-print').style.display = (type === 'success' && lastCheckin?.qr_token) ? 'block' : 'none';
   show('s-result');
+}
+
+// ── IMPRESIÓN ETIQUETA QR (Brother QL-810W DK-1208 90x38mm) ──────
+function lblCompany(cf) {
+  if (!cf) return null;
+  const key = Object.keys(cf).find(k => /empresa|compa|company|organiz/i.test(k));
+  return key ? String(cf[key]).trim() : null;
+}
+
+function printLastLabel() {
+  if (!lastCheckin?.registration_id) return;
+  const url = `${API}/api/events/staff/${eventId}/registrations/${lastCheckin.registration_id}/label.pdf?t=${encodeURIComponent(token)}`;
+  window.open(url, '_blank');
 }
 
 function backToScanner() {
