@@ -171,6 +171,11 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 .sess-body { padding:0 14px 12px; display:none; border-top:1px solid var(--border); padding-top:10px; }
 .sess-card.open .sess-body { display:block; }
 .sess-row  { display:flex; gap:8px; align-items:flex-start; font-size:11px; color:var(--muted); margin-bottom:6px; }
+.sess-row.prominent { font-size:13px; color:var(--text); font-weight:600; }
+.sess-row.prominent svg { color:var(--brand); width:14px; height:14px; }
+.sess-row.prominent strong { color:var(--text); font-weight:800; }
+.badge.delay { background:rgba(239,68,68,.18); color:var(--red); border:1px solid rgba(239,68,68,.3); }
+.start-btn.delayed { background:rgba(245,158,11,.15); color:var(--amber); border:1px solid rgba(245,158,11,.3); }
 .sess-row:last-child { margin-bottom:0; }
 .sess-row svg { flex-shrink:0; margin-top:1px; }
 .sess-row strong { color:var(--text); font-weight:600; }
@@ -319,15 +324,19 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 <script>
 'use strict';
 
-// ── AUTH ──────────────────────────────────────────────────────────────────────
-const authToken = localStorage.getItem('authToken');
-if (!authToken) { window.location.href = '/dashboard.html'; }
+// ── AUTH (modo token público o JWT) ────────────────────────────────────────
+const PUBLIC_TOKEN = new URLSearchParams(window.location.search).get('t');
+const IS_PUBLIC = !!PUBLIC_TOKEN;
+const authToken = IS_PUBLIC ? null : localStorage.getItem('authToken');
+if (!IS_PUBLIC && !authToken) { window.location.href = '/dashboard.html'; }
 
 const slugMatch = window.location.pathname.match(/\/evento\/([^\/]+)\/produccion/);
 if (!slugMatch) { document.body.innerHTML = '<div style="color:#f0f0f0;padding:40px;font-family:sans-serif">URL inválida — debe ser /evento/{slug}/produccion</div>'; }
 const SLUG = slugMatch ? slugMatch[1] : null;
 
-const H = { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' };
+const H = IS_PUBLIC
+  ? { 'Content-Type': 'application/json' }
+  : { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let eventInfo    = null;
@@ -363,7 +372,11 @@ function esc(s) {
 }
 async function apiFetch(url, opts) {
   const res = await fetch(url, { headers: H, ...opts });
-  if (res.status === 401 || res.status === 403) { window.location.href = '/dashboard.html'; return null; }
+  if (res.status === 401 || res.status === 403) {
+    if (IS_PUBLIC) { showError('Token invalido o revocado'); return null; }
+    window.location.href = '/dashboard.html';
+    return null;
+  }
   return res;
 }
 
@@ -371,20 +384,32 @@ async function apiFetch(url, opts) {
 async function init() {
   if (!SLUG) return;
   try {
-    // 1. Resolver slug → evento (autenticado, todos los estados)
-    const evRes = await apiFetch(`/api/events/by-slug/${SLUG}`);
-    if (!evRes) return;
-    if (!evRes.ok) { showError('Evento no encontrado o sin acceso'); return; }
-    eventInfo = await evRes.json();
-    eventId   = eventInfo.id;
+    if (IS_PUBLIC) {
+      // Modo token público: un solo endpoint trae event + sessions agregadas
+      const res = await fetch(`/api/events/public/${encodeURIComponent(SLUG)}/produccion?t=${encodeURIComponent(PUBLIC_TOKEN)}`);
+      if (!res.ok) { showError(res.status === 403 ? 'Token invalido o revocado' : 'Error cargando datos'); return; }
+      const payload = await res.json();
+      eventInfo = payload.event;
+      eventId   = eventInfo.id;
+      sessions  = payload.sessions || [];
+      statsNow  = { total: payload.registrations_count || 0, checked_in_today: 0, pending: 0, checked_in_total: 0 };
+      feedItems = [];
+    } else {
+      // 1. Resolver slug → evento (autenticado, todos los estados)
+      const evRes = await apiFetch(`/api/events/by-slug/${SLUG}`);
+      if (!evRes) return;
+      if (!evRes.ok) { showError('Evento no encontrado o sin acceso'); return; }
+      eventInfo = await evRes.json();
+      eventId   = eventInfo.id;
 
-    // 2. Dashboard snapshot
-    const dashRes = await apiFetch(`/api/events/${eventId}/dashboard`);
-    if (!dashRes || !dashRes.ok) { showError('Error cargando dashboard'); return; }
-    const dash = await dashRes.json();
-    sessions  = dash.sessions || [];
-    statsNow  = dash.stats    || {};
-    feedItems = dash.recent_checkins || [];
+      // 2. Dashboard snapshot
+      const dashRes = await apiFetch(`/api/events/${eventId}/dashboard`);
+      if (!dashRes || !dashRes.ok) { showError('Error cargando dashboard'); return; }
+      const dash = await dashRes.json();
+      sessions  = dash.sessions || [];
+      statsNow  = dash.stats    || {};
+      feedItems = dash.recent_checkins || [];
+    }
 
     // 3. Calcular día seleccionado por defecto
     const days      = getEventDays();
@@ -404,7 +429,7 @@ async function init() {
     startCountdown();
 
     // 6. Polling stats cada 30s + re-render rundown cada 60s (auto-estado por tiempo)
-    setInterval(refreshStats, 30000);
+    if (!IS_PUBLIC) setInterval(refreshStats, 30000);
     setInterval(() => { renderRundown(); if (rundownView === "libreto") renderCues(); }, 60000);
 
   } catch (err) {
@@ -415,7 +440,7 @@ async function init() {
 
 // ── SOCKET.IO ─────────────────────────────────────────────────────────────────
 function connectSocket() {
-  socket = io({ auth: { token: authToken } });
+  socket = IS_PUBLIC ? io() : io({ auth: { token: authToken } });
 
   socket.on('connect', () => {
     socket.emit('join_event', { event_id: eventId });
@@ -498,31 +523,70 @@ function startCountdown() {
   cdInterval = setInterval(updateCountdown, 1000);
 }
 
+function fmtDur(sec) {
+  const sign = sec < 0 ? '+' : '';
+  const a = Math.abs(sec);
+  const h = Math.floor(a/3600), m = Math.floor((a%3600)/60), s = a%60;
+  const pad = n => String(n).padStart(2,'0');
+  return sign + (h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`);
+}
+
 function updateCountdown() {
-  const now      = Date.now();
+  const now = Date.now();
+  // Sesion en curso = status in_progress, o esta dentro de su rango temporal y no finalizada
+  const active = sessions.find(s => {
+    if (s.status === 'cancelled' || s.status === 'done') return false;
+    if (s.status === 'in_progress') return true;
+    const st = new Date(s.starts_at).getTime();
+    const en = new Date(s.ends_at).getTime();
+    return now >= st && now < en;
+  });
+
+  const timerEl  = document.getElementById('cd-timer');
+  const nextEl   = document.getElementById('cd-next');
+  const startsEl = document.getElementById('cd-starts');
+
+  if (active) {
+    const endMs = new Date(active.ends_at).getTime();
+    const startMs = new Date(active.starts_at).getTime();
+    if (now < endMs) {
+      // Modo en curso: restan
+      const remaining = Math.floor((endMs - now) / 1000);
+      timerEl.textContent = fmtDur(remaining);
+      timerEl.style.color = 'var(--green)';
+      nextEl.textContent = 'En curso: ' + active.name;
+      const elapsed = Math.floor((now - startMs) / 1000);
+      startsEl.textContent = 'Va ' + fmtDur(elapsed);
+    } else {
+      // Modo atraso: ya paso ends_at pero sigue abierta
+      const over = Math.floor((now - endMs) / 1000);
+      timerEl.textContent = '+' + fmtDur(over);
+      timerEl.style.color = 'var(--red)';
+      nextEl.textContent = 'ATRASO: ' + active.name;
+      startsEl.textContent = 'Debio terminar a las ' + fmtTime(active.ends_at);
+    }
+    return;
+  }
+
+  // Modo countdown: proxima futura
   const upcoming = sessions
     .filter(s => s.status !== 'done' && s.status !== 'cancelled' && new Date(s.starts_at).getTime() > now)
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const next = upcoming[0];
 
   if (!next) {
-    document.getElementById('cd-next').textContent   = 'Fin del programa';
-    document.getElementById('cd-timer').textContent  = '—';
-    document.getElementById('cd-starts').textContent = '—';
+    nextEl.textContent   = 'Fin del programa';
+    timerEl.textContent  = '—';
+    timerEl.style.color = '';
+    startsEl.textContent = '—';
     return;
   }
 
   const diff = Math.max(0, Math.floor((new Date(next.starts_at).getTime() - now) / 1000));
-  const h = Math.floor(diff / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  const s = diff % 60;
-  const timer = h > 0
-    ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-
-  document.getElementById('cd-next').textContent   = next.name;
-  document.getElementById('cd-timer').textContent  = timer;
-  document.getElementById('cd-starts').textContent = fmtTime(next.starts_at);
+  timerEl.textContent = fmtDur(diff);
+  timerEl.style.color = '';
+  nextEl.textContent = next.name;
+  startsEl.textContent = fmtTime(next.starts_at);
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -627,13 +691,28 @@ function renderRundown() {
       const full  = cap > 0 && reg >= cap;
       const almst = pct >= 80 && !full;
 
+      // Atraso detection
+      const nowMs   = Date.now();
+      const startMs = new Date(s.starts_at).getTime();
+      const endMs   = new Date(s.ends_at).getTime();
+      const startDelayMin = (s.status !== 'done' && s.status !== 'cancelled' && nowMs > startMs && s.status !== 'in_progress')
+        ? Math.floor((nowMs - startMs) / 60000) : 0;
+      const endDelayMin = (state === 'current' && nowMs > endMs)
+        ? Math.floor((nowMs - endMs) / 60000) : 0;
+      const isReadOnly = IS_PUBLIC;
+
       let actionBtn = '';
-      if (state === 'upcoming') {
-        actionBtn = `<button class="action-btn start-btn" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">▶ Iniciar</button>`;
+      if (isReadOnly) {
+        actionBtn = '';
+      } else if (state === 'upcoming') {
+        // Sesion futura: NO mostrar boton hasta que se pase la hora de inicio
+        if (startDelayMin > 0) {
+          actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
+        }
       } else if (state === 'current' && s.status === 'in_progress') {
-        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')">✓ Cerrar sesión</button>`;
+        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')">&#10003; Cerrar sesion</button>`;
       } else if (state === 'done') {
-        actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">↺ Reabrir</button>`;
+        actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">&#8634; Reabrir</button>`;
       }
 
       return `<div class="sess-card ${state}" id="sess-${s.id}" onclick="toggleSess('${s.id}')">
@@ -642,8 +721,10 @@ function renderRundown() {
           <div class="sess-toggle">▾</div>
         </div>
         <div class="sess-badges">
-          ${state === 'current' ? '<span class="badge current">▶ En curso</span>' : ''}
-          ${state === 'done'    ? '<span class="badge done">✓ Finalizado</span>'  : ''}
+          ${state === 'current' ? '<span class="badge current">&#9654; En curso</span>' : ''}
+          ${state === 'done'    ? '<span class="badge done">&#10003; Finalizado</span>'  : ''}
+          ${endDelayMin > 0 ? `<span class="badge delay">ATRASO +${endDelayMin}m</span>` : ''}
+          ${startDelayMin > 0 && state === 'upcoming' ? `<span class="badge delay">&#9654; ATRASO +${startDelayMin}m</span>` : ''}
           ${cap ? `<span class="badge ${full?'warn':almst?'warn':'cap'}">${reg}/${cap}${full?' · LLENO':almst?' · Casi lleno':''}</span>` : ''}
           <span style="font-size:10px;color:var(--muted);padding:2px 0">${fmtTime(s.starts_at)}–${fmtTime(s.ends_at)}</span>
         </div>
@@ -656,12 +737,16 @@ function renderRundown() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
             <span>${esc(s.description)}</span>
           </div>` : ''}
-          ${s.assigned_staff_name ? `<div class="sess-row">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span style="font-style:italic">${esc(s.assigned_staff_name)}</span>
+          ${s.speaker_name ? `<div class="sess-row prominent">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14c-4 0-7 2-7 5v2h14v-2c0-3-3-5-7-5z"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Orador: <strong>${esc(s.speaker_name)}</strong></span>
           </div>` : ''}
-          ${cap ? `<div class="sess-row">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${s.assigned_staff_name ? `<div class="sess-row prominent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Responsable: <strong>${esc(s.assigned_staff_name)}</strong></span>
+          </div>` : ''}
+          ${cap ? `<div class="sess-row prominent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Registrados: <strong style="color:${full?'var(--amber)':'var(--text)'}">${reg} de ${cap}</strong></span>
           </div>` : ''}
           ${actionBtn ? `<div class="sess-actions">${actionBtn}</div>` : ''}

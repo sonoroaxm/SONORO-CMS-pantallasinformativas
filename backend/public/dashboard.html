@@ -1670,7 +1670,7 @@
             <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
             <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
             <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
-            <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Libreto</button>
+            <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Producción</button>
           </div>
 
           <!-- SUB-TAB: Información -->
@@ -1724,6 +1724,7 @@
                   <input type="hidden" id="ev-sess-edit-id">
                   <div style="display:grid;gap:10px;">
                     <div class="form-group" style="margin:0;"><label>Nombre de la sesión</label><input type="text" id="ev-sess-name" placeholder="Ej: Día 1 — Mañana"></div>
+                    <div class="form-group" style="margin:0;"><label>Orador / Speaker</label><input type="text" id="ev-sess-speaker" placeholder="Nombre del orador (opcional)" maxlength="120"></div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                       <div class="form-group" style="margin:0;"><label>Fecha</label><input type="date" id="ev-sess-date"></div>
                       <div class="form-group" style="margin:0;"><label>Cupo (opc.)</label><input type="number" id="ev-sess-cap" placeholder="Sin límite"></div>
@@ -1796,21 +1797,6 @@
                   <div style="display:flex;gap:6px;flex-shrink:0;">
                     <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;">Copiar</button>
                     <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
-                  </div>
-                </div>
-                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
-                <!-- Dashboard Producción -->
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,27,141,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF1B8D" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 17h7M17 14v7"/></svg>
-                  </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Dashboard Producción</div>
-                    <div id="ev-produccion-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                  </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-produccion-url')" style="border-color:#FF1B8D;color:#FF1B8D;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-produccion-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
                   </div>
                 </div>
               </div>
@@ -2204,8 +2190,57 @@
 
           </div><!-- /ev-sub-suppliers -->
 
-          <!-- SUB-TAB: Libreto -->
+          <!-- SUB-TAB: Producción (refactor de Libreto) -->
           <div id="ev-sub-rundown" class="ev-sub-panel hidden">
+
+            <!-- Banda superior: cards de acceso público (Productor + Teleprompter) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="ev-prod-access-band">
+              <!-- Card: Dashboard de producción -->
+              <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                  <div style="font-size:14px;font-weight:800;">Dashboard de producción</div>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,27,141,0.15);color:#FF1B8D;">Productor</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;">Monitor de control en vivo: stats, cronómetro, sesiones y canal a pantallas. Pantalla principal del productor general.</div>
+                <div id="ev-prod-token-row" style="display:none;">
+                  <div id="ev-prod-token-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                    <a id="ev-prod-token-open" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir en nueva pestaña</a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('produccion')">Copiar URL</button>
+                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('produccion')">Revocar token</button>
+                  </div>
+                </div>
+                <div id="ev-prod-token-empty" style="display:none;">
+                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('produccion')">Generar URL pública</button>
+                </div>
+              </div>
+
+              <!-- Card: Teleprompter -->
+              <div class="card" style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                  <div style="font-size:14px;font-weight:800;">Teleprompter</div>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(96,165,250,0.15);color:#60a5fa;">Orador</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;">Vista limpia para monitor de confidence del orador: nombre de sesión, timer gigante, qué sigue. URL distinta por sesión.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" id="ev-tp-session-picker">
+                  <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Sesión:</span>
+                  <span style="font-size:11px;color:var(--text-muted);">Sin sesiones</span>
+                </div>
+                <div id="ev-tp-token-row" style="display:none;">
+                  <div id="ev-tp-token-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                    <a id="ev-tp-token-open" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir</a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('teleprompter')">Copiar</button>
+                    <button class="btn btn-outline btn-sm" onclick="evWhatsappProdTokenUrl()">WhatsApp</button>
+                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('teleprompter')">Revocar</button>
+                  </div>
+                </div>
+                <div id="ev-tp-token-empty" style="display:none;">
+                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('teleprompter')">Generar URL para esta sesión</button>
+                </div>
+              </div>
+            </div>
+
             <div class="card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
                 <h3 style="margin:0;font-size:15px;">Libreto del evento</h3>
@@ -6568,7 +6603,138 @@ function evSwitchSubTab(tab) {
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
   if (tab === 'staff') evLoadStaff();
   if (tab === 'suppliers') evLoadSuppliers();
-  if (tab === 'rundown') evLoadRundown();
+  if (tab === 'rundown') { evLoadRundown(); evLoadProductionTokens(); }
+}
+
+// ── PRODUCTION TOKENS (sub-tab Producción) ─────────────────────────────────
+let evProdTokens = [];
+let evTpSelectedSessionId = null;
+
+async function evLoadProductionTokens() {
+  if (!evCurrentEventId) return;
+  try {
+    // Asegurar lista de sesiones disponible
+    if (!evSessionsList || evSessionsList.length === 0) {
+      await evLoadSessions(evCurrentEventId);
+    }
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/production-tokens`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    evProdTokens = res.ok ? await res.json() : [];
+
+    // Default sesión seleccionada para teleprompter
+    if (!evTpSelectedSessionId && evSessionsList && evSessionsList.length) {
+      evTpSelectedSessionId = evSessionsList[0].id;
+    }
+    evRenderProductionTokens();
+  } catch (e) {
+    console.error('evLoadProductionTokens', e);
+  }
+}
+
+function evRenderProductionTokens() {
+  // Dashboard productor
+  const prodTok = evProdTokens.find(t => t.kind === 'produccion');
+  const prodRow = document.getElementById('ev-prod-token-row');
+  const prodEmpty = document.getElementById('ev-prod-token-empty');
+  if (prodTok) {
+    prodRow.style.display = '';
+    prodEmpty.style.display = 'none';
+    document.getElementById('ev-prod-token-url').textContent = prodTok.public_url;
+    document.getElementById('ev-prod-token-open').href = prodTok.public_url;
+  } else {
+    prodRow.style.display = 'none';
+    prodEmpty.style.display = '';
+  }
+
+  // Teleprompter — picker de sesiones
+  const picker = document.getElementById('ev-tp-session-picker');
+  if (picker) {
+    const sess = evSessionsList || [];
+    if (!sess.length) {
+      picker.innerHTML = '<span style="font-size:11px;color:var(--text-muted);">Sin sesiones</span>';
+    } else {
+      picker.innerHTML = '<span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Sesión:</span>' +
+        sess.map(s => {
+          const active = s.id === evTpSelectedSessionId;
+          return `<button onclick="evSelectTpSession('${s.id}')" style="padding:5px 10px;border:1px solid ${active ? '#60a5fa' : 'var(--border)'};background:${active ? '#60a5fa' : 'var(--bg)'};color:${active ? '#fff' : 'var(--text-muted)'};font-size:11px;font-weight:600;border-radius:6px;cursor:pointer;">${(s.name || '').replace(/</g,'&lt;')}</button>`;
+        }).join('');
+    }
+  }
+
+  const tpTok = evProdTokens.find(t => t.kind === 'teleprompter' && t.session_id === evTpSelectedSessionId);
+  const tpRow = document.getElementById('ev-tp-token-row');
+  const tpEmpty = document.getElementById('ev-tp-token-empty');
+  if (!evTpSelectedSessionId) {
+    tpRow.style.display = 'none'; tpEmpty.style.display = 'none';
+    return;
+  }
+  if (tpTok) {
+    tpRow.style.display = '';
+    tpEmpty.style.display = 'none';
+    document.getElementById('ev-tp-token-url').textContent = tpTok.public_url;
+    document.getElementById('ev-tp-token-open').href = tpTok.public_url;
+  } else {
+    tpRow.style.display = 'none';
+    tpEmpty.style.display = '';
+  }
+}
+
+function evSelectTpSession(sessionId) {
+  evTpSelectedSessionId = sessionId;
+  evRenderProductionTokens();
+}
+
+async function evCreateProdToken(kind) {
+  if (!evCurrentEventId) return;
+  const body = { kind };
+  if (kind === 'teleprompter') {
+    if (!evTpSelectedSessionId) { showStatus('Selecciona una sesión primero', 'error'); return; }
+    body.session_id = evTpSelectedSessionId;
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/production-tokens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) { showStatus('Error generando token', 'error'); return; }
+    const tok = await res.json();
+    evProdTokens.push(tok);
+    evRenderProductionTokens();
+    showStatus('URL pública generada', 'success');
+  } catch (e) { showStatus('Error de conexión', 'error'); }
+}
+
+async function evRevokeProdToken(kind) {
+  let tok;
+  if (kind === 'produccion') tok = evProdTokens.find(t => t.kind === 'produccion');
+  else tok = evProdTokens.find(t => t.kind === 'teleprompter' && t.session_id === evTpSelectedSessionId);
+  if (!tok) return;
+  if (!confirm('¿Revocar este token? La URL actual dejará de funcionar.')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/production-tokens/${tok.id}`, {
+      method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.status !== 204) { showStatus('Error revocando', 'error'); return; }
+    evProdTokens = evProdTokens.filter(t => t.id !== tok.id);
+    evRenderProductionTokens();
+    showStatus('Token revocado', 'success');
+  } catch (e) { showStatus('Error de conexión', 'error'); }
+}
+
+function evCopyProdTokenUrl(kind) {
+  const elId = kind === 'produccion' ? 'ev-prod-token-url' : 'ev-tp-token-url';
+  const txt = document.getElementById(elId)?.textContent || '';
+  if (!txt) return;
+  navigator.clipboard.writeText(txt).then(() => showStatus('URL copiada', 'success'));
+}
+
+function evWhatsappProdTokenUrl() {
+  const txt = document.getElementById('ev-tp-token-url')?.textContent || '';
+  if (!txt) return;
+  const msg = encodeURIComponent(`Tu vista de teleprompter: ${txt}`);
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
 // ── INFORMACIÓN ────────────────────────────────────────────────
@@ -6597,8 +6763,7 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-staff-url-link').href = `${baseUrl}/staff`;
   document.getElementById('ev-kiosko-url').textContent = `${baseUrl}/kiosko`;
   document.getElementById('ev-kiosko-url-link').href = `${baseUrl}/kiosko`;
-  document.getElementById('ev-produccion-url').textContent = `${baseUrl}/produccion`;
-  document.getElementById('ev-produccion-url-link').href = `${baseUrl}/produccion`;
+  // Card "Dashboard Producción" se movió a la sub-tab Producción (con tokens públicos)
   const pubBtn = document.getElementById('ev-publish-btn');
   if (ev.status === 'published' || ev.status === 'live') {
     pubBtn.textContent = 'Despublicar';
@@ -6722,7 +6887,7 @@ function evOpenAddSession() {
 }
 function evCloseAddSession() {
   document.getElementById('ev-add-session-form').classList.add('hidden');
-  ['ev-sess-edit-id','ev-sess-name','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end','ev-sess-obs'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['ev-sess-edit-id','ev-sess-name','ev-sess-speaker','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end','ev-sess-obs'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const staffSel = document.getElementById('ev-sess-staff'); if(staffSel) staffSel.value = '';
 }
 let evSessionsList = [];
@@ -6733,6 +6898,7 @@ function evEditSession(id) {
   const tz = evCurrentEvent?.timezone || 'UTC';
   document.getElementById('ev-sess-edit-id').value = s.id;
   document.getElementById('ev-sess-name').value = s.name || '';
+  const spkEl = document.getElementById('ev-sess-speaker'); if (spkEl) spkEl.value = s.speaker_name || '';
   // Convert stored UTC to event timezone for the inputs
   document.getElementById('ev-sess-date').value = new Date(s.starts_at).toLocaleDateString('sv-SE', { timeZone: tz });
   document.getElementById('ev-sess-start').value = new Date(s.starts_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
@@ -6766,6 +6932,7 @@ async function evSaveSession() {
   if (!name || !date || !startT || !endT) { showStatus('Nombre, fecha y horas son obligatorios', 'error'); return; }
   const body = {
     name,
+    speaker_name: (document.getElementById('ev-sess-speaker')?.value || '').trim() || null,
     starts_at: `${date}T${startT}:00`,
     ends_at: `${date}T${endT}:00`,
     capacity: document.getElementById('ev-sess-cap').value || null,

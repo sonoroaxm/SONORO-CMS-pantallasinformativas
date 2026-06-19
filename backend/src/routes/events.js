@@ -340,7 +340,8 @@ router.post('/:id/sessions', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const { name, description, session_type = 'plenary', venue_zone,
-          starts_at, ends_at, capacity, requires_registration = false } = req.body;
+          starts_at, ends_at, capacity, requires_registration = false,
+          speaker_name = null } = req.body;
   if (!name?.trim() || !starts_at || !ends_at) {
     return res.status(400).json({ error: 'name, starts_at y ends_at son requeridos' });
   }
@@ -354,13 +355,14 @@ router.post('/:id/sessions', auth, async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO events.event_sessions
          (event_id, user_id, name, description, session_type, venue_zone,
-          starts_at, ends_at, capacity, requires_registration)
+          starts_at, ends_at, capacity, requires_registration, speaker_name)
        VALUES ($1,$2,$3,$4,$5,$6,
          ($7::timestamp AT TIME ZONE $11),
          ($8::timestamp AT TIME ZONE $11),
-         $9,$10) RETURNING *`,
+         $9,$10,$12) RETURNING *`,
       [req.params.id, evCheck.rows[0].user_id, name.trim(), description || null,
-       session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz]
+       session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz,
+       (speaker_name && String(speaker_name).trim()) || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -1297,7 +1299,7 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const { name, starts_at, ends_at, capacity, venue_zone, description, session_type,
-          assigned_staff_id, observations } = req.body;
+          assigned_staff_id, observations, speaker_name } = req.body;
   try {
     const evCheck = await pool.query(
       `SELECT id, timezone FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -1314,13 +1316,15 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
          venue_zone = COALESCE($7, venue_zone),
          description       = COALESCE($8, description),
          assigned_staff_id = COALESCE($10, assigned_staff_id),
-         observations      = COALESCE($11, observations)
+         observations      = COALESCE($11, observations),
+         speaker_name      = COALESCE($12, speaker_name)
        WHERE id = $1 AND event_id = $2 RETURNING *`,
       [req.params.sessionId, req.params.id,
        name?.trim() || null, starts_at || null, ends_at || null,
        capacity !== undefined ? (capacity || null) : undefined,
        venue_zone || null, description || null, tz,
-       assigned_staff_id || null, observations || null]
+       assigned_staff_id || null, observations || null,
+       (speaker_name && String(speaker_name).trim()) || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Sesión no encontrada' });
     res.json(rows[0]);
@@ -1347,6 +1351,122 @@ router.delete('/:id/sessions/:sessionId', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('\u274C DELETE /sessions/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── PRODUCTION TOKENS (URLs públicas para dashboard productor + teleprompter) ──
+// Tabla: events.production_tokens(id, user_id, event_id, session_id, kind, token, created_at, revoked_at)
+// kind='produccion' → URL del dashboard del productor (sin session_id)
+// kind='teleprompter' → URL por sesión para confidence monitor (requiere session_id)
+
+function buildTokenUrl(req, slug, row) {
+  const base = `${req.protocol}://${req.get('host')}`;
+  if (row.kind === 'teleprompter') {
+    return `${base}/evento/${slug}/orador/${row.session_id}?t=${row.token}`;
+  }
+  return `${base}/evento/${slug}/produccion?t=${row.token}`;
+}
+
+router.get('/:id/production-tokens', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evCheck = await pool.query(
+      `SELECT id, slug FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const slug = evCheck.rows[0].slug;
+    const params = isAdmin ? [req.params.id] : [req.params.id, req.user.id];
+    const userFilter = isAdmin ? '' : 'AND pt.user_id = $2';
+    const { rows } = await pool.query(
+      `SELECT pt.id, pt.kind, pt.session_id, pt.token, pt.created_at,
+              s.name AS session_title
+       FROM events.production_tokens pt
+       LEFT JOIN events.event_sessions s ON s.id = pt.session_id
+       WHERE pt.event_id = $1 ${userFilter} AND pt.revoked_at IS NULL
+       ORDER BY pt.created_at DESC`,
+      params
+    );
+    res.json(rows.map(r => ({
+      id: r.id, kind: r.kind, session_id: r.session_id, session_title: r.session_title,
+      token: r.token, created_at: r.created_at,
+      public_url: buildTokenUrl(req, slug, r)
+    })));
+  } catch (err) {
+    console.error('GET /production-tokens:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/:id/production-tokens', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const { kind, session_id } = req.body || {};
+  if (!['produccion', 'teleprompter'].includes(kind)) {
+    return res.status(400).json({ error: "kind debe ser 'produccion' o 'teleprompter'" });
+  }
+  if (kind === 'teleprompter' && !session_id) {
+    return res.status(400).json({ error: 'session_id requerido para teleprompter' });
+  }
+  try {
+    const evCheck = await pool.query(
+      `SELECT id, user_id, slug FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const ev = evCheck.rows[0];
+
+    if (session_id) {
+      const sCheck = await pool.query(
+        `SELECT id FROM events.event_sessions WHERE id = $1 AND event_id = $2`,
+        [session_id, ev.id]
+      );
+      if (!sCheck.rowCount) return res.status(404).json({ error: 'Sesión no encontrada' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO events.production_tokens (user_id, event_id, session_id, kind)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, kind, session_id, token, created_at`,
+      [ev.user_id, ev.id, kind === 'teleprompter' ? session_id : null, kind]
+    );
+    const row = rows[0];
+    let session_title = null;
+    if (row.session_id) {
+      const t = await pool.query(`SELECT name FROM events.event_sessions WHERE id = $1`, [row.session_id]);
+      session_title = t.rows[0]?.name || null;
+    }
+    res.status(201).json({
+      id: row.id, kind: row.kind, session_id: row.session_id, session_title,
+      token: row.token, created_at: row.created_at,
+      public_url: buildTokenUrl(req, ev.slug, row)
+    });
+  } catch (err) {
+    console.error('POST /production-tokens:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/:id/production-tokens/:tokenId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const params = isAdmin
+      ? [req.params.tokenId, req.params.id]
+      : [req.params.tokenId, req.params.id, req.user.id];
+    const userFilter = isAdmin ? '' : 'AND user_id = $3';
+    const del = await pool.query(
+      `UPDATE events.production_tokens
+       SET revoked_at = NOW()
+       WHERE id = $1 AND event_id = $2 ${userFilter} AND revoked_at IS NULL`,
+      params
+    );
+    if (!del.rowCount) return res.status(404).json({ error: 'Token no encontrado' });
+    res.status(204).end();
+  } catch (err) {
+    console.error('DELETE /production-tokens:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });

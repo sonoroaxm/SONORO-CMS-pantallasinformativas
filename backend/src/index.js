@@ -15,6 +15,7 @@ const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
 const eventsRouter       = require('./routes/events');
 const eventsPublicRouter = require('./routes/events-public');
+const eventsProductionPublicRouter = require('./routes/events-production-public');
 const eventsStaffRouter  = require('./routes/events-staff');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
@@ -7137,6 +7138,7 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // R1.5 §1 — GET /agendar/:slug  →  booking.html
 // ─────────────────────────────────────────────────────────────
 // ── Events v1 — Routers (E0) ────────────────────────────────────────────
+app.use('/api/events/public', eventsProductionPublicRouter);
 app.use('/api/events/public', eventsPublicRouter);
 app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events',        eventsRouter);
@@ -7153,6 +7155,9 @@ app.get('/evento/:slug/staff', (req, res) => {
 });
 app.get('/evento/:slug/produccion', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-produccion.html'));
+});
+app.get('/evento/:slug/orador/:session_id', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-teleprompter.html'));
 });
 app.get('/evento/:slug/kiosko', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
@@ -7890,6 +7895,25 @@ io.on('connection', (socket) => {
       console.log(`🎪 user_id=${socket.user.id} → salas event_${event_id}`);
     } catch (e) {
       console.error('join_event error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
+  });
+
+  socket.on('join_event_public', async ({ token } = {}) => {
+    if (!token) return socket.emit('auth_error', { error: 'Token requerido' });
+    try {
+      const r = await pool.query(
+        `SELECT event_id FROM events.production_tokens
+         WHERE token = $1 AND revoked_at IS NULL LIMIT 1`,
+        [token]
+      );
+      if (!r.rows[0]) return socket.emit('auth_error', { error: 'Token inválido o revocado' });
+      const eventId = r.rows[0].event_id;
+      socket.join(`event_${eventId}`);
+      socket.join(`event_screen_${eventId}`);
+      socket.emit('joined_event_public', { event_id: eventId });
+    } catch (e) {
+      console.error('join_event_public error:', e.message);
       socket.emit('auth_error', { error: 'Error interno' });
     }
   });
