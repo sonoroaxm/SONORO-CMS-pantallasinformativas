@@ -233,7 +233,7 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
       </div>
     </div>
     <div class="hdr-right">
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">Modo claro</button>
       <div class="live-pill" id="live-pill" style="display:none">
         <div class="live-dot"></div>EN VIVO
       </div>
@@ -944,7 +944,7 @@ async function markCue(cueId, newStatus) {
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = t === 'light' ? '🌙' : '☀️';
+  if (btn) btn.textContent = t === 'light' ? 'Modo oscuro' : 'Modo claro';
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'light' ? '' : 'light';
