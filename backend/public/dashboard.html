@@ -157,6 +157,20 @@
       letter-spacing: 1px; text-transform: uppercase;
     }
 
+    .inv-form .form-group { margin-bottom: 0; }
+    .inv-form label {
+      text-transform: none; letter-spacing: 0;
+      font-size: 12px; font-weight: 600;
+      color: var(--text);
+    }
+    .inv-form .form-group > label { margin-bottom: 5px; display: block; }
+    .inv-form .form-group label small { font-weight: 400; }
+    .inv-form input[type="text"],
+    .inv-form input[type="email"],
+    .inv-form input[type="number"],
+    .inv-form input[type="datetime-local"],
+    .inv-form textarea { padding: 9px 11px; font-size: 13px; }
+
     .form-group input {
       width: 100%; padding: 12px 14px;
       background: var(--surface2);
@@ -2198,7 +2212,7 @@
                 <h3 style="margin:0 0 4px;">Batches de invitaciones</h3>
                 <p style="margin:0;color:var(--muted);font-size:13px;">Cupos reservados para talento, cortesías o invitados especiales. No descuentan de la capacidad pública del evento.</p>
               </div>
-              <button class="btn-primary" onclick="invOpenModal()">Nuevo batch</button>
+              <button class="btn btn-primary btn-sm" onclick="invOpenModal()">+ Nuevo batch</button>
             </div>
             <div id="inv-batches-list" style="display:flex;flex-direction:column;gap:12px;"></div>
             <div id="inv-batches-empty" class="hidden" style="padding:40px;text-align:center;color:var(--muted);background:var(--bg-alt);border-radius:10px;">
@@ -2207,13 +2221,13 @@
           </div>
 
           <!-- Modal: nuevo / editar batch de invitación -->
-          <div id="inv-modal" class="modal hidden" onclick="if(event.target.id==='inv-modal') invCloseModal()">
+          <div id="inv-modal" class="modal" onclick="if(event.target.id==='inv-modal') invCloseModal()">
             <div class="modal-content" style="max-width:560px;">
               <div class="modal-header">
                 <h3 id="inv-modal-title">Nuevo batch de invitaciones</h3>
                 <button class="modal-close" onclick="invCloseModal()">&times;</button>
               </div>
-              <div class="modal-body" style="display:grid;gap:14px;">
+              <div class="modal-body inv-form" style="display:grid;gap:14px;">
                 <div class="form-group" style="margin:0;">
                   <label>Nombre del batch <span style="color:#c33;">*</span></label>
                   <input type="text" id="inv-f-label" placeholder="Ej. Agencia Talento XYZ, Banda Apertura, Cortesías Prensa">
@@ -2231,11 +2245,11 @@
                 <div class="form-group" style="margin:0;">
                   <label>Modo de captura</label>
                   <div id="inv-f-mode-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="claim">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="claim">
                       <input type="radio" name="inv-f-mode" value="claim" checked onchange="invOnModeChange()">
                       <div><div style="font-weight:600;font-size:13px;">Link compartible</div><div style="font-size:12px;color:var(--muted);">El proveedor distribuye el link y los invitados completan un formulario corto.</div></div>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="roster">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="roster">
                       <input type="radio" name="inv-f-mode" value="roster" onchange="invOnModeChange()">
                       <div><div style="font-weight:600;font-size:13px;">Roster</div><div style="font-size:12px;color:var(--muted);">Tú cargas la lista y enviamos los QR directamente.</div></div>
                     </label>
@@ -2244,11 +2258,11 @@
                 <div class="form-group" style="margin:0;">
                   <label>Alcance de sesiones</label>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
                       <input type="radio" name="inv-f-scope" value="event_wide" checked onchange="invOnScopeChange()">
                       <div><div style="font-weight:600;font-size:13px;">Todo el evento</div><div style="font-size:12px;color:var(--muted);">Acceso a todas las sesiones.</div></div>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
                       <input type="radio" name="inv-f-scope" value="specific_sessions" onchange="invOnScopeChange()">
                       <div><div style="font-weight:600;font-size:13px;">Sesiones específicas</div><div style="font-size:12px;color:var(--muted);">Selecciona cuáles.</div></div>
                     </label>
@@ -2283,14 +2297,14 @@
                 </div>
               </div>
               <div class="modal-footer">
-                <button class="btn-secondary" onclick="invCloseModal()">Cancelar</button>
-                <button class="btn-primary" id="inv-save-btn" onclick="invSaveBatch()">Crear batch</button>
+                <button class="btn btn-outline" onclick="invCloseModal()">Cancelar</button>
+                <button class="btn btn-grad" id="inv-save-btn" onclick="invSaveBatch()">Crear batch</button>
               </div>
             </div>
           </div>
 
           <!-- Modal: roster (carga masiva) -->
-          <div id="inv-roster-modal" class="modal hidden" onclick="if(event.target.id==='inv-roster-modal') invCloseRoster()">
+          <div id="inv-roster-modal" class="modal" onclick="if(event.target.id==='inv-roster-modal') invCloseRoster()">
             <div class="modal-content" style="max-width:880px;">
               <div class="modal-header">
                 <h3>Cargar roster de invitados</h3>
@@ -2302,11 +2316,11 @@
                     Cupos disponibles: <strong id="inv-roster-slots">0</strong> · Listos para enviar: <strong id="inv-roster-count">0</strong>
                   </div>
                   <div style="display:flex;gap:8px;">
-                    <label class="btn-secondary" style="cursor:pointer;">
+                    <label class="btn btn-outline btn-sm" style="cursor:pointer;">
                       Importar CSV
                       <input type="file" accept=".csv,text/csv" style="display:none;" onchange="if(this.files[0]) invRosterImportCSV(this.files[0])">
                     </label>
-                    <button class="btn-secondary" onclick="invRosterAddRow()">+ Fila</button>
+                    <button class="btn btn-outline btn-sm" onclick="invRosterAddRow()">+ Fila</button>
                   </div>
                 </div>
                 <div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:8px;">
@@ -2326,14 +2340,14 @@
                 <small style="color:var(--muted);display:block;margin-top:8px;">Cada invitado recibirá un email con su acreditación y código QR.</small>
               </div>
               <div class="modal-footer">
-                <button class="btn-secondary" onclick="invCloseRoster()">Cancelar</button>
-                <button class="btn-primary" onclick="invRosterSend()">Enviar invitaciones</button>
+                <button class="btn btn-outline" onclick="invCloseRoster()">Cancelar</button>
+                <button class="btn btn-grad" onclick="invRosterSend()">Enviar invitaciones</button>
               </div>
             </div>
           </div>
 
           <!-- Modal: ver registros del batch -->
-          <div id="inv-detail-modal" class="modal hidden" onclick="if(event.target.id==='inv-detail-modal') invCloseDetail()">
+          <div id="inv-detail-modal" class="modal" onclick="if(event.target.id==='inv-detail-modal') invCloseDetail()">
             <div class="modal-content" style="max-width:880px;">
               <div class="modal-header">
                 <h3 id="inv-detail-title">Registros del batch</h3>
@@ -2343,7 +2357,7 @@
                 <div id="inv-detail-body"></div>
               </div>
               <div class="modal-footer">
-                <button class="btn-secondary" onclick="invCloseDetail()">Cerrar</button>
+                <button class="btn btn-outline" onclick="invCloseDetail()">Cerrar</button>
               </div>
             </div>
           </div>
@@ -6888,7 +6902,7 @@ function invOpenModal(batch) {
   invOnModeChange();
   // Al editar, deshabilitar cambio de modo
   document.querySelectorAll('input[name="inv-f-mode"]').forEach(r => { r.disabled = !!batch; });
-  document.getElementById('inv-modal').classList.remove('hidden');
+  document.getElementById('inv-modal').classList.add('active');
 }
 
 function invRenderSessionPicker(preselected) {
@@ -6928,7 +6942,7 @@ function invOnModeChange() {
   }
 }
 function invCloseModal() {
-  document.getElementById('inv-modal').classList.add('hidden');
+  document.getElementById('inv-modal').classList.remove('active');
   invEditingId = null;
 }
 
@@ -6990,10 +7004,10 @@ function invOpenRoster(batchId) {
   invRosterBatchId = batchId;
   invRosterRows = [{ name:'', email:'', phone:'', organization:'' }];
   invRenderRoster();
-  document.getElementById('inv-roster-modal').classList.remove('hidden');
+  document.getElementById('inv-roster-modal').classList.add('active');
 }
 function invCloseRoster() {
-  document.getElementById('inv-roster-modal').classList.add('hidden');
+  document.getElementById('inv-roster-modal').classList.remove('active');
   invRosterBatchId = null;
   invRosterRows = [];
 }
@@ -7151,11 +7165,11 @@ async function invOpenDetail(id) {
           </tbody>
         </table>`;
     }
-    document.getElementById('inv-detail-modal').classList.remove('hidden');
+    document.getElementById('inv-detail-modal').classList.add('active');
   } catch(e) { alert('Error: ' + e.message); }
 }
 function invCloseDetail() {
-  document.getElementById('inv-detail-modal').classList.add('hidden');
+  document.getElementById('inv-detail-modal').classList.remove('active');
 }
 
 async function invApproveOne(regId, batchId) {
