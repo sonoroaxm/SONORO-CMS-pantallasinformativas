@@ -769,4 +769,154 @@ async function sendSupplierPaidEmail({ supplier_name, contact_email, event_name,
   console.log(`✅ Email pago completo enviado a ${contact_email} (${event_name})`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };
+// ── EMAIL DE INVITACIÓN CONFIRMADA (TALENTO/PRENSA/PONENTE) ─────────────────
+async function sendInvitationConfirmedEmail(attendee, event, registration, batch, emailConfig = {}) {
+  const QRCode  = require('qrcode');
+  const qrLink  = `${CMS_URL}/evento/${event.slug}/mi-registro/${registration.qr_token}`;
+  const opts    = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
+  const endStr   = new Date(event.ends_at).toLocaleString('es-CO', opts);
+  const roleLabel = (registration.ticket_type || batch.ticket_type || 'talent').charAt(0).toUpperCase() + (registration.ticket_type || batch.ticket_type || 'talent').slice(1);
+
+  let qrImgHtml = `<p style="margin:0;font-family:monospace;font-size:12px;color:#555;word-break:break-all;">${registration.qr_token}</p>`;
+  let attachments = [];
+  try {
+    const qrBuffer = await QRCode.toBuffer(registration.qr_token, { type: 'png', width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } });
+    qrImgHtml = `<img src="cid:event_qr_code" alt="Código QR" width="200" height="200" style="display:block;margin:0 auto;" />`;
+    attachments = [{ filename: 'qr.png', content: qrBuffer, cid: 'event_qr_code' }];
+  } catch (e) {
+    console.error('⚠️ QR generation error:', e.message);
+  }
+
+  const html = baseTemplate(`
+    <div style="text-align:center;margin:0 0 16px;">
+      <span style="display:inline-block;padding:6px 14px;background:#fdf6e3;color:#b8862b;border:1px solid #e7c97a;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">
+        ${roleLabel} · Invitación
+      </span>
+    </div>
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;text-align:center;">
+      Tu acreditación está lista
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;text-align:center;">
+      Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
+      gracias por confirmar tu participación en <strong style="color:#0f0f0f;">${event.name}</strong>.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0;font-size:16px;color:#0f0f0f;font-weight:700;">${event.name}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Inicio</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${startStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Cierre</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${endStr}</p>
+      </td></tr>
+      ${event.venue_name ? `
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Lugar</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${event.venue_name}</p>
+      </td></tr>` : ''}
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Acreditación</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${batch.label}</p>
+      </td></tr>
+    </table>
+
+    ${batch.notes ? `
+    <div style="background:#fdf6e3;border-left:3px solid #b8862b;border-radius:6px;padding:14px 18px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b8862b;">Notas del organizador</p>
+      <p style="margin:0;font-size:13px;color:#5b4516;line-height:1.6;white-space:pre-wrap;">${batch.notes}</p>
+    </div>` : ''}
+
+    <div style="text-align:center;margin:24px 0;background:#fff;border:1px solid #eee;border-radius:8px;padding:20px;">
+      <p style="margin:0 0 12px;font-size:13px;color:#666;font-weight:600;">
+        Presenta este código QR al ingresar
+      </p>
+      ${qrImgHtml}
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+      <tr><td align="center">
+        <a href="${qrLink}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#b8862b,#e7c97a);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver mi acreditación
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
+      Si no esperabas esta invitación, ignora este mensaje.
+    </p>
+  `);
+
+  const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const mo = { from: _from, to: attendee.email, subject: `Acreditación confirmada — ${event.name}`, html, attachments };
+  if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(mo);
+  console.log(`✅ Email invitación confirmada enviado a ${attendee.email}`);
+}
+
+// ── EMAIL DE INVITACIÓN PENDIENTE DE APROBACIÓN ─────────────────────────────
+async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = {}) {
+  const opts = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
+  const roleLabel = (batch.ticket_type || 'talent').charAt(0).toUpperCase() + (batch.ticket_type || 'talent').slice(1);
+
+  const html = baseTemplate(`
+    <div style="text-align:center;margin:0 0 16px;">
+      <span style="display:inline-block;padding:6px 14px;background:#fdf6e3;color:#b8862b;border:1px solid #e7c97a;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;">
+        ${roleLabel} · Invitación
+      </span>
+    </div>
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;text-align:center;">
+      Recibimos tu confirmación
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;text-align:center;">
+      Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
+      tu participación en <strong style="color:#0f0f0f;">${event.name}</strong> está
+      <strong style="color:#f59e0b;">pendiente de aprobación</strong> por el organizador.
+    </p>
+
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
+        Te enviaremos tu acreditación con código QR en cuanto el organizador confirme tu participación.
+      </p>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0;font-size:16px;color:#0f0f0f;font-weight:700;">${event.name}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${startStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Acreditación</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${batch.label}</p>
+      </td></tr>
+    </table>
+
+    ${batch.notes ? `
+    <div style="background:#fdf6e3;border-left:3px solid #b8862b;border-radius:6px;padding:14px 18px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b8862b;">Notas del organizador</p>
+      <p style="margin:0;font-size:13px;color:#5b4516;line-height:1.6;white-space:pre-wrap;">${batch.notes}</p>
+    </div>` : ''}
+
+    <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
+      Si no esperabas esta invitación, ignora este mensaje.
+    </p>
+  `);
+
+  const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
+  const mo = { from: _from, to: attendee.email, subject: `Acreditación pendiente — ${event.name}`, html };
+  if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
+  await transporter.sendMail(mo);
+  console.log(`✅ Email invitación pendiente enviado a ${attendee.email}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };

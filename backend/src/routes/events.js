@@ -8,7 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail } = require('../services/email');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 
@@ -2301,6 +2301,409 @@ router.post('/suppliers/invite', auth, async (req, res) => {
     res.json({ token: rows[0].token });
   } catch (err) {
     console.error('❌ POST /suppliers/invite:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INVITATION BATCHES — Batches de invitaciones para talento (E1.5)
+// P-2: filtro user_id en todas las queries
+// P-3: claim público en withTransaction con FOR UPDATE sobre el batch
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Helper: verificar ownership del evento (admin ve todo, organizador solo lo suyo)
+async function getEventForUser(pool, eventId, user) {
+  const isAdmin = user.role === 'admin';
+  const q = isAdmin
+    ? `SELECT id, user_id, name, slug, starts_at, ends_at, timezone, config FROM events.events WHERE id = $1`
+    : `SELECT id, user_id, name, slug, starts_at, ends_at, timezone, config FROM events.events WHERE id = $1 AND user_id = $2`;
+  const params = isAdmin ? [eventId] : [eventId, user.id];
+  const { rows } = await pool.query(q, params);
+  return rows[0] || null;
+}
+
+// LISTAR batches del evento
+router.get('/:eventId/invitation-batches', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `SELECT b.*,
+              (SELECT COUNT(*) FROM events.registrations r
+                 WHERE r.invitation_batch_id = b.id AND r.status = 'pending') AS pending_count,
+              (SELECT COUNT(*) FROM events.registrations r
+                 WHERE r.invitation_batch_id = b.id AND r.status = 'confirmed') AS confirmed_count
+         FROM events.registration_invitation_batches b
+         WHERE b.event_id = $1
+         ORDER BY b.created_at DESC`,
+      [req.params.eventId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /invitation-batches:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// CREAR batch
+router.post('/:eventId/invitation-batches', auth, async (req, res) => {
+  const pool = global.pool;
+  const {
+    label, quota, ticket_type = 'talent',
+    assigned_to_name, assigned_to_email, assigned_to_phone,
+    auto_approve = false, notes, expires_at,
+    mode = 'claim', session_scope = 'event_wide', session_ids = [],
+  } = req.body;
+  if (!['claim','roster'].includes(mode)) return res.status(400).json({ error: 'mode inválido' });
+  if (!['event_wide','specific_sessions'].includes(session_scope)) return res.status(400).json({ error: 'session_scope inválido' });
+  const sessIds = Array.isArray(session_ids) ? session_ids.filter(Boolean) : [];
+  if (session_scope === 'specific_sessions' && sessIds.length === 0) {
+    return res.status(400).json({ error: 'Debes seleccionar al menos una sesión' });
+  }
+
+  if (!label?.trim()) return res.status(400).json({ error: 'El label es requerido' });
+  const quotaNum = parseInt(quota);
+  if (!quotaNum || quotaNum < 1) return res.status(400).json({ error: 'Cupo debe ser ≥ 1' });
+
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+
+    // Validar expires_at ≤ event.ends_at (P-5: timezone propio del evento implícito en TIMESTAMPTZ)
+    if (expires_at) {
+      const exp = new Date(expires_at);
+      if (isNaN(exp.getTime())) return res.status(400).json({ error: 'Fecha de expiración inválida' });
+      if (exp > new Date(ev.ends_at)) {
+        return res.status(400).json({ error: 'La expiración no puede ser posterior al fin del evento' });
+      }
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO events.registration_invitation_batches
+         (event_id, user_id, label, ticket_type, quota,
+          assigned_to_name, assigned_to_email, assigned_to_phone,
+          auto_approve, notes, expires_at,
+          mode, session_scope, session_ids)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       RETURNING *`,
+      [ev.id, ev.user_id, label.trim(), ticket_type, quotaNum,
+       assigned_to_name || null, assigned_to_email || null, assigned_to_phone || null,
+       !!auto_approve, notes || null, expires_at || null,
+       mode, session_scope, sessIds]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('❌ POST /invitation-batches:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DETALLE de un batch (incluye lista de registros)
+router.get('/:eventId/invitation-batches/:batchId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows: bRows } = await pool.query(
+      `SELECT * FROM events.registration_invitation_batches WHERE id = $1 AND event_id = $2`,
+      [req.params.batchId, req.params.eventId]
+    );
+    if (!bRows[0]) return res.status(404).json({ error: 'Batch no encontrado' });
+    const { rows: regs } = await pool.query(
+      `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.created_at, r.custom_fields,
+              a.name, a.email, a.phone, a.organization, a.job_title
+         FROM events.registrations r
+         JOIN events.attendees a ON a.id = r.attendee_id
+        WHERE r.invitation_batch_id = $1
+        ORDER BY r.created_at DESC`,
+      [req.params.batchId]
+    );
+    res.json({ ...bRows[0], registrations: regs });
+  } catch (err) {
+    console.error('❌ GET /invitation-batches/:batchId:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// EDITAR batch (solo aumentar quota; label / notas / expires_at / auto_approve libres)
+router.patch('/:eventId/invitation-batches/:batchId', auth, async (req, res) => {
+  const pool = global.pool;
+  const { label, quota, auto_approve, notes, expires_at,
+          assigned_to_name, assigned_to_email, assigned_to_phone } = req.body;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows: cur } = await pool.query(
+      `SELECT * FROM events.registration_invitation_batches WHERE id = $1 AND event_id = $2`,
+      [req.params.batchId, req.params.eventId]
+    );
+    if (!cur[0]) return res.status(404).json({ error: 'Batch no encontrado' });
+    const b = cur[0];
+
+    if (quota !== undefined) {
+      const q = parseInt(quota);
+      if (!q || q < b.claimed_count) {
+        return res.status(400).json({ error: `Cupo no puede ser menor que el ya reclamado (${b.claimed_count})` });
+      }
+      if (q < b.quota) {
+        return res.status(400).json({ error: 'Cupo solo puede aumentar, no disminuir' });
+      }
+    }
+    if (expires_at) {
+      const exp = new Date(expires_at);
+      if (isNaN(exp.getTime())) return res.status(400).json({ error: 'Fecha inválida' });
+      if (exp > new Date(ev.ends_at)) {
+        return res.status(400).json({ error: 'La expiración no puede ser posterior al fin del evento' });
+      }
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE events.registration_invitation_batches SET
+         label             = COALESCE($1, label),
+         quota             = COALESCE($2, quota),
+         auto_approve      = COALESCE($3, auto_approve),
+         notes             = COALESCE($4, notes),
+         expires_at        = $5,
+         assigned_to_name  = COALESCE($6, assigned_to_name),
+         assigned_to_email = COALESCE($7, assigned_to_email),
+         assigned_to_phone = COALESCE($8, assigned_to_phone),
+         updated_at        = NOW()
+       WHERE id = $9 AND event_id = $10
+       RETURNING *`,
+      [label || null, quota ? parseInt(quota) : null,
+       auto_approve === undefined ? null : !!auto_approve,
+       notes === undefined ? null : notes,
+       expires_at === undefined ? b.expires_at : expires_at,
+       assigned_to_name === undefined ? null : assigned_to_name,
+       assigned_to_email === undefined ? null : assigned_to_email,
+       assigned_to_phone === undefined ? null : assigned_to_phone,
+       req.params.batchId, req.params.eventId]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ PATCH /invitation-batches:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// REVOCAR batch (soft-delete — no afecta registros ya creados)
+router.post('/:eventId/invitation-batches/:batchId/revoke', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `UPDATE events.registration_invitation_batches
+         SET revoked_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND event_id = $2 AND revoked_at IS NULL
+       RETURNING id, revoked_at, claimed_count`,
+      [req.params.batchId, req.params.eventId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Batch no encontrado o ya revocado' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ POST /invitation-batches/revoke:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// APROBAR pending en bloque — confirma todos los registros pending del batch y emite QR
+router.post('/:eventId/invitation-batches/:batchId/approve-pending', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows: bRows } = await pool.query(
+      `SELECT * FROM events.registration_invitation_batches WHERE id = $1 AND event_id = $2`,
+      [req.params.batchId, req.params.eventId]
+    );
+    if (!bRows[0]) return res.status(404).json({ error: 'Batch no encontrado' });
+
+    const { rows: approved } = await pool.query(
+      `UPDATE events.registrations r
+         SET status = 'confirmed', updated_at = NOW()
+       FROM events.attendees a
+       WHERE r.attendee_id = a.id
+         AND r.invitation_batch_id = $1
+         AND r.status = 'pending'
+       RETURNING r.id, r.qr_token, r.ticket_type, a.name, a.email`,
+      [req.params.batchId]
+    );
+
+    const emailConfig = { from_name: ev.config?.email_from_name || null, reply_to: ev.config?.email_reply_to || null };
+    const batch = bRows[0];
+    for (const r of approved) {
+      sendInvitationConfirmedEmail(
+        { name: r.name, email: r.email }, ev,
+        { id: r.id, qr_token: r.qr_token, ticket_type: r.ticket_type }, batch,
+        emailConfig
+      ).catch(e => console.error('⚠️ Email confirmación talento fallido:', e.message));
+    }
+
+    global.io?.to(`event_${ev.id}`).emit('invitation.approved', {
+      event_id: ev.id, batch_id: req.params.batchId, count: approved.length,
+    });
+
+    res.json({ approved: approved.length });
+  } catch (err) {
+    console.error('❌ POST /invitation-batches/approve-pending:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// APROBAR un registro individual del batch
+router.patch('/:eventId/registrations/:regId/approve', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+
+    const { rows } = await pool.query(
+      `UPDATE events.registrations r
+         SET status = 'confirmed', updated_at = NOW()
+       FROM events.attendees a
+       WHERE r.attendee_id = a.id
+         AND r.id = $1 AND r.event_id = $2 AND r.status = 'pending'
+       RETURNING r.id, r.qr_token, r.ticket_type, r.invitation_batch_id, a.name, a.email`,
+      [req.params.regId, req.params.eventId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Registro no encontrado o no está pendiente' });
+    const r = rows[0];
+
+    const emailConfig = { from_name: ev.config?.email_from_name || null, reply_to: ev.config?.email_reply_to || null };
+    let batch = null;
+    if (r.invitation_batch_id) {
+      const { rows: bb } = await pool.query(`SELECT * FROM events.registration_invitation_batches WHERE id = $1`, [r.invitation_batch_id]);
+      batch = bb[0];
+    }
+    if (batch) {
+      sendInvitationConfirmedEmail(
+        { name: r.name, email: r.email }, ev,
+        { id: r.id, qr_token: r.qr_token, ticket_type: r.ticket_type }, batch,
+        emailConfig
+      ).catch(e => console.error('⚠️ Email aprobación fallido:', e.message));
+    } else {
+      sendEventRegistrationEmail(
+        { name: r.name, email: r.email }, ev,
+        { id: r.id, qr_token: r.qr_token, ticket_type: r.ticket_type },
+        emailConfig
+      ).catch(e => console.error('⚠️ Email aprobación fallido:', e.message));
+    }
+
+    global.io?.to(`event_${ev.id}`).emit('invitation.approved', {
+      event_id: ev.id, batch_id: r.invitation_batch_id, count: 1,
+    });
+    res.json({ ok: true, registration_id: r.id });
+  } catch (err) {
+    console.error('❌ PATCH /registrations/:regId/approve:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ROSTER: carga masiva de invitados pre-aprobados — emite QR inmediatamente
+router.post('/:eventId/invitation-batches/:batchId/roster', auth, async (req, res) => {
+  const pool = global.pool;
+  const { recipients } = req.body;
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    return res.status(400).json({ error: 'recipients debe ser un array no vacío' });
+  }
+  try {
+    const ev = await getEventForUser(pool, req.params.eventId, req.user);
+    if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows: bRows } = await pool.query(
+      `SELECT * FROM events.registration_invitation_batches WHERE id = $1 AND event_id = $2`,
+      [req.params.batchId, req.params.eventId]
+    );
+    if (!bRows[0]) return res.status(404).json({ error: 'Batch no encontrado' });
+    const batch = bRows[0];
+    if (batch.revoked_at) return res.status(410).json({ error: 'Batch revocado' });
+    if (batch.expires_at && new Date(batch.expires_at) < new Date()) return res.status(410).json({ error: 'Batch expirado' });
+
+    const remaining = batch.quota - batch.claimed_count;
+    if (recipients.length > remaining) {
+      return res.status(400).json({ error: `Cupo insuficiente: ${remaining} disponibles, ${recipients.length} en el roster` });
+    }
+
+    const created = await withTransaction(pool, async (client) => {
+      // FOR UPDATE sobre el batch para serializar contra claims concurrentes
+      const { rows: b2 } = await client.query(
+        `SELECT * FROM events.registration_invitation_batches WHERE id = $1 FOR UPDATE`,
+        [batch.id]
+      );
+      const b = b2[0];
+      if (recipients.length > (b.quota - b.claimed_count)) {
+        const e = new Error('Cupo insuficiente'); e.httpStatus = 400; throw e;
+      }
+
+      const out = [];
+      for (const rcp of recipients) {
+        const name = (rcp.name || '').trim();
+        const email = (rcp.email || '').trim().toLowerCase();
+        if (!name || !email) continue;
+        // upsert attendee
+        const { rows: aR } = await client.query(
+          `INSERT INTO events.attendees (event_id, user_id, name, email, phone, organization)
+             VALUES ($1,$2,$3,$4,$5,$6)
+           ON CONFLICT (event_id, email) DO UPDATE SET
+             name = EXCLUDED.name,
+             phone = COALESCE(EXCLUDED.phone, events.attendees.phone),
+             organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
+             updated_at = NOW()
+           RETURNING id`,
+          [ev.id, ev.user_id, name, email, rcp.phone || null, rcp.organization || null]
+        );
+        const attendeeId = aR[0].id;
+        const { rows: rR } = await client.query(
+          `INSERT INTO events.registrations
+             (event_id, user_id, attendee_id, ticket_type, status, origin, invitation_batch_id, custom_fields)
+           VALUES ($1,$2,$3,$4,'confirmed','invitation',$5,$6)
+           ON CONFLICT (event_id, attendee_id) DO UPDATE SET
+             ticket_type = EXCLUDED.ticket_type,
+             status = 'confirmed',
+             invitation_batch_id = EXCLUDED.invitation_batch_id,
+             updated_at = NOW()
+           RETURNING id, qr_token, ticket_type`,
+          [ev.id, ev.user_id, attendeeId, batch.ticket_type, batch.id, rcp.custom_fields || {}]
+        );
+        const reg = rR[0];
+
+        if (b.session_scope === 'specific_sessions' && Array.isArray(b.session_ids) && b.session_ids.length) {
+          for (const sid of b.session_ids) {
+            await client.query(
+              `INSERT INTO events.registration_sessions (registration_id, session_id, user_id)
+                 VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+              [reg.id, sid, ev.user_id]
+            );
+          }
+        }
+        out.push({ ...reg, name, email });
+      }
+
+      await client.query(
+        `UPDATE events.registration_invitation_batches SET claimed_count = claimed_count + $1, updated_at = NOW() WHERE id = $2`,
+        [out.length, batch.id]
+      );
+      return out;
+    });
+
+    const emailConfig = { from_name: ev.config?.email_from_name || null, reply_to: ev.config?.email_reply_to || null };
+    for (const r of created) {
+      sendInvitationConfirmedEmail(
+        { name: r.name, email: r.email }, ev,
+        { id: r.id, qr_token: r.qr_token, ticket_type: r.ticket_type }, batch,
+        emailConfig
+      ).catch(e => console.error('⚠️ Email roster fallido:', e.message));
+    }
+
+    global.io?.to(`event_${ev.id}`).emit('invitation.roster', {
+      event_id: ev.id, batch_id: batch.id, count: created.length,
+    });
+
+    res.status(201).json({ created: created.length });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ POST /invitation-batches/roster:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });

@@ -7144,6 +7144,9 @@ app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events',        eventsRouter);
 
 // ── Events v1 — Rutas HTML ───────────────────────────────────────────────
+app.get('/evento/invitacion/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
 app.get('/evento/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
 });

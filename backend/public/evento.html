@@ -471,12 +471,15 @@
 
 const API_URL   = window.location.origin;
 const parts     = window.location.pathname.split('/').filter(Boolean);
-// /evento/:slug  OR  /evento/:slug/mi-registro/:qr
-const SLUG      = parts[1] || '';
-const IS_MREG   = parts[2] === 'mi-registro';
+// /evento/:slug  |  /evento/:slug/mi-registro/:qr  |  /evento/invitacion/:code
+const IS_INVITATION = parts[1] === 'invitacion';
+const CLAIM_CODE    = IS_INVITATION ? (parts[2] || '') : '';
+const SLUG      = IS_INVITATION ? '' : (parts[1] || '');
+const IS_MREG   = !IS_INVITATION && parts[2] === 'mi-registro';
 const MREG_QR   = IS_MREG ? (parts[3] || '') : '';
 
 let EVENT       = null;
+let BATCH       = null;  // sólo en flujo de invitación
 let LANG        = 'es';
 let hasSessions = false;
 let selectedSessions = new Set();
@@ -559,9 +562,65 @@ function t(key, ...args) {
 // ── INIT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  if (IS_INVITATION) {
+    if (!CLAIM_CODE) { showError(t('noEvent'), t('noEventMsg')); return; }
+    await loadInvitation();
+    return;
+  }
   if (!SLUG) { showError(t('noEvent'), t('noEventMsg')); return; }
   if (IS_MREG && MREG_QR) { await loadMiRegistro(); return; }
   await loadEvent();
+}
+
+async function loadInvitation() {
+  try {
+    const res = await fetch(`${API_URL}/api/events/public/invitation/${CLAIM_CODE}`);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      showError(t('noEvent'), d.error || t('noEventMsg'));
+      return;
+    }
+    const data = await res.json();
+    BATCH = data.batch;
+    EVENT = data.event;
+    if (BATCH.slots_remaining <= 0) {
+      showError('Cupos agotados', `La invitación "${BATCH.label}" ya no tiene cupos disponibles.`);
+      return;
+    }
+    renderHeader();
+    renderInvitationBanner();
+    renderTicketTypes();
+    renderCustomFields();
+    renderSessions();
+    detectLang();
+    hide('screen-loading');
+    show('ev-header');
+    show('stepper');
+    goTo(1);
+  } catch (e) {
+    showError(t('noEvent'), t('noEventMsg'));
+  }
+}
+
+function renderInvitationBanner() {
+  const host = document.getElementById('ev-header');
+  if (!host || document.getElementById('inv-banner')) return;
+  const div = document.createElement('div');
+  div.id = 'inv-banner';
+  div.style.cssText = 'margin:16px 0 0;padding:14px 18px;background:#f4ede1;border:1px solid #d9c9a6;border-radius:10px;color:#5a4a1f;font-size:14px;line-height:1.5;';
+  const pendingMsg = BATCH.auto_approve
+    ? ''
+    : '<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">Tu registro será revisado por el organizador antes de emitir el código QR.</div>';
+  div.innerHTML =
+    `<div style="font-weight:600;letter-spacing:.2px;">${escapeHtml((BATCH.ticket_type||'talent').toUpperCase())} · ${escapeHtml(BATCH.label)}</div>
+     <div style="margin-top:4px;">Cupos: <strong>${BATCH.claimed_count} / ${BATCH.quota}</strong> usados</div>
+     ${BATCH.session_scope === 'specific_sessions' ? '<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">Esta acreditación incluye sesiones específicas seleccionadas por el organizador.</div>' : ''}
+     ${pendingMsg}`;
+  host.appendChild(div);
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 async function loadEvent() {
@@ -718,7 +777,13 @@ function updateConditions() {
 }
 
 function renderSessions() {
-  const sessions = EVENT.sessions || [];
+  let sessions = EVENT.sessions || [];
+  // Invitación con scope=specific_sessions: forzamos las sesiones y saltamos selección
+  if (IS_INVITATION && BATCH && BATCH.session_scope === 'specific_sessions') {
+    selectedSessions = new Set(BATCH.session_ids || []);
+    hasSessions = false;
+    return;
+  }
   hasSessions = sessions.length > 0;
   if (!hasSessions) return;
   const tz = EVENT.timezone || 'UTC';
@@ -905,8 +970,12 @@ async function doRegister() {
     accepted_terms: true,
   };
 
+  const endpoint = IS_INVITATION
+    ? `${API_URL}/api/events/public/invitation/${CLAIM_CODE}/register`
+    : `${API_URL}/api/events/public/${SLUG}/register`;
+
   try {
-    const res = await fetch(`${API_URL}/api/events/public/${SLUG}/register`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type':       'application/json',
@@ -917,6 +986,8 @@ async function doRegister() {
     const data = await res.json();
     if (res.ok && data.qr_token) {
       showSuccess(body.email, data.qr_token);
+    } else if (res.ok && IS_INVITATION && data.status === 'pending') {
+      showPending(body.email);
     } else if (res.status === 409) {
       btn.disabled = false;
       btn.textContent = t('register');
@@ -931,6 +1002,23 @@ async function doRegister() {
     btn.textContent = t('register');
     alert('Error al registrar: ' + e.message);
   }
+}
+
+function showPending(email) {
+  hide('stepper');
+  goTo(4);
+  document.getElementById('s4-title').textContent = 'Registro recibido';
+  document.getElementById('s4-msg').innerHTML =
+    `Recibimos tu registro para <strong>${escapeHtml(BATCH?.label || EVENT.name)}</strong>. ` +
+    `El organizador revisará tu inscripción y, al aprobarla, te enviaremos el código QR a <strong>${escapeHtml(email)}</strong>.`;
+  const qrBox = document.getElementById('qr-canvas');
+  if (qrBox) qrBox.style.display = 'none';
+  const qrTxt = document.getElementById('qr-token-text');
+  if (qrTxt) qrTxt.style.display = 'none';
+  document.getElementById('r-title').textContent = 'Próximos pasos';
+  document.getElementById('r1').textContent = 'Revisa tu bandeja de entrada y carpeta de spam.';
+  document.getElementById('r2').textContent = 'Recibirás un email con tu QR al ser aprobado.';
+  document.getElementById('r3').textContent = 'Si pasan 48 horas sin respuesta, contacta al organizador.';
 }
 
 function showSuccess(email, qrToken) {
