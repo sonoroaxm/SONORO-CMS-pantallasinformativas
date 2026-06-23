@@ -6796,7 +6796,10 @@ function evSwitchSubTab(tab) {
   if (tab === 'form') { evRenderActive(); evRenderCatalog(); }
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
   if (tab === 'staff') evLoadStaff();
-  if (tab === 'invitations') invLoadBatches();
+  if (tab === 'invitations') {
+    if (!Array.isArray(evSessionsList) || !evSessionsList.length) evLoadSessions(evCurrentEventId);
+    invLoadBatches();
+  }
   if (tab === 'suppliers') evLoadSuppliers();
   if (tab === 'rundown') { evLoadRundown(); evLoadProductionTokens(); }
 }
@@ -6930,7 +6933,9 @@ function invOpenModal(batch) {
 function invRenderSessionPicker(preselected) {
   const host = document.getElementById('inv-f-sessions-list');
   if (!host) return;
-  const sessions = evCurrentEvent?.sessions || [];
+  const sessions = (Array.isArray(evSessionsList) && evSessionsList.length)
+    ? evSessionsList
+    : (evCurrentEvent?.sessions || []);
   const tz = evCurrentEvent?.timezone || 'UTC';
   if (!sessions.length) {
     host.innerHTML = '<div style="font-size:12px;color:var(--muted);">Este evento no tiene sesiones configuradas.</div>';
