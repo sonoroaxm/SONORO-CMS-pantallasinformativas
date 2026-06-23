@@ -450,6 +450,7 @@ router.get('/invitation/:claim_code', invitationClaimLimiter, async (req, res) =
       `SELECT b.id AS batch_id, b.label, b.ticket_type, b.quota, b.claimed_count,
               b.auto_approve, b.expires_at, b.revoked_at, b.notes,
               b.mode, b.session_scope, b.session_ids,
+              b.kind, b.prefill,
               e.id AS event_id, e.name AS event_name, e.slug, e.status AS event_status,
               e.starts_at, e.ends_at, e.timezone, e.venue_name, e.venue_address,
               e.cover_image_url, e.config
@@ -488,6 +489,8 @@ router.get('/invitation/:claim_code', invitationClaimLimiter, async (req, res) =
         auto_approve: r.auto_approve, expires_at: r.expires_at,
         notes: r.notes,
         mode: r.mode, session_scope: r.session_scope, session_ids: r.session_ids || [],
+        kind: r.kind || 'individual',
+        prefill: r.prefill || {},
       },
       event: {
         id: r.event_id, name: r.event_name, slug: r.slug,
@@ -503,17 +506,10 @@ router.get('/invitation/:claim_code', invitationClaimLimiter, async (req, res) =
   }
 });
 
-// POST claim — crear registration desde el batch
+// POST claim — registro bulk (individual = 1, grupo = N attendees en un solo submit)
 router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (req, res) => {
   const pool = global.pool;
-  const {
-    name, email, phone, id_number, id_type = 'CC',
-    organization, job_title,
-    session_ids = [],
-    custom_fields = {},
-    hp_field = '',
-    accepted_terms,
-  } = req.body;
+  const { attendees, accepted_terms, hp_field = '' } = req.body;
 
   if (hp_field !== '') {
     global.io?.emit('registration.honeypot', { ip_hash: hashIp(req.ip), code: req.params.claim_code });
@@ -523,16 +519,26 @@ router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (r
   if (formStartedAt && Date.now() - parseInt(formStartedAt) < 3000) {
     return res.status(400).json({ error: 'Formulario enviado demasiado rápido' });
   }
-  if (!name?.trim())                              return res.status(400).json({ error: 'El nombre es requerido' });
-  if (!email?.trim())                             return res.status(400).json({ error: 'El email es requerido' });
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))  return res.status(400).json({ error: 'Email inválido' });
-  if (!accepted_terms)                            return res.status(400).json({ error: 'Debes aceptar los términos' });
+  if (!Array.isArray(attendees) || attendees.length === 0) {
+    return res.status(400).json({ error: 'Debes enviar al menos un invitado' });
+  }
+  if (!accepted_terms) return res.status(400).json({ error: 'Debes aceptar los términos' });
 
-  const cleanEmail = email.toLowerCase().trim();
+  // Validación campo-a-campo + dedupe emails dentro del payload
+  const seen = new Set();
+  for (let i = 0; i < attendees.length; i++) {
+    const a = attendees[i] || {};
+    if (!a.name?.trim()) return res.status(400).json({ error: `Invitado ${i+1}: nombre requerido` });
+    if (!a.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) {
+      return res.status(400).json({ error: `Invitado ${i+1}: email inválido` });
+    }
+    const key = a.email.trim().toLowerCase();
+    if (seen.has(key)) return res.status(400).json({ error: `Email duplicado: ${key}` });
+    seen.add(key);
+  }
 
   try {
     const result = await withTransaction(pool, async (client) => {
-      // FOR UPDATE serializa claims sobre el mismo batch
       const { rows: bRows } = await client.query(
         `SELECT b.*, e.id AS ev_id, e.name AS ev_name, e.slug AS ev_slug,
                 e.user_id AS ev_user_id, e.starts_at, e.ends_at, e.timezone,
@@ -548,93 +554,106 @@ router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (r
       if (b.revoked_at)                                     { const e = new Error('Esta invitación fue revocada'); e.httpStatus = 410; throw e; }
       if (b.expires_at && new Date(b.expires_at) < new Date()) { const e = new Error('Esta invitación expiró'); e.httpStatus = 410; throw e; }
       if (new Date(b.ends_at) < new Date())                 { const e = new Error('El evento ya terminó'); e.httpStatus = 410; throw e; }
-      if (b.claimed_count >= b.quota)                       { const e = new Error('Cupo de invitaciones agotado'); e.httpStatus = 409; throw e; }
-      if (b.mode === 'roster')                              { const e = new Error('Esta invitación no acepta auto-registro'); e.httpStatus = 403; throw e; }
 
-      // Upsert attendee
-      const attRes = await client.query(
-        `INSERT INTO events.attendees
-           (user_id, email, name, phone, id_number, id_type, organization, job_title)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-         ON CONFLICT (user_id, email) DO UPDATE SET
-           name         = EXCLUDED.name,
-           phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
-           id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
-           organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
-           job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
-           updated_at   = NOW()
-         RETURNING id`,
-        [b.ev_user_id, cleanEmail, name.trim(), phone || null,
-         id_number || null, id_type, organization || null, job_title || null]
-      );
-      const attendee_id = attRes.rows[0].id;
-
-      const targetStatus = b.auto_approve ? 'confirmed' : 'pending';
-      const regRes = await client.query(
-        `INSERT INTO events.registrations
-           (event_id, attendee_id, user_id, ticket_type, origin,
-            custom_fields, accepted_terms, status, invitation_batch_id)
-         VALUES ($1,$2,$3,$4,'invitation',$5,TRUE,$6,$7)
-         ON CONFLICT (event_id, attendee_id) DO NOTHING
-         RETURNING id, qr_token, ticket_type, status`,
-        [b.ev_id, attendee_id, b.ev_user_id, b.ticket_type, JSON.stringify(custom_fields),
-         targetStatus, b.id]
-      );
-      if (!regRes.rows[0]) { const e = new Error('Ya existe un registro para este email en este evento'); e.httpStatus = 409; throw e; }
-
-      // Incrementar claimed_count (la fila ya está locked por FOR UPDATE)
-      await client.query(
-        `UPDATE events.registration_invitation_batches
-            SET claimed_count = claimed_count + 1, updated_at = NOW()
-          WHERE id = $1`,
-        [b.id]
-      );
-
-      // P-5: si el batch tiene scope='specific_sessions', forzamos sus session_ids
-      const effectiveSessionIds = b.session_scope === 'specific_sessions'
-        ? (Array.isArray(b.session_ids) ? b.session_ids : [])
-        : session_ids;
-      for (const sid of effectiveSessionIds) {
-        await client.query(
-          `INSERT INTO events.registration_sessions (registration_id, session_id)
-           VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-          [regRes.rows[0].id, sid]
-        );
+      const remaining = b.quota - b.claimed_count;
+      if (remaining <= 0) { const e = new Error('Cupo de invitaciones agotado'); e.httpStatus = 409; throw e; }
+      if (attendees.length !== remaining) {
+        const e = new Error(`Debes completar exactamente ${remaining} invitado${remaining === 1 ? '' : 's'}`);
+        e.httpStatus = 400; throw e;
       }
 
+      const created = [];
+      const effectiveSessionIds = b.session_scope === 'specific_sessions'
+        ? (Array.isArray(b.session_ids) ? b.session_ids : [])
+        : [];
+
+      for (const a of attendees) {
+        const cleanEmail = a.email.trim().toLowerCase();
+        const name = a.name.trim();
+
+        const attRes = await client.query(
+          `INSERT INTO events.attendees
+             (user_id, email, name, phone, id_number, id_type, organization, job_title)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT (user_id, email) DO UPDATE SET
+             name         = EXCLUDED.name,
+             phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
+             id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
+             organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
+             job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
+             updated_at   = NOW()
+           RETURNING id`,
+          [b.ev_user_id, cleanEmail, name, a.phone || null,
+           a.id_number || null, a.id_type || 'CC',
+           a.organization || null, a.job_title || null]
+        );
+        const attendee_id = attRes.rows[0].id;
+
+        const regRes = await client.query(
+          `INSERT INTO events.registrations
+             (event_id, attendee_id, user_id, ticket_type, origin,
+              custom_fields, accepted_terms, status, invitation_batch_id)
+           VALUES ($1,$2,$3,$4,'invitation',$5,TRUE,'confirmed',$6)
+           ON CONFLICT (event_id, attendee_id) DO NOTHING
+           RETURNING id, qr_token, ticket_type, status`,
+          [b.ev_id, attendee_id, b.ev_user_id, b.ticket_type,
+           JSON.stringify(a.custom_fields || {}), b.id]
+        );
+        if (!regRes.rows[0]) {
+          const e = new Error(`Ya existe un registro para ${cleanEmail} en este evento`);
+          e.httpStatus = 409; throw e;
+        }
+
+        for (const sid of effectiveSessionIds) {
+          await client.query(
+            `INSERT INTO events.registration_sessions (registration_id, session_id)
+             VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+            [regRes.rows[0].id, sid]
+          );
+        }
+
+        created.push({ name, email: cleanEmail, registration: regRes.rows[0] });
+      }
+
+      await client.query(
+        `UPDATE events.registration_invitation_batches
+            SET claimed_count = claimed_count + $1, updated_at = NOW()
+          WHERE id = $2`,
+        [created.length, b.id]
+      );
+
       return {
-        registration: regRes.rows[0],
+        created,
         event: { id: b.ev_id, name: b.ev_name, slug: b.ev_slug,
+                 user_id: b.ev_user_id,
                  starts_at: b.starts_at, ends_at: b.ends_at, timezone: b.timezone,
                  venue_name: b.venue_name, config: b.ev_config },
-        auto_approve: b.auto_approve,
         batch: b,
         sessions_count: effectiveSessionIds.length,
       };
     });
 
-    const { registration, event, auto_approve, batch, sessions_count } = result;
+    const { created, event, batch, sessions_count } = result;
     const emailConfig = { from_name: event.config?.email_from_name || null, reply_to: event.config?.email_reply_to || null };
-    if (auto_approve) {
+
+    for (const c of created) {
       sendInvitationConfirmedEmail(
-        { name: name.trim(), email: cleanEmail }, event, registration, batch, emailConfig
+        { name: c.name, email: c.email }, event, c.registration, batch, emailConfig
       ).catch(e => console.error('⚠️ Email confirmación invitación fallido:', e.message));
-    } else {
-      sendInvitationPendingEmail(
-        { name: name.trim(), email: cleanEmail }, event, batch, emailConfig
-      ).catch(e => console.error('⚠️ Email pendiente invitación fallido:', e.message));
     }
 
     global.io?.to(`event_${event.id}`).emit('attendee.registered', {
       user_id: event.user_id, event_id: event.id,
-      origin: 'invitation', session_count: sessions_count,
+      origin: 'invitation', count: created.length, session_count: sessions_count,
     });
 
     res.status(201).json({
-      registration_id: registration.id,
-      qr_token:        auto_approve ? registration.qr_token : null,
-      status:          registration.status,
-      email_sent:      true,
+      created: created.length,
+      registrations: created.map(c => ({
+        name: c.name, email: c.email,
+        qr_token: c.registration.qr_token,
+        status: c.registration.status,
+      })),
     });
   } catch (err) {
     if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });

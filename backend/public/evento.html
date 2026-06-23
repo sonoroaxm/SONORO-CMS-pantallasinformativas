@@ -426,6 +426,24 @@
   </div>
 </div>
 
+<!-- SCREEN GROUP: registro bulk (kind='group') -->
+<div class="card hidden" id="screen-group">
+  <div class="card-title" id="sg-title">Datos del grupo</div>
+  <div class="card-subtitle" id="sg-sub">Completa los datos de cada invitado. Todos deben llenarse antes de enviar.</div>
+  <div id="sg-rows" style="display:flex;flex-direction:column;gap:16px;margin-top:12px;"></div>
+  <div class="terms-row" style="margin-top:18px;">
+    <input type="checkbox" id="sg-terms" onchange="document.getElementById('sg-submit').disabled=!this.checked">
+    <label for="sg-terms">
+      He leído y acepto la <a href="/politica-datos.html" target="_blank">Política de Tratamiento de Datos</a> y los <a href="/terminos.html" target="_blank">Términos del evento</a>.
+    </label>
+  </div>
+  <input type="text" id="sg-hp" style="display:none;position:absolute;left:-9999px;" tabindex="-1" autocomplete="off">
+  <div class="btn-row">
+    <span></span>
+    <button class="btn btn-primary" id="sg-submit" disabled onclick="doRegisterGroup()">Enviar registro del grupo</button>
+  </div>
+</div>
+
 <!-- SCREEN 4: CONFIRMACIÓN -->
 <div class="card hidden" id="screen4">
   <div class="success-wrap">
@@ -589,17 +607,126 @@ async function loadInvitation() {
     }
     renderHeader();
     renderInvitationBanner();
-    renderTicketTypes();
-    renderCustomFields();
-    renderSessions();
     detectLang();
     hide('screen-loading');
     show('ev-header');
+    if (BATCH.kind === 'group') {
+      renderGroupScreen();
+      return;
+    }
+    renderTicketTypes();
+    renderCustomFields();
+    renderSessions();
+    // Prefill individual
+    const pf = BATCH.prefill || {};
+    if (pf.name)  document.getElementById('f-name').value  = pf.name;
+    if (pf.email) document.getElementById('f-email').value = pf.email;
+    if (pf.phone) document.getElementById('f-phone').value = pf.phone;
     show('stepper');
     goTo(1);
   } catch (e) {
     showError(t('noEvent'), t('noEventMsg'));
   }
+}
+
+function renderGroupScreen() {
+  const remaining = BATCH.slots_remaining;
+  const pf = BATCH.prefill || {};
+  document.getElementById('sg-title').textContent = `Datos del grupo (${remaining} invitado${remaining === 1 ? '' : 's'})`;
+  document.getElementById('sg-sub').textContent =
+    `Llena los datos de los ${remaining} invitados. La primera fila ya tiene los datos del responsable — puede corregirlos.`;
+  const host = document.getElementById('sg-rows');
+  host.innerHTML = '';
+  for (let i = 0; i < remaining; i++) {
+    const isFirst = i === 0;
+    const row = document.createElement('div');
+    row.className = 'sg-row';
+    row.style.cssText = 'border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface,#f7f7f7);';
+    row.innerHTML = `
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
+        ${isFirst ? 'Responsable (tú)' : 'Invitado ' + (i + 1)}
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Nombre completo<span class="req">*</span></label>
+          <input type="text" class="sg-name" autocomplete="off" value="${isFirst && pf.name ? escapeHtml(pf.name) : ''}">
+        </div>
+        <div class="field">
+          <label>Correo electrónico<span class="req">*</span></label>
+          <input type="email" class="sg-email" autocomplete="off" value="${isFirst && pf.email ? escapeHtml(pf.email) : ''}">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>Documento</label>
+          <input type="text" class="sg-id" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Teléfono</label>
+          <input type="tel" class="sg-phone" autocomplete="off" value="${isFirst && pf.phone ? escapeHtml(pf.phone) : ''}">
+        </div>
+      </div>
+    `;
+    host.appendChild(row);
+  }
+  show('screen-group');
+}
+
+async function doRegisterGroup() {
+  const btn = document.getElementById('sg-submit');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+  const rows = document.querySelectorAll('#sg-rows .sg-row');
+  const attendees = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const name  = r.querySelector('.sg-name').value.trim();
+    const email = r.querySelector('.sg-email').value.trim();
+    const id    = r.querySelector('.sg-id').value.trim();
+    const phone = r.querySelector('.sg-phone').value.trim();
+    if (!name)  { alert(`Fila ${i+1}: nombre requerido`);  btn.disabled = false; btn.textContent = 'Enviar registro del grupo'; return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      alert(`Fila ${i+1}: email inválido`); btn.disabled = false; btn.textContent = 'Enviar registro del grupo'; return;
+    }
+    attendees.push({ name, email, phone: phone || null, id_number: id || null, id_type: 'CC' });
+  }
+  try {
+    const res = await fetch(`${API_URL}/api/events/public/invitation/${CLAIM_CODE}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Form-Started-At': String(FORM_START) },
+      body: JSON.stringify({
+        attendees,
+        accepted_terms: true,
+        hp_field: document.getElementById('sg-hp').value,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      hide('screen-group');
+      showGroupSuccess(data.registrations || []);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Enviar registro del grupo';
+      alert(data.error || 'Error al enviar el registro');
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar registro del grupo';
+    alert('Error: ' + e.message);
+  }
+}
+
+function showGroupSuccess(regs) {
+  goTo(4);
+  document.getElementById('s4-title').textContent = 'Registro enviado';
+  document.getElementById('s4-msg').innerHTML =
+    `Confirmamos <strong>${regs.length}</strong> invitados. Cada uno recibirá su email con QR de acceso individual.`;
+  const qrBox = document.getElementById('qr-canvas');  if (qrBox) qrBox.style.display = 'none';
+  const qrTxt = document.getElementById('qr-token-text'); if (qrTxt) qrTxt.style.display = 'none';
+  document.getElementById('r-title').textContent = 'Recuerda';
+  document.getElementById('r1').textContent = 'Cada invitado recibirá su email con QR en pocos minutos.';
+  document.getElementById('r2').textContent = 'Revisen la carpeta de spam si no llega.';
+  document.getElementById('r3').textContent = 'El QR aplica para todos los días del evento.';
 }
 
 function renderInvitationBanner() {
@@ -955,7 +1082,7 @@ async function doRegister() {
     }
   });
 
-  const body = {
+  const flat = {
     name:          document.getElementById('f-name').value.trim(),
     email:         document.getElementById('f-email').value.trim(),
     phone,
@@ -966,9 +1093,11 @@ async function doRegister() {
     ticket_type:   document.getElementById('f-ticket-type').value,
     session_ids:   [...selectedSessions],
     custom_fields,
-    hp_field:      document.getElementById('hp_field').value,
-    accepted_terms: true,
   };
+  // Endpoint público de invitación ahora espera { attendees: [...] }
+  const body = IS_INVITATION
+    ? { attendees: [flat], accepted_terms: true, hp_field: document.getElementById('hp_field').value }
+    : { ...flat, hp_field: document.getElementById('hp_field').value, accepted_terms: true };
 
   const endpoint = IS_INVITATION
     ? `${API_URL}/api/events/public/invitation/${CLAIM_CODE}/register`
@@ -984,10 +1113,13 @@ async function doRegister() {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (res.ok && data.qr_token) {
-      showSuccess(body.email, data.qr_token);
+    const email = IS_INVITATION ? flat.email : body.email;
+    // Invitation v2 devuelve { created, registrations: [{ qr_token, ... }] }
+    const invQr = IS_INVITATION && Array.isArray(data.registrations) && data.registrations[0]?.qr_token;
+    if (res.ok && (data.qr_token || invQr)) {
+      showSuccess(email, data.qr_token || invQr);
     } else if (res.ok && IS_INVITATION && data.status === 'pending') {
-      showPending(body.email);
+      showPending(email);
     } else if (res.status === 409) {
       btn.disabled = false;
       btn.textContent = t('register');

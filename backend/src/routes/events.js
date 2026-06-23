@@ -2356,21 +2356,32 @@ router.get('/:eventId/invitation-batches', auth, async (req, res) => {
 router.post('/:eventId/invitation-batches', auth, async (req, res) => {
   const pool = global.pool;
   const {
-    label, quota, ticket_type = 'talent',
-    assigned_to_name, assigned_to_email, assigned_to_phone,
-    auto_approve = false, notes, expires_at,
-    mode = 'claim', session_scope = 'event_wide', session_ids = [],
+    kind = 'individual',
+    prefill = {},
+    quota,
+    session_scope = 'event_wide', session_ids = [],
+    expires_at,
+    label, ticket_type = 'invitation',
+    notes,
   } = req.body;
-  if (!['claim','roster'].includes(mode)) return res.status(400).json({ error: 'mode inválido' });
+  if (!['individual','group'].includes(kind)) return res.status(400).json({ error: 'kind inválido' });
   if (!['event_wide','specific_sessions'].includes(session_scope)) return res.status(400).json({ error: 'session_scope inválido' });
   const sessIds = Array.isArray(session_ids) ? session_ids.filter(Boolean) : [];
   if (session_scope === 'specific_sessions' && sessIds.length === 0) {
     return res.status(400).json({ error: 'Debes seleccionar al menos una sesión' });
   }
 
-  if (!label?.trim()) return res.status(400).json({ error: 'El label es requerido' });
-  const quotaNum = parseInt(quota);
+  const pfName  = (prefill?.name  || '').trim();
+  const pfEmail = (prefill?.email || '').trim().toLowerCase();
+  const pfPhone = (prefill?.phone || '').trim();
+  if (!pfName)  return res.status(400).json({ error: 'Nombre del invitado/responsable es requerido' });
+  if (!pfEmail) return res.status(400).json({ error: 'Email del invitado/responsable es requerido' });
+
+  const quotaNum = kind === 'individual' ? 1 : parseInt(quota);
   if (!quotaNum || quotaNum < 1) return res.status(400).json({ error: 'Cupo debe ser ≥ 1' });
+  if (kind === 'group' && quotaNum < 2) return res.status(400).json({ error: 'Grupo debe tener al menos 2 cupos' });
+
+  const batchLabel = (label && label.trim()) || (kind === 'individual' ? pfName : `Grupo de ${pfName}`);
 
   try {
     const ev = await getEventForUser(pool, req.params.eventId, req.user);
@@ -2385,18 +2396,21 @@ router.post('/:eventId/invitation-batches', auth, async (req, res) => {
       }
     }
 
+    const prefillJson = { name: pfName, email: pfEmail, phone: pfPhone || null };
     const { rows } = await pool.query(
       `INSERT INTO events.registration_invitation_batches
          (event_id, user_id, label, ticket_type, quota,
           assigned_to_name, assigned_to_email, assigned_to_phone,
           auto_approve, notes, expires_at,
-          mode, session_scope, session_ids)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+          mode, session_scope, session_ids,
+          kind, prefill)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
-      [ev.id, ev.user_id, label.trim(), ticket_type, quotaNum,
-       assigned_to_name || null, assigned_to_email || null, assigned_to_phone || null,
-       !!auto_approve, notes || null, expires_at || null,
-       mode, session_scope, sessIds]
+      [ev.id, ev.user_id, batchLabel, ticket_type, quotaNum,
+       pfName, pfEmail, pfPhone || null,
+       true, notes || null, expires_at || null,
+       'claim', session_scope, sessIds,
+       kind, prefillJson]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -2436,7 +2450,8 @@ router.get('/:eventId/invitation-batches/:batchId', auth, async (req, res) => {
 router.patch('/:eventId/invitation-batches/:batchId', auth, async (req, res) => {
   const pool = global.pool;
   const { label, quota, auto_approve, notes, expires_at,
-          assigned_to_name, assigned_to_email, assigned_to_phone } = req.body;
+          assigned_to_name, assigned_to_email, assigned_to_phone,
+          prefill, session_scope, session_ids } = req.body;
   try {
     const ev = await getEventForUser(pool, req.params.eventId, req.user);
     if (!ev) return res.status(404).json({ error: 'Evento no encontrado' });
@@ -2464,6 +2479,24 @@ router.patch('/:eventId/invitation-batches/:batchId', auth, async (req, res) => 
       }
     }
 
+    // Construir prefill nuevo si vino en payload
+    let prefillJson = null;
+    let newPfName = null, newPfEmail = null, newPfPhone = null;
+    if (prefill && typeof prefill === 'object') {
+      newPfName  = (prefill.name  || '').trim();
+      newPfEmail = (prefill.email || '').trim().toLowerCase();
+      newPfPhone = (prefill.phone || '').trim();
+      if (!newPfName || !newPfEmail) return res.status(400).json({ error: 'prefill requiere name y email' });
+      prefillJson = { name: newPfName, email: newPfEmail, phone: newPfPhone || null };
+    }
+    const sessIds = Array.isArray(session_ids) ? session_ids.filter(Boolean) : null;
+    if (session_scope && !['event_wide','specific_sessions'].includes(session_scope)) {
+      return res.status(400).json({ error: 'session_scope inválido' });
+    }
+    if (session_scope === 'specific_sessions' && (!sessIds || sessIds.length === 0)) {
+      return res.status(400).json({ error: 'Debes seleccionar al menos una sesión' });
+    }
+
     const { rows } = await pool.query(
       `UPDATE events.registration_invitation_batches SET
          label             = COALESCE($1, label),
@@ -2474,16 +2507,22 @@ router.patch('/:eventId/invitation-batches/:batchId', auth, async (req, res) => 
          assigned_to_name  = COALESCE($6, assigned_to_name),
          assigned_to_email = COALESCE($7, assigned_to_email),
          assigned_to_phone = COALESCE($8, assigned_to_phone),
+         prefill           = COALESCE($9::jsonb, prefill),
+         session_scope     = COALESCE($10, session_scope),
+         session_ids       = COALESCE($11, session_ids),
          updated_at        = NOW()
-       WHERE id = $9 AND event_id = $10
+       WHERE id = $12 AND event_id = $13
        RETURNING *`,
       [label || null, quota ? parseInt(quota) : null,
        auto_approve === undefined ? null : !!auto_approve,
        notes === undefined ? null : notes,
        expires_at === undefined ? b.expires_at : expires_at,
-       assigned_to_name === undefined ? null : assigned_to_name,
-       assigned_to_email === undefined ? null : assigned_to_email,
-       assigned_to_phone === undefined ? null : assigned_to_phone,
+       prefillJson ? newPfName  : (assigned_to_name  === undefined ? null : assigned_to_name),
+       prefillJson ? newPfEmail : (assigned_to_email === undefined ? null : assigned_to_email),
+       prefillJson ? newPfPhone : (assigned_to_phone === undefined ? null : assigned_to_phone),
+       prefillJson ? JSON.stringify(prefillJson) : null,
+       session_scope || null,
+       sessIds,
        req.params.batchId, req.params.eventId]
     );
     res.json(rows[0]);

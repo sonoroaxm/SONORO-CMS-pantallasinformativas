@@ -165,6 +165,13 @@
     }
     .inv-form .form-group > label { margin-bottom: 5px; display: block; }
     .inv-form .form-group label small { font-weight: 400; }
+    .inv-kind-card:hover { border-color: rgba(255,27,141,.4) !important; }
+    .inv-kind-card.selected { border-color: var(--magenta) !important; background: rgba(255,27,141,.06) !important; }
+    .inv-kind-card.selected::after {
+      content:''; position:absolute; top:10px; right:10px; width:14px; height:14px;
+      border-radius:50%; background: var(--magenta);
+      box-shadow: inset 0 0 0 3px var(--surface);
+    }
     .inv-form input[type="text"],
     .inv-form input[type="email"],
     .inv-form input[type="number"],
@@ -2242,132 +2249,80 @@
             </div>
           </div>
 
-          <!-- Modal: nuevo / editar batch de invitación -->
+          <!-- Modal: nueva / editar invitación (v2 — individual / grupo) -->
           <div id="inv-modal" class="modal" onclick="if(event.target.id==='inv-modal') invCloseModal()">
             <div class="modal-content" style="max-width:560px;">
               <div class="modal-header">
-                <h3 id="inv-modal-title">Nuevo batch de invitaciones</h3>
+                <h3 id="inv-modal-title">Nueva invitación</h3>
                 <button class="modal-close" onclick="invCloseModal()">&times;</button>
               </div>
-              <div class="modal-body inv-form" style="display:grid;gap:14px;">
+              <div class="modal-body inv-form" style="display:grid;gap:18px;">
+
+                <!-- 1. TIPO -->
                 <div class="form-group" style="margin:0;">
-                  <label>Nombre del batch <span style="color:#c33;">*</span></label>
-                  <input type="text" id="inv-f-label" placeholder="Ej. Agencia Talento XYZ, Banda Apertura, Cortesías Prensa">
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                  <div class="form-group" style="margin:0;">
-                    <label>Cupo <span style="color:#c33;">*</span></label>
-                    <input type="number" id="inv-f-quota" min="1" value="10">
-                  </div>
-                  <div class="form-group" style="margin:0;">
-                    <label>Tipo de ticket</label>
-                    <input type="text" id="inv-f-ticket-type" value="talent">
-                  </div>
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label>Modo de captura</label>
-                  <div id="inv-f-mode-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="claim">
-                      <input type="radio" name="inv-f-mode" value="claim" checked onchange="invOnModeChange()">
-                      <div><div style="font-weight:600;font-size:13px;">Link compartible</div><div style="font-size:12px;color:var(--muted);">El proveedor distribuye el link y los invitados completan un formulario corto.</div></div>
+                  <label>Tipo de invitación</label>
+                  <div id="inv-f-kind-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <label class="inv-kind-card" data-kind="individual" onclick="invSetKind('individual')" style="position:relative;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);cursor:pointer;display:flex;flex-direction:column;gap:4px;">
+                      <input type="radio" name="inv-f-kind" value="individual" checked style="position:absolute;opacity:0;pointer-events:none;">
+                      <div style="font-weight:700;font-size:13px;color:var(--text);">Individual</div>
+                      <div style="font-size:11.5px;color:var(--muted);line-height:1.45;">Un solo invitado. Tú le mandas el link, él completa sus datos y recibe el QR.</div>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;" data-mode="roster">
-                      <input type="radio" name="inv-f-mode" value="roster" onchange="invOnModeChange()">
-                      <div><div style="font-weight:600;font-size:13px;">Roster</div><div style="font-size:12px;color:var(--muted);">Tú cargas la lista y enviamos los QR directamente.</div></div>
+                    <label class="inv-kind-card" data-kind="group" onclick="invSetKind('group')" style="position:relative;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);cursor:pointer;display:flex;flex-direction:column;gap:4px;">
+                      <input type="radio" name="inv-f-kind" value="group" style="position:absolute;opacity:0;pointer-events:none;">
+                      <div style="font-weight:700;font-size:13px;color:var(--text);">Grupo</div>
+                      <div style="font-size:11.5px;color:var(--muted);line-height:1.45;">Varios cupos. El link va al responsable, que llena los datos de todo el grupo.</div>
                     </label>
                   </div>
                 </div>
+
+                <!-- 2. DESTINATARIO -->
                 <div class="form-group" style="margin:0;">
-                  <label>Alcance de sesiones</label>
+                  <label id="inv-f-recipient-lbl">Datos del invitado <span style="color:#c33;">*</span></label>
+                  <input type="text" id="inv-f-pf-name" placeholder="Nombre del talento" style="margin-bottom:8px;">
+                  <input type="email" id="inv-f-pf-email" placeholder="email@ejemplo.com" style="margin-bottom:8px;">
+                  <input type="text" id="inv-f-pf-phone" placeholder="Teléfono (opcional)">
+                  <small id="inv-f-recipient-help" style="color:var(--muted);">El invitado podrá corregir sus datos al abrir el link.</small>
+                </div>
+
+                <!-- 3. CUPOS (solo grupo) -->
+                <div class="form-group hidden" id="inv-f-quota-wrap" style="margin:0;">
+                  <label>Cantidad de cupos <span style="color:#c33;">*</span></label>
+                  <input type="number" id="inv-f-quota" min="2" value="5">
+                  <small id="inv-f-quota-help" style="color:var(--muted);">El responsable cuenta como 1 cupo.</small>
+                </div>
+
+                <!-- 4. ALCANCE -->
+                <div class="form-group" style="margin:0;">
+                  <label>Acceso a sesiones</label>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
-                      <input type="radio" name="inv-f-scope" value="event_wide" checked onchange="invOnScopeChange()">
-                      <div><div style="font-weight:600;font-size:13px;">Todo el evento</div><div style="font-size:12px;color:var(--muted);">Acceso a todas las sesiones.</div></div>
+                    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2);font-size:13px;">
+                      <input type="radio" name="inv-f-scope" value="event_wide" checked onchange="invOnScopeChange()" style="accent-color:var(--magenta);">
+                      <span>Todo el evento</span>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
-                      <input type="radio" name="inv-f-scope" value="specific_sessions" onchange="invOnScopeChange()">
-                      <div><div style="font-weight:600;font-size:13px;">Sesiones específicas</div><div style="font-size:12px;color:var(--muted);">Selecciona cuáles.</div></div>
+                    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2);font-size:13px;">
+                      <input type="radio" name="inv-f-scope" value="specific_sessions" onchange="invOnScopeChange()" style="accent-color:var(--magenta);">
+                      <span>Sesiones específicas</span>
                     </label>
                   </div>
-                  <div id="inv-f-sessions-list" class="hidden" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;"></div>
+                  <div id="inv-f-sessions-list" class="hidden" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface2);"></div>
                 </div>
+
+                <!-- 5. EXPIRACIÓN -->
                 <div class="form-group" style="margin:0;">
-                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                    <input type="checkbox" id="inv-f-auto-approve">
-                    Auto-aprobar registros (emite QR sin revisar)
-                  </label>
-                  <small style="color:var(--muted);">Si está desactivado, cada registro queda pendiente y debe aprobarse manualmente. (Roster siempre auto-aprueba.)</small>
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label>Expira <small style="color:var(--muted);">(opcional)</small></label>
+                  <label>Expira <small style="color:var(--muted);font-weight:400;">(opcional)</small></label>
                   <input type="datetime-local" id="inv-f-expires">
-                  <small id="inv-f-expires-hint" style="color:var(--muted);"></small>
+                  <small style="color:var(--muted);">Después de esta fecha el link deja de funcionar.</small>
                 </div>
-                <div style="border-top:1px solid var(--border);padding-top:12px;">
-                  <div style="font-weight:600;margin-bottom:8px;font-size:13px;color:var(--muted);">Contacto del proveedor (opcional)</div>
-                  <div style="display:grid;gap:10px;">
-                    <input type="text" id="inv-f-contact-name" placeholder="Nombre del contacto">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                      <input type="email" id="inv-f-contact-email" placeholder="Email">
-                      <input type="text" id="inv-f-contact-phone" placeholder="Teléfono">
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label>Notas <small style="color:var(--muted);">(rider, requerimientos)</small></label>
-                  <textarea id="inv-f-notes" rows="3" style="resize:vertical;"></textarea>
-                </div>
+
               </div>
               <div class="modal-footer">
                 <button class="btn btn-outline" onclick="invCloseModal()">Cancelar</button>
-                <button class="btn btn-grad" id="inv-save-btn" onclick="invSaveBatch()">Crear batch</button>
+                <button class="btn btn-grad" id="inv-save-btn" onclick="invSaveBatch()">Crear y obtener link</button>
               </div>
             </div>
           </div>
 
           <!-- Modal: roster (carga masiva) -->
-          <div id="inv-roster-modal" class="modal" onclick="if(event.target.id==='inv-roster-modal') invCloseRoster()">
-            <div class="modal-content" style="max-width:880px;">
-              <div class="modal-header">
-                <h3>Cargar roster de invitados</h3>
-                <button class="modal-close" onclick="invCloseRoster()">&times;</button>
-              </div>
-              <div class="modal-body">
-                <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;">
-                  <div style="font-size:13px;color:var(--muted);">
-                    Cupos disponibles: <strong id="inv-roster-slots">0</strong> · Listos para enviar: <strong id="inv-roster-count">0</strong>
-                  </div>
-                  <div style="display:flex;gap:8px;">
-                    <label class="btn btn-outline btn-sm" style="cursor:pointer;">
-                      Importar CSV
-                      <input type="file" accept=".csv,text/csv" style="display:none;" onchange="if(this.files[0]) invRosterImportCSV(this.files[0])">
-                    </label>
-                    <button class="btn btn-outline btn-sm" onclick="invRosterAddRow()">+ Fila</button>
-                  </div>
-                </div>
-                <div style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:8px;">
-                  <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                    <thead style="position:sticky;top:0;background:var(--bg-alt);">
-                      <tr>
-                        <th style="text-align:left;padding:8px;">Nombre *</th>
-                        <th style="text-align:left;padding:8px;">Email *</th>
-                        <th style="text-align:left;padding:8px;">Teléfono</th>
-                        <th style="text-align:left;padding:8px;">Organización</th>
-                        <th style="width:40px;"></th>
-                      </tr>
-                    </thead>
-                    <tbody id="inv-roster-tbody"></tbody>
-                  </table>
-                </div>
-                <small style="color:var(--muted);display:block;margin-top:8px;">Cada invitado recibirá un email con su acreditación y código QR.</small>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-outline" onclick="invCloseRoster()">Cancelar</button>
-                <button class="btn btn-grad" onclick="invRosterSend()">Enviar invitaciones</button>
-              </div>
-            </div>
-          </div>
-
           <!-- Modal: ver registros del batch -->
           <div id="inv-detail-modal" class="modal" onclick="if(event.target.id==='inv-detail-modal') invCloseDetail()">
             <div class="modal-content" style="max-width:880px;">
@@ -6858,15 +6813,23 @@ function invRenderList() {
       ? `<button class="btn btn-sm" onclick="invApprovePending('${b.id}')" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b;">Aprobar ${pending} pendientes</button>`
       : '';
     const disabledBtn = (revoked || expired) ? 'opacity:.5;pointer-events:none;' : '';
+    const kind = b.kind || 'individual';
+    const kindPill = kind === 'group'
+      ? 'background:rgba(124,77,255,.14);border:1px solid rgba(124,77,255,.4);color:#9b6dff;'
+      : 'background:rgba(0,176,255,.12);border:1px solid rgba(0,176,255,.35);color:#5cc6ff;';
+    const kindLabel = kind === 'group' ? `Grupo · ${b.quota}` : 'Individual';
+    const pf = b.prefill || {};
+    const pfLine = pf.name
+      ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">${kind === 'group' ? 'Responsable' : 'Talento'}: ${invEscape(pf.name)}${pf.email ? ' · ' + invEscape(pf.email) : ''}</div>`
+      : '';
     return `
       <div class="card" style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
           <div style="flex:1;min-width:240px;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <strong style="font-size:16px;">${invEscape(b.label)}</strong>
+              <span style="padding:3px 10px;border-radius:20px;${kindPill}font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${kindLabel}</span>
               <span style="padding:3px 10px;border-radius:20px;${statusPill}font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${status}</span>
-              <span style="font-size:12px;color:var(--muted);">${invEscape(b.ticket_type)}</span>
-              ${b.auto_approve ? '<span style="font-size:11px;color:#2a7;">auto-aprobar</span>' : '<span style="font-size:11px;color:#8a6a1c;">requiere aprobación</span>'}
             </div>
             <div style="margin-top:6px;font-size:14px;">
               Cupo: <strong>${b.claimed_count} / ${b.quota}</strong> usados
@@ -6877,13 +6840,10 @@ function invRenderList() {
               <div style="height:100%;width:${fillPct}%;background:${fillPct >= 100 ? '#c33' : '#2a7'};transition:width .3s;"></div>
             </div>
             ${expiresHtml}
-            ${b.assigned_to_name ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Contacto: ${invEscape(b.assigned_to_name)}${b.assigned_to_email ? ' · ' + invEscape(b.assigned_to_email) : ''}</div>` : ''}
+            ${pfLine}
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-            ${b.mode === 'roster'
-              ? `<button class="btn btn-outline btn-sm" onclick="invOpenRoster('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Cargar roster</button>`
-              : `<button class="btn btn-outline btn-sm" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Copiar link</button>
-                 <button class="btn btn-outline btn-sm" onclick="invShareWhatsApp('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>WhatsApp</button>`}
+            <button class="btn btn-outline btn-sm" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Copiar link</button>
             <button class="btn btn-outline btn-sm" onclick="invOpenDetail('${b.id}')">Ver registros</button>
             ${pendingBtn}
             <button class="btn btn-outline btn-sm" onclick="invEditBatch('${b.id}')">Editar</button>
@@ -6897,42 +6857,70 @@ function invRenderList() {
 
 function invOpenModal(batch) {
   invEditingId = batch ? batch.id : null;
-  document.getElementById('inv-modal-title').textContent = batch ? 'Editar batch' : 'Nuevo batch de invitaciones';
-  document.getElementById('inv-save-btn').textContent     = batch ? 'Guardar cambios' : 'Crear batch';
-  document.getElementById('inv-f-label').value         = batch?.label || '';
-  document.getElementById('inv-f-quota').value         = batch?.quota || 10;
-  document.getElementById('inv-f-ticket-type').value   = batch?.ticket_type || 'talent';
-  document.getElementById('inv-f-auto-approve').checked = !!batch?.auto_approve;
-  document.getElementById('inv-f-expires').value       = batch?.expires_at ? new Date(batch.expires_at).toISOString().slice(0,16) : '';
-  document.getElementById('inv-f-contact-name').value  = batch?.assigned_to_name || '';
-  document.getElementById('inv-f-contact-email').value = batch?.assigned_to_email || '';
-  document.getElementById('inv-f-contact-phone').value = batch?.assigned_to_phone || '';
-  document.getElementById('inv-f-notes').value         = batch?.notes || '';
-  // Hint con starts_at del evento
-  const hint = document.getElementById('inv-f-expires-hint');
-  if (evCurrentEvent?.starts_at) {
-    hint.textContent = `Sugerido: ${new Date(evCurrentEvent.starts_at).toLocaleString('es-CO', { hour12: true })} (inicio del evento). Si lo dejas vacío, el link funciona hasta el fin del evento.`;
-  } else {
-    hint.textContent = 'Si lo dejas vacío, el link funciona hasta el fin del evento.';
-  }
-  // Si edita: bloquear reducir quota — el min se ajusta al claimed_count
+  const kind = batch?.kind || 'individual';
+  document.getElementById('inv-modal-title').textContent = batch
+    ? 'Editar invitación'
+    : (kind === 'group' ? 'Nueva invitación grupal' : 'Nueva invitación');
+  document.getElementById('inv-save-btn').textContent = batch ? 'Guardar cambios' : 'Crear y obtener link';
+
+  const pf = batch?.prefill || {};
+  document.getElementById('inv-f-pf-name').value  = pf.name  || batch?.assigned_to_name  || '';
+  document.getElementById('inv-f-pf-email').value = pf.email || batch?.assigned_to_email || '';
+  document.getElementById('inv-f-pf-phone').value = pf.phone || batch?.assigned_to_phone || '';
+  document.getElementById('inv-f-quota').value    = batch ? batch.quota : 5;
+  document.getElementById('inv-f-expires').value  = batch?.expires_at ? new Date(batch.expires_at).toISOString().slice(0,16) : '';
+
   if (batch) {
-    document.getElementById('inv-f-quota').min = batch.claimed_count || 1;
+    document.getElementById('inv-f-quota').min = Math.max(2, batch.claimed_count || 2);
   } else {
-    document.getElementById('inv-f-quota').min = 1;
+    document.getElementById('inv-f-quota').min = 2;
   }
-  // mode / scope
-  const modeVal = batch?.mode || 'claim';
-  document.querySelectorAll('input[name="inv-f-mode"]').forEach(r => { r.checked = (r.value === modeVal); });
   const scopeVal = batch?.session_scope || 'event_wide';
   document.querySelectorAll('input[name="inv-f-scope"]').forEach(r => { r.checked = (r.value === scopeVal); });
   invRenderSessionPicker(batch?.session_ids || []);
   invOnScopeChange();
-  invOnModeChange();
-  // Al editar, deshabilitar cambio de modo
-  document.querySelectorAll('input[name="inv-f-mode"]').forEach(r => { r.disabled = !!batch; });
+
+  invSetKind(kind, /*fromModal*/true);
+  // Al editar, bloquear cambio de kind
+  document.querySelectorAll('#inv-f-kind-group .inv-kind-card').forEach(c => {
+    c.style.pointerEvents = batch ? 'none' : '';
+    c.style.opacity       = (batch && c.dataset.kind !== kind) ? '.4' : '1';
+  });
   document.getElementById('inv-modal').classList.add('active');
 }
+
+function invSetKind(kind, fromModal) {
+  document.querySelectorAll('input[name="inv-f-kind"]').forEach(r => { r.checked = (r.value === kind); });
+  document.querySelectorAll('#inv-f-kind-group .inv-kind-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.kind === kind);
+  });
+  document.getElementById('inv-f-quota-wrap').classList.toggle('hidden', kind === 'individual');
+  if (kind === 'individual') {
+    document.getElementById('inv-f-recipient-lbl').innerHTML = 'Datos del invitado <span style="color:#c33;">*</span>';
+    document.getElementById('inv-f-pf-name').placeholder  = 'Nombre del talento';
+    document.getElementById('inv-f-recipient-help').textContent = 'El invitado podrá corregir sus datos al abrir el link.';
+    if (!fromModal || !invEditingId) document.getElementById('inv-save-btn').textContent = 'Crear y obtener link';
+    if (!fromModal) document.getElementById('inv-modal-title').textContent = 'Nueva invitación';
+  } else {
+    const q = parseInt(document.getElementById('inv-f-quota').value) || 5;
+    document.getElementById('inv-f-recipient-lbl').innerHTML = 'Datos del responsable del grupo <span style="color:#c33;">*</span>';
+    document.getElementById('inv-f-pf-name').placeholder  = 'Nombre del responsable';
+    document.getElementById('inv-f-recipient-help').textContent =
+      `El responsable cuenta como 1 de los ${q} cupos. Llenará sus datos + los de los ${q-1} restantes.`;
+    document.getElementById('inv-f-quota-help').textContent =
+      `El responsable cuenta como 1 cupo. Verá ${q} filas (la suya + ${q-1}) y debe llenarlas todas antes de enviar.`;
+    if (!fromModal || !invEditingId) document.getElementById('inv-save-btn').textContent = 'Crear y obtener link del grupo';
+    if (!fromModal) document.getElementById('inv-modal-title').textContent = 'Nueva invitación grupal';
+  }
+}
+
+// Recompute helper text when quota changes
+document.addEventListener('input', e => {
+  if (e.target?.id === 'inv-f-quota') {
+    const kind = document.querySelector('input[name="inv-f-kind"]:checked')?.value;
+    if (kind === 'group') invSetKind('group', true);
+  }
+});
 
 function invRenderSessionPicker(preselected) {
   const host = document.getElementById('inv-f-sessions-list');
@@ -6960,18 +6948,6 @@ function invOnScopeChange() {
   document.getElementById('inv-f-sessions-list').classList.toggle('hidden', scope !== 'specific_sessions');
 }
 
-function invOnModeChange() {
-  const mode = document.querySelector('input[name="inv-f-mode"]:checked')?.value || 'claim';
-  const autoCb = document.getElementById('inv-f-auto-approve');
-  if (mode === 'roster') {
-    autoCb.checked = true;
-    autoCb.disabled = true;
-    document.getElementById('inv-save-btn').textContent = invEditingId ? 'Guardar cambios' : 'Crear y cargar roster';
-  } else {
-    autoCb.disabled = false;
-    document.getElementById('inv-save-btn').textContent = invEditingId ? 'Guardar cambios' : 'Crear batch';
-  }
-}
 function invCloseModal() {
   document.getElementById('inv-modal').classList.remove('active');
   invEditingId = null;
@@ -6983,26 +6959,26 @@ function invEditBatch(id) {
 }
 
 async function invSaveBatch() {
-  const mode  = document.querySelector('input[name="inv-f-mode"]:checked')?.value || 'claim';
+  const kind  = document.querySelector('input[name="inv-f-kind"]:checked')?.value || 'individual';
   const scope = document.querySelector('input[name="inv-f-scope"]:checked')?.value || 'event_wide';
   const sessionIds = [...document.querySelectorAll('.inv-f-sess-cb:checked')].map(cb => cb.value);
-  const body = {
-    label:             document.getElementById('inv-f-label').value.trim(),
-    quota:             parseInt(document.getElementById('inv-f-quota').value),
-    ticket_type:       document.getElementById('inv-f-ticket-type').value.trim() || 'talent',
-    auto_approve:      document.getElementById('inv-f-auto-approve').checked,
-    expires_at:        document.getElementById('inv-f-expires').value || null,
-    assigned_to_name:  document.getElementById('inv-f-contact-name').value.trim() || null,
-    assigned_to_email: document.getElementById('inv-f-contact-email').value.trim() || null,
-    assigned_to_phone: document.getElementById('inv-f-contact-phone').value.trim() || null,
-    notes:             document.getElementById('inv-f-notes').value.trim() || null,
-    mode, session_scope: scope, session_ids: sessionIds,
-  };
-  if (!body.label) { alert('El nombre del batch es requerido'); return; }
-  if (!body.quota || body.quota < 1) { alert('Cupo debe ser ≥ 1'); return; }
+  const pfName  = document.getElementById('inv-f-pf-name').value.trim();
+  const pfEmail = document.getElementById('inv-f-pf-email').value.trim();
+  const pfPhone = document.getElementById('inv-f-pf-phone').value.trim();
+  if (!pfName)  { alert('El nombre es requerido'); return; }
+  if (!pfEmail) { alert('El email es requerido'); return; }
+  const quota = kind === 'individual' ? 1 : parseInt(document.getElementById('inv-f-quota').value);
+  if (kind === 'group' && (!quota || quota < 2)) { alert('El grupo debe tener al menos 2 cupos'); return; }
   if (scope === 'specific_sessions' && sessionIds.length === 0) { alert('Selecciona al menos una sesión'); return; }
 
-  // expires_at en datetime-local viene sin zona; lo enviamos tal cual y el backend lo interpreta en UTC del input (TIMESTAMPTZ).
+  const body = {
+    kind,
+    prefill: { name: pfName, email: pfEmail, phone: pfPhone || null },
+    quota,
+    session_scope: scope,
+    session_ids:   sessionIds,
+    expires_at:    document.getElementById('inv-f-expires').value || null,
+  };
   if (body.expires_at) body.expires_at = new Date(body.expires_at).toISOString();
 
   try {
@@ -7019,96 +6995,11 @@ async function invSaveBatch() {
     if (!res.ok) { alert(data.error || 'Error al guardar'); return; }
     const wasNew = !invEditingId;
     invCloseModal();
-    showStatus(wasNew ? 'Batch creado' : 'Batch actualizado', 'success');
+    showStatus(wasNew ? 'Invitación creada' : 'Invitación actualizada', 'success');
     await invLoadBatches();
-    if (wasNew && mode === 'roster') invOpenRoster(data.id);
   } catch(e) {
     alert('Error: ' + e.message);
   }
-}
-
-// ── ROSTER UI ────────────────────────────────────────────────────────────────
-let invRosterBatchId = null;
-let invRosterRows = [];
-
-function invOpenRoster(batchId) {
-  invRosterBatchId = batchId;
-  invRosterRows = [{ name:'', email:'', phone:'', organization:'' }];
-  invRenderRoster();
-  document.getElementById('inv-roster-modal').classList.add('active');
-}
-function invCloseRoster() {
-  document.getElementById('inv-roster-modal').classList.remove('active');
-  invRosterBatchId = null;
-  invRosterRows = [];
-}
-function invRosterAddRow() { invRosterRows.push({ name:'', email:'', phone:'', organization:'' }); invRenderRoster(); }
-function invRosterDelRow(i) { invRosterRows.splice(i,1); if (!invRosterRows.length) invRosterRows.push({ name:'', email:'', phone:'', organization:'' }); invRenderRoster(); }
-function invRosterUpdate(i, field, val) { invRosterRows[i][field] = val; }
-function invRenderRoster() {
-  const tbody = document.getElementById('inv-roster-tbody');
-  const b = invBatches.find(x => x.id === invRosterBatchId);
-  const slots = b ? (b.quota - b.claimed_count) : 0;
-  document.getElementById('inv-roster-slots').textContent = slots;
-  document.getElementById('inv-roster-count').textContent = invRosterRows.filter(r => (r.name||'').trim() && (r.email||'').trim()).length;
-  tbody.innerHTML = invRosterRows.map((r,i) => `
-    <tr>
-      <td><input type="text" value="${invEscape(r.name||'')}" oninput="invRosterUpdate(${i},'name',this.value)" style="width:100%;"></td>
-      <td><input type="email" value="${invEscape(r.email||'')}" oninput="invRosterUpdate(${i},'email',this.value)" style="width:100%;"></td>
-      <td><input type="text" value="${invEscape(r.phone||'')}" oninput="invRosterUpdate(${i},'phone',this.value)" style="width:100%;"></td>
-      <td><input type="text" value="${invEscape(r.organization||'')}" oninput="invRosterUpdate(${i},'organization',this.value)" style="width:100%;"></td>
-      <td><button class="btn-secondary" onclick="invRosterDelRow(${i})">×</button></td>
-    </tr>`).join('');
-}
-function invRosterImportCSV(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = String(e.target.result || '');
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (!lines.length) return;
-    const header = lines[0].toLowerCase();
-    const start = /name|nombre|email/.test(header) ? 1 : 0;
-    const idx = { name:0, email:1, phone:2, organization:3 };
-    if (start === 1) {
-      const cols = lines[0].split(',').map(c => c.trim().toLowerCase());
-      cols.forEach((c,i) => {
-        if (/nombre|name/.test(c)) idx.name = i;
-        else if (/email|correo/.test(c)) idx.email = i;
-        else if (/tel|phone/.test(c)) idx.phone = i;
-        else if (/org|empresa/.test(c)) idx.organization = i;
-      });
-    }
-    const rows = [];
-    for (let i = start; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim());
-      rows.push({
-        name: cols[idx.name] || '', email: cols[idx.email] || '',
-        phone: cols[idx.phone] || '', organization: cols[idx.organization] || '',
-      });
-    }
-    if (rows.length) { invRosterRows = rows; invRenderRoster(); }
-  };
-  reader.readAsText(file);
-}
-async function invRosterSend() {
-  const recipients = invRosterRows
-    .map(r => ({ name:(r.name||'').trim(), email:(r.email||'').trim().toLowerCase(),
-                 phone:(r.phone||'').trim() || null, organization:(r.organization||'').trim() || null }))
-    .filter(r => r.name && r.email);
-  if (!recipients.length) { alert('Agrega al menos un invitado con nombre y email'); return; }
-  if (!confirm(`Se enviarán ${recipients.length} invitaciones por email. ¿Continuar?`)) return;
-  try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/invitation-batches/${invRosterBatchId}/roster`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ recipients }),
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Error al enviar roster'); return; }
-    invCloseRoster();
-    showStatus(`${data.created} invitaciones enviadas`, 'success');
-    invLoadBatches();
-  } catch(e) { alert('Error: ' + e.message); }
 }
 
 function invCopyLink(claimCode) {
@@ -7117,19 +7008,6 @@ function invCopyLink(claimCode) {
     () => showStatus('Link copiado', 'success'),
     () => prompt('Copia el link:', url)
   );
-}
-
-function invShareWhatsApp(id) {
-  const b = invBatches.find(x => x.id === id);
-  if (!b) return;
-  const url = `${window.location.origin}/evento/invitacion/${b.claim_code}`;
-  const evName = evCurrentEvent?.name || 'el evento';
-  const msg = `Hola! Te comparto el link de invitación para *${b.label}* en ${evName}. Cupo disponible: ${b.quota - b.claimed_count} personas.\n\n${url}`;
-  const phone = (b.assigned_to_phone || '').replace(/\D/g, '');
-  const waUrl = phone
-    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-  window.open(waUrl, '_blank');
 }
 
 async function invRevoke(id) {
