@@ -7510,11 +7510,17 @@ async function evSaveSession() {
   const startT = document.getElementById('ev-sess-start').value;
   const endT = document.getElementById('ev-sess-end').value;
   if (!name || !date || !startT || !endT) { showStatus('Nombre, fecha y horas son obligatorios', 'error'); return; }
+  let endDate = date;
+  if (endT <= startT) {
+    const d = new Date(`${date}T00:00:00`);
+    d.setDate(d.getDate() + 1);
+    endDate = d.toLocaleDateString('sv-SE');
+  }
   const body = {
     name,
     speaker_name: (document.getElementById('ev-sess-speaker')?.value || '').trim() || null,
     starts_at: `${date}T${startT}:00`,
-    ends_at: `${date}T${endT}:00`,
+    ends_at: `${endDate}T${endT}:00`,
     capacity: document.getElementById('ev-sess-cap').value || null,
     assigned_staff_id: document.getElementById('ev-sess-staff').value || null,
     observations: document.getElementById('ev-sess-obs').value.trim() || null

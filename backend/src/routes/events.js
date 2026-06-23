@@ -345,6 +345,9 @@ router.post('/:id/sessions', auth, async (req, res) => {
   if (!name?.trim() || !starts_at || !ends_at) {
     return res.status(400).json({ error: 'name, starts_at y ends_at son requeridos' });
   }
+  if (ends_at <= starts_at) {
+    return res.status(400).json({ error: 'ends_at debe ser posterior a starts_at' });
+  }
   const evCheck = await pool.query(
     `SELECT id, user_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
     isAdmin ? [req.params.id] : [req.params.id, req.user.id]
@@ -1300,6 +1303,9 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const { name, starts_at, ends_at, capacity, venue_zone, description, session_type,
           assigned_staff_id, observations, speaker_name } = req.body;
+  if (starts_at && ends_at && ends_at <= starts_at) {
+    return res.status(400).json({ error: 'ends_at debe ser posterior a starts_at' });
+  }
   try {
     const evCheck = await pool.query(
       `SELECT id, timezone FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
