@@ -67,15 +67,19 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 .header-countdown {
   grid-column:1/-1;
   display:flex; align-items:center; justify-content:space-between;
-  padding:0 20px; height:44px;
+  padding:10px 24px; min-height:84px;
   background:rgba(255,27,141,.05); border-bottom:1px solid rgba(255,27,141,.12);
   flex-shrink:0;
 }
-.cd-label { font-size:10px; font-weight:700; color:rgba(255,27,141,.6); text-transform:uppercase; letter-spacing:1px; }
-.cd-next  { font-size:12px; font-weight:700; color:var(--text); }
-.cd-timer { font-size:28px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-2px; color:var(--brand); line-height:1; }
-.cd-center { display:flex; flex-direction:column; align-items:center; gap:1px; }
-.cd-right  { text-align:right; }
+.cd-label { font-size:13px; font-weight:700; color:rgba(255,27,141,.75); text-transform:uppercase; letter-spacing:1.2px; }
+.cd-next  { font-size:22px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.5px; line-height:1; }
+.cd-sub   { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px; }
+.cd-timer { font-size:36px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-2px; color:var(--brand); line-height:1; }
+.cd-timer.green { color:var(--green); }
+.cd-timer.red   { color:var(--red); }
+.cd-cell   { display:flex; flex-direction:column; gap:4px; }
+.cd-center { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.cd-right  { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 
 /* ── MOBILE STATS BAR ── */
 .mobile-stats-bar {
@@ -246,16 +250,18 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 
   <!-- HEADER COUNTDOWN -->
   <div class="header-countdown">
-    <div>
-      <div class="cd-label">Próxima sesión</div>
+    <div class="cd-cell">
+      <div class="cd-label" id="cd-left-lbl">Próxima sesión</div>
       <div class="cd-next" id="cd-next">—</div>
     </div>
     <div class="cd-center">
+      <div class="cd-label" id="cd-center-lbl">Empieza en</div>
       <div class="cd-timer" id="cd-timer">—</div>
     </div>
     <div class="cd-right">
-      <div class="cd-label">Empieza a las</div>
+      <div class="cd-label" id="cd-right-lbl">Hora de inicio</div>
       <div class="cd-next" id="cd-starts">—</div>
+      <div class="cd-sub" id="cd-starts-sub" style="display:none">—</div>
     </div>
   </div>
 
@@ -542,9 +548,15 @@ function updateCountdown() {
     return now >= st && now < en;
   });
 
-  const timerEl  = document.getElementById('cd-timer');
-  const nextEl   = document.getElementById('cd-next');
-  const startsEl = document.getElementById('cd-starts');
+  const timerEl     = document.getElementById('cd-timer');
+  const nextEl      = document.getElementById('cd-next');
+  const startsEl    = document.getElementById('cd-starts');
+  const leftLblEl   = document.getElementById('cd-left-lbl');
+  const centerLblEl = document.getElementById('cd-center-lbl');
+  const rightLblEl  = document.getElementById('cd-right-lbl');
+  const subEl       = document.getElementById('cd-starts-sub');
+
+  const setTimerCls = (cls) => { timerEl.className = 'cd-timer' + (cls ? ' ' + cls : ''); timerEl.style.color = ''; };
 
   if (active) {
     const endMs = new Date(active.ends_at).getTime();
@@ -552,18 +564,27 @@ function updateCountdown() {
     if (now < endMs) {
       // Modo en curso: restan
       const remaining = Math.floor((endMs - now) / 1000);
-      timerEl.textContent = fmtDur(remaining);
-      timerEl.style.color = 'var(--green)';
-      nextEl.textContent = 'En curso: ' + active.name;
-      const elapsed = Math.floor((now - startMs) / 1000);
-      startsEl.textContent = 'Va ' + fmtDur(elapsed);
+      const elapsed   = Math.floor((now - startMs) / 1000);
+      leftLblEl.textContent   = 'En curso';
+      nextEl.textContent      = active.name;
+      centerLblEl.textContent = 'Tiempo restante';
+      timerEl.textContent     = fmtDur(remaining);
+      setTimerCls('green');
+      rightLblEl.textContent  = 'Empezó a las';
+      startsEl.textContent    = fmtTime(active.starts_at);
+      subEl.textContent       = 'va ' + fmtDur(elapsed);
+      subEl.style.display     = '';
     } else {
       // Modo atraso: ya paso ends_at pero sigue abierta
       const over = Math.floor((now - endMs) / 1000);
-      timerEl.textContent = '+' + fmtDur(over);
-      timerEl.style.color = 'var(--red)';
-      nextEl.textContent = 'ATRASO: ' + active.name;
-      startsEl.textContent = 'Debio terminar a las ' + fmtTime(active.ends_at);
+      leftLblEl.textContent   = 'Atraso';
+      nextEl.textContent      = active.name;
+      centerLblEl.textContent = 'En exceso';
+      timerEl.textContent     = '+' + fmtDur(over);
+      setTimerCls('red');
+      rightLblEl.textContent  = 'Debió terminar a las';
+      startsEl.textContent    = fmtTime(active.ends_at);
+      subEl.style.display     = 'none';
     }
     return;
   }
@@ -575,18 +596,26 @@ function updateCountdown() {
   const next = upcoming[0];
 
   if (!next) {
-    nextEl.textContent   = 'Fin del programa';
-    timerEl.textContent  = '—';
-    timerEl.style.color = '';
-    startsEl.textContent = '—';
+    leftLblEl.textContent   = '';
+    nextEl.textContent      = 'Fin del programa';
+    centerLblEl.textContent = '';
+    timerEl.textContent     = '—';
+    setTimerCls('');
+    rightLblEl.textContent  = '';
+    startsEl.textContent    = '—';
+    subEl.style.display     = 'none';
     return;
   }
 
   const diff = Math.max(0, Math.floor((new Date(next.starts_at).getTime() - now) / 1000));
-  timerEl.textContent = fmtDur(diff);
-  timerEl.style.color = '';
-  nextEl.textContent = next.name;
-  startsEl.textContent = fmtTime(next.starts_at);
+  leftLblEl.textContent   = 'Próxima sesión';
+  nextEl.textContent      = next.name;
+  centerLblEl.textContent = 'Empieza en';
+  timerEl.textContent     = fmtDur(diff);
+  setTimerCls('');
+  rightLblEl.textContent  = 'Hora de inicio';
+  startsEl.textContent    = fmtTime(next.starts_at);
+  subEl.style.display     = 'none';
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -709,6 +738,8 @@ function renderRundown() {
         if (startDelayMin > 0) {
           actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
         }
+      } else if (state === 'current' && s.status !== 'in_progress') {
+        actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
       } else if (state === 'current' && s.status === 'in_progress') {
         actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')">&#10003; Cerrar sesion</button>`;
       } else if (state === 'done') {
