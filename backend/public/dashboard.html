@@ -6842,7 +6842,11 @@ function invRenderList() {
     const revoked = !!b.revoked_at;
     const expired = b.expires_at && new Date(b.expires_at) < new Date();
     const status  = revoked ? 'Revocado' : expired ? 'Expirado' : 'Activo';
-    const statusColor = revoked ? '#999' : expired ? '#c93' : '#2a7';
+    const statusPill = revoked
+      ? 'background:rgba(150,150,150,.15);border:1px solid rgba(150,150,150,.35);color:#aaa;'
+      : expired
+        ? 'background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b;'
+        : 'background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.35);color:#00e676;';
     const claimUrl = `${window.location.origin}/evento/invitacion/${b.claim_code}`;
     const pending  = parseInt(b.pending_count || 0);
     const confirmed = parseInt(b.confirmed_count || 0);
@@ -6851,7 +6855,7 @@ function invRenderList() {
       ? `<div style="font-size:12px;color:var(--muted);">Expira: ${new Date(b.expires_at).toLocaleString('es-CO', { hour12: true })}</div>`
       : '';
     const pendingBtn = pending > 0
-      ? `<button class="btn-secondary" onclick="invApprovePending('${b.id}')" style="background:#f4ede1;border-color:#d9c9a6;color:#8a6a1c;">Aprobar ${pending} pendientes</button>`
+      ? `<button class="btn btn-sm" onclick="invApprovePending('${b.id}')" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b;">Aprobar ${pending} pendientes</button>`
       : '';
     const disabledBtn = (revoked || expired) ? 'opacity:.5;pointer-events:none;' : '';
     return `
@@ -6860,7 +6864,7 @@ function invRenderList() {
           <div style="flex:1;min-width:240px;">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <strong style="font-size:16px;">${invEscape(b.label)}</strong>
-              <span style="padding:2px 10px;border-radius:20px;background:${statusColor};color:#fff;font-size:11px;font-weight:600;">${status}</span>
+              <span style="padding:3px 10px;border-radius:20px;${statusPill}font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${status}</span>
               <span style="font-size:12px;color:var(--muted);">${invEscape(b.ticket_type)}</span>
               ${b.auto_approve ? '<span style="font-size:11px;color:#2a7;">auto-aprobar</span>' : '<span style="font-size:11px;color:#8a6a1c;">requiere aprobación</span>'}
             </div>
@@ -6877,13 +6881,13 @@ function invRenderList() {
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${b.mode === 'roster'
-              ? `<button class="btn-secondary" onclick="invOpenRoster('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Cargar roster</button>`
-              : `<button class="btn-secondary" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Copiar link</button>
-                 <button class="btn-secondary" onclick="invShareWhatsApp('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>WhatsApp</button>`}
-            <button class="btn-secondary" onclick="invOpenDetail('${b.id}')">Ver registros</button>
+              ? `<button class="btn btn-outline btn-sm" onclick="invOpenRoster('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Cargar roster</button>`
+              : `<button class="btn btn-outline btn-sm" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Copiar link</button>
+                 <button class="btn btn-outline btn-sm" onclick="invShareWhatsApp('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>WhatsApp</button>`}
+            <button class="btn btn-outline btn-sm" onclick="invOpenDetail('${b.id}')">Ver registros</button>
             ${pendingBtn}
-            <button class="btn-secondary" onclick="invEditBatch('${b.id}')">Editar</button>
-            ${revoked ? '' : `<button class="btn-secondary" onclick="invRevoke('${b.id}')" style="color:#c33;">Revocar</button>`}
+            <button class="btn btn-outline btn-sm" onclick="invEditBatch('${b.id}')">Editar</button>
+            ${revoked ? '' : `<button class="btn btn-danger btn-sm" onclick="invRevoke('${b.id}')">Revocar</button>`}
           </div>
         </div>
         <div style="background:var(--bg-alt);padding:8px 12px;border-radius:6px;font-size:12px;font-family:monospace;word-break:break-all;color:var(--muted);">${claimUrl}</div>
