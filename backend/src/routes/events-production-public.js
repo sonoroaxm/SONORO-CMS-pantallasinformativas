@@ -125,4 +125,46 @@ router.get('/:slug/orador/:session_id', publicLimiter, async (req, res) => {
   }
 });
 
+// ── MUTACIÓN STATUS DE SESIÓN (público con token kind='produccion') ──────────
+// El token UUID con kind='produccion' es identidad del productor general,
+// equivalente a JWT del CMS para operaciones del rundown.
+router.post('/:slug/produccion/sessions/:sessionId/status', publicLimiter, async (req, res) => {
+  const pool = global.pool;
+  const token = req.query.t;
+  const { status } = req.body || {};
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  const ALLOWED = ['scheduled','in_progress','done','cancelled'];
+  if (!ALLOWED.includes(status)) return res.status(400).json({ error: 'status invalido' });
+  try {
+    const { rows: evRows } = await pool.query(
+      `SELECT id FROM events.events WHERE slug = $1`, [req.params.slug]
+    );
+    if (!evRows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const eventId = evRows[0].id;
+
+    const { rows: tokRows } = await pool.query(
+      `SELECT id FROM events.production_tokens
+       WHERE token = $1 AND event_id = $2 AND kind = 'produccion' AND revoked_at IS NULL`,
+      [token, eventId]
+    );
+    if (!tokRows[0]) return res.status(403).json({ error: 'Token invalido o revocado' });
+
+    const { rows } = await pool.query(
+      `UPDATE events.event_sessions SET status = $1
+       WHERE id = $2 AND event_id = $3
+       RETURNING id, name, status, starts_at, ends_at`,
+      [status, req.params.sessionId, eventId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Sesion no encontrada' });
+
+    global.io?.to(`event_${eventId}`).emit('session.status_changed', {
+      session_id: rows[0].id, name: rows[0].name, status, event_id: eventId,
+    });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('POST /public/:slug/produccion/sessions/:id/status:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;

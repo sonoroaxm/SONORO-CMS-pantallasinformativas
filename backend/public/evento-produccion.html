@@ -728,7 +728,7 @@ function renderRundown() {
         ? Math.floor((nowMs - startMs) / 60000) : 0;
       const endDelayMin = (state === 'current' && nowMs > endMs)
         ? Math.floor((nowMs - endMs) / 60000) : 0;
-      const isReadOnly = IS_PUBLIC;
+      const isReadOnly = false;
 
       let actionBtn = '';
       if (isReadOnly) {
@@ -813,8 +813,13 @@ async function markSession(sessionId, newStatus) {
   renderRundown();
 
   try {
-    const res = await fetch(`/api/events/${eventId}/sessions/${sessionId}/status`, {
-      method: 'PATCH', headers: H, body: JSON.stringify({ status: newStatus })
+    const url = IS_PUBLIC
+      ? `/api/events/public/${encodeURIComponent(SLUG)}/produccion/sessions/${sessionId}/status?t=${encodeURIComponent(PUBLIC_TOKEN)}`
+      : `/api/events/${eventId}/sessions/${sessionId}/status`;
+    const res = await fetch(url, {
+      method: IS_PUBLIC ? 'POST' : 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(IS_PUBLIC ? {} : H) },
+      body: JSON.stringify({ status: newStatus })
     });
     if (!res.ok) {
       if (idx !== -1) sessions[idx].status = prev; // revert
