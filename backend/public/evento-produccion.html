@@ -561,7 +561,18 @@ function updateCountdown() {
   if (active) {
     const endMs = new Date(active.ends_at).getTime();
     const startMs = new Date(active.starts_at).getTime();
-    if (now < endMs) {
+    if (active.status !== 'in_progress' && now >= startMs && now < endMs) {
+      // Modo atraso de inicio: ya paso starts_at pero nadie pulso play
+      const lateBy = Math.floor((now - startMs) / 1000);
+      leftLblEl.textContent   = 'Atraso de inicio';
+      nextEl.textContent      = active.name;
+      centerLblEl.textContent = 'Sin iniciar hace';
+      timerEl.textContent     = '+' + fmtDur(lateBy);
+      setTimerCls('red');
+      rightLblEl.textContent  = 'Debió empezar a las';
+      startsEl.textContent    = fmtTime(active.starts_at);
+      subEl.style.display     = 'none';
+    } else if (now < endMs) {
       // Modo en curso: restan
       const remaining = Math.floor((endMs - now) / 1000);
       const elapsed   = Math.floor((now - startMs) / 1000);
