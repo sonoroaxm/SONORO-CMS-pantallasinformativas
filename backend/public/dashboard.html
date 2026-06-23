@@ -169,7 +169,21 @@
     .inv-form input[type="email"],
     .inv-form input[type="number"],
     .inv-form input[type="datetime-local"],
-    .inv-form textarea { padding: 9px 11px; font-size: 13px; }
+    .inv-form textarea {
+      width: 100%;
+      padding: 9px 11px; font-size: 13px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Montserrat', sans-serif;
+      transition: border-color 0.2s;
+    }
+    .inv-form input[type="text"]:focus,
+    .inv-form input[type="email"]:focus,
+    .inv-form input[type="number"]:focus,
+    .inv-form input[type="datetime-local"]:focus,
+    .inv-form textarea:focus { outline: none; border-color: var(--magenta); }
 
     .form-group input {
       width: 100%; padding: 12px 14px;
@@ -648,9 +662,17 @@
       padding: 20px 24px 0;
       display: flex; justify-content: space-between; align-items: center;
     }
-    .modal-header h2 {
+    .modal-header h2,
+    .modal-header h3 {
       border: none; margin: 0; padding: 0;
-      font-size: 16px;
+      font-size: 16px; font-weight: 700;
+      color: var(--text);
+    }
+    .modal-footer {
+      padding: 14px 24px 20px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 10px; justify-content: flex-end;
+      flex-wrap: wrap;
     }
     .modal-close {
       font-size: 22px; color: var(--text-muted);
@@ -6852,9 +6874,9 @@ function invRenderList() {
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${b.mode === 'roster'
-              ? `<button class="btn-secondary" onclick="invOpenRoster('${b.id}')" style="${disabledBtn}">Cargar roster</button>`
-              : `<button class="btn-secondary" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}">Copiar link</button>
-                 <button class="btn-secondary" onclick="invShareWhatsApp('${b.id}')" style="${disabledBtn}">WhatsApp</button>`}
+              ? `<button class="btn-secondary" onclick="invOpenRoster('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Cargar roster</button>`
+              : `<button class="btn-secondary" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>Copiar link</button>
+                 <button class="btn-secondary" onclick="invShareWhatsApp('${b.id}')" style="${disabledBtn}" ${disabledBtn ? 'title="Batch expirado o revocado"' : ''}>WhatsApp</button>`}
             <button class="btn-secondary" onclick="invOpenDetail('${b.id}')">Ver registros</button>
             ${pendingBtn}
             <button class="btn-secondary" onclick="invEditBatch('${b.id}')">Editar</button>
