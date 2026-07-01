@@ -1734,6 +1734,26 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
   res.json({ success: true });
 });
 
+// POST /api/devices/:device_id/tv-info — RPi reporta CEC vendor/OSD + EDID por HDMI
+app.post('/api/devices/:device_id/tv-info', async (req, res) => {
+  const { device_id } = req.params;
+  const { tv_info } = req.body || {};
+  if (!tv_info || typeof tv_info !== 'object') {
+    return res.status(400).json({ success: false, error: 'tv_info requerido (object)' });
+  }
+  try {
+    const r = await pool.query(
+      'UPDATE devices SET tv_info = $1, tv_info_updated_at = NOW() WHERE device_id = $2 RETURNING id',
+      [JSON.stringify(tv_info), device_id]
+    );
+    if (!r.rowCount) return res.status(404).json({ success: false, error: 'device no existe' });
+    res.json({ success: true });
+  } catch (e) {
+    console.warn('tv-info error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
 app.post('/api/devices/:device_id/logs-result', async (req, res) => {
   const { device_id } = req.params;
@@ -2527,6 +2547,30 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/admin/devices/:device_id/tunnel-status — comprueba si el túnel SSH
+// inverso del RPi está activo (VPS localhost:PORT tiene LISTEN).
+app.get('/api/admin/devices/:device_id/tunnel-status', authenticateToken, requireAdmin, async (req, res) => {
+  const { device_id } = req.params;
+  try {
+    const r = await pool.query('SELECT tunnel_port FROM devices WHERE device_id = $1', [device_id]);
+    const port = r.rows[0]?.tunnel_port || 2222;
+    const net = require('net');
+    const active = await new Promise((resolve) => {
+      const sock = new net.Socket();
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; try { sock.destroy(); } catch(_){} resolve(v); } };
+      sock.setTimeout(1500);
+      sock.once('connect', () => finish(true));
+      sock.once('timeout', () => finish(false));
+      sock.once('error',   () => finish(false));
+      sock.connect(port, '127.0.0.1');
+    });
+    res.json({ device_id, port, active });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
