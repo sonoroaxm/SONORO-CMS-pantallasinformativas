@@ -935,9 +935,10 @@ function parseCecReply(out, key) {
   return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : null;
 }
 async function queryCecOnDev(dev) {
-  // Requiere que el adapter esté configurado como Playback (tv-ctl.sh ya lo hace).
-  const vendor = await execP(`sudo cec-ctl -d ${dev} --to 0 --give-device-vendor-id 2>&1`, 4000);
-  const osd    = await execP(`sudo cec-ctl -d ${dev} --to 0 --give-osd-name 2>&1`, 4000);
+  // Claim logical address como Playback antes de query (sin -s persiste el modo)
+  await execP(`sudo cec-ctl -d ${dev} --playback 2>&1`, 4000);
+  const vendor = await execP(`sudo cec-ctl -d ${dev} --playback --to 0 --give-device-vendor-id 2>&1`, 5000);
+  const osd    = await execP(`sudo cec-ctl -d ${dev} --playback --to 0 --give-osd-name 2>&1`, 5000);
   return {
     vendor_id: parseCecReply(vendor.stdout, 'vendor-id'),
     osd_name:  parseCecReply(osd.stdout, 'name'),
