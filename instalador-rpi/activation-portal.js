@@ -16,7 +16,10 @@ const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
 // IS_DEMO=true: el RPi olvida perfiles WiFi al reboot (cómodo para demos moviéndose entre redes).
 // IS_DEMO=false (default, producción): persiste perfiles WiFi al SD lower para sobrevivir reboot.
 const IS_DEMO        = process.env.IS_DEMO === 'true';
-const HOTSPOT_IP = '192.168.4.1';
+// NM `nmcli dev wifi hotspot` asigna 10.42.0.1/24 por defecto (ipv4.method=shared).
+// Debe coincidir con la IP real de wlan0 en modo AP; de lo contrario el HTTP server
+// no bindea, el DNS spoof apunta a IP muerta y el iptables REDIRECT queda inútil.
+const HOTSPOT_IP = '10.42.0.1';
 const PORT       = 8080;
 const _devSuffix = DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
 const HOTSPOT_NAME = `SCMS-${_devSuffix}`;
@@ -67,15 +70,34 @@ async function startHotspot() {
   log(`Creando hotspot: ${HOTSPOT_NAME}`);
   try {
     try { await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {}
+    // Escribir DNS spoof ANTES del hotspot: NM lanza dnsmasq al levantar la conexión
+    // shared y lee dnsmasq-shared.d en ese momento. Si escribimos después, HUP no
+    // recarga el include-dir en dnsmasq 2.85+ y la detección captive del OS falla.
+    await preSeedCaptiveDNS();
     await run(`sudo nmcli dev wifi hotspot ifname wlan0 ssid "${HOTSPOT_NAME}" password "sonorocms"`);
     hotspotActive = true;
-    log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
+    // Log del IP real asignado a wlan0 para diagnóstico
+    try {
+      const realIP = (await run(`ip -4 -br addr show wlan0 | awk '{print $3}'`)).trim();
+      log(`Hotspot activo: ${HOTSPOT_NAME} — wlan0 IP real: ${realIP} (esperado ${HOTSPOT_IP}/24)`);
+    } catch(e) { log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`); }
     await setupCaptivePortal();
     return true;
   } catch(e) {
     log(`Error creando hotspot: ${e.message}`);
     return false;
   }
+}
+
+// Pre-siembra el archivo de DNS spoof antes de arrancar el hotspot para que NM lo
+// incluya al lanzar dnsmasq. Sin esto, escribir después + HUP no basta en varias
+// versiones de dnsmasq (ignoran cambios en include-dir salvo restart completo).
+async function preSeedCaptiveDNS() {
+  try {
+    await run('sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d');
+    await run(`echo "address=/#/${HOTSPOT_IP}" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf > /dev/null`);
+    log('DNS spoof pre-sembrado en dnsmasq-shared.d');
+  } catch(e) { log(`Advertencia — pre-seed DNS falló: ${e.message}`); }
 }
 
 async function stopHotspot() {
@@ -93,15 +115,17 @@ async function stopHotspot() {
 // Con esto, cualquier peticion HTTP que haga el dispositivo conectado al
 // hotspot llega a nuestro servidor sin que el usuario tenga que teclear nada.
 async function setupCaptivePortal() {
-  log('Configurando portal cautivo (DNS + iptables)...');
+  log('Configurando portal cautivo (iptables)...');
   try {
-    // DNS spoofing: dnsmasq resuelve TODOS los dominios al IP del hotspot
-    await run('sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d');
-    await run(`echo "address=/#/${HOTSPOT_IP}" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf > /dev/null`);
-    await run('sudo pkill -HUP dnsmasq 2>/dev/null || true');
-    // Redirigir puerto 80 → 8080: el browser del portal cautivo usa puerto 80
+    // El DNS spoof ya fue pre-sembrado en preSeedCaptiveDNS(). Aquí solo redirect.
     await run(`sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port ${PORT}`);
-    log('Portal cautivo listo — todos los dominios resuelven a ' + HOTSPOT_IP);
+    // Log de sanidad: confirmar que dnsmasq está corriendo y qué archivos incluyó
+    try {
+      const dnsmasqPid = await run('pgrep -f "dnsmasq.*NetworkManager" | head -1');
+      const cmdline = dnsmasqPid.trim() ? await run(`cat /proc/${dnsmasqPid.trim()}/cmdline | tr '\\0' ' '`) : '';
+      log(`dnsmasq PID=${dnsmasqPid.trim() || 'N/A'} — args: ${cmdline.slice(0, 300)}`);
+    } catch(e) { /* diag opcional */ }
+    log('Portal cautivo listo — DNS spoof + iptables activos, resuelve a ' + HOTSPOT_IP);
   } catch(e) {
     log(`Advertencia — portal cautivo parcial: ${e.message}`);
   }
