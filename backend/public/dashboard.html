@@ -4232,35 +4232,62 @@ async function takeScreenshot(deviceId, ip, deviceName) {
 </script>
 <!-- ══ MODAL ACTIVACIÓN ══ -->
 <div id="activationModal" class="modal">
-  <div class="modal-content" style="max-width:480px;">
+  <div class="modal-content" style="max-width:520px;">
     <div class="modal-header">
-      <h3 class="modal-title">Códigos de Activación</h3>
+      <h3 class="modal-title">Activar reproductor RPi</h3>
       <button class="modal-close" onclick="closeActivationModal()">✕</button>
     </div>
-    <div style="padding:20px 24px;">
-      <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6;">
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.7;">
-          Haz clic en <strong style="color:var(--text);">Generar código</strong>, luego sigue los pasos para activar tu reproductor.
-        </p>
-        <div style="font-size:13px;line-height:1.8;margin-bottom:20px;">
-          <div style="margin-bottom:10px;padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--magenta);">
-            <strong style="color:var(--text);">Si el reproductor está conectado por cable</strong><br>
-            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
-            2. Conecta el cable de red y enciéndelo — el televisor mostrará el nombre de una red WiFi temporal.<br>
-            3. Conecta tu celular a esa red WiFi. El nombre empieza por <strong style="color:var(--text);">SCMS-</strong> (ej: <em>SCMS-RO01AB</em>). Contraseña: <strong style="color:var(--text);">sonorocms</strong><br>
-            4. Abre <strong style="color:var(--text);">http://10.42.0.1:8080</strong> en el navegador de tu celular.<br>
-            5. Ingresa el código de activación que generaste aquí.</span>
-          </div>
-          <div style="padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--orange);">
-            <strong style="color:var(--text);">Si el reproductor no tiene cable</strong><br>
-            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
-            2. Enciéndelo — el televisor mostrará el nombre de una red WiFi temporal.<br>
-            3. Conecta tu celular a esa red WiFi. El nombre empieza por <strong style="color:var(--text);">SCMS-</strong> (ej: <em>SCMS-RO01AB</em>). Contraseña: <strong style="color:var(--text);">sonorocms</strong><br>
-            4. Abre <strong style="color:var(--text);">http://10.42.0.1:8080</strong> en el navegador de tu celular.<br>
-            5. Selecciona tu red WiFi, ingresa la contraseña y el código de activación.</span>
+    <div style="padding:22px 24px 24px;">
+      <p style="font-size:13px;color:var(--text-muted);line-height:1.65;margin-bottom:22px;">
+        Genera un <strong style="color:var(--text);">código de activación</strong> y sigue los 5 pasos desde tu celular. El código dura 7 días y se usa una sola vez.
+      </p>
+
+      <div style="margin-bottom:24px;">
+        <!-- STEP 1 -->
+        <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:0 0 28px;height:28px;border-radius:50%;background:var(--grad);color:#111;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">1</div>
+          <div style="flex:1;padding-top:2px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;">Conecta el reproductor al TV</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">Enchufa la corriente y el cable HDMI al televisor. Espera unos 30 segundos.</div>
           </div>
         </div>
-      </p>
+        <!-- STEP 2 -->
+        <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:0 0 28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">2</div>
+          <div style="flex:1;padding-top:2px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;">Busca la red WiFi que crea el reproductor</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">En tu celular, abre <strong style="color:var(--text);">Ajustes de WiFi</strong> y conéctate a la red que empieza por <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:11.5px;color:var(--text);border:1px solid var(--border);">SCMS-</code> (ej. <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:11.5px;color:var(--text);border:1px solid var(--border);">SCMS-RO01AB</code>).<br>Contraseña: <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:11.5px;color:var(--text);border:1px solid var(--border);">sonorocms</code></div>
+          </div>
+        </div>
+        <!-- STEP 3 -->
+        <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:0 0 28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">3</div>
+          <div style="flex:1;padding-top:2px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;">Abre el portal de configuración</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">En <strong style="color:var(--text);">iPhone</strong> el portal se abre automáticamente al conectarte. En <strong style="color:var(--text);">Android</strong> aparece una notificación "Iniciar sesión en la red WiFi"; si no aparece, abre el navegador y entra a <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:11.5px;color:var(--text);border:1px solid var(--border);">http://10.42.0.1:8080</code>.</div>
+          </div>
+        </div>
+        <!-- STEP 4 -->
+        <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:0 0 28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">4</div>
+          <div style="flex:1;padding-top:2px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;">Selecciona la red WiFi del sitio</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">En el portal, elige la red WiFi del cliente e ingresa su contraseña. Si el reproductor está por cable de red, salta este paso.</div>
+          </div>
+        </div>
+        <!-- STEP 5 -->
+        <div style="display:flex;gap:14px;padding:14px 0;">
+          <div style="flex:0 0 28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">5</div>
+          <div style="flex:1;padding-top:2px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4;">Ingresa el código de activación</div>
+            <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;">Pega el código que aparece abajo. El reproductor se registrará solo y aparecerá en <strong style="color:var(--text);">Pantallas</strong> en menos de un minuto.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--magenta);font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:20px;">
+        <strong style="color:var(--text);">Si el portal no se abre solo en Android:</strong> abre el navegador manualmente y entra a <code style="background:var(--surface);padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:11.5px;color:var(--text);border:1px solid var(--border);">http://10.42.0.1:8080</code>. Esto es normal en algunos modelos y no afecta la activación.
+      </div>
       <div style="margin-bottom:16px;">
         <label style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px;">Nombre del dispositivo (opcional)</label>
         <input type="text" id="new-device-name" placeholder="Ej: Recepción, Sala de espera..."
