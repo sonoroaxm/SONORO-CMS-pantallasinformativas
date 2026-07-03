@@ -304,7 +304,21 @@ pool.query('SELECT 1')
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens)'))
+  // S157: quota de almacenamiento por usuario. NULL = ilimitado (super admin).
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER DEFAULT 500
+  `))
+  .then(() => pool.query(`
+    UPDATE users SET storage_limit_mb = NULL WHERE email = 'admin@sonoro.com.co'
+  `).catch(() => {}))
+  // S157: tracking de tamaño en tablas de assets de CI (todavía no funcionales, pero preparadas)
+  .then(() => pool.query(`
+    ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE creative_pieces ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -689,6 +703,46 @@ app.post('/api/auth/reset-password', forgotPasswordLimiter, async (req, res) => 
 });
 
 // ========================================
+// STORAGE QUOTA — S157
+// ========================================
+
+// Suma bytes usados por el usuario en todas las tablas de assets.
+// NULL en storage_limit_mb = ilimitado (super admin).
+async function getUserStorage(userId) {
+  const q = await pool.query(`
+    SELECT
+      (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = $1) AS used_bytes,
+      (SELECT storage_limit_mb FROM users WHERE id = $1) AS limit_mb
+  `, [userId]);
+  const row = q.rows[0] || { used_bytes: 0, limit_mb: 500 };
+  const usedBytes = Number(row.used_bytes) || 0;
+  const limitMb = row.limit_mb; // puede ser null
+  const limitBytes = limitMb === null || limitMb === undefined ? null : limitMb * 1024 * 1024;
+  const percent = limitBytes === null ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+  return { used_bytes: usedBytes, limit_mb: limitMb, limit_bytes: limitBytes, percent, unlimited: limitBytes === null };
+}
+
+// Endpoint público para el dashboard
+app.get('/api/user/storage', authenticateToken, async (req, res) => {
+  try {
+    const info = await getUserStorage(req.user.id);
+    res.json({
+      used_mb: Math.round(info.used_bytes / 1024 / 1024 * 10) / 10,
+      used_bytes: info.used_bytes,
+      limit_mb: info.limit_mb,
+      percent: info.percent,
+      unlimited: info.unlimited
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/storage:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ========================================
 // UPLOAD CON CONVERSIÓN (PROTEGIDO)
 // ========================================
 
@@ -700,6 +754,27 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
     const file = req.files.file;
     const userId = req.user.id; // ✅ DEL JWT
+
+    // S157: gate de quota antes de aceptar el upload
+    try {
+      const storage = await getUserStorage(userId);
+      if (!storage.unlimited) {
+        const incomingBytes = file.size || 0;
+        if (storage.used_bytes + incomingBytes > storage.limit_bytes) {
+          const usedMb = Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10;
+          return res.status(413).json({
+            error: 'storage_limit_exceeded',
+            message: `Has alcanzado tu límite de ${storage.limit_mb} MB. Elimina contenido o contacta a SONORO para ampliar tu espacio.`,
+            used_mb: usedMb,
+            limit_mb: storage.limit_mb,
+            incoming_mb: Math.round(incomingBytes / 1024 / 1024 * 10) / 10
+          });
+        }
+      }
+    } catch (qErr) {
+      console.warn('⚠️ Storage quota check falló, permitiendo upload:', qErr.message);
+    }
+
     const allowedMimes = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png']);
 
     if (!allowedMimes.has(file.mimetype)) {
@@ -2320,11 +2395,17 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
       SELECT
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
-        u.created_at, u.features, u.notification_emails,
+        u.created_at, u.features, u.notification_emails, u.storage_limit_mb,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
         COUNT(DISTINCT p.id) as playlist_count,
-        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count
+        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count,
+        (
+          (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = u.id)
+        ) as storage_used_bytes
       FROM users u
       LEFT JOIN devices d ON d.user_id = u.id
       LEFT JOIN content c ON c.user_id = u.id
@@ -2335,15 +2416,44 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
     `);
 
     const now = new Date();
-    const users = result.rows.map(u => ({
-      ...u,
-      days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
-      is_expired: u.license_end ? new Date(u.license_end) < now : false,
-    }));
+    const users = result.rows.map(u => {
+      const usedBytes = Number(u.storage_used_bytes) || 0;
+      const limitMb = u.storage_limit_mb;
+      const unlimited = limitMb === null || limitMb === undefined;
+      const limitBytes = unlimited ? null : limitMb * 1024 * 1024;
+      const percent = unlimited ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+      return {
+        ...u,
+        days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
+        is_expired: u.license_end ? new Date(u.license_end) < now : false,
+        storage_used_mb: Math.round(usedBytes / 1024 / 1024 * 10) / 10,
+        storage_percent: percent,
+        storage_unlimited: unlimited
+      };
+    });
 
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// S157: PATCH storage limit por usuario (super admin)
+app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const { storage_limit_mb } = req.body; // number o null (ilimitado)
+    const val = (storage_limit_mb === null || storage_limit_mb === undefined || storage_limit_mb === '')
+      ? null
+      : parseInt(storage_limit_mb, 10);
+    if (val !== null && (Number.isNaN(val) || val < 0)) {
+      return res.status(400).json({ error: 'storage_limit_mb inválido' });
+    }
+    await pool.query('UPDATE users SET storage_limit_mb = $1 WHERE id = $2', [val, userId]);
+    res.json({ success: true, storage_limit_mb: val });
+  } catch (err) {
+    console.error('❌ Error PATCH storage-limit:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 

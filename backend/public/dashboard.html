@@ -1229,6 +1229,17 @@
           <button class="btn btn-primary btn-sm" onclick="loadContent()">↻ Actualizar</button>
         </div>
 
+        <div class="card" id="storageCard" style="display:none;">
+          <div class="card-title">Espacio usado</div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px;">
+            <span id="storageText">— MB de — MB</span>
+            <span id="storagePercent">0%</span>
+          </div>
+          <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;">
+            <div id="storageBar" style="height:100%;width:0%;background:var(--grad);transition:width .3s ease;"></div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title">Subir Archivo</div>
           <input type="file" id="fileInput" accept="video/*,image/*">
@@ -2614,6 +2625,28 @@
   </nav>
 </div>
 
+<!-- ══ MODAL LIMITE DE ALMACENAMIENTO ══ -->
+<div id="storageLimitModal" class="modal">
+  <div class="modal-content" style="max-width:460px;">
+    <div class="modal-header">
+      <h2>Espacio agotado</h2>
+      <button class="modal-close" onclick="closeStorageLimitModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p id="storageLimitMsg" style="font-size:13.5px;line-height:1.6;color:var(--text-muted);margin-bottom:20px;">
+        Has alcanzado tu límite de almacenamiento.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="https://wa.me/573144460990?text=Hola%20SONORO%2C%20necesito%20ampliar%20mi%20espacio%20de%20almacenamiento%20en%20el%20CMS."
+           target="_blank" rel="noopener" class="btn btn-grad" style="flex:1;text-align:center;text-decoration:none;">
+          Contactar por WhatsApp
+        </a>
+        <button class="btn btn-outline" onclick="closeStorageLimitModal()" style="flex:1;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL PLAYLIST ══ -->
 <div id="playlistModal" class="modal">
   <div class="modal-content">
@@ -3064,8 +3097,16 @@ async function uploadFile() {
       updateStatus('Archivo subido', 'success');
       fileInput.value = '';
       progressDiv.style.display = 'none';
+      loadStorage();
+    } else if (xhr.status === 413) {
+      progressDiv.style.display = 'none';
+      fileInput.value = '';
+      let payload = {};
+      try { payload = JSON.parse(xhr.responseText); } catch(_) {}
+      showStorageLimitModal(payload);
     } else {
       updateStatus('Error al subir', 'error');
+      progressDiv.style.display = 'none';
     }
   });
   xhr.addEventListener('error', () => { updateStatus('Error de conexión', 'error'); progressDiv.style.display = 'none'; });
@@ -3082,7 +3123,35 @@ async function loadContent() {
     const files = await response.json();
     displayFiles(files);
     updateContentSelector(files);
+    loadStorage();
   } catch (err) { console.error('Error:', err); }
+}
+
+async function loadStorage() {
+  try {
+    const r = await fetch(`${API_URL}/api/user/storage`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!r.ok) return;
+    const s = await r.json();
+    const card = document.getElementById('storageCard');
+    if (!card) return;
+    if (s.unlimited) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('storageText').textContent = `${s.used_mb} MB de ${s.limit_mb} MB`;
+    document.getElementById('storagePercent').textContent = `${s.percent}%`;
+    document.getElementById('storageBar').style.width = `${s.percent}%`;
+  } catch (e) { console.warn('loadStorage:', e); }
+}
+
+function showStorageLimitModal(payload) {
+  const limit = payload.limit_mb || 500;
+  const used = payload.used_mb !== undefined ? payload.used_mb : '—';
+  const msg = `Has alcanzado tu límite de ${limit} MB (${used} MB usados). Elimina contenido o contacta a SONORO para ampliar tu espacio.`;
+  document.getElementById('storageLimitMsg').textContent = msg;
+  document.getElementById('storageLimitModal').classList.add('active');
+  loadStorage();
+}
+function closeStorageLimitModal() {
+  document.getElementById('storageLimitModal').classList.remove('active');
 }
 
 function displayFiles(files) {

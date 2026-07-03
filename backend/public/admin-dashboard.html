@@ -2949,6 +2949,50 @@ const USER_COLORS = [
   { border: '#ec4899', bg: 'rgba(236,72,153,0.06)' },
 ];
 
+function renderStorageRow(u) {
+  const usedMb = u.storage_used_mb != null ? u.storage_used_mb : 0;
+  if (u.storage_unlimited) {
+    return `<div class="stat-row">
+      <span class="stat-row-label">Almacenamiento</span>
+      <span class="stat-row-val">${usedMb} MB · Ilimitado</span>
+    </div>`;
+  }
+  const limitMb = u.storage_limit_mb != null ? u.storage_limit_mb : 500;
+  const pct = u.storage_percent != null ? u.storage_percent : 0;
+  const color = pct >= 95 ? '#FF1B8D' : pct >= 80 ? '#FF8C00' : '#00e676';
+  return `<div class="stat-row" style="flex-direction:column;align-items:stretch;gap:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span class="stat-row-label">Almacenamiento</span>
+      <span class="stat-row-val" style="display:flex;align-items:center;gap:6px;">
+        ${usedMb} MB / <input type="number" min="0" step="100" value="${limitMb}"
+          id="storage-limit-${u.id}"
+          onclick="event.stopPropagation()"
+          style="width:80px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:inherit;text-align:right;">
+        MB
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();saveStorageLimit(${u.id})" style="padding:3px 8px;font-size:11px;">Guardar</button>
+      </span>
+    </div>
+    <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${color};transition:width .3s;"></div>
+    </div>
+  </div>`;
+}
+
+async function saveStorageLimit(userId) {
+  const input = document.getElementById(`storage-limit-${userId}`);
+  if (!input) return;
+  const raw = input.value.trim();
+  const val = raw === '' ? null : parseInt(raw, 10);
+  if (val !== null && (Number.isNaN(val) || val < 0)) { alert('Valor inválido'); return; }
+  try {
+    await api(`/api/admin/users/${userId}/storage-limit`, {
+      method: 'PATCH',
+      body: JSON.stringify({ storage_limit_mb: val })
+    });
+    loadUsers();
+  } catch(e) { alert('Error guardando límite: ' + e.message); }
+}
+
 async function loadUsers() {
   const el = document.getElementById('users-list');
   el.innerHTML = '<div class="loading">Cargando...</div>';
@@ -2990,6 +3034,7 @@ async function loadUsers() {
             <div class="stat-row"><span class="stat-row-label">Vencimiento</span><span class="stat-row-val ${isExpired ? 'err' : daysLeft <= 7 ? 'warn' : 'ok'}">${licEnd}${daysLeft !== null ? ` (${daysLeft > 0 ? daysLeft + ' días' : 'Vencida'})` : ''}</span></div>
             <div class="stat-row"><span class="stat-row-label">Reproductores</span><span class="stat-row-val">${u.device_count}</span></div>
             <div class="stat-row"><span class="stat-row-label">Contenido / Playlists</span><span class="stat-row-val">${u.content_count} archivos · ${u.playlist_count} listas</span></div>
+            ${renderStorageRow(u)}
             <div class="stat-row"><span class="stat-row-label">Registrado</span><span class="stat-row-val">${new Date(u.created_at).toLocaleDateString('es-CO')}</span></div>
           </div>
           ${!isAdmin ? `
