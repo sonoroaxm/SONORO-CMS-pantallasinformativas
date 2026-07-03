@@ -275,6 +275,69 @@
       color: var(--text);
     }
 
+    /* S158: user menu dropdown */
+    .user-menu { position: relative; }
+    .avatar-btn {
+      display:flex; align-items:center; gap:8px;
+      background:var(--surface2); border:1px solid var(--border); border-radius:999px;
+      padding:5px 14px 5px 5px; cursor:pointer; color:var(--text);
+      font-family:inherit; font-size:12px; font-weight:600;
+    }
+    .avatar-btn:hover { background:var(--surface); }
+    .avatar-mini {
+      width:26px; height:26px; border-radius:50%;
+      background:var(--grad); color:#111;
+      font-weight:900; font-size:10.5px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .avatar-caret { font-size:8px; color:var(--text-muted); margin-left:2px; }
+    .menu-drop {
+      display:none;
+      position:absolute; top:calc(100% + 6px); right:0;
+      min-width:190px; background:var(--surface);
+      border:1px solid var(--border); border-radius:10px;
+      overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.5);
+      z-index:1000;
+    }
+    .menu-drop.open { display:block; }
+    .menu-item {
+      padding:11px 16px; font-size:13px; cursor:pointer;
+      border-bottom:1px solid var(--border); color:var(--text);
+    }
+    .menu-item:last-child { border-bottom:none; }
+    .menu-item:hover { background:var(--surface2); }
+    .menu-item-danger { color:var(--text-muted); }
+
+    /* Mi Cuenta */
+    .mc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media(max-width:820px){ .mc-grid { grid-template-columns:1fr; } }
+    .mc-profile-head { display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+    .mc-profile-avatar {
+      width:60px; height:60px; border-radius:50%;
+      background:var(--grad); color:#111;
+      font-weight:900; font-size:22px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .mc-name { font-size:17px; font-weight:800; }
+    .mc-email { font-size:12.5px; color:var(--text-muted); margin-top:2px; }
+    .mc-kv {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 0; font-size:13px; border-bottom:1px solid var(--border);
+    }
+    .mc-kv:last-child { border-bottom:none; }
+    .mc-kv-label { color:var(--text-muted); font-size:12.5px; }
+    .mc-kv-val { font-weight:700; }
+    .mc-kv-val.ok { color:#00e676; }
+    .mc-kv-val.warn { color:var(--orange, #FF8C00); }
+    .mc-kv-val.err { color:#ff1744; }
+    .tier-badge {
+      display:inline-block; padding:4px 12px; border-radius:999px;
+      font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+      background:var(--grad); color:#111;
+    }
+    .tier-info { margin-top:8px; font-size:11.5px; color:var(--text-muted); line-height:1.6; }
+    .btn-wa { background:#25D366; color:#fff; }
+
     .logout-btn {
       padding: 7px 16px;
       background: transparent;
@@ -1155,8 +1218,17 @@
       <div class="topbar-version">CMS v2.4</div>
       <div class="topbar-right">
         <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
-        <div class="topbar-user">Sesión: <span id="userName"></span></div>
-        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+        <div class="user-menu" id="userMenu">
+          <button class="avatar-btn" onclick="toggleUserMenu(event)">
+            <span class="avatar-mini" id="avatarInitials">··</span>
+            <span id="userName"></span>
+            <span class="avatar-caret">▼</span>
+          </button>
+          <div class="menu-drop" id="userMenuDrop">
+            <div class="menu-item" onclick="openMiCuenta()">Mi cuenta</div>
+            <div class="menu-item menu-item-danger" onclick="logout()">Cerrar sesión</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2469,6 +2541,69 @@
 
       </div><!-- /events-tab -->
 
+      <!-- MI CUENTA TAB (S158) -->
+      <div id="miCuenta-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Mi Cuenta</div>
+          <button class="btn btn-outline btn-sm" onclick="loadMiCuenta()">↻ Actualizar</button>
+        </div>
+
+        <div class="mc-grid">
+          <div class="card">
+            <div class="mc-profile-head">
+              <div class="mc-profile-avatar" id="mcAvatar">··</div>
+              <div>
+                <div class="mc-name" id="mcName">—</div>
+                <div class="mc-email" id="mcEmail">—</div>
+              </div>
+            </div>
+            <div class="mc-kv"><span class="mc-kv-label">Rol</span><span class="mc-kv-val" id="mcRole">—</span></div>
+            <div class="mc-kv"><span class="mc-kv-label">Registrado</span><span class="mc-kv-val" id="mcCreated">—</span></div>
+            <div class="mc-kv"><span class="mc-kv-label">Producto</span><span class="mc-kv-val">Gestión de Contenido</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Mi plan</div>
+            <div style="margin-bottom:16px;">
+              <span class="tier-badge" id="mcTierBadge">—</span>
+              <div class="tier-info" id="mcTierInfo">—</div>
+            </div>
+            <div class="mc-kv"><span class="mc-kv-label">Vencimiento</span><span class="mc-kv-val" id="mcLicenseEnd">—</span></div>
+            <div class="mc-kv"><span class="mc-kv-label">Estado</span><span class="mc-kv-val" id="mcLicenseStatus">—</span></div>
+            <div style="margin-top:14px;">
+              <div class="mc-kv-label" style="margin-bottom:8px;">Almacenamiento</div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:6px;">
+                <span id="mcStorageText">—</span>
+                <span id="mcStoragePct">—</span>
+              </div>
+              <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;">
+                <div id="mcStorageBar" style="height:100%;width:0%;background:#00e676;transition:width .3s;"></div>
+              </div>
+            </div>
+            <div style="margin-top:16px;">
+              <a href="https://wa.me/573144460990?text=Hola%20SONORO%2C%20quiero%20renovar%20o%20ampliar%20mi%20plan." target="_blank" rel="noopener" class="btn btn-wa" style="text-decoration:none;display:inline-block;">Renovar o ampliar por WhatsApp</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-title">Cambiar contraseña</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;line-height:1.6;">Usa una contraseña de al menos 8 caracteres. Después de guardar, deberás iniciar sesión de nuevo.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div><label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Actual</label>
+              <input type="password" id="pwCurrent" placeholder="••••••••" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;"></div>
+            <div><label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Nueva</label>
+              <input type="password" id="pwNew" placeholder="Mín. 8 caracteres" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;"></div>
+            <div><label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Confirmar</label>
+              <input type="password" id="pwConfirm" placeholder="Repite la nueva" style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;"></div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="btn btn-grad" onclick="changePassword()">Guardar contraseña</button>
+            <button class="btn btn-outline" onclick="document.getElementById('pwCurrent').value=document.getElementById('pwNew').value=document.getElementById('pwConfirm').value='';">Cancelar</button>
+          </div>
+        </div>
+      </div><!-- /miCuenta-tab -->
+
       <!-- PROVEEDORES TAB -->
       <div id="ev-proveedores-tab" class="container hidden">
           <div class="section-header" style="margin-bottom:16px;">
@@ -3004,7 +3139,9 @@ function showDashboard() {
   checkQueueLicense();
   checkEventsLicense();
   checkAppointmentsFeature();
-  document.getElementById('userName').textContent = currentUser.email;
+  document.getElementById('userName').textContent = currentUser.name || currentUser.email;
+  const _ini = (currentUser.name || currentUser.email || '?').trim().split(/\s+/).map(s => s[0]).slice(0,2).join('').toUpperCase() || '?';
+  const _aEl = document.getElementById('avatarInitials'); if (_aEl) _aEl.textContent = _ini;
   const features = currentUser.features || {};
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
@@ -3140,6 +3277,101 @@ async function loadStorage() {
     document.getElementById('storagePercent').textContent = `${s.percent}%`;
     document.getElementById('storageBar').style.width = `${s.percent}%`;
   } catch (e) { console.warn('loadStorage:', e); }
+}
+
+// ── S158: user menu + Mi Cuenta ──
+function toggleUserMenu(ev) {
+  ev.stopPropagation();
+  document.getElementById('userMenuDrop').classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('userMenu');
+  if (menu && !menu.contains(e.target)) {
+    const drop = document.getElementById('userMenuDrop');
+    if (drop) drop.classList.remove('open');
+  }
+});
+
+function openMiCuenta() {
+  document.getElementById('userMenuDrop').classList.remove('open');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+  document.getElementById('miCuenta-tab').classList.remove('hidden');
+  loadMiCuenta();
+}
+
+const TIER_INFO = {
+  cms_sencilla: { label: 'CMS Sencilla', desc: 'Una salida HDMI activa. Ideal para una pantalla por reproductor.' },
+  cms_doble:    { label: 'CMS Doble',    desc: 'Dos salidas HDMI en modo mirror: ambas pantallas muestran el mismo contenido.' },
+  cms_pro:      { label: 'CMS Pro',      desc: 'Dos salidas HDMI independientes: cada pantalla con su propio contenido, orientación y aspecto.' },
+  cms:          { label: 'CMS Sencilla', desc: 'Una salida HDMI activa.' },
+  cms_queue:    { label: 'CMS + Atención', desc: 'Gestión de contenido + módulo de atención (turnos y citas).' },
+  queue:        { label: 'Atención',    desc: 'Sólo módulo de atención.' },
+  rpi:          { label: 'RPi',         desc: 'Licencia de reproductor Raspberry Pi.' },
+  windows:      { label: 'Windows',     desc: 'Licencia de reproductor Windows.' }
+};
+
+async function loadMiCuenta() {
+  try {
+    const r = await fetch(`${API_URL}/api/user/me`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!r.ok) { if (r.status === 401) logout(); return; }
+    const u = await r.json();
+    const initials = (u.name || u.email || '?').trim().split(/\s+/).map(s => s[0]).slice(0,2).join('').toUpperCase() || '?';
+    document.getElementById('avatarInitials').textContent = initials;
+    document.getElementById('mcAvatar').textContent = initials;
+    document.getElementById('mcName').textContent = u.name || u.email;
+    document.getElementById('mcEmail').textContent = u.email;
+    document.getElementById('mcRole').textContent = u.role === 'admin' ? 'Super Admin' : (u.role === 'client' ? 'Titular' : u.role);
+    document.getElementById('mcCreated').textContent = u.created_at ? new Date(u.created_at).toLocaleDateString('es-CO', { year:'numeric', month:'long', day:'numeric' }) : '—';
+
+    const tier = TIER_INFO[u.license_type] || { label: u.license_type || '—', desc: '' };
+    document.getElementById('mcTierBadge').textContent = tier.label;
+    document.getElementById('mcTierInfo').textContent = tier.desc;
+
+    const end = u.license_end ? new Date(u.license_end) : null;
+    const endTxt = end ? end.toLocaleDateString('es-CO', { year:'numeric', month:'short', day:'numeric' }) : '—';
+    const endEl = document.getElementById('mcLicenseEnd');
+    endEl.textContent = u.days_left !== null && u.days_left !== undefined ? `${endTxt} (${u.days_left > 0 ? u.days_left + ' días' : 'Vencida'})` : endTxt;
+    endEl.className = 'mc-kv-val ' + (u.is_expired ? 'err' : (u.days_left != null && u.days_left <= 30 ? 'warn' : 'ok'));
+
+    const stEl = document.getElementById('mcLicenseStatus');
+    const statusLabel = { active:'Activa', expired:'Vencida', suspended:'Suspendida' }[u.license_status] || u.license_status;
+    stEl.textContent = statusLabel;
+    stEl.className = 'mc-kv-val ' + (u.license_status === 'active' ? 'ok' : 'err');
+
+    if (u.storage.unlimited) {
+      document.getElementById('mcStorageText').textContent = `${u.storage.used_mb} MB usados`;
+      document.getElementById('mcStoragePct').textContent = 'Ilimitado';
+      document.getElementById('mcStorageBar').style.width = '0%';
+    } else {
+      const pct = u.storage.percent || 0;
+      document.getElementById('mcStorageText').textContent = `${u.storage.used_mb} MB de ${u.storage.limit_mb} MB`;
+      document.getElementById('mcStoragePct').textContent = `${pct}%`;
+      const bar = document.getElementById('mcStorageBar');
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 95 ? '#FF1B8D' : pct >= 80 ? '#FF8C00' : '#00e676';
+    }
+  } catch(e) { console.error('loadMiCuenta:', e); }
+}
+
+async function changePassword() {
+  const current = document.getElementById('pwCurrent').value;
+  const nw = document.getElementById('pwNew').value;
+  const cf = document.getElementById('pwConfirm').value;
+  if (!current || !nw || !cf) { updateStatus('Completa todos los campos', 'error'); return; }
+  if (nw.length < 8) { updateStatus('La nueva contraseña debe tener al menos 8 caracteres', 'error'); return; }
+  if (nw !== cf) { updateStatus('Las contraseñas no coinciden', 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/user/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ current_password: current, new_password: nw })
+    });
+    const data = await r.json();
+    if (!r.ok) { updateStatus(data.error || 'Error cambiando contraseña', 'error'); return; }
+    updateStatus('Contraseña actualizada. Cerrando sesión...', 'success');
+    setTimeout(() => logout(), 1500);
+  } catch(e) { updateStatus('Error de conexión', 'error'); }
 }
 
 function showStorageLimitModal(payload) {

@@ -3006,8 +3006,8 @@ async function loadUsers() {
       const licStatus = isExpired ? 'expired' : (u.license_status || 'active');
       const licLabel  = licStatus === 'expired' ? 'Vencida' : licStatus === 'suspended' ? 'Suspendida' : 'Activa';
       const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
-      const typeLabels = { cms:'CMS', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
-      const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS';
+      const typeLabels = { cms:'CMS Sencilla', cms_sencilla:'CMS Sencilla', cms_doble:'CMS Doble', cms_pro:'CMS Pro', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
+      const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS Sencilla';
       const isAdmin  = u.role === 'admin';
       const isClient = u.role === 'client';
       const _safeName = (u.name || u.email).replace(/'/g, '');
@@ -3040,16 +3040,18 @@ async function loadUsers() {
           ${!isAdmin ? `
           <div class="user-actions">
             <select class="renew-select" id="renew-months-${u.id}">
-              <option value="3">3 meses</option>
-              <option value="6">6 meses</option>
-              <option value="12" selected>12 meses</option>
+              <option value="12" selected>1 año</option>
+              <option value="24">2 años</option>
+              <option value="36">3 años</option>
             </select>
             <select class="renew-select" id="renew-type-${u.id}">
-              <option value="cms"       ${u.license_type === 'cms'       ? 'selected' : ''}>CMS</option>
-              <option value="cms_queue" ${u.license_type === 'cms_queue' ? 'selected' : ''}>CMS + Atención</option>
-              <option value="queue"     ${u.license_type === 'queue'     ? 'selected' : ''}>Solo Atención</option>
-              <option value="rpi"       ${u.license_type === 'rpi'       ? 'selected' : ''}>RPi</option>
-              <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
+              <option value="cms_sencilla" ${u.license_type === 'cms_sencilla' ? 'selected' : ''}>CMS Sencilla (1 HDMI)</option>
+              <option value="cms_doble"    ${u.license_type === 'cms_doble'    ? 'selected' : ''}>CMS Doble (Mirror)</option>
+              <option value="cms_pro"      ${u.license_type === 'cms_pro'      ? 'selected' : ''}>CMS Pro (Independiente)</option>
+              <option value="cms_queue"    ${u.license_type === 'cms_queue'    ? 'selected' : ''}>CMS + Atención</option>
+              <option value="queue"        ${u.license_type === 'queue'        ? 'selected' : ''}>Solo Atención</option>
+              <option value="rpi"          ${u.license_type === 'rpi'          ? 'selected' : ''}>RPi</option>
+              <option value="windows"      ${u.license_type === 'windows'      ? 'selected' : ''}>Windows</option>
             </select>
             <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id})">Renovar</button>
             <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${escOnclick(u.name || u.email)}')">Ver Dispositivos</button>

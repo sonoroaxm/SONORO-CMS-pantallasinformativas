@@ -318,7 +318,11 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     ALTER TABLE creative_pieces ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
   `).catch(() => {}))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI)'))
+  // S158: normalizar tier 'cms' viejo → 'cms_sencilla' (una sola vez, aditivo)
+  .then(() => pool.query(`
+    UPDATE users SET license_type = 'cms_sencilla' WHERE license_type = 'cms'
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -738,6 +742,70 @@ app.get('/api/user/storage', authenticateToken, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error /api/user/storage:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: GET /api/user/me — perfil del usuario logeado (Mi Cuenta)
+app.get('/api/user/me', authenticateToken, async (req, res) => {
+  try {
+    const q = await pool.query(`
+      SELECT id, email, name, role, license_type, license_status, license_start, license_end, created_at, features
+      FROM users WHERE id = $1
+    `, [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const u = q.rows[0];
+    const storage = await getUserStorage(u.id);
+    const now = new Date();
+    const end = u.license_end ? new Date(u.license_end) : null;
+    const daysLeft = end ? Math.ceil((end - now) / (1000*60*60*24)) : null;
+    const isExpired = end ? end < now : false;
+    res.json({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      license_type: u.license_type,
+      license_status: isExpired ? 'expired' : (u.license_status || 'active'),
+      license_start: u.license_start,
+      license_end: u.license_end,
+      days_left: daysLeft,
+      is_expired: isExpired,
+      created_at: u.created_at,
+      features: u.features || {},
+      storage: {
+        used_mb: Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10,
+        limit_mb: storage.limit_mb,
+        percent: storage.percent,
+        unlimited: storage.unlimited
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/me:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: POST /api/user/change-password — cambio de contraseña propia
+app.post('/api/user/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Faltan campos' });
+    }
+    if (String(new_password).length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+    const q = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const ok = await bcrypt.compare(current_password, q.rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    const newHash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+    console.log(`🔐 Password cambiado por usuario ${req.user.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error /api/user/change-password:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
@@ -2780,7 +2848,10 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
     // El admin puede sobreescribir después con los checkboxes.
     // Se hace MERGE (||) para no borrar features que ya tenía.
     const LICENSE_FEATURES = {
-      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
       cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
       queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
       rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
