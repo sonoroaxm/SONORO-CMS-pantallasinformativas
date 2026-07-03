@@ -3053,7 +3053,7 @@ async function loadUsers() {
               <option value="rpi"          ${u.license_type === 'rpi'          ? 'selected' : ''}>RPi</option>
               <option value="windows"      ${u.license_type === 'windows'      ? 'selected' : ''}>Windows</option>
             </select>
-            <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id})">Renovar</button>
+            <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id}, ${u.license_start ? 'false' : 'true'})">${u.license_start ? 'Renovar' : 'Activar plan y notificar'}</button>
             <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${escOnclick(u.name || u.email)}')">Ver Dispositivos</button>
             ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();renewLicense(${u.id})">Reactivar</button>`}
             <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${escOnclick(u.name || u.email)}')" style="margin-left:auto;">Eliminar</button>
@@ -3203,16 +3203,22 @@ async function toggleFeature(userId, feature, enabled) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
-async function renewLicense(userId) {
+async function renewLicense(userId, isFirstActivation) {
   const months  = document.getElementById(`renew-months-${userId}`)?.value || 12;
   const licType = document.getElementById(`renew-type-${userId}`)?.value || 'rpi';
-  if (!confirm(`¿Renovar licencia por ${months} meses?`)) return;
+  const years   = Math.round(parseInt(months) / 12);
+  const yLabel  = years === 1 ? '1 año' : `${years} años`;
+  const msg = isFirstActivation
+    ? `¿Activar plan (${licType}) por ${yLabel} y enviar email de bienvenida al cliente?`
+    : `¿Renovar licencia por ${yLabel}?`;
+  if (!confirm(msg)) return;
   try {
     const data = await api(`/api/admin/users/${userId}/license/renew`, {
       method: 'POST',
       body: JSON.stringify({ months: parseInt(months), license_type: licType })
     });
-    toast(data?.success ? `✓ Licencia renovada por ${months} meses` : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+    const okMsg = isFirstActivation ? `✓ Plan activado. Email de bienvenida enviado.` : `✓ Licencia renovada por ${yLabel}`;
+    toast(data?.success ? okMsg : (data?.error || 'Error'), data?.success ? 'success' : 'error');
     loadUsers();
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
