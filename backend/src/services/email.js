@@ -82,67 +82,125 @@ function baseTemplate(content) {
 </html>`;
 }
 
-// ── EMAIL DE BIENVENIDA ───────────────────────────────────────
-async function sendWelcomeEmail(user) {
+// ── EMAIL DE BIENVENIDA (S158) ────────────────────────────────
+// Se envía UNA VEZ, la primera vez que el admin asigna una licencia al usuario.
+// Incluye el tier asignado, la tabla comparativa de tiers, primeros pasos,
+// resumen de activación del reproductor (portal cautivo S156) y contacto WhatsApp.
+const TIER_LABELS = {
+  cms_sencilla: 'CMS Sencilla',
+  cms_doble:    'CMS Doble',
+  cms_pro:      'CMS Pro',
+  cms:          'CMS Sencilla',
+  cms_queue:    'CMS + Atención',
+  queue:        'Atención',
+  rpi:          'RPi',
+  windows:      'Windows'
+};
+
+async function sendWelcomeEmail(user, tier) {
+  const tierKey   = tier || user.license_type || 'cms_sencilla';
+  const tierLabel = TIER_LABELS[tierKey] || tierKey;
+
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
       Bienvenido a SONORO CMS
     </h1>
-    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${user.name || user.email}</strong>, tu cuenta ha sido creada exitosamente.
-      Ya puedes comenzar a gestionar tus reproductores y contenido digital.
+    <p style="margin:0 0 22px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${user.name || user.email}</strong>, tu cuenta está lista.
+      Con SONORO CMS controlas el contenido de tus pantallas informativas desde un solo lugar.
     </p>
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:28px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:26px;">
       <tr>
-        <td style="padding:20px 24px;">
-          <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tu cuenta</p>
-          <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${user.email}</p>
+        <td style="padding:18px 22px;">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tu cuenta</p>
+          <p style="margin:0 0 12px;font-size:14px;color:#0f0f0f;font-weight:600;">${user.email}</p>
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tu plan</p>
+          <p style="margin:0;font-size:14px;color:#0f0f0f;font-weight:600;">
+            <span style="display:inline-block;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566);color:#111;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;vertical-align:middle;margin-right:6px;">${tierLabel}</span>
+            500 MB de almacenamiento
+          </p>
         </td>
       </tr>
     </table>
 
-    <h3 style="margin:0 0 16px;font-size:14px;font-weight:700;color:#0f0f0f;">¿Por dónde empezar?</h3>
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
-          <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">1</span>
-          <span style="font-size:14px;color:#333;vertical-align:middle;">Sube tu contenido — videos e imágenes</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
-          <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">2</span>
-          <span style="font-size:14px;color:#333;vertical-align:middle;">Crea una lista de reproducción</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;">
-          <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">3</span>
-          <span style="font-size:14px;color:#333;vertical-align:middle;">Activa tu reproductor y asigna la lista</span>
-        </td>
-      </tr>
+    <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#0f0f0f;">Qué incluye tu producto</h3>
+    <p style="margin:0 0 16px;font-size:13px;color:#666;line-height:1.6;">
+      El CMS gestiona pantallas informativas con reproductores SONORO. Hay tres niveles según cuántas pantallas conectes por reproductor:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+      <tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:8px 8px 0 0;border-bottom:1px solid #eee;">
+        <strong style="font-size:13px;color:#0f0f0f;">CMS Sencilla</strong>
+        <div style="font-size:12px;color:#666;margin-top:2px;">Una salida HDMI activa. Ideal para una pantalla por reproductor.</div>
+      </td></tr>
+      <tr><td style="padding:10px 14px;background:#f9f9f9;border-bottom:1px solid #eee;">
+        <strong style="font-size:13px;color:#0f0f0f;">CMS Doble</strong>
+        <div style="font-size:12px;color:#666;margin-top:2px;">Dos salidas HDMI en modo espejo. Ambas pantallas muestran lo mismo.</div>
+      </td></tr>
+      <tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:0 0 8px 8px;">
+        <strong style="font-size:13px;color:#0f0f0f;">CMS Pro</strong>
+        <div style="font-size:12px;color:#666;margin-top:2px;">Dos salidas HDMI independientes. Contenido, orientación y aspecto distintos por pantalla.</div>
+      </td></tr>
     </table>
 
-    <table width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td align="center">
-          <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
-            Ir al CMS
-          </a>
-        </td>
-      </tr>
+    <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#0f0f0f;">Por dónde empezar</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">1</span>
+        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Sube tu contenido: videos e imágenes (hasta 500 MB).</span>
+      </td></tr>
+      <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">2</span>
+        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Arma una lista de reproducción con tus archivos.</span>
+      </td></tr>
+      <tr><td style="padding:10px 0;">
+        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">3</span>
+        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Activa el reproductor (guía abajo) y asigna la lista.</span>
+      </td></tr>
+    </table>
+
+    <h3 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#0f0f0f;">Activar el reproductor SONORO</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:#666;line-height:1.6;">
+      Cuando enchufas el reproductor por primera vez, crea una red WiFi propia llamada
+      <code style="background:#f4f4f4;padding:1px 6px;border-radius:4px;font-size:12px;">SCMS-XXXXXX</code>.
+      Desde tu celular:
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:26px;">
+      <tr><td style="padding:14px 18px;font-size:12.5px;color:#333;line-height:1.7;">
+        <strong style="color:#0f0f0f;">1.</strong> Enchufa el reproductor al TV por HDMI y espera 30 segundos.<br>
+        <strong style="color:#0f0f0f;">2.</strong> Conecta tu celular a la red <code style="background:#fff;padding:0 4px;border-radius:3px;">SCMS-XXXXXX</code>. Contraseña: <code style="background:#fff;padding:0 4px;border-radius:3px;">sonorocms</code>.<br>
+        <strong style="color:#0f0f0f;">3.</strong> En iPhone el portal se abre solo. En Android, si no aparece la notificación, abre el navegador en <code style="background:#fff;padding:0 4px;border-radius:3px;">http://10.42.0.1:8080</code>.<br>
+        <strong style="color:#0f0f0f;">4.</strong> Selecciona la red WiFi del sitio e ingresa su contraseña.<br>
+        <strong style="color:#0f0f0f;">5.</strong> Pega el código de activación que generas desde el CMS y listo.
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+      <tr><td align="center">
+        <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Ir al CMS
+        </a>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f9f4;border-radius:8px;border-left:3px solid #25D366;">
+      <tr><td style="padding:14px 18px;font-size:12.5px;color:#333;line-height:1.6;">
+        <strong style="color:#0f0f0f;">¿Necesitas más espacio o ampliar tu plan?</strong><br>
+        Escríbenos por WhatsApp al
+        <a href="https://wa.me/573144460990" style="color:#0f0f0f;text-decoration:none;font-weight:700;">+57 314 446 0990</a>
+        y te atendemos.
+      </td></tr>
     </table>
   `);
 
   await transporter.sendMail({
     from:    FROM,
     to:      user.email,
-    subject: 'Bienvenido a SONORO CMS',
+    subject: 'Bienvenido a SONORO CMS — tu plan está listo',
     html
   });
 
-  console.log(`✅ Email de bienvenida enviado a ${user.email}`);
+  console.log(`✅ Email de bienvenida enviado a ${user.email} (${tierKey})`);
 }
 
 // ── EMAIL DE REPRODUCTOR ACTIVADO ────────────────────────────

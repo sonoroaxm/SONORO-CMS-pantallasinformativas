@@ -594,7 +594,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     );
 
     console.log(`✅ Usuario registrado: ${email}`);
-    emailService.sendWelcomeEmail(user).catch(e => console.warn('Email bienvenida:', e.message));
+    // S158: el email de bienvenida ya NO se envía en el register.
+    // Se dispara cuando el admin asigna la primera licencia (endpoint /license/renew).
 
     res.json({
       success: true,
@@ -2823,6 +2824,13 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       RETURNING *
     `, [newEnd, license_type || null, userId]);
 
+    // S158: detectar si es la PRIMERA licencia del usuario (antes del INSERT)
+    const histCount = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM license_history WHERE user_id = $1 AND action = 'renew'`,
+      [userId]
+    );
+    const isFirstLicense = histCount.rows[0].n === 0;
+
     // Registrar en historial
     await pool.query(`
       INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
@@ -2836,13 +2844,20 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       io.emit(`license-updated-${d.device_id}`, { status: 'active', license_end: newEnd });
     });
 
-    // Enviar email de confirmación
+    // Enviar email de confirmación (renovación) o de bienvenida (primera licencia)
     try {
-      await emailService.sendLicenseRenewedEmail(
-        { email: user.email, name: user.name },
-        { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
-      );
-    } catch(e) { console.warn('⚠️ Error enviando email de renovación:', e.message); }
+      if (isFirstLicense) {
+        await emailService.sendWelcomeEmail(
+          { email: user.email, name: user.name, license_type: updateResult.rows[0].license_type },
+          updateResult.rows[0].license_type
+        );
+      } else {
+        await emailService.sendLicenseRenewedEmail(
+          { email: user.email, name: user.name },
+          { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
+        );
+      }
+    } catch(e) { console.warn('⚠️ Error enviando email de licencia:', e.message); }
 
     // ── Auto-asignar features según tipo de licencia ──────────
     // El admin puede sobreescribir después con los checkboxes.
