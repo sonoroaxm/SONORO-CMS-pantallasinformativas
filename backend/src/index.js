@@ -322,6 +322,10 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     UPDATE users SET license_type = 'cms_sencilla' WHERE license_type = 'cms'
   `).catch(() => {}))
+  // S158e: phone en users (para contacto post-alta)
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)
+  `).catch(() => {}))
   .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
@@ -2191,6 +2195,13 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     const code = `SNR-${part1}-${part2}`;
 
+    // S158f: detectar si es el primer código del usuario (para email de guía)
+    const priorCount = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM activation_codes WHERE user_id = $1',
+      [userId]
+    );
+    const isFirstCode = priorCount.rows[0].n === 0;
+
     const result = await pool.query(
       `INSERT INTO activation_codes (code, user_id, device_name)
        VALUES ($1, $2, $3)
@@ -2199,6 +2210,14 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     );
 
     console.log(`✅ Código de activación generado: ${code} para usuario ${userId}`);
+
+    // S158f: en el primer código, enviar guía de activación por email (fire-and-forget)
+    if (isFirstCode) {
+      pool.query('SELECT email, name FROM users WHERE id = $1', [userId])
+        .then(r => r.rows[0] && emailService.sendActivationGuideEmail(r.rows[0]))
+        .catch(e => console.warn('⚠️ Guía de activación email:', e.message));
+    }
+
     res.json({ success: true, ...result.rows[0] });
   } catch (err) {
     console.error('❌ Error generando código:', err);
@@ -2793,6 +2812,72 @@ app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
 });
 
 // ── ADMIN: Renovar licencia ──────────────────────────────────
+// ── S158e: ADMIN crea cliente (con licencia + contraseña temporal + email) ──
+app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, license_type, months } = req.body;
+    if (!name || !email || !license_type || !months) {
+      return res.status(400).json({ error: 'name, email, license_type y months son requeridos' });
+    }
+    const emailNorm = String(email).trim().toLowerCase();
+
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [emailNorm]);
+    if (exists.rows.length) return res.status(409).json({ error: 'email_ya_existe' });
+
+    // Password temporal 12 chars (alfanum sin ambiguos)
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let tempPassword = '';
+    for (let i = 0; i < 12; i++) tempPassword += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + parseInt(months));
+
+    const LICENSE_FEATURES = {
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue:    { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:        { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      windows:      { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+    };
+    const feats = LICENSE_FEATURES[license_type] || {};
+
+    const ins = await pool.query(`
+      INSERT INTO users (name, email, password, role, phone, license_type, license_status, license_start, license_end, features, storage_limit_mb)
+      VALUES ($1, $2, $3, 'client', $4, $5, 'active', $6, $7, $8::jsonb, 500)
+      RETURNING id, name, email, license_type, license_end
+    `, [name, emailNorm, hash, phone || null, license_type, now, endDate, JSON.stringify(feats)]);
+
+    const newUser = ins.rows[0];
+
+    // Historial
+    try {
+      await pool.query(`
+        INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
+        VALUES ($1, 'renew', $2, $3, NULL, $4, 'Alta inicial (admin)', $5)
+      `, [newUser.id, months, license_type, endDate, req.user.id]);
+    } catch(e) { console.warn('⚠️ license_history insert:', e.message); }
+
+    // Email de bienvenida con credenciales
+    try {
+      await emailService.sendWelcomeEmail(
+        { email: emailNorm, name, license_type },
+        license_type,
+        { credentials: { email: emailNorm, tempPassword } }
+      );
+    } catch(e) { console.warn('⚠️ Email bienvenida:', e.message); }
+
+    console.log(`✅ Cliente creado por admin: ${emailNorm} (${license_type}, ${months}m)`);
+    res.json({ success: true, user: newUser });
+  } catch (err) {
+    console.error('❌ Error creando cliente:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;

@@ -1230,9 +1230,59 @@
           <div class="section-title">Usuarios y Licencias</div>
           <div class="section-sub">Gestión de clientes y estado de licencias</div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Actualizar</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">+ Crear cliente</button>
+          <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Actualizar</button>
+        </div>
       </div>
       <div id="users-list"><div class="loading">Cargando usuarios...</div></div>
+    </div>
+
+    <!-- Modal Crear Cliente (S158e) -->
+    <div id="createUserModal" class="modal" style="display:none;">
+      <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header">
+          <h3>Crear cliente</h3>
+          <button class="modal-close" onclick="closeCreateUserModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <label style="font-size:12px;color:#666;">Nombre completo
+              <input id="cuName" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Email
+              <input id="cuEmail" type="email" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Teléfono (opcional)
+              <input id="cuPhone" type="tel" placeholder="+57 300 000 0000" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Plan
+              <select id="cuTier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+                <option value="cms_sencilla">CMS Sencilla</option>
+                <option value="cms_doble">CMS Doble</option>
+                <option value="cms_pro">CMS Pro</option>
+                <option value="cms_queue">CMS + Atención</option>
+                <option value="queue">Atención</option>
+                <option value="windows">Windows</option>
+              </select>
+            </label>
+            <label style="font-size:12px;color:#666;">Duración
+              <select id="cuMonths" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+                <option value="12" selected>1 año</option>
+                <option value="24">2 años</option>
+                <option value="36">3 años</option>
+              </select>
+            </label>
+            <div style="font-size:12px;color:#888;background:#f9f9f9;padding:10px;border-radius:6px;">
+              Se generará una contraseña temporal y se enviará al correo del cliente junto con la guía de activación.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeCreateUserModal()">Cancelar</button>
+          <button class="btn btn-primary" id="cuSubmit" onclick="submitCreateUser()">Crear y enviar correo</button>
+        </div>
+      </div>
     </div>
 
     <!-- ═══════════════ TODOS LOS DISPOSITIVOS ═══════════════ -->
@@ -3201,6 +3251,39 @@ async function toggleFeature(userId, feature, enabled) {
       toast('Error: ' + (data.error || 'Sin respuesta'), 'error');
     }
   } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function openCreateUserModal() {
+  ['cuName','cuEmail','cuPhone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('cuTier').value = 'cms_sencilla';
+  document.getElementById('cuMonths').value = '12';
+  document.getElementById('createUserModal').style.display = 'flex';
+}
+function closeCreateUserModal() {
+  document.getElementById('createUserModal').style.display = 'none';
+}
+async function submitCreateUser() {
+  const name  = document.getElementById('cuName').value.trim();
+  const email = document.getElementById('cuEmail').value.trim();
+  const phone = document.getElementById('cuPhone').value.trim();
+  const license_type = document.getElementById('cuTier').value;
+  const months = parseInt(document.getElementById('cuMonths').value);
+  if (!name || !email) { alert('Nombre y email son requeridos'); return; }
+  const btn = document.getElementById('cuSubmit');
+  btn.disabled = true; btn.textContent = 'Creando...';
+  try {
+    await api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, phone, license_type, months })
+    });
+    closeCreateUserModal();
+    alert('Cliente creado. Se envió email con credenciales.');
+    loadUsers();
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Crear y enviar correo';
+  }
 }
 
 async function renewLicense(userId, isFirstActivation) {

@@ -42,12 +42,12 @@ function baseTemplate(content) {
           
           <!-- HEADER -->
           <tr>
-            <td style="background:#0f0f0f;padding:32px 40px;text-align:center;">
-              <div style="font-size:28px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:inline-block;">
-                SONORO.
+            <td style="background:#0f0f0f;padding:34px 40px 30px;text-align:center;">
+              <div style="font-size:30px;font-weight:900;letter-spacing:-1.2px;color:#ffffff;line-height:1;">
+                SONORO<span style="color:#FF1B8D;">.</span>
               </div>
-              <div style="font-size:10px;color:#666;letter-spacing:3px;text-transform:uppercase;margin-top:4px;">
-                CMS · Pantallas Informativas
+              <div style="font-size:10px;color:#b0b0b0;letter-spacing:3px;text-transform:uppercase;margin-top:10px;font-weight:600;">
+                CMS &nbsp;·&nbsp; Pantallas Informativas
               </div>
             </td>
           </tr>
@@ -97,106 +97,57 @@ const TIER_LABELS = {
   windows:      'Windows'
 };
 
-async function sendWelcomeEmail(user, tier) {
+async function sendWelcomeEmail(user, tier, opts = {}) {
   const tierKey   = tier || user.license_type || 'cms_sencilla';
   const tierLabel = TIER_LABELS[tierKey] || tierKey;
+  const creds     = opts.credentials || null;
+
+  const credentialsBlock = creds ? `
+    <div style="background:#fff8e6;border:1px solid #f2e2b4;border-radius:10px;padding:20px 22px;margin-bottom:24px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#B57200;margin-bottom:12px;">Tus credenciales</div>
+      <div style="font-size:13px;color:#333;line-height:1.7;">
+        Usuario<br>
+        <code style="display:inline-block;background:#fff;padding:4px 10px;border-radius:5px;font-size:14px;color:#0f0f0f;margin-bottom:10px;">${creds.email}</code><br>
+        Contraseña<br>
+        <code style="display:inline-block;background:#fff;padding:4px 10px;border-radius:5px;font-size:14px;font-weight:700;color:#0f0f0f;">${creds.tempPassword}</code>
+      </div>
+      <div style="margin-top:18px;">
+        <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;background:#0f0f0f;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">Iniciar sesión</a>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:#7a5a10;line-height:1.5;">
+        Podés cambiar la contraseña cuando quieras desde <strong>Mi cuenta</strong>. Guardala en un lugar seguro.
+      </div>
+    </div>
+  ` : '';
 
   const html = baseTemplate(`
-    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;">
       Bienvenido a SONORO CMS
     </h1>
-    <p style="margin:0 0 22px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${user.name || user.email}</strong>, tu cuenta está lista.
-      Con SONORO CMS controlas el contenido de tus pantallas informativas desde un solo lugar.
+    <p style="margin:0 0 26px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${user.name || 'de nuevo'}</strong>, tu cuenta ya está activa.
     </p>
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:26px;">
-      <tr>
-        <td style="padding:18px 22px;">
-          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tu cuenta</p>
-          <p style="margin:0 0 12px;font-size:14px;color:#0f0f0f;font-weight:600;">${user.email}</p>
-          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Tu plan</p>
-          <p style="margin:0;font-size:14px;color:#0f0f0f;font-weight:600;">
-            <span style="display:inline-block;padding:3px 10px;border-radius:999px;background:linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566);color:#111;font-size:10px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;vertical-align:middle;margin-right:6px;">${tierLabel}</span>
-            500 MB de almacenamiento
-          </p>
-        </td>
-      </tr>
-    </table>
+    ${credentialsBlock}
 
-    <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#0f0f0f;">Qué incluye tu producto</h3>
-    <p style="margin:0 0 16px;font-size:13px;color:#666;line-height:1.6;">
-      El CMS gestiona pantallas informativas con reproductores SONORO. Hay tres niveles según cuántas pantallas conectes por reproductor:
+    <p style="margin:0 0 28px;font-size:13px;color:#666;line-height:1.6;">
+      Tu plan: <strong style="color:#0f0f0f;">${tierLabel}</strong> · 500 MB de almacenamiento.
     </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
-      <tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:8px 8px 0 0;border-bottom:1px solid #eee;">
-        <strong style="font-size:13px;color:#0f0f0f;">CMS Sencilla</strong>
-        <div style="font-size:12px;color:#666;margin-top:2px;">Una salida HDMI activa. Ideal para una pantalla por reproductor.</div>
-      </td></tr>
-      <tr><td style="padding:10px 14px;background:#f9f9f9;border-bottom:1px solid #eee;">
-        <strong style="font-size:13px;color:#0f0f0f;">CMS Doble</strong>
-        <div style="font-size:12px;color:#666;margin-top:2px;">Dos salidas HDMI en modo espejo. Ambas pantallas muestran lo mismo.</div>
-      </td></tr>
-      <tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:0 0 8px 8px;">
-        <strong style="font-size:13px;color:#0f0f0f;">CMS Pro</strong>
-        <div style="font-size:12px;color:#666;margin-top:2px;">Dos salidas HDMI independientes. Contenido, orientación y aspecto distintos por pantalla.</div>
-      </td></tr>
-    </table>
 
-    <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#0f0f0f;">Por dónde empezar</h3>
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
-        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">1</span>
-        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Sube tu contenido: videos e imágenes (hasta 500 MB).</span>
-      </td></tr>
-      <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
-        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">2</span>
-        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Arma una lista de reproducción con tus archivos.</span>
-      </td></tr>
-      <tr><td style="padding:10px 0;">
-        <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:white;margin-right:12px;vertical-align:middle;">3</span>
-        <span style="font-size:13.5px;color:#333;vertical-align:middle;">Activa el reproductor (guía abajo) y asigna la lista.</span>
-      </td></tr>
-    </table>
-
-    <h3 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#0f0f0f;">Activar el reproductor SONORO</h3>
-    <p style="margin:0 0 14px;font-size:13px;color:#666;line-height:1.6;">
-      Cuando enchufas el reproductor por primera vez, crea una red WiFi propia llamada
-      <code style="background:#f4f4f4;padding:1px 6px;border-radius:4px;font-size:12px;">SCMS-XXXXXX</code>.
-      Desde tu celular:
+    <p style="margin:0 0 24px;font-size:13px;color:#666;line-height:1.6;">
+      Cuando generes tu primer código de activación desde el CMS, te enviaremos por correo la guía paso a paso para conectar el reproductor.
     </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:26px;">
-      <tr><td style="padding:14px 18px;font-size:12.5px;color:#333;line-height:1.7;">
-        <strong style="color:#0f0f0f;">1.</strong> Enchufa el reproductor al TV por HDMI y espera 30 segundos.<br>
-        <strong style="color:#0f0f0f;">2.</strong> Conecta tu celular a la red <code style="background:#fff;padding:0 4px;border-radius:3px;">SCMS-XXXXXX</code>. Contraseña: <code style="background:#fff;padding:0 4px;border-radius:3px;">sonorocms</code>.<br>
-        <strong style="color:#0f0f0f;">3.</strong> En iPhone el portal se abre solo. En Android, si no aparece la notificación, abre el navegador en <code style="background:#fff;padding:0 4px;border-radius:3px;">http://10.42.0.1:8080</code>.<br>
-        <strong style="color:#0f0f0f;">4.</strong> Selecciona la red WiFi del sitio e ingresa su contraseña.<br>
-        <strong style="color:#0f0f0f;">5.</strong> Pega el código de activación que generas desde el CMS y listo.
-      </td></tr>
-    </table>
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
-      <tr><td align="center">
-        <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
-          Ir al CMS
-        </a>
-      </td></tr>
-    </table>
-
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f9f4;border-radius:8px;border-left:3px solid #25D366;">
-      <tr><td style="padding:14px 18px;font-size:12.5px;color:#333;line-height:1.6;">
-        <strong style="color:#0f0f0f;">¿Necesitas más espacio o ampliar tu plan?</strong><br>
-        Escríbenos por WhatsApp al
-        <a href="https://wa.me/573144460990" style="color:#0f0f0f;text-decoration:none;font-weight:700;">+57 314 446 0990</a>
-        y te atendemos.
-      </td></tr>
-    </table>
+    <div style="margin:32px 0 8px;padding-top:20px;border-top:1px solid #eee;font-size:12.5px;color:#666;line-height:1.6;">
+      ¿Necesitás más espacio o ampliar tu plan? Escribinos por WhatsApp al
+      <a href="https://wa.me/573144460990" style="color:#0f0f0f;text-decoration:none;font-weight:700;">+57 314 446 0990</a>.
+    </div>
   `);
 
   await transporter.sendMail({
     from:    FROM,
     to:      user.email,
-    subject: 'Bienvenido a SONORO CMS — tu plan está listo',
+    subject: 'Tu cuenta SONORO CMS está lista',
     html
   });
 
@@ -260,6 +211,76 @@ async function sendDeviceActivatedEmail(user, device) {
   console.log(`✅ Email de activación enviado a ${user.email}`);
 }
 
+// ── EMAIL: GUÍA DE ACTIVACIÓN DEL REPRODUCTOR (S158f) ─────────
+// Se dispara automáticamente la primera vez que el usuario genera un código
+// de activación. Replica el paso a paso del modal en dashboard.html.
+async function sendActivationGuideEmail(user) {
+  const step = (n, title, body, active) => `
+    <tr>
+      <td style="padding:16px 0;border-bottom:1px solid #eee;vertical-align:top;">
+        <table cellpadding="0" cellspacing="0" width="100%"><tr>
+          <td width="36" style="vertical-align:top;">
+            <div style="width:28px;height:28px;border-radius:50%;${active
+              ? 'background:#0f0f0f;color:#fff;'
+              : 'background:#f0f0f0;color:#0f0f0f;border:1px solid #ddd;'}text-align:center;line-height:28px;font-size:12px;font-weight:800;">${n}</div>
+          </td>
+          <td style="vertical-align:top;padding-left:2px;">
+            <div style="font-size:14px;font-weight:700;color:#0f0f0f;margin-bottom:4px;line-height:1.4;">${title}</div>
+            <div style="font-size:13px;color:#666;line-height:1.6;">${body}</div>
+          </td>
+        </tr></table>
+      </td>
+    </tr>
+  `;
+  const code = txt => `<code style="background:#f4f4f4;padding:1px 6px;border-radius:4px;font-family:'Courier New',monospace;font-size:12.5px;color:#0f0f0f;border:1px solid #e4e4e4;">${txt}</code>`;
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;">
+      Activá tu reproductor SONORO
+    </h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${user.name || 'de nuevo'}</strong>. Ya generaste tu primer código de activación.
+      Estos son los 5 pasos para conectar el reproductor desde el celular. El código dura 7 días y se usa una sola vez.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+      ${step(1, 'Conectá el reproductor al TV',
+        'Enchufá la corriente y el cable HDMI al televisor. Esperá unos 30 segundos.', true)}
+      ${step(2, 'Buscá la red WiFi que crea el reproductor',
+        `En tu celular, abrí Ajustes de WiFi y conectate a la red que empieza por ${code('SCMS-')} (ej. ${code('SCMS-RO01AB')}).<br>Contraseña: ${code('sonorocms')}`, false)}
+      ${step(3, 'Abrí el portal de configuración',
+        `En <strong style="color:#0f0f0f;">iPhone</strong> el portal se abre solo. En <strong style="color:#0f0f0f;">Android</strong> aparece una notificación "Iniciar sesión en la red WiFi"; si no aparece, abrí el navegador y entrá a ${code('http://10.42.0.1:8080')}.`, false)}
+      ${step(4, 'Seleccioná la red WiFi del sitio',
+        'En el portal, elegí la red WiFi del cliente e ingresá su contraseña. Si el reproductor está por cable de red, salta este paso.', false)}
+      ${step(5, 'Ingresá el código de activación',
+        'Pegá el código que generaste en el CMS. El reproductor se registrará solo y aparecerá en <strong style="color:#0f0f0f;">Pantallas</strong> en menos de un minuto.', false)}
+    </table>
+
+    <div style="background:#f9f9f9;border-radius:8px;padding:14px 18px;margin-bottom:28px;font-size:12.5px;color:#555;line-height:1.6;">
+      <strong style="color:#0f0f0f;">Si el portal no se abre solo en Android:</strong> abrí el navegador manualmente y entrá a
+      ${code('http://10.42.0.1:8080')}. Es normal en algunos modelos y no afecta la activación.
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:12px 28px;background:#0f0f0f;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">Ver mis códigos</a>
+    </div>
+
+    <div style="padding-top:20px;border-top:1px solid #eee;font-size:12.5px;color:#666;line-height:1.6;">
+      ¿Se trabó algo? Escribinos por WhatsApp al
+      <a href="https://wa.me/573144460990" style="color:#0f0f0f;text-decoration:none;font-weight:700;">+57 314 446 0990</a>.
+    </div>
+  `);
+
+  await transporter.sendMail({
+    from:    FROM,
+    to:      user.email,
+    subject: 'Guía para activar tu reproductor SONORO',
+    html
+  });
+
+  console.log(`✅ Guía de activación enviada a ${user.email}`);
+}
+
 // ── VERIFICAR CONEXIÓN SMTP ───────────────────────────────────
 async function verifyConnection() {
   try {
@@ -272,7 +293,7 @@ async function verifyConnection() {
   }
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, verifyConnection };
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, verifyConnection };
 
 // ── EMAIL: LICENCIA RENOVADA ──────────────────────────────────
 async function sendLicenseRenewedEmail(user, license) {
@@ -977,4 +998,4 @@ async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = 
   console.log(`✅ Email invitación pendiente enviado a ${attendee.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };
