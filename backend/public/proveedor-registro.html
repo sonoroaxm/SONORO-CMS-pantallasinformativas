@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Proveedor — SONORO Events</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; min-height: 100vh; }
+    .page { max-width: 640px; margin: 0 auto; padding: 24px 16px 56px; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid #e5e5e5; }
+    .brand-logo { font-size: 22px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .brand-sep { width: 1px; height: 24px; background: #ddd; }
+    .brand-label { font-size: 12px; font-weight: 600; color: #888; letter-spacing: 0.5px; }
+    .context-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .context-card h2 { font-size: 18px; font-weight: 800; color: #111; margin-bottom: 6px; }
+    .context-card p { font-size: 13px; color: #666; line-height: 1.5; }
+    .event-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,27,141,0.08); color: #FF1B8D; border: 1px solid rgba(255,27,141,0.2); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; margin-top: 10px; }
+    .form-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .form-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-bottom: 16px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 600; color: #555; }
+    label .req { color: #FF1B8D; margin-left: 2px; }
+    input, select, textarea { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #111; background: #fafafa; transition: border-color 0.15s; font-family: inherit; width: 100%; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #FF1B8D; background: #fff; }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .doc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    .doc-btn { position: relative; cursor: pointer; }
+    .doc-btn input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .doc-face { border: 1.5px dashed #ddd; border-radius: 8px; padding: 12px 8px; text-align: center; font-size: 12px; font-weight: 600; color: #999; transition: border-color .15s, color .15s; user-select: none; }
+    .doc-face.has-file { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,.05); }
+    .doc-face-icon { font-size: 18px; display: block; margin-bottom: 4px; }
+    .doc-note { font-size: 11px; color: #aaa; margin-top: 8px; }
+    .habeas { display: flex; gap: 10px; align-items: flex-start; padding: 16px; background: #f8f9fa; border-radius: 10px; font-size: 12px; color: #555; line-height: 1.5; }
+    .habeas input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: #FF1B8D; }
+    .btn-submit { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 800; cursor: pointer; background: linear-gradient(135deg,#FF1B8D,#FF8C00); color: #fff; transition: opacity 0.2s; margin-top: 6px; }
+    .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+    #loading-view, #success-view, #error-view, #expired-view { display: none; }
+    .state-card { text-align: center; padding: 48px 24px; background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; }
+    .state-icon { font-size: 48px; margin-bottom: 16px; }
+    .state-card h2 { font-size: 22px; font-weight: 800; color: #111; margin-bottom: 8px; }
+    .state-card p { font-size: 14px; color: #666; line-height: 1.6; }
+    .progress-wrap { margin-top: 10px; display: none; }
+    .progress-bar { height: 4px; background: #f0f0f0; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,#FF1B8D,#FF8C00); border-radius: 2px; width: 0%; transition: width .3s; }
+    @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } .form-group.full { grid-column: 1; } .doc-grid { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">
+    <div class="brand-logo">SONORO</div>
+    <div class="brand-sep"></div>
+    <div class="brand-label">REGISTRO DE PROVEEDOR</div>
+  </div>
+
+  <div id="loading-view" style="display:block;">
+    <div class="state-card"><p style="color:#999;padding:48px 0;">Cargando...</p></div>
+  </div>
+
+  <div id="form-view">
+    <div class="context-card">
+      <h2>Formulario de registro</h2>
+      <p>Has sido invitado a registrarte como proveedor en SONORO.</p>
+      <div id="context-invited-by" style="display:none;margin-top:8px;font-size:13px;color:#555;"></div>
+      <div id="context-event" style="display:none;"></div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-title">Información de la empresa</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre de la empresa / proveedor <span class="req">*</span></label>
+          <input id="f-name" type="text" placeholder="Ej: Sonido Profesional SAS" autocomplete="organization">
+        </div>
+        <div class="form-group full">
+          <label>Categoría de servicio</label>
+          <input id="f-category" type="text" placeholder="Ej: Sonido, Iluminación, Fotografía, Catering...">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-title">Identificación fiscal</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo de documento</label>
+          <select id="f-id-type">
+            <option value="NIT">NIT</option>
+            <option value="CC">Cédula (CC)</option>
+            <option value="CE">Cédula extranjería (CE)</option>
+            <option value="PA">Pasaporte</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Número</label>
+          <input id="f-id-number" type="text" placeholder="900.123.456-7">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-title">Persona de contacto</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Nombre del contacto</label>
+          <input id="f-contact" type="text" placeholder="Nombre y apellido" autocomplete="name">
+        </div>
+        <div class="form-group">
+          <label>Email <span class="req">*</span></label>
+          <input id="f-email" type="email" placeholder="contacto@empresa.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <input id="f-phone" type="tel" placeholder="+57 300 0000000" autocomplete="tel">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-title">Servicios</div>
+      <div class="form-group">
+        <label>Descripción de tus servicios</label>
+        <textarea id="f-notes" rows="4" placeholder="Describe brevemente los servicios que ofreces, equipos disponibles, capacidad, etc."></textarea>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-section-title">Documentos <span style="font-weight:400;text-transform:none;font-size:11px;">(opcional)</span></div>
+      <div class="doc-grid">
+        <label class="doc-btn" id="lbl-rut">
+          <div class="doc-face" id="face-rut">RUT</div>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="markDoc('rut',this)">
+        </label>
+        <label class="doc-btn" id="lbl-camara">
+          <div class="doc-face" id="face-camara">Cám. de Comercio</div>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="markDoc('camara',this)">
+        </label>
+        <label class="doc-btn" id="lbl-cert">
+          <div class="doc-face" id="face-cert">Cert. Bancario</div>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="markDoc('cert',this)">
+        </label>
+        <label class="doc-btn" id="lbl-port">
+          <div class="doc-face" id="face-port">Portafolio</div>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="markDoc('port',this)">
+        </label>
+      </div>
+      <p class="doc-note">Formatos aceptados: PDF, JPG, PNG · Máximo 10 MB por archivo</p>
+    </div>
+
+    <div class="form-card">
+      <div class="habeas">
+        <input type="checkbox" id="f-habeas" onchange="document.getElementById('btn-submit').disabled = !this.checked">
+        <label for="f-habeas" style="cursor:pointer;">
+          Autorizo el tratamiento de mis datos personales conforme a la
+          <a href="/politica-datos" target="_blank" style="color:#FF1B8D;">Política de Tratamiento de Datos</a>
+          de SONORO AV Colombia S.A.S.
+        </label>
+      </div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <p style="font-size:11px;color:#999;margin-top:6px;text-align:center;" id="progress-label">Subiendo archivos...</p>
+      </div>
+      <button id="btn-submit" class="btn-submit" disabled onclick="submitForm()">Enviar registro</button>
+    </div>
+  </div><!-- /form-view -->
+
+  <div id="success-view">
+    <div class="state-card">
+      <h2>¡Registro enviado!</h2>
+      <p id="success-msg" style="margin-top:8px;">Tu información fue recibida. El equipo de producción te contactará pronto.</p>
+    </div>
+  </div>
+
+  <div id="error-view">
+    <div class="state-card">
+      <h2>Error</h2>
+      <p id="error-msg" style="margin-top:8px;">No se pudo procesar tu registro.</p>
+    </div>
+  </div>
+
+  <div id="expired-view">
+    <div class="state-card">
+      <h2>Enlace expirado</h2>
+      <p style="margin-top:8px;">Este enlace de registro ya no es válido. Solicita un nuevo enlace al organizador del evento.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TOKEN = window.location.pathname.split('/').pop();
+  const API   = '/api/events/public/proveedor-registro/' + TOKEN;
+
+  // Map face IDs to FormData field names
+  const DOC_MAP = { rut: 'rut', camara: 'camara_comercio', cert: 'cert_bancario', port: 'portafolio' };
+
+  function markDoc(key, input) {
+    const face = document.getElementById('face-' + key);
+    if (input.files && input.files[0]) {
+      const name = input.files[0].name.length > 20 ? input.files[0].name.slice(0,18) + '…' : input.files[0].name;
+      face.classList.add('has-file');
+      face.textContent = name;
+    } else {
+      face.classList.remove('has-file');
+    }
+  }
+
+  async function init() {
+    try {
+      const res = await fetch(API);
+      document.getElementById('loading-view').style.display = 'none';
+      if (res.status === 410) { document.getElementById('expired-view').style.display = 'block'; return; }
+      if (res.status === 409) {
+        const d = await res.json();
+        document.getElementById('success-view').style.display = 'block';
+        document.getElementById('success-msg').textContent = 'Este formulario ya fue completado anteriormente.' + (d.event_name ? ` (${d.event_name})` : '');
+        return;
+      }
+      if (!res.ok) { throw new Error('not_found'); }
+      const d = await res.json();
+      document.getElementById('form-view').style.display = 'block';
+      if (d.invited_by) {
+        const el = document.getElementById('context-invited-by');
+        el.textContent = `Invitado por: ${d.invited_by}`;
+        el.style.display = '';
+      }
+      if (d.event_name) {
+        const el = document.getElementById('context-event');
+        el.innerHTML = `<span class="event-badge">${d.event_name}</span>`;
+        el.style.display = '';
+      }
+    } catch(e) {
+      document.getElementById('loading-view').style.display = 'none';
+      showError('Enlace inválido o no encontrado. Verifica que la URL sea correcta.');
+    }
+  }
+
+  async function submitForm() {
+    const name  = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    if (!name)  { alert('El nombre de la empresa es requerido.'); return; }
+    if (!email) { alert('El email de contacto es requerido.'); return; }
+
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+
+    // Check if we have any files to upload
+    const hasFiles = Object.keys(DOC_MAP).some(k => {
+      const lbl = document.getElementById('lbl-' + k);
+      return lbl && lbl.querySelector('input[type="file"]').files.length > 0;
+    });
+
+    if (hasFiles) {
+      document.getElementById('progress-wrap').style.display = 'block';
+    }
+
+    const fd = new FormData();
+    fd.append('name',          name);
+    fd.append('contact_email', email);
+    const optional = {
+      category:      'f-category',
+      id_type:       'f-id-type',
+      id_number:     'f-id-number',
+      contact_name:  'f-contact',
+      contact_phone: 'f-phone',
+      notes:         'f-notes',
+    };
+    for (const [field, elId] of Object.entries(optional)) {
+      const v = document.getElementById(elId)?.value?.trim();
+      if (v) fd.append(field, v);
+    }
+    // Attach files
+    for (const [key, fieldName] of Object.entries(DOC_MAP)) {
+      const input = document.getElementById('lbl-' + key)?.querySelector('input[type="file"]');
+      if (input && input.files[0]) fd.append(fieldName, input.files[0]);
+    }
+
+    try {
+      // Use XMLHttpRequest for upload progress
+      const pFill  = document.getElementById('progress-fill');
+      const pLabel = document.getElementById('progress-label');
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', API);
+        if (hasFiles) {
+          xhr.upload.addEventListener('progress', e => {
+            if (e.lengthComputable) {
+              const pct = Math.round(e.loaded / e.total * 100);
+              pFill.style.width = pct + '%';
+              pLabel.textContent = `Subiendo... ${pct}%`;
+            }
+          });
+        }
+        xhr.onload = () => {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) { resolve(data); }
+            else { reject(new Error(data.error || 'Error al enviar')); }
+          } catch { reject(new Error('Respuesta inválida del servidor')); }
+        };
+        xhr.onerror = () => reject(new Error('Error de conexión'));
+        xhr.send(fd);
+      });
+
+      document.getElementById('form-view').style.display  = 'none';
+      document.getElementById('success-view').style.display = 'block';
+    } catch(e) {
+      showError(e.message || 'Error al enviar el formulario.');
+      btn.disabled = false;
+      btn.textContent = 'Enviar registro';
+      document.getElementById('progress-wrap').style.display = 'none';
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error-view').style.display = 'block';
+  }
+
+  init();
+</script>
+</body>
+</html>

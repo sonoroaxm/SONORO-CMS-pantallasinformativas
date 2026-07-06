@@ -326,13 +326,13 @@ router.post('/rpi/screenshot', auth, (req, res) => {
   const publicDir = path.join(process.cwd(), 'uploads');
   const captureCmd = `WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 grim ${remoteFile} 2>/dev/null || DISPLAY=:0 scrot ${remoteFile} 2>/dev/null`;
 
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}`, captureCmd], { timeout: 15000, windowsHide: true }, (err) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}`, captureCmd], { timeout: 15000, windowsHide: true }, (err) => {
     if (err) {
       return res.json({ success: false, error: `No se pudo capturar pantalla en ${ip}. Verifica que grim esté instalado.` });
     }
     const localFilename = `screenshot-${device_id}-${Date.now()}.png`;
     const localPath = path.join(publicDir, localFilename);
-    execFile('scp', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}:${remoteFile}`, localPath], { timeout: 20000, windowsHide: true }, (scpErr) => {
+    execFile('scp', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=8', '-o', 'BatchMode=yes', `sonoro@${ip}:${remoteFile}`, localPath], { timeout: 20000, windowsHide: true }, (scpErr) => {
       if (scpErr) return res.json({ success: false, error: `Error copiando screenshot: ${scpErr.message}` });
       res.json({ success: true, screenshot_url: `/uploads/${localFilename}` });
     });
@@ -355,7 +355,7 @@ router.post('/rpi/update', auth, (req, res) => {
     `sudo systemctl restart sonoro-player`,
     `echo OK`,
   ].join(' && ');
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 30000, windowsHide: true }, (err, stdout) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 30000, windowsHide: true }, (err, stdout) => {
     if (err && !stdout.includes('OK')) {
       return res.json({ success: false, error: `Error actualizando ${ip}` });
     }
@@ -370,7 +370,7 @@ router.post('/rpi/stats', auth, (req, res) => {
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
 
   const remoteCmd = `vcgencmd measure_temp 2>/dev/null; cat /sys/class/thermal/cooling_device0/cur_state 2>/dev/null || echo 'fan:n/a'`;
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=6', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 10000, windowsHide: true }, (err, stdout) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=6', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 10000, windowsHide: true }, (err, stdout) => {
     if (err && !stdout) {
       return res.json({ success: false, error: 'No se pudo conectar' });
     }

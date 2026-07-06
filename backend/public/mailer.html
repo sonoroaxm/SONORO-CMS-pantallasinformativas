@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONORO Mailer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f0f0f;
+  --s1: #1a1a1a;
+  --s2: #222;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0f0f0;
+  --muted: #888;
+  --brand: #e91e8c;
+  --green: #00e676;
+  --red: #ef4444;
+  --amber: #f59e0b;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.hdr-logo {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  background: linear-gradient(135deg, #e91e8c, #9c27b0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hdr-div { width: 1px; height: 18px; background: var(--border); }
+.hdr-title { font-size: 12px; font-weight: 500; color: var(--muted); }
+.hdr-spacer { flex: 1; }
+.hdr-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 12px;
+}
+.hdr-key-lbl { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--muted); }
+.hdr-key-inp {
+  background: none; border: none;
+  color: var(--text); font-family: monospace; font-size: 12px;
+  width: 200px; outline: none;
+}
+
+/* ── Main layout ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 0;
+}
+
+/* ── Left panel ── */
+.left {
+  background: var(--s1);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.sec-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* File drop */
+.file-drop {
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.file-drop:hover { border-color: var(--brand); background: rgba(233,30,140,.04); }
+.file-drop input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.file-drop-icon { font-size: 20px; margin-bottom: 5px; }
+.file-drop-txt { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.file-drop-txt strong { color: var(--text); font-weight: 600; }
+
+/* File loaded pill */
+.file-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.file-pill-ico { font-size: 14px; }
+.file-pill-name { font-size: 11px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-pill-meta { font-size: 10px; color: var(--muted); white-space: nowrap; }
+.file-pill-clear {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.file-pill-clear:hover { background: var(--border); color: var(--text); }
+
+/* Input */
+.inp {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  outline: none;
+  transition: border-color .2s;
+}
+.inp:focus { border-color: var(--brand); }
+.inp::placeholder { color: var(--muted); }
+
+.vars-hint { font-size: 10px; color: var(--muted); margin-top: 5px; }
+.vars-hint code {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 5px; font-size: 10px; color: var(--brand);
+}
+
+/* Stats */
+.stats-row { display: flex; gap: 6px; }
+.stat {
+  flex: 1; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px; text-align: center;
+}
+.stat-n { font-size: 18px; font-weight: 700; }
+.stat-l { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.stat-n.g { color: var(--green); }
+.stat-n.r { color: var(--red); }
+.stat-n.a { color: var(--amber); }
+
+/* Progress */
+.prog-wrap { margin-top: 4px; }
+.prog-txt { font-size: 10px; color: var(--muted); text-align: center; margin-bottom: 5px; }
+.prog-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--brand); border-radius: 2px; transition: width .4s; width: 0%; }
+
+/* Send button */
+.btn-send {
+  width: 100%;
+  padding: 13px;
+  background: var(--brand);
+  border: none; border-radius: 10px;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: .3px;
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  margin-top: auto;
+}
+.btn-send:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+.btn-send:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+/* ── Right panel ── */
+.right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Preview bar */
+.prev-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--s1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.prev-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.prev-contact { font-size: 11px; color: var(--text); font-weight: 500; }
+.prev-spacer { flex: 1; }
+.nav-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.nav-btn:hover:not(:disabled) { background: var(--border); }
+.nav-btn:disabled { opacity: .3; cursor: not-allowed; }
+.prev-counter { font-size: 11px; color: var(--muted); min-width: 40px; text-align: center; }
+
+/* Preview frame */
+.prev-frame {
+  flex: 1;
+  background: #fff;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+.prev-frame iframe { width: 100%; height: 100%; border: none; }
+.prev-empty {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--s2); gap: 8px;
+}
+.prev-empty-ico { font-size: 32px; opacity: .25; }
+.prev-empty-txt { font-size: 12px; color: var(--muted); }
+
+/* Log panel */
+.log {
+  flex-shrink: 0;
+  height: 180px;
+  border-top: 1px solid var(--border);
+  background: var(--s1);
+  display: flex;
+  flex-direction: column;
+}
+.log-hdr {
+  display: flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.log-hdr-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.log-clear {
+  margin-left: auto;
+  background: none; border: none;
+  color: var(--muted); font-family: 'Montserrat', sans-serif;
+  font-size: 10px; cursor: pointer;
+}
+.log-clear:hover { color: var(--text); }
+.log-body {
+  flex: 1; overflow-y: auto;
+  padding: 6px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.log-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; padding: 2px 0;
+}
+.log-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.ok  { background: var(--green); }
+.log-dot.err { background: var(--red); }
+.log-dot.pnd { background: var(--amber); animation: blink 1s infinite; }
+.log-em  { font-weight: 500; color: var(--text); }
+.log-msg { color: var(--muted); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Modal */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  width: 360px;
+  text-align: center;
+}
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.modal-body { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 22px; }
+.modal-body strong { color: var(--text); }
+.modal-btns { display: flex; gap: 10px; }
+.btn-cancel {
+  flex: 1; padding: 11px; border-radius: 8px;
+  background: var(--s2); border: 1px solid var(--border);
+  color: var(--text); font-family: 'Montserrat', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.btn-confirm {
+  flex: 1; padding: 11px; border-radius: 8px;
+  background: var(--brand); border: none;
+  color: #fff; font-family: 'Montserrat', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-logo">SONORO</div>
+  <div class="hdr-div"></div>
+  <div class="hdr-title">Mailer — envío en frío</div>
+  <div class="hdr-spacer"></div>
+  <div class="hdr-key">
+    <span class="hdr-key-lbl">API KEY</span>
+    <input class="hdr-key-inp" id="apiKey" type="password" placeholder="pega tu key aquí" autocomplete="off">
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <!-- 1. CSV -->
+    <div>
+      <div class="sec-lbl">1. Contactos (CSV)</div>
+      <div id="csv-drop" class="file-drop">
+        <input type="file" accept=".csv" onchange="onCSV(this)">
+        <div class="file-drop-icon">📋</div>
+        <div class="file-drop-txt"><strong>Seleccionar CSV</strong><br>cualquier nombre de columna</div>
+      </div>
+      <div id="csv-pill" class="file-pill hidden">
+        <span class="file-pill-ico">✅</span>
+        <span class="file-pill-name" id="csv-name"></span>
+        <span class="file-pill-meta" id="csv-meta"></span>
+        <button class="file-pill-clear" onclick="clearCSV()">×</button>
+      </div>
+      <!-- Column mapper — visible after CSV load -->
+      <div id="col-mapper" class="hidden" style="margin-top:10px;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;color:var(--muted);width:60px;flex-shrink:0;">Email</span>
+          <select class="inp" id="col-email" style="padding:6px 10px;font-size:11px;" onchange="remapContacts()"></select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;color:var(--muted);width:60px;flex-shrink:0;">Empresa</span>
+          <select class="inp" id="col-empresa" style="padding:6px 10px;font-size:11px;" onchange="remapContacts()"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Template -->
+    <div>
+      <div class="sec-lbl">2. Template HTML</div>
+      <div id="tpl-drop" class="file-drop">
+        <input type="file" accept=".html,.htm" onchange="onTemplate(this)">
+        <div class="file-drop-icon">📄</div>
+        <div class="file-drop-txt"><strong>Seleccionar HTML</strong><br>usa <code style="font-size:10px;color:#e91e8c">{{empresa}}</code> y <code style="font-size:10px;color:#e91e8c">{{email}}</code></div>
+      </div>
+      <div id="tpl-pill" class="file-pill hidden">
+        <span class="file-pill-ico">✅</span>
+        <span class="file-pill-name" id="tpl-name"></span>
+        <button class="file-pill-clear" onclick="clearTemplate()">×</button>
+      </div>
+    </div>
+
+    <!-- 3. Asunto -->
+    <div>
+      <div class="sec-lbl">3. Asunto</div>
+      <input class="inp" id="subject" type="text" placeholder="Hola {{empresa}}, somos SONORO AV" oninput="refreshPreview()">
+      <div class="vars-hint">Variables: <code>{{empresa}}</code> <code>{{email}}</code></div>
+    </div>
+
+    <!-- 4. Remitente -->
+    <div>
+      <div class="sec-lbl">4. Nombre del remitente</div>
+      <input class="inp" id="fromName" type="text" value="SONORO AV" placeholder="SONORO AV">
+    </div>
+
+    <!-- Stats (visible during/after send) -->
+    <div id="stats-wrap" class="hidden">
+      <div class="sec-lbl">Estado</div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-n a" id="st-total">0</div><div class="stat-l">Total</div></div>
+        <div class="stat"><div class="stat-n g" id="st-ok">0</div><div class="stat-l">Enviados</div></div>
+        <div class="stat"><div class="stat-n r" id="st-err">0</div><div class="stat-l">Errores</div></div>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-txt" id="prog-txt"></div>
+        <div class="prog-bg"><div class="prog-fill" id="prog-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- Send button -->
+    <button class="btn-send" id="btn-send" disabled onclick="confirmSend()">
+      Enviar — carga CSV y template
+    </button>
+
+  </div><!-- /left -->
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <!-- Preview bar -->
+    <div class="prev-bar">
+      <span class="prev-lbl">Preview</span>
+      <span class="prev-contact" id="prev-contact">—</span>
+      <div class="prev-spacer"></div>
+      <button class="nav-btn" id="nav-prev" onclick="navigate(-1)" disabled>‹</button>
+      <span class="prev-counter" id="prev-counter">—</span>
+      <button class="nav-btn" id="nav-next" onclick="navigate(1)" disabled>›</button>
+    </div>
+
+    <!-- Preview iframe -->
+    <div class="prev-frame">
+      <div class="prev-empty" id="prev-empty">
+        <div class="prev-empty-ico">✉</div>
+        <div class="prev-empty-txt">Carga un template para previsualizar</div>
+      </div>
+      <iframe id="prev-iframe" class="hidden" sandbox="allow-same-origin"></iframe>
+    </div>
+
+    <!-- Log -->
+    <div class="log">
+      <div class="log-hdr">
+        <span class="log-hdr-lbl">Log de envíos</span>
+        <button class="log-clear" onclick="clearLog()">Limpiar</button>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+
+  </div><!-- /right -->
+
+</div><!-- /main -->
+
+<!-- Confirm modal -->
+<div class="modal-bg hidden" id="modal">
+  <div class="modal">
+    <div class="modal-title">Confirmar envío</div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="startSend()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const VPS = ''; // mismo origen — mailer.html servido desde el VPS
+const DELAY_MS = 4000; // ms entre emails
+
+// ── State ──────────────────────────────────────────────────────────────────
+let contacts = [];
+let tplHtml   = '';
+let prevIdx   = 0;
+let sending   = false;
+let nOk = 0, nErr = 0;
+let lastLogEl = null;
+
+// ── CSV ────────────────────────────────────────────────────────────────────
+let rawRows    = [];   // array of raw objects {header: value}
+let csvHeaders = [];
+
+function onCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const result = parseCSVRaw(e.target.result);
+    if (!result) return;
+    rawRows    = result.rows;
+    csvHeaders = result.headers;
+
+    // populate column selectors
+    const selEmail   = document.getElementById('col-email');
+    const selEmpresa = document.getElementById('col-empresa');
+    [selEmail, selEmpresa].forEach(sel => {
+      sel.innerHTML = csvHeaders.map(h =>
+        `<option value="${escRaw(h)}">${escRaw(h)}</option>`
+      ).join('');
+    });
+
+    // auto-select best guess
+    const guessEmail   = csvHeaders.find(h => /email|correo|mail/i.test(h))   || csvHeaders[0];
+    const guessEmpresa = csvHeaders.find(h => /empresa|company|organiz|negocio|cliente/i.test(h)) || csvHeaders[1] || csvHeaders[0];
+    selEmail.value   = guessEmail;
+    selEmpresa.value = guessEmpresa;
+
+    document.getElementById('csv-drop').classList.add('hidden');
+    document.getElementById('csv-pill').classList.remove('hidden');
+    const mapper = document.getElementById('col-mapper');
+    mapper.classList.remove('hidden');
+    mapper.style.display = 'flex';
+    document.getElementById('csv-name').textContent = file.name;
+
+    remapContacts();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function remapContacts() {
+  const ec = document.getElementById('col-email').value;
+  const nc = document.getElementById('col-empresa').value;
+  contacts = rawRows
+    .map(r => ({ email: (r[ec] || '').trim(), empresa: (r[nc] || '').trim() }))
+    .filter(c => c.email && c.email.includes('@'));
+  prevIdx = 0;
+  document.getElementById('csv-meta').textContent =
+    contacts.length + ' contacto' + (contacts.length !== 1 ? 's' : '');
+  refreshPreview();
+  updateBtn();
+}
+
+function clearCSV() {
+  contacts = []; rawRows = []; csvHeaders = [];
+  document.getElementById('csv-drop').classList.remove('hidden');
+  document.getElementById('csv-pill').classList.add('hidden');
+  document.getElementById('col-mapper').classList.add('hidden');
+  refreshPreview(); updateBtn();
+}
+
+function parseCSVRaw(text) {
+  // Strip UTF-8 BOM and normalize line endings
+  const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = clean.split('\n').filter(l => l.trim());
+  if (lines.length < 2) { alert('El CSV debe tener encabezado y al menos una fila.'); return null; }
+
+  // Auto-detect separator: ; or ,
+  const firstLine = lines[0];
+  const sep = (firstLine.split(';').length >= firstLine.split(',').length) ? ';' : ',';
+
+  const headers = splitLine(lines[0], sep).map(h => h.trim().replace(/^"|"$/g, ''));
+  if (!headers.length) { alert('No se detectaron columnas.'); return null; }
+  const rows = lines.slice(1).map(line => {
+    const vals = splitLine(line, sep);
+    const obj  = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, ''); });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+function splitLine(line, sep) {
+  sep = sep || ',';
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === sep && !inQ) { result.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ── Template ───────────────────────────────────────────────────────────────
+function onTemplate(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    tplHtml = e.target.result;
+    document.getElementById('tpl-drop').classList.add('hidden');
+    document.getElementById('tpl-pill').classList.remove('hidden');
+    document.getElementById('tpl-name').textContent = file.name;
+    refreshPreview(); updateBtn();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function clearTemplate() {
+  tplHtml = '';
+  document.getElementById('tpl-drop').classList.remove('hidden');
+  document.getElementById('tpl-pill').classList.add('hidden');
+  document.getElementById('prev-iframe').classList.add('hidden');
+  document.getElementById('prev-empty').classList.remove('hidden');
+  updateBtn();
+}
+
+// ── Variable substitution ──────────────────────────────────────────────────
+function sub(html, c) {
+  return html
+    .replace(/\{\{empresa\}\}/gi, esc(c.empresa))
+    .replace(/\{\{email\}\}/gi,   esc(c.email));
+}
+
+function subSubject(str, c) {
+  return str
+    .replace(/\{\{empresa\}\}/gi, c.empresa)
+    .replace(/\{\{email\}\}/gi,   c.email);
+}
+
+function esc(s) {
+  return (s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function escRaw(s) {
+  return (s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Preview ────────────────────────────────────────────────────────────────
+function refreshPreview() {
+  const iframe  = document.getElementById('prev-iframe');
+  const empty   = document.getElementById('prev-empty');
+  const contact = document.getElementById('prev-contact');
+  const counter = document.getElementById('prev-counter');
+  const prev    = document.getElementById('nav-prev');
+  const next    = document.getElementById('nav-next');
+
+  if (!tplHtml || !contacts.length) {
+    iframe.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.querySelector('.prev-empty-txt').textContent =
+      !tplHtml ? 'Carga un template para previsualizar' : 'Carga un CSV con contactos';
+    contact.textContent = '—';
+    counter.textContent = '—';
+    prev.disabled = next.disabled = true;
+    return;
+  }
+
+  if (prevIdx >= contacts.length) prevIdx = contacts.length - 1;
+  if (prevIdx < 0) prevIdx = 0;
+
+  const c = contacts[prevIdx];
+  const html = sub(tplHtml, c);
+
+  iframe.classList.remove('hidden');
+  empty.classList.add('hidden');
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+
+  contact.textContent = c.empresa || c.email;
+  counter.textContent = (prevIdx + 1) + ' / ' + contacts.length;
+  prev.disabled = prevIdx === 0;
+  next.disabled = prevIdx === contacts.length - 1;
+}
+
+function navigate(dir) { prevIdx += dir; refreshPreview(); }
+
+// ── Button state ───────────────────────────────────────────────────────────
+function updateBtn() {
+  const btn   = document.getElementById('btn-send');
+  const ready = contacts.length > 0 && tplHtml && !sending;
+  btn.disabled = !ready;
+  if (sending) { btn.textContent = 'Enviando…'; return; }
+  if (ready) {
+    btn.textContent = 'Enviar a ' + contacts.length + ' contacto' + (contacts.length !== 1 ? 's' : '');
+  } else if (!contacts.length && !tplHtml) {
+    btn.textContent = 'Enviar — carga CSV y template';
+  } else if (!contacts.length) {
+    btn.textContent = 'Enviar — carga un CSV';
+  } else {
+    btn.textContent = 'Enviar — carga un template';
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function confirmSend() {
+  const subj = document.getElementById('subject').value.trim();
+  if (!subj)  { alert('Escribe el asunto del email.'); return; }
+  const key  = document.getElementById('apiKey').value.trim();
+  if (!key)   { alert('Ingresa la API key en el encabezado.'); return; }
+
+  document.getElementById('modal-body').innerHTML =
+    'Se enviarán <strong>' + contacts.length + ' emails</strong>.<br>' +
+    'Asunto: <strong>' + escRaw(subj) + '</strong><br>' +
+    'Un email cada ' + (DELAY_MS / 1000) + ' segundos.';
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+// ── Send ───────────────────────────────────────────────────────────────────
+async function startSend() {
+  closeModal();
+  sending = true; nOk = 0; nErr = 0;
+  updateBtn();
+
+  const subj     = document.getElementById('subject').value.trim();
+  const fromName = document.getElementById('fromName').value.trim() || 'SONORO AV';
+  const apiKey   = document.getElementById('apiKey').value.trim();
+
+  document.getElementById('stats-wrap').classList.remove('hidden');
+  document.getElementById('st-total').textContent = contacts.length;
+  updStats(); updProg(0, contacts.length);
+
+  for (let i = 0; i < contacts.length; i++) {
+    const c = contacts[i];
+    addLog(c.email, 'pnd', 'Enviando… (' + (i + 1) + '/' + contacts.length + ')');
+    updProg(i, contacts.length);
+
+    try {
+      const res = await fetch(VPS + '/api/mailer/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Mailer-Key': apiKey },
+        body: JSON.stringify({
+          to: c.email,
+          subject: subSubject(subj, c),
+          html: sub(tplHtml, c),
+          from_name: fromName
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { nOk++; updateLogLast(c.email, 'ok', 'Enviado'); }
+      else        { nErr++; updateLogLast(c.email, 'err', data.error || 'Error ' + res.status); }
+    } catch (err) {
+      nErr++;
+      updateLogLast(c.email, 'err', err.message);
+    }
+
+    updStats();
+    if (i < contacts.length - 1) await sleep(DELAY_MS);
+  }
+
+  updProg(contacts.length, contacts.length);
+  sending = false;
+  document.getElementById('btn-send').textContent =
+    'Completado — ' + nOk + ' enviados, ' + nErr + ' errores';
+  document.getElementById('btn-send').disabled = true;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function updStats() {
+  document.getElementById('st-ok').textContent  = nOk;
+  document.getElementById('st-err').textContent = nErr;
+}
+
+function updProg(cur, total) {
+  const pct = total ? Math.round((cur / total) * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-txt').textContent =
+    cur < total
+      ? 'Enviando ' + (cur + 1) + ' de ' + total + '…'
+      : 'Completado — ' + total + ' procesados';
+}
+
+// ── Log ────────────────────────────────────────────────────────────────────
+function addLog(email, status, msg) {
+  const body = document.getElementById('log-body');
+  const el   = document.createElement('div');
+  el.className = 'log-row';
+  el.dataset.email = email;
+  el.innerHTML =
+    '<span class="log-dot ' + status + '"></span>' +
+    '<span class="log-em">'  + escRaw(email) + '</span>' +
+    '<span class="log-msg">' + escRaw(msg)   + '</span>';
+  body.appendChild(el);
+  body.scrollTop = body.scrollHeight;
+  lastLogEl = el;
+}
+
+function updateLogLast(email, status, msg) {
+  if (!lastLogEl || lastLogEl.dataset.email !== email) return;
+  lastLogEl.querySelector('.log-dot').className = 'log-dot ' + status;
+  lastLogEl.querySelector('.log-msg').textContent = msg;
+}
+
+function clearLog() { document.getElementById('log-body').innerHTML = ''; }
+</script>
+</body>
+</html>

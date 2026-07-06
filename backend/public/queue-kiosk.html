@@ -311,6 +311,107 @@
     .error-icon { font-size: 48px; margin-bottom: 16px; }
     .error-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
     .error-sub { font-size: 14px; color: var(--muted); }
+
+    /* ══ CONFIRM-CITA — numpad ══ */
+    #confirmApptScreen {
+      gap: 0; background: var(--black);
+      padding-bottom: 56px;
+    }
+    .confirm-appt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 40px 48px;
+      text-align: center;
+      max-width: 480px; width: 100%;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.12);
+      position: relative; overflow: hidden;
+    }
+    .confirm-appt-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--grad);
+    }
+    .numpad-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+    .numpad-sub { font-size: 14px; color: var(--muted); font-weight: 600; margin-bottom: 24px; }
+    .numpad-input-display {
+      font-size: 30px; font-weight: 800; letter-spacing: 6px;
+      background: #f3f2ef; border: 2px solid var(--border);
+      border-radius: 12px; padding: 14px 20px;
+      min-height: 62px; min-width: 260px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+      font-family: 'Montserrat', monospace;
+      color: var(--text); transition: border-color 0.15s;
+    }
+    .numpad-input-display.has-value { border-color: var(--magenta); }
+    .numpad-error { font-size: 13px; color: var(--magenta); font-weight: 600; min-height: 22px; margin-bottom: 12px; }
+    .numpad-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; max-width: 300px; margin: 0 auto 20px;
+    }
+    .numpad-key {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 20px 0;
+      font-size: 22px; font-weight: 700; cursor: pointer;
+      transition: all 0.12s cubic-bezier(0.16,1,0.3,1);
+      font-family: 'Montserrat', sans-serif; color: var(--text);
+    }
+    .numpad-key:active { transform: scale(0.93); background: #f0eeec; }
+    .numpad-key.numpad-del { font-size: 18px; }
+    .numpad-key.numpad-confirm {
+      background: var(--grad); border-color: transparent;
+      color: white; font-size: 18px;
+    }
+    .numpad-key.numpad-confirm:active { opacity: 0.85; transform: scale(0.93); }
+    .numpad-cancel {
+      font-size: 13px; color: var(--muted); font-weight: 600;
+      cursor: pointer; padding: 8px 16px;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .numpad-cancel:active { color: var(--text); }
+
+    /* ══ TOKEN EXPIRADO ══ */
+    #tokenExpiredScreen { gap: 20px; background: var(--black); }
+
+    /* ══ BOTÓN CONFIRMAR CITA (welcome) ══ */
+    .btn-confirm-appt {
+      display: block; width: 100%; max-width: 640px;
+      padding: 32px 48px;
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: 20px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: clamp(18px, 2.5vw, 26px); font-weight: 800; color: var(--text);
+      cursor: pointer; transition: all 0.18s;
+      line-height: 1.2;
+      position: relative; overflow: hidden;
+    }
+    .btn-confirm-appt::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--magenta);
+      border-radius: 20px 20px 0 0;
+    }
+    .btn-confirm-appt:active { background: rgba(255,27,141,0.04); transform: scale(0.97); }
+    /* == botones cita kiosko: heredan diseno de btn-confirm-appt (no override) == */
+    .btn-solicitar-cita { }
+    /* == overlay booking iframe == */
+    #bookingOverlay { display:none; position:fixed; inset:0; background:#0a0a0f; z-index:2000; flex-direction:column; }
+    #bookingOverlay.open { display:flex; }
+    #bookingHeader { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:#111; border-bottom:1px solid #333; flex-shrink:0; }
+    #bookingHeader span { font-size:15px; font-weight:600; color:#eee; }
+    #bookingClose { background:none; border:1px solid #555; color:#ccc; border-radius:8px; padding:6px 16px; font-size:14px; cursor:pointer; }
+    #bookingFrame { flex:1; border:none; width:100%; background:#fff; }
+    /* == boton QR kiosko == */
+    .btn-confirm-qr { }
+    /* == pantalla QR kiosko == */
+    #kioskQrWaiting { text-align:center; margin-top:32px; }
+    #kioskQrWaiting .qr-icon { font-size:72px; margin-bottom:16px; }
+    #kioskQrWaiting .qr-label { font-size:22px; font-weight:700; margin-bottom:8px; }
+    #kioskQrWaiting .qr-sub   { font-size:16px; color:var(--text-secondary,#888); }
+    #kioskQrError { display:none; margin-top:20px; padding:14px 18px; border-radius:12px;
+                    background:rgba(255,80,80,.12); border:1px solid #ff5050;
+                    color:#ff7070; font-size:16px; text-align:center; }
   </style>
 </head>
 <body>
@@ -336,11 +437,27 @@
   <div class="welcome-hero">
     <div class="welcome-title" id="welcomeMessage">Bienvenido</div>
     <div class="welcome-sub">Atención al Usuario</div>
-    <div class="welcome-instruction">Toca el servicio que necesitas</div>
+    <div class="welcome-instruction" id="welcomeInstruction">Toca el servicio que necesitas</div>
   </div>
 
   <div class="services-grid" id="servicesGrid">
     <!-- Se llena dinámicamente -->
+  </div>
+
+  <div id="apptConfirmSection" style="display:none; margin-top:28px; padding:0; width:100%; max-width:640px;">
+    <!-- data-kiosk-btn: visibilidad configurable desde admin -->
+    <button class="btn-confirm-appt btn-solicitar-cita" data-kiosk-btn="booking"
+            style="margin-bottom:16px;" onclick="openKioskBooking()">
+      Solicitar cita
+    </button>
+    <button class="btn-confirm-appt" data-kiosk-btn="confirm-id"
+            style="margin-bottom:16px;" onclick="showScreen('confirmApptScreen');resetNumpad()">
+      ¿Tienes cita?<br>Confirma aquí
+    </button>
+    <button class="btn-confirm-appt btn-confirm-qr" data-kiosk-btn="confirm-qr"
+            onclick="openKioskQrScreen()">
+      Confirmar por QR
+    </button>
   </div>
 </div>
 
@@ -377,6 +494,45 @@
   </div>
 </div>
 
+<!-- CONFIRM-CITA: numpad para confirmar cita por cédula -->
+<div class="screen" id="confirmApptScreen">
+  <div class="kiosk-header">
+    <div class="kiosk-logo"><img id="clientLogo3" src="" alt="SONORO." style="max-height:40px;max-width:140px;object-fit:contain;display:none;" onerror="this.style.display='none';document.getElementById('logoText3').style.display='block'"><span id="logoText3" style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SONORO.</span></div>
+    <div class="kiosk-branch" id="confirmApptBranchName">—</div>
+    <div class="kiosk-clock" id="confirmApptClock">00:00</div>
+  </div>
+  <div class="confirm-appt-card">
+    <div class="numpad-title">Confirma tu cita</div>
+    <div class="numpad-sub">Ingresa tu número de documento</div>
+    <div class="numpad-input-display" id="numpadDisplay">—</div>
+    <div class="numpad-error" id="numpadError"></div>
+    <div class="numpad-grid">
+      <button class="numpad-key" onclick="numpadAppend('7')">7</button>
+      <button class="numpad-key" onclick="numpadAppend('8')">8</button>
+      <button class="numpad-key" onclick="numpadAppend('9')">9</button>
+      <button class="numpad-key" onclick="numpadAppend('4')">4</button>
+      <button class="numpad-key" onclick="numpadAppend('5')">5</button>
+      <button class="numpad-key" onclick="numpadAppend('6')">6</button>
+      <button class="numpad-key" onclick="numpadAppend('1')">1</button>
+      <button class="numpad-key" onclick="numpadAppend('2')">2</button>
+      <button class="numpad-key" onclick="numpadAppend('3')">3</button>
+      <button class="numpad-key numpad-del" onclick="numpadBackspace()">←</button>
+      <button class="numpad-key" onclick="numpadAppend('0')">0</button>
+      <button class="numpad-key numpad-confirm" id="numpadConfirmBtn" onclick="submitConfirmAppt()">✓</button>
+    </div>
+    <div class="numpad-cancel" onclick="goToWelcome()">Cancelar · Volver</div>
+  </div>
+</div>
+
+<!-- TOKEN EXPIRADO: el admin rotó el token y el kiosco quedó inválido -->
+<div class="screen" id="tokenExpiredScreen">
+  <div class="error-msg">
+    <div class="error-icon">🔐</div>
+    <div class="error-title">Kiosco desconectado</div>
+    <div class="error-sub">El administrador debe reconectar este kiosco desde el panel</div>
+  </div>
+</div>
+
 <div class="kiosk-footer">
   <div class="kiosk-footer-brand"><span>SONORO.</span> CMS · Pantallas Informativas</div>
   <div class="kiosk-footer-url">www.sonoro.com.co</div>
@@ -384,12 +540,16 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const API_URL   = window.location.origin;
-const BRANCH_ID = new URLSearchParams(window.location.search).get('branch');
-const socket    = io();
+const API_URL     = window.location.origin;
+const BRANCH_ID   = new URLSearchParams(window.location.search).get('branch');
+const KIOSK_TOKEN = new URLSearchParams(window.location.search).get('token');
+const socket      = io();
 
-let services      = [];
-let countdownTimer = null;
+let services           = [];
+let countdownTimer     = null;
+let branchData         = null;
+let numpadValue        = '';
+let confirmApptLoading = false;
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
@@ -415,7 +575,16 @@ async function init() {
   }
 
   socket.emit('join_branch', BRANCH_ID);
-  socket.on('new_token', loadServices); // actualizar conteos en tiempo real
+  socket.on('new_token', loadServices);
+  socket.on('branch.operation_mode.changed', (data) => {
+    if (branchData) {
+      branchData.operation_mode = data.operation_mode;
+      renderWelcomeByMode();
+    }
+  });
+  socket.on('branch.kiosk_token.rotated', () => {
+    showScreen('tokenExpiredScreen');
+  });
 }
 
 // ── CARGAR SUCURSAL ────────────────────────────────────────────
@@ -423,20 +592,24 @@ async function loadBranch() {
   const res  = await fetch(`${API_URL}/api/queue/display/${BRANCH_ID}`);
   const data = await res.json();
   if (!data.branch) return;
+  branchData = data.branch;
   const name = data.branch.name || 'SONORO';
-  document.getElementById('branchName').textContent        = name;
-  document.getElementById('confirmBranchName').textContent = name;
-  // Cargar logo del cliente
+  document.getElementById('branchName').textContent            = name;
+  document.getElementById('confirmBranchName').textContent     = name;
+  document.getElementById('confirmApptBranchName').textContent = name;
   if (data.branch.logo_url) {
-    const logos = [document.getElementById('clientLogo'), document.getElementById('clientLogo2')];
-    const texts = [document.getElementById('logoText'), document.getElementById('logoText2')];
-    logos.forEach((img, i) => {
+    const logoIds = ['clientLogo', 'clientLogo3'];
+    const textIds = ['logoText',   'logoText3'];
+    logoIds.forEach((id, i) => {
+      const img = document.getElementById(id);
+      const txt = document.getElementById(textIds[i]);
       if (img) { img.src = data.branch.logo_url; img.style.display = 'block'; }
-      if (texts[i]) texts[i].style.display = 'none';
+      if (txt) txt.style.display = 'none';
     });
   }
   const msg = data.branch.welcome_message || 'Bienvenido';
-  document.getElementById('welcomeMessage').textContent    = msg;
+  document.getElementById('welcomeMessage').textContent = msg;
+  renderWelcomeByMode();
 }
 
 // ── CARGAR SERVICIOS ───────────────────────────────────────────
@@ -547,6 +720,7 @@ function showConfirmation(data, serviceName, serviceColor) {
 function goToWelcome() {
   clearTimeout(countdownTimer);
   loadServices();
+  renderWelcomeByMode();
   showScreen('welcomeScreen');
 }
 
@@ -590,15 +764,219 @@ function startClock() {
     const h   = String(now.getHours()).padStart(2,'0');
     const m   = String(now.getMinutes()).padStart(2,'0');
     const t   = `${h}:${m}`;
-    document.getElementById('kioskClock').textContent   = t;
-    document.getElementById('confirmClock').textContent = t;
+    document.getElementById('kioskClock').textContent        = t;
+    document.getElementById('confirmClock').textContent      = t;
+    document.getElementById('confirmApptClock').textContent  = t;
   }
   tick();
   setInterval(tick, 1000);
 }
 
+// ── MODO DE OPERACIÓN ─────────────────────────────────────────
+function renderWelcomeByMode() {
+  if (!branchData) return;
+  const mode        = branchData.operation_mode || 'queue_only';
+  const grid        = document.getElementById('servicesGrid');
+  const apptSection = document.getElementById('apptConfirmSection');
+  const instruction = document.getElementById('welcomeInstruction');
+  if (mode === 'queue_only') {
+    grid.style.display        = '';
+    apptSection.style.display = 'none';
+    if (instruction) instruction.textContent = 'Toca el servicio que necesitas';
+  } else if (mode === 'appointments_only') {
+    grid.style.display        = 'none';
+    apptSection.style.display = 'block';
+    if (instruction) instruction.textContent = 'Confirma tu cita para ser atendido';
+  } else {
+    grid.style.display        = '';
+    apptSection.style.display = 'block';
+    if (instruction) instruction.textContent = 'Toca el servicio que necesitas o confirma tu cita';
+  }
+}
+
+// ── NUMPAD ────────────────────────────────────────────────────
+function resetNumpad() {
+  numpadValue = '';
+  document.getElementById('numpadDisplay').textContent = '—';
+  document.getElementById('numpadDisplay').classList.remove('has-value');
+  document.getElementById('numpadError').textContent = '';
+}
+
+function numpadAppend(digit) {
+  if (numpadValue.length >= 12) return;
+  numpadValue += digit;
+  document.getElementById('numpadDisplay').textContent = numpadValue;
+  document.getElementById('numpadDisplay').classList.add('has-value');
+}
+
+function numpadBackspace() {
+  if (!numpadValue.length) return;
+  numpadValue = numpadValue.slice(0, -1);
+  document.getElementById('numpadDisplay').textContent = numpadValue || '—';
+  document.getElementById('numpadDisplay').classList.toggle('has-value', numpadValue.length > 0);
+}
+
+async function submitConfirmAppt() {
+  if (confirmApptLoading) return;
+  if (numpadValue.length < 4) {
+    document.getElementById('numpadError').textContent = 'Ingresa al menos 4 dígitos';
+    return;
+  }
+  if (!KIOSK_TOKEN) {
+    document.getElementById('numpadError').textContent = 'Kiosco sin token configurado';
+    return;
+  }
+  confirmApptLoading = true;
+  document.getElementById('numpadError').textContent = '';
+  document.getElementById('numpadConfirmBtn').textContent = '...';
+  try {
+    const res = await fetch(`${API_URL}/api/queue/kiosk/confirm-presence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Branch-Token': KIOSK_TOKEN },
+      body: JSON.stringify({ client_id_number: numpadValue }),
+    });
+    const data = await res.json();
+    if (!data.confirmed) {
+      document.getElementById('numpadError').textContent =
+        'No encontramos una cita confirmada para ese documento hoy';
+      return;
+    }
+    showConfirmation(
+      { token_number: data.token_number, estimated_wait_minutes: data.estimated_wait_minutes,
+        position_in_queue: data.queue_position, success: true },
+      'Cita confirmada',
+      '#FF1B8D'
+    );
+    resetNumpad();
+  } catch(e) {
+    document.getElementById('numpadError').textContent = 'Error de conexión. Intenta de nuevo.';
+  } finally {
+    document.getElementById('numpadConfirmBtn').textContent = '✓';
+    confirmApptLoading = false;
+  }
+}
+
 // ── START ──────────────────────────────────────────────────────
 init();
+</script>
+<!-- Overlay solicitar cita (iframe booking form) -->
+<div id="bookingOverlay">
+  <div id="bookingHeader">
+    <span>Solicitar cita</span>
+    <button id="bookingClose" onclick="closeKioskBooking()">Cerrar</button>
+  </div>
+  <iframe id="bookingFrame" src="" title="Solicitar cita"></iframe>
+</div>
+
+<!-- Pantalla QR kiosko -->
+<div id="confirmQrScreen" class="screen" style="display:none;">
+  <div id="kioskQrWaiting">
+    <div class="qr-label">Escanea tu codigo QR</div>
+    <div class="qr-sub">Apunta el escaner al QR de tu confirmacion de cita</div>
+  </div>
+  <div id="kioskQrError"></div>
+  <!-- Input invisible captura el lector HID USB/BT -->
+  <input id="kioskQrHidInput" type="text"
+         style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"
+         autocomplete="off" autocorrect="off" spellcheck="false"
+         onkeydown="kioskQrKeydown(event)" />
+  <button class="btn-cancel" style="margin-top:40px;" onclick="kioskQrCancel()">Cancelar</button>
+</div>
+
+<script>
+// == Confirmacion por QR en kiosko ==
+function openKioskQrScreen() {
+  showScreen('confirmQrScreen');
+  document.getElementById('kioskQrHidInput').value = '';
+  document.getElementById('kioskQrError').style.display = 'none';
+  setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 120);
+}
+
+function kioskQrCancel() {
+  showScreen('serviceScreen');
+}
+
+function kioskQrKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const raw = document.getElementById('kioskQrHidInput').value.trim();
+    kioskQrSubmit(raw);
+  }
+}
+
+async function kioskQrSubmit(raw) {
+  const errEl = document.getElementById('kioskQrError');
+  errEl.style.display = 'none';
+  if (!raw) return;
+
+  const urlMatch = raw.match(/\/cita\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  const uuidRe   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const token    = urlMatch ? urlMatch[1] : (uuidRe.test(raw) ? raw : null);
+
+  if (!token) {
+    errEl.textContent = 'Codigo QR no reconocido. Intenta de nuevo.';
+    errEl.style.display = 'block';
+    document.getElementById('kioskQrHidInput').value = '';
+    setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 80);
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/queue/kiosk/confirm-by-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Branch-Token': KIOSK_TOKEN },
+      body: JSON.stringify({ token })
+    });
+    const data = await r.json();
+
+    if (r.ok && data.confirmed) {
+      showConfirmation(
+        { token_number: data.token_number,
+          estimated_wait_minutes: data.estimated_wait_minutes,
+          position_in_queue: data.queue_position },
+        data.service_name || '',
+        data.service_color || '#7c3aed'
+      );
+    } else {
+      errEl.textContent = data.code === 'ALREADY_CONFIRMED'
+        ? 'Esta cita ya fue confirmada anteriormente.'
+        : (data.error || 'No se pudo confirmar la cita.');
+      errEl.style.display = 'block';
+      document.getElementById('kioskQrHidInput').value = '';
+      setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 80);
+    }
+  } catch (e) {
+    errEl.textContent = 'Error de conexion. Intenta de nuevo.';
+    errEl.style.display = 'block';
+    console.error('kioskQrSubmit:', e);
+    document.getElementById('kioskQrHidInput').value = '';
+  }
+}
+
+// == Solicitar cita desde kiosko (booking form en iframe) ==
+var BOOKING_URL = '';
+
+function _resolveBookingUrl() {
+  if (BOOKING_URL) return BOOKING_URL;
+  // booking_slug viene del JOIN con users en GET /api/queue/display/:branchId
+  const slug = typeof branchData !== "undefined" && branchData
+              && (branchData.booking_slug || branchData.slug);
+  if (slug) return window.location.origin + "/agendar/" + slug;
+  return null;
+}
+
+function openKioskBooking() {
+  const url = _resolveBookingUrl();
+  if (!url) { alert('Enlace de citas no configurado para esta sucursal.'); return; }
+  const frame = document.getElementById('bookingFrame');
+  if (frame.src !== url) frame.src = url;
+  document.getElementById('bookingOverlay').classList.add('open');
+}
+
+function closeKioskBooking() {
+  document.getElementById('bookingOverlay').classList.remove('open');
+  document.getElementById('bookingFrame').src = '';
+}
 </script>
 </body>
 </html>

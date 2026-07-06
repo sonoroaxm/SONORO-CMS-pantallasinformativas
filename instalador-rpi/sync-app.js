@@ -915,6 +915,108 @@ async function registerDevice() {
   } catch(err) { console.error('❌ Error registrando:', err.message); }
 }
 
+// ── TV INFO (CEC + EDID por HDMI) ────────────────────────────
+function execP(cmd, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    exec(cmd, { timeout: timeoutMs, killSignal: 'SIGKILL' }, (err, stdout, stderr) => {
+      resolve({ err, stdout: (stdout || '').toString(), stderr: (stderr || '').toString() });
+    });
+  });
+}
+function parseCecReply(out, key) {
+  // Solo parsear la sección "Received from TV" (respuesta real). El resto del
+  // output es driver info local (adapter RPi) y produce falsos positivos.
+  const idx = out.indexOf('Received from');
+  if (idx < 0) return null;
+  const replySection = out.slice(idx);
+  // Case-sensitive: `vendor-id:` y `name:` solo aparecen así en respuestas CEC.
+  const re = new RegExp(`\\b${key}\\s*:\\s*([^\\n]+)`);
+  const m = replySection.match(re);
+  return m ? m[1].trim().replace(/^['"]|['"]$/g, '') : null;
+}
+async function queryCecOnDev(dev) {
+  // Claim logical address como Playback antes de query (sin -s persiste el modo)
+  await execP(`sudo cec-ctl -d ${dev} --playback 2>&1`, 4000);
+  const vendor = await execP(`sudo cec-ctl -d ${dev} --playback --to 0 --give-device-vendor-id 2>&1`, 5000);
+  const osd    = await execP(`sudo cec-ctl -d ${dev} --playback --to 0 --give-osd-name 2>&1`, 5000);
+  return {
+    vendor_id: parseCecReply(vendor.stdout, 'vendor-id'),
+    osd_name:  parseCecReply(osd.stdout, 'name'),
+  };
+}
+function parseEdid(edidPath) {
+  try {
+    if (!fs.existsSync(edidPath)) return null;
+    const stat = fs.statSync(edidPath);
+    if (stat.size === 0) return null;
+  } catch { return null; }
+  return null; // parse real via edid-decode
+}
+async function decodeEdid(edidPath) {
+  const base = parseEdid(edidPath);
+  const r = await execP(`edid-decode ${edidPath} 2>/dev/null`, 4000);
+  if (!r.stdout) return null;
+  const out = r.stdout;
+  const mfg   = (out.match(/Manufacturer:\s*(\S+)/i) || [])[1] || null;
+  const model = (out.match(/Model:\s*(\S+)/i) || [])[1] || null;
+  const serial= (out.match(/Serial Number:\s*(\S+)/i) || [])[1] || null;
+  const name  = (out.match(/Monitor name:\s*([^\n]+)/i) || [])[1]?.trim() || null;
+  // Resolución nativa: primera línea "Detailed Timing" o "DTD" con hxv
+  const res = (out.match(/(\d{3,4})x(\d{3,4})/) || [])[0] || null;
+  return { mfg, model, serial, monitor_name: name, native_res: res };
+}
+async function collectTvInfo() {
+  if (IS_WINDOWS) return null;
+  try {
+    const info = { collected_at: new Date().toISOString(), hdmi: {} };
+    // Enumerar HDMI-A-* del framebuffer
+    const drmDir = '/sys/class/drm';
+    let ports = [];
+    try {
+      ports = fs.readdirSync(drmDir).filter(n => /card\d+-HDMI-A-\d+$/.test(n));
+    } catch {}
+    // Mapear puerto DRM → índice CEC (HDMI-A-1 → cec0, HDMI-A-2 → cec1)
+    for (const p of ports) {
+      const idx = parseInt(p.match(/HDMI-A-(\d+)$/)[1], 10);
+      const cecDev = `/dev/cec${idx - 1}`;
+      const slot = `hdmi${idx - 1}`;
+      const entry = { drm_port: p };
+      // EDID
+      try {
+        const edidPath = `${drmDir}/${p}/edid`;
+        if (fs.existsSync(edidPath) && fs.statSync(edidPath).size > 0) {
+          entry.edid = await decodeEdid(edidPath);
+        } else {
+          entry.edid = null;
+        }
+      } catch (e) { entry.edid = null; }
+      // CEC
+      try {
+        if (fs.existsSync(cecDev)) {
+          entry.cec = await queryCecOnDev(cecDev);
+        } else {
+          entry.cec = null;
+        }
+      } catch (e) { entry.cec = null; }
+      info.hdmi[slot] = entry;
+    }
+    return info;
+  } catch (e) {
+    console.warn('collectTvInfo error:', e.message);
+    return null;
+  }
+}
+async function reportTvInfo() {
+  const info = await collectTvInfo();
+  if (!info) return;
+  try {
+    await axios.post(`${CMS_URL}/api/devices/${DEVICE_ID}/tv-info`, { tv_info: info }, { timeout: 10000 });
+    console.log('📺 tv-info reportado al CMS');
+  } catch (e) {
+    console.warn('📺 tv-info error:', e.message);
+  }
+}
+
 async function getDeviceConfig() {
   try {
     const response = await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 });
@@ -1177,6 +1279,20 @@ function connectSocket() {
     } catch(e) {
       socket.emit('device_media_list', { device_id: DEVICE_ID, files: [], error: e.message });
     }
+  });
+
+  // 10b. Logs — journalctl del servicio sonoro-player
+  socket.on('logs_request', ({ device_id, lines }) => {
+    if (IS_WINDOWS) return;
+    const n = Math.min(Math.max(parseInt(lines) || 100, 10), 2000);
+    console.log(`📜 Logs solicitados (${n} líneas)`);
+    exec(`journalctl -u sonoro-player -n ${n} --no-pager 2>&1`, { maxBuffer: 4 * 1024 * 1024, timeout: 12000 }, (err, stdout, stderr) => {
+      const logs = (stdout || stderr || '').toString();
+      axios.post(`${CMS_URL}/api/devices/${device_id}/logs-result`, {
+        logs,
+        error: err && !logs ? err.message : null,
+      }).catch(e => console.error('📜 logs result error:', e.message));
+    });
   });
 
   // 11. Control CEC — TV1, TV2 o ambos
@@ -1523,6 +1639,8 @@ async function main() {
 
   // 4. Registrar y obtener config
   await registerDevice();
+  reportTvInfo().catch(() => {});
+  setInterval(() => reportTvInfo().catch(() => {}), 6 * 60 * 60 * 1000);
   currentConfig = await getDeviceConfig();
   await checkQueueLicense();
   if (!currentConfig) currentConfig = loadCachedConfig();

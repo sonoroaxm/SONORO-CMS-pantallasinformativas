@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teleprompter — SONORO CMS</title>
+<style>
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#0a0a0a; --surface:#161616; --border:#2a2a2a;
+  --text:#ffffff; --text-dim:#cbd5e1; --muted:#94a3b8;
+  --brand:#FF1B8D; --green:#00e676; --amber:#f59e0b; --red:#ef4444;
+  --progress-bg:#2a2a2a;
+}
+html,body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+
+.tp { height:100vh; display:grid; grid-template-rows:auto 1fr auto; padding:48px 64px; gap:24px; }
+.tp-top { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; }
+.tp-now { flex:1; min-width:0; }
+.tp-status {
+  font-size:14px; text-transform:uppercase; letter-spacing:4px; color:var(--red); font-weight:800;
+  display:flex; align-items:center; gap:10px; margin-bottom:14px;
+}
+.tp-status::before { content:''; width:10px; height:10px; border-radius:50%; background:var(--red); animation:pulse 1.4s ease-in-out infinite; }
+.tp-status.amber { color:var(--amber); } .tp-status.amber::before { background:var(--amber); }
+.tp-status.muted { color:var(--muted); } .tp-status.muted::before { background:var(--muted); animation:none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.tp-session { font-size:52px; font-weight:900; letter-spacing:-1.5px; line-height:1.05; color:#fff; margin-bottom:10px; }
+.tp-speaker { font-size:22px; font-weight:600; color:var(--text-dim); line-height:1.3; }
+.tp-speaker strong { color:var(--text); font-weight:800; }
+
+.tp-meta { text-align:right; flex-shrink:0; }
+.tp-clock { font-size:64px; font-weight:900; font-variant-numeric:tabular-nums; letter-spacing:-2.5px; color:var(--text); line-height:.95; }
+.tp-clock-lbl { font-size:12px; text-transform:uppercase; letter-spacing:3px; color:var(--muted); font-weight:800; margin-top:8px; }
+
+.tp-center { display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+.tp-timer {
+  font-size:280px; font-weight:900; font-variant-numeric:tabular-nums;
+  letter-spacing:-14px; line-height:.85; color:var(--brand);
+  text-shadow:0 0 80px rgba(255,27,141,.4);
+}
+.tp-timer.green { color:var(--green); text-shadow:0 0 80px rgba(0,230,118,.4); }
+.tp-timer.amber { color:var(--amber); text-shadow:0 0 80px rgba(245,158,11,.4); }
+.tp-timer.red   { color:var(--red);   text-shadow:0 0 80px rgba(239,68,68,.5); }
+.tp-timer-lbl { font-size:20px; text-transform:uppercase; letter-spacing:6px; color:var(--muted); font-weight:800; margin-top:20px; }
+.tp-progress { width:100%; max-width:1100px; height:22px; background:var(--progress-bg); border-radius:11px; margin-top:48px; overflow:hidden; box-shadow:inset 0 2px 6px rgba(0,0,0,.3); }
+.tp-progress-fill { height:100%; background:linear-gradient(90deg,var(--green) 0%,var(--amber) 70%,var(--red) 100%); transition:width 1s linear; border-radius:11px; }
+.tp-progress-meta { display:flex; justify-content:space-between; align-items:baseline; width:100%; max-width:1100px; font-size:26px; font-weight:700; color:var(--text-dim); margin-top:20px; font-variant-numeric:tabular-nums; letter-spacing:.3px; }
+.tp-progress-meta strong { color:var(--text); font-weight:900; font-size:32px; }
+
+.tp-next { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 28px; }
+.tp-next-lbl { font-size:12px; text-transform:uppercase; letter-spacing:3px; color:var(--muted); font-weight:800; }
+.tp-next-name { font-size:30px; font-weight:800; color:var(--text); line-height:1.2; letter-spacing:-.4px; }
+.tp-next-when { font-size:16px; color:var(--text-dim); font-weight:600; margin-top:6px; }
+.tp-next-when strong { color:var(--text); font-weight:800; }
+
+.tp.wrap-up .tp-timer { animation:wrap 1.2s ease-in-out infinite alternate; }
+@keyframes wrap { from{opacity:.85} to{opacity:1; text-shadow:0 0 120px rgba(245,158,11,.6)} }
+
+.tp-error { display:flex; align-items:center; justify-content:center; height:100vh; font-size:24px; color:var(--muted); padding:40px; text-align:center; }
+
+@media (max-width:1100px) {
+  .tp { padding:32px; }
+  .tp-session { font-size:38px; }
+  .tp-timer { font-size:200px; letter-spacing:-10px; }
+}
+</style>
+</head>
+<body>
+
+<div id="tp-root">
+  <div class="tp-error">Cargando teleprompter...</div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+// ── PARSE URL ─────────────────────────────────────────────────────────────────
+const m = window.location.pathname.match(/\/evento\/([^\/]+)\/orador\/([^\/]+)/);
+if (!m) {
+  document.getElementById('tp-root').innerHTML = '<div class="tp-error">URL invalida</div>';
+}
+const SLUG       = m ? m[1] : null;
+const SESSION_ID = m ? m[2] : null;
+const TOKEN      = new URLSearchParams(window.location.search).get('t');
+
+if (!TOKEN) {
+  document.getElementById('tp-root').innerHTML = '<div class="tp-error">Token requerido en la URL (?t=...)</div>';
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let data    = null;
+let socket  = null;
+let tickInt = null;
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmt(sec) {
+  const sign = sec < 0 ? '+' : '';
+  const a = Math.abs(sec);
+  const h = Math.floor(a/3600), mi = Math.floor((a%3600)/60), s = a%60;
+  return sign + (h > 0 ? `${pad(h)}:${pad(mi)}:${pad(s)}` : `${pad(mi)}:${pad(s)}`);
+}
+function tz() { return data?.event?.timezone || 'America/Bogota'; }
+function fmtClock(d) {
+  return d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz() });
+}
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function load() {
+  if (!SLUG || !SESSION_ID || !TOKEN) return;
+  try {
+    const res = await fetch(`/api/events/public/${encodeURIComponent(SLUG)}/orador/${encodeURIComponent(SESSION_ID)}?t=${encodeURIComponent(TOKEN)}`);
+    if (!res.ok) {
+      if (res.status === 403 || res.status === 401) {
+        document.getElementById('tp-root').innerHTML = '<div class="tp-error">Token invalido o revocado.<br>Reintentando en 30 s...</div>';
+        setTimeout(load, 30000);
+        return;
+      }
+      throw new Error('HTTP ' + res.status);
+    }
+    data = await res.json();
+    renderShell();
+    if (!socket) connectSocket();
+    if (!tickInt) tickInt = setInterval(tick, 1000);
+    tick();
+  } catch (e) {
+    console.error('load:', e);
+    document.getElementById('tp-root').innerHTML = '<div class="tp-error">Error de conexion. Reintentando...</div>';
+    setTimeout(load, 15000);
+  }
+}
+
+// ── SOCKET ────────────────────────────────────────────────────────────────────
+function connectSocket() {
+  try {
+    socket = io();
+    socket.on('connect', () => {
+      socket.emit('join_event', { event_id: data.event.id });
+    });
+    socket.on('session.status_changed', (msg) => {
+      if (msg.event_id !== data.event.id) return;
+      if (msg.session_id === data.session.id) {
+        data.session.status = msg.status;
+      }
+      load();
+    });
+    socket.on('session.updated', (msg) => {
+      if (msg.event_id === data.event.id) load();
+    });
+  } catch (e) { console.warn('socket no disponible'); }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderShell() {
+  const room = data.session.room ? ` &middot; ${esc(data.session.room)}` : '';
+  const speaker = data.session.speaker_name
+    ? `Orador: <strong>${esc(data.session.speaker_name)}</strong>${room}`
+    : (data.session.room ? `Sala: <strong>${esc(data.session.room)}</strong>` : '');
+  const next = data.next_session;
+  const nextHtml = next
+    ? `<div class="tp-next-lbl">A continuacion</div>
+       <div>
+         <div class="tp-next-name">${esc(next.title)}</div>
+         <div class="tp-next-when">Empieza a las <strong id="tp-next-when">--</strong>${next.room ? ' &middot; ' + esc(next.room) : ''}</div>
+       </div>`
+    : `<div class="tp-next-lbl">A continuacion</div><div class="tp-next-name">Fin del programa</div>`;
+
+  document.getElementById('tp-root').innerHTML = `
+    <div class="tp" id="tp">
+      <div class="tp-top">
+        <div class="tp-now">
+          <div class="tp-status" id="tp-status">--</div>
+          <div class="tp-session">${esc(data.session.title)}</div>
+          <div class="tp-speaker">${speaker}</div>
+        </div>
+        <div class="tp-meta">
+          <div class="tp-clock" id="tp-now-clock">--</div>
+          <div class="tp-clock-lbl">Hora actual</div>
+        </div>
+      </div>
+      <div class="tp-center">
+        <div class="tp-timer" id="tp-timer">--:--</div>
+        <div class="tp-timer-lbl" id="tp-timer-lbl">--</div>
+        <div class="tp-progress"><div class="tp-progress-fill" id="tp-progress-fill" style="width:0%"></div></div>
+        <div class="tp-progress-meta">
+          <span>Va <strong id="tp-elapsed">--:--</strong> de <strong id="tp-total">--:--</strong></span>
+          <span id="tp-pct">0%</span>
+        </div>
+      </div>
+      <div class="tp-next">${nextHtml}</div>
+    </div>
+  `;
+
+  if (next) {
+    document.getElementById('tp-next-when').textContent = fmtClock(new Date(next.starts_at));
+  }
+}
+
+function tick() {
+  if (!data) return;
+  const now = Date.now();
+  const startMs = new Date(data.session.starts_at).getTime();
+  const endMs   = new Date(data.session.ends_at).getTime();
+  const totalSec = Math.max(1, Math.floor((endMs - startMs) / 1000));
+
+  const tp     = document.getElementById('tp');
+  const timer  = document.getElementById('tp-timer');
+  const lbl    = document.getElementById('tp-timer-lbl');
+  const status = document.getElementById('tp-status');
+  const fill   = document.getElementById('tp-progress-fill');
+  const elapsedEl = document.getElementById('tp-elapsed');
+  const totalEl   = document.getElementById('tp-total');
+  const pctEl     = document.getElementById('tp-pct');
+  const clock     = document.getElementById('tp-now-clock');
+
+  if (clock) clock.textContent = fmtClock(new Date());
+  if (totalEl) totalEl.textContent = fmt(totalSec);
+
+  if (now < startMs) {
+    // Pre-sesion: countdown a comienzo
+    const remaining = Math.floor((startMs - now) / 1000);
+    timer.className = 'tp-timer';
+    timer.textContent = fmt(remaining);
+    lbl.textContent = 'EMPIEZA EN';
+    status.className = 'tp-status muted';
+    status.textContent = 'PROXIMA';
+    fill.style.width = '0%';
+    elapsedEl.textContent = fmt(0);
+    pctEl.textContent = '0%';
+    tp.classList.remove('wrap-up');
+    return;
+  }
+
+  const elapsedSec   = Math.floor((now - startMs) / 1000);
+  const remainingSec = Math.floor((endMs - now) / 1000);
+
+  if (now >= endMs) {
+    const over = Math.floor((now - endMs) / 1000);
+    timer.className = 'tp-timer red';
+    timer.textContent = '+' + fmt(over);
+    lbl.textContent = 'TIEMPO EXTRA';
+    status.className = 'tp-status amber';
+    status.textContent = 'CIERRA YA';
+    fill.style.width = '100%';
+    elapsedEl.textContent = fmt(elapsedSec);
+    pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';
+    tp.classList.remove('wrap-up');
+  } else if (remainingSec < 300) {
+    timer.className = 'tp-timer amber';
+    timer.textContent = fmt(remainingSec);
+    lbl.textContent = 'CIERRE';
+    status.className = 'tp-status amber';
+    status.textContent = 'PREPARANDO CIERRE';
+    fill.style.width = ((elapsedSec / totalSec) * 100) + '%';
+    elapsedEl.textContent = fmt(elapsedSec);
+    pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';
+    tp.classList.add('wrap-up');
+  } else {
+    timer.className = 'tp-timer';
+    timer.textContent = fmt(remainingSec);
+    lbl.textContent = 'Restan';
+    status.className = 'tp-status';
+    status.textContent = 'EN VIVO';
+    fill.style.width = ((elapsedSec / totalSec) * 100) + '%';
+    elapsedEl.textContent = fmt(elapsedSec);
+    pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';
+    tp.classList.remove('wrap-up');
+  }
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+if (SLUG && SESSION_ID && TOKEN) load();
+</script>
+</body>
+</html>

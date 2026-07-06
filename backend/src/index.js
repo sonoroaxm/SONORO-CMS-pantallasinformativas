@@ -13,6 +13,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
+const eventsRouter       = require('./routes/events');
+const eventsPublicRouter = require('./routes/events-public');
+const eventsProductionPublicRouter = require('./routes/events-production-public');
+const eventsStaffRouter  = require('./routes/events-staff');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
@@ -300,7 +304,29 @@ pool.query('SELECT 1')
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens)'))
+  // S157: quota de almacenamiento por usuario. NULL = ilimitado (super admin).
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER DEFAULT 500
+  `))
+  .then(() => pool.query(`
+    UPDATE users SET storage_limit_mb = NULL WHERE email = 'admin@sonoro.com.co'
+  `).catch(() => {}))
+  // S157: tracking de tamaño en tablas de assets de CI (todavía no funcionales, pero preparadas)
+  .then(() => pool.query(`
+    ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE creative_pieces ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  // S158: normalizar tier 'cms' viejo → 'cms_sencilla' (una sola vez, aditivo)
+  .then(() => pool.query(`
+    UPDATE users SET license_type = 'cms_sencilla' WHERE license_type = 'cms'
+  `).catch(() => {}))
+  // S158e: phone en users (para contacto post-alta)
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -314,6 +340,10 @@ global.pool = pool;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET no definido en .env');
+  process.exit(1);
+}
+if (JWT_SECRET.length < 32) {
+  console.error('❌ FATAL: JWT_SECRET debe tener mínimo 32 caracteres');
   process.exit(1);
 }
 const JWT_EXPIRES_IN = '24h';
@@ -533,6 +563,12 @@ app.get('/dashboard.html', (req, res) => {
 // ========================================
 
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
+  // S158d: register público cerrado. Las cuentas ahora se crean sólo por admin.
+  return res.status(403).json({
+    error: 'registro_cerrado',
+    message: 'El registro público está deshabilitado. Contacta a SONORO por WhatsApp al +57 314 446 0990 para activar tu cuenta.'
+  });
+  // eslint-disable-next-line no-unreachable
   try {
     const { email, password, name } = req.body;
 
@@ -568,7 +604,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     );
 
     console.log(`✅ Usuario registrado: ${email}`);
-    emailService.sendWelcomeEmail(user).catch(e => console.warn('Email bienvenida:', e.message));
+    // S158: el email de bienvenida ya NO se envía en el register.
+    // Se dispara cuando el admin asigna la primera licencia (endpoint /license/renew).
 
     res.json({
       success: true,
@@ -656,7 +693,7 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
   }
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
@@ -681,6 +718,110 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ========================================
+// STORAGE QUOTA — S157
+// ========================================
+
+// Suma bytes usados por el usuario en todas las tablas de assets.
+// NULL en storage_limit_mb = ilimitado (super admin).
+async function getUserStorage(userId) {
+  const q = await pool.query(`
+    SELECT
+      (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = $1) AS used_bytes,
+      (SELECT storage_limit_mb FROM users WHERE id = $1) AS limit_mb
+  `, [userId]);
+  const row = q.rows[0] || { used_bytes: 0, limit_mb: 500 };
+  const usedBytes = Number(row.used_bytes) || 0;
+  const limitMb = row.limit_mb; // puede ser null
+  const limitBytes = limitMb === null || limitMb === undefined ? null : limitMb * 1024 * 1024;
+  const percent = limitBytes === null ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+  return { used_bytes: usedBytes, limit_mb: limitMb, limit_bytes: limitBytes, percent, unlimited: limitBytes === null };
+}
+
+// Endpoint público para el dashboard
+app.get('/api/user/storage', authenticateToken, async (req, res) => {
+  try {
+    const info = await getUserStorage(req.user.id);
+    res.json({
+      used_mb: Math.round(info.used_bytes / 1024 / 1024 * 10) / 10,
+      used_bytes: info.used_bytes,
+      limit_mb: info.limit_mb,
+      percent: info.percent,
+      unlimited: info.unlimited
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/storage:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: GET /api/user/me — perfil del usuario logeado (Mi Cuenta)
+app.get('/api/user/me', authenticateToken, async (req, res) => {
+  try {
+    const q = await pool.query(`
+      SELECT id, email, name, role, license_type, license_status, license_start, license_end, created_at, features
+      FROM users WHERE id = $1
+    `, [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const u = q.rows[0];
+    const storage = await getUserStorage(u.id);
+    const now = new Date();
+    const end = u.license_end ? new Date(u.license_end) : null;
+    const daysLeft = end ? Math.ceil((end - now) / (1000*60*60*24)) : null;
+    const isExpired = end ? end < now : false;
+    res.json({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      license_type: u.license_type,
+      license_status: isExpired ? 'expired' : (u.license_status || 'active'),
+      license_start: u.license_start,
+      license_end: u.license_end,
+      days_left: daysLeft,
+      is_expired: isExpired,
+      created_at: u.created_at,
+      features: u.features || {},
+      storage: {
+        used_mb: Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10,
+        limit_mb: storage.limit_mb,
+        percent: storage.percent,
+        unlimited: storage.unlimited
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/me:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: POST /api/user/change-password — cambio de contraseña propia
+app.post('/api/user/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Faltan campos' });
+    }
+    if (String(new_password).length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+    const q = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const ok = await bcrypt.compare(current_password, q.rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    const newHash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+    console.log(`🔐 Password cambiado por usuario ${req.user.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error /api/user/change-password:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ========================================
 // UPLOAD CON CONVERSIÓN (PROTEGIDO)
 // ========================================
 
@@ -692,9 +833,30 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
     const file = req.files.file;
     const userId = req.user.id; // ✅ DEL JWT
-    const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png'];
 
-    if (!allowedMimes.some(mime => file.mimetype.includes(mime.split('/')[0]))) {
+    // S157: gate de quota antes de aceptar el upload
+    try {
+      const storage = await getUserStorage(userId);
+      if (!storage.unlimited) {
+        const incomingBytes = file.size || 0;
+        if (storage.used_bytes + incomingBytes > storage.limit_bytes) {
+          const usedMb = Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10;
+          return res.status(413).json({
+            error: 'storage_limit_exceeded',
+            message: `Has alcanzado tu límite de ${storage.limit_mb} MB. Elimina contenido o contacta a SONORO para ampliar tu espacio.`,
+            used_mb: usedMb,
+            limit_mb: storage.limit_mb,
+            incoming_mb: Math.round(incomingBytes / 1024 / 1024 * 10) / 10
+          });
+        }
+      }
+    } catch (qErr) {
+      console.warn('⚠️ Storage quota check falló, permitiendo upload:', qErr.message);
+    }
+
+    const allowedMimes = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png']);
+
+    if (!allowedMimes.has(file.mimetype)) {
       return res.status(400).json({
         error: 'Tipo de archivo no soportado',
         supported: 'Videos (MP4, WebM, MOV, MKV) o Imágenes (JPG, PNG)'
@@ -883,7 +1045,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const filepath = path.join(uploadsDir, filename);
 
     // Verificar que la ruta resultante siga dentro de uploads (previene path traversal)
-    if (!filepath.startsWith(uploadsDir + path.sep) && filepath !== uploadsDir) {
+    if (!filepath.startsWith(uploadsDir + path.sep)) {
       return res.status(400).json({ error: 'Nombre de archivo inválido' });
     }
 
@@ -1329,6 +1491,9 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(device_id)) return res.status(400).json({ error: 'device_id inválido' });
+
     const deviceResult = await pool.query(
       `SELECT d.*, u.features
        FROM devices d
@@ -1484,7 +1649,7 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
   const { ip } = req.body;
   if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
+  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
     if (error) {
       console.warn(`⚠️ Reboot enviado a ${ip} (puede ser normal si SSH cierra):`, error.message);
     }
@@ -1501,7 +1666,7 @@ app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) =
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
     const ip = result.rows[0].ip_address;
     if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP del dispositivo inválida' });
-    execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
+    execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
       if (error && !error.message.includes('closed') && !error.message.includes('exit')) {
         console.warn(`⚠️ SSH reboot ${ip}:`, error.message);
       }
@@ -1721,6 +1886,26 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
     else cb.resolve(output || action);
   }
   res.json({ success: true });
+});
+
+// POST /api/devices/:device_id/tv-info — RPi reporta CEC vendor/OSD + EDID por HDMI
+app.post('/api/devices/:device_id/tv-info', async (req, res) => {
+  const { device_id } = req.params;
+  const { tv_info } = req.body || {};
+  if (!tv_info || typeof tv_info !== 'object') {
+    return res.status(400).json({ success: false, error: 'tv_info requerido (object)' });
+  }
+  try {
+    const r = await pool.query(
+      'UPDATE devices SET tv_info = $1, tv_info_updated_at = NOW() WHERE device_id = $2 RETURNING id',
+      [JSON.stringify(tv_info), device_id]
+    );
+    if (!r.rowCount) return res.status(404).json({ success: false, error: 'device no existe' });
+    res.json({ success: true });
+  } catch (e) {
+    console.warn('tv-info error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 // POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
@@ -2010,6 +2195,13 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     const code = `SNR-${part1}-${part2}`;
 
+    // S158f: detectar si es el primer código del usuario (para email de guía)
+    const priorCount = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM activation_codes WHERE user_id = $1',
+      [userId]
+    );
+    const isFirstCode = priorCount.rows[0].n === 0;
+
     const result = await pool.query(
       `INSERT INTO activation_codes (code, user_id, device_name)
        VALUES ($1, $2, $3)
@@ -2018,6 +2210,14 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     );
 
     console.log(`✅ Código de activación generado: ${code} para usuario ${userId}`);
+
+    // S158f: en el primer código, enviar guía de activación por email (fire-and-forget)
+    if (isFirstCode) {
+      pool.query('SELECT email, name FROM users WHERE id = $1', [userId])
+        .then(r => r.rows[0] && emailService.sendActivationGuideEmail(r.rows[0]))
+        .catch(e => console.warn('⚠️ Guía de activación email:', e.message));
+    }
+
     res.json({ success: true, ...result.rows[0] });
   } catch (err) {
     console.error('❌ Error generando código:', err);
@@ -2289,11 +2489,17 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
       SELECT
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
-        u.created_at, u.features, u.notification_emails,
+        u.created_at, u.features, u.notification_emails, u.storage_limit_mb,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
         COUNT(DISTINCT p.id) as playlist_count,
-        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count
+        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count,
+        (
+          (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = u.id)
+        ) as storage_used_bytes
       FROM users u
       LEFT JOIN devices d ON d.user_id = u.id
       LEFT JOIN content c ON c.user_id = u.id
@@ -2304,15 +2510,44 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
     `);
 
     const now = new Date();
-    const users = result.rows.map(u => ({
-      ...u,
-      days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
-      is_expired: u.license_end ? new Date(u.license_end) < now : false,
-    }));
+    const users = result.rows.map(u => {
+      const usedBytes = Number(u.storage_used_bytes) || 0;
+      const limitMb = u.storage_limit_mb;
+      const unlimited = limitMb === null || limitMb === undefined;
+      const limitBytes = unlimited ? null : limitMb * 1024 * 1024;
+      const percent = unlimited ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+      return {
+        ...u,
+        days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
+        is_expired: u.license_end ? new Date(u.license_end) < now : false,
+        storage_used_mb: Math.round(usedBytes / 1024 / 1024 * 10) / 10,
+        storage_percent: percent,
+        storage_unlimited: unlimited
+      };
+    });
 
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// S157: PATCH storage limit por usuario (super admin)
+app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const { storage_limit_mb } = req.body; // number o null (ilimitado)
+    const val = (storage_limit_mb === null || storage_limit_mb === undefined || storage_limit_mb === '')
+      ? null
+      : parseInt(storage_limit_mb, 10);
+    if (val !== null && (Number.isNaN(val) || val < 0)) {
+      return res.status(400).json({ error: 'storage_limit_mb inválido' });
+    }
+    await pool.query('UPDATE users SET storage_limit_mb = $1 WHERE id = $2', [val, userId]);
+    res.json({ success: true, storage_limit_mb: val });
+  } catch (err) {
+    console.error('❌ Error PATCH storage-limit:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
@@ -2442,7 +2677,7 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
 app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
   const { feature, enabled } = req.body;
-  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars'];
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars', 'events_v1'];
   if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
   try {
     const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
@@ -2519,6 +2754,30 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
   }
 });
 
+// GET /api/admin/devices/:device_id/tunnel-status — comprueba si el túnel SSH
+// inverso del RPi está activo (VPS localhost:PORT tiene LISTEN).
+app.get('/api/admin/devices/:device_id/tunnel-status', authenticateToken, requireAdmin, async (req, res) => {
+  const { device_id } = req.params;
+  try {
+    const r = await pool.query('SELECT tunnel_port FROM devices WHERE device_id = $1', [device_id]);
+    const port = r.rows[0]?.tunnel_port || 2222;
+    const net = require('net');
+    const active = await new Promise((resolve) => {
+      const sock = new net.Socket();
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; try { sock.destroy(); } catch(_){} resolve(v); } };
+      sock.setTimeout(1500);
+      sock.once('connect', () => finish(true));
+      sock.once('timeout', () => finish(false));
+      sock.once('error',   () => finish(false));
+      sock.connect(port, '127.0.0.1');
+    });
+    res.json({ device_id, port, active });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── CEC Monitor — disponible para cualquier usuario autenticado ─────────────
 // Admin ve todos los dispositivos; otros usuarios solo ven los suyos
 app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
@@ -2553,6 +2812,72 @@ app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
 });
 
 // ── ADMIN: Renovar licencia ──────────────────────────────────
+// ── S158e: ADMIN crea cliente (con licencia + contraseña temporal + email) ──
+app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, license_type, months } = req.body;
+    if (!name || !email || !license_type || !months) {
+      return res.status(400).json({ error: 'name, email, license_type y months son requeridos' });
+    }
+    const emailNorm = String(email).trim().toLowerCase();
+
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [emailNorm]);
+    if (exists.rows.length) return res.status(409).json({ error: 'email_ya_existe' });
+
+    // Password temporal 12 chars (alfanum sin ambiguos)
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let tempPassword = '';
+    for (let i = 0; i < 12; i++) tempPassword += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + parseInt(months));
+
+    const LICENSE_FEATURES = {
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue:    { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:        { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      windows:      { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+    };
+    const feats = LICENSE_FEATURES[license_type] || {};
+
+    const ins = await pool.query(`
+      INSERT INTO users (name, email, password, role, phone, license_type, license_status, license_start, license_end, features, storage_limit_mb)
+      VALUES ($1, $2, $3, 'client', $4, $5, 'active', $6, $7, $8::jsonb, 500)
+      RETURNING id, name, email, license_type, license_end
+    `, [name, emailNorm, hash, phone || null, license_type, now, endDate, JSON.stringify(feats)]);
+
+    const newUser = ins.rows[0];
+
+    // Historial
+    try {
+      await pool.query(`
+        INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
+        VALUES ($1, 'renew', $2, $3, NULL, $4, 'Alta inicial (admin)', $5)
+      `, [newUser.id, months, license_type, endDate, req.user.id]);
+    } catch(e) { console.warn('⚠️ license_history insert:', e.message); }
+
+    // Email de bienvenida con credenciales
+    try {
+      await emailService.sendWelcomeEmail(
+        { email: emailNorm, name, license_type },
+        license_type,
+        { credentials: { email: emailNorm, tempPassword } }
+      );
+    } catch(e) { console.warn('⚠️ Email bienvenida:', e.message); }
+
+    console.log(`✅ Cliente creado por admin: ${emailNorm} (${license_type}, ${months}m)`);
+    res.json({ success: true, user: newUser });
+  } catch (err) {
+    console.error('❌ Error creando cliente:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -2590,6 +2915,13 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       RETURNING *
     `, [newEnd, license_type || null, userId]);
 
+    // S158: detectar si es la PRIMERA licencia del usuario (antes del INSERT)
+    const histCount = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM license_history WHERE user_id = $1 AND action = 'renew'`,
+      [userId]
+    );
+    const isFirstLicense = histCount.rows[0].n === 0;
+
     // Registrar en historial
     await pool.query(`
       INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
@@ -2603,23 +2935,33 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       io.emit(`license-updated-${d.device_id}`, { status: 'active', license_end: newEnd });
     });
 
-    // Enviar email de confirmación
+    // Enviar email de confirmación (renovación) o de bienvenida (primera licencia)
     try {
-      await emailService.sendLicenseRenewedEmail(
-        { email: user.email, name: user.name },
-        { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
-      );
-    } catch(e) { console.warn('⚠️ Error enviando email de renovación:', e.message); }
+      if (isFirstLicense) {
+        await emailService.sendWelcomeEmail(
+          { email: user.email, name: user.name, license_type: updateResult.rows[0].license_type },
+          updateResult.rows[0].license_type
+        );
+      } else {
+        await emailService.sendLicenseRenewedEmail(
+          { email: user.email, name: user.name },
+          { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
+        );
+      }
+    } catch(e) { console.warn('⚠️ Error enviando email de licencia:', e.message); }
 
     // ── Auto-asignar features según tipo de licencia ──────────
     // El admin puede sobreescribir después con los checkboxes.
     // Se hace MERGE (||) para no borrar features que ya tenía.
     const LICENSE_FEATURES = {
-      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
-      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
-      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
-      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
-      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
     };
     const finalType = license_type || updateResult.rows[0].license_type;
     if (finalType && LICENSE_FEATURES[finalType]) {
@@ -2655,7 +2997,7 @@ app.post('/api/admin/users/:userId/license/suspend', authenticateToken, requireA
     await pool.query("UPDATE users SET license_status = 'suspended' WHERE id = $1", [userId]);
 
     // Al suspender: apagar todos los flags Queue v2 en la BD
-    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
+    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false };
     await pool.query(
       "UPDATE users SET features = COALESCE(features, '{}'::jsonb) || $1::jsonb WHERE id = $2",
       [JSON.stringify(Q2_OFF), userId]
@@ -7126,6 +7468,41 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // ─────────────────────────────────────────────────────────────
 // R1.5 §1 — GET /agendar/:slug  →  booking.html
 // ─────────────────────────────────────────────────────────────
+// ── Events v1 — Routers (E0) ────────────────────────────────────────────
+app.use('/api/events/public', eventsProductionPublicRouter);
+app.use('/api/events/public', eventsPublicRouter);
+app.use('/api/events/staff',  eventsStaffRouter);
+app.use('/api/events',        eventsRouter);
+
+// ── Events v1 — Rutas HTML ───────────────────────────────────────────────
+app.get('/evento/invitacion/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug/mi-registro/:qr', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug/staff', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-staff.html'));
+});
+app.get('/evento/:slug/produccion', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-produccion.html'));
+});
+app.get('/evento/:slug/orador/:session_id', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-teleprompter.html'));
+});
+app.get('/evento/:slug/kiosko', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
+});
+app.get('/cotizacion/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
+});
+app.get('/proveedor-registro/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'proveedor-registro.html'));
+});
+
 app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
 });
@@ -7762,7 +8139,7 @@ io.on('connection', (socket) => {
       const ip = result.rows[0].ip_address;
       if (!ip || !isValidIP(ip)) return socket.emit('reboot_result', { success: false, error: 'IP del dispositivo inválida' });
       console.log(`🔄 Reiniciando dispositivo ${device_id} en ${ip}`);
-      execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
+      execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
         if (error && error.code !== null && error.signal !== 'SIGTERM') {
           console.error('❌ Reboot error:', error.message);
           socket.emit('reboot_result', { success: false, error: error.message });
@@ -7833,6 +8210,46 @@ io.on('connection', (socket) => {
 
   socket.on('join_counter', (counterId) => {
     socket.join(`counter_${counterId}`);
+  });
+
+  socket.on('join_event', async ({ event_id } = {}) => {
+    if (!event_id || socket.role !== 'user') {
+      return socket.emit('auth_error', { error: 'JWT requerido para join_event' });
+    }
+    try {
+      const isAdmin = socket.user.role === 'admin';
+      const ev = await pool.query(
+        `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+        isAdmin ? [event_id] : [event_id, socket.user.id]
+      );
+      if (!ev.rowCount) return socket.emit('auth_error', { error: 'Evento no encontrado o no autorizado' });
+      socket.join(`event_${event_id}`);
+      socket.join(`event_checkin_${event_id}`);
+      socket.join(`event_screen_${event_id}`);
+      console.log(`🎪 user_id=${socket.user.id} → salas event_${event_id}`);
+    } catch (e) {
+      console.error('join_event error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
+  });
+
+  socket.on('join_event_public', async ({ token } = {}) => {
+    if (!token) return socket.emit('auth_error', { error: 'Token requerido' });
+    try {
+      const r = await pool.query(
+        `SELECT event_id FROM events.production_tokens
+         WHERE token = $1 AND revoked_at IS NULL LIMIT 1`,
+        [token]
+      );
+      if (!r.rows[0]) return socket.emit('auth_error', { error: 'Token inválido o revocado' });
+      const eventId = r.rows[0].event_id;
+      socket.join(`event_${eventId}`);
+      socket.join(`event_screen_${eventId}`);
+      socket.emit('joined_event_public', { event_id: eventId });
+    } catch (e) {
+      console.error('join_event_public error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
   });
 
   socket.on('disconnect', () => {
@@ -9599,6 +10016,9 @@ app.delete('/api/admin/fids/playlists/:id/items/:mediaId', authenticateToken, re
     res.status(500).json({ error: 'Error interno' });
   }
 });
+
+const mailerRouter = require('./routes/mailer');
+app.use(mailerRouter);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);

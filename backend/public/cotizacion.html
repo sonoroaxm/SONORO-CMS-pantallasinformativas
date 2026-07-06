@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotización — SONORO Events</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1a1a1a; min-height: 100vh; }
+
+    .page { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* Header */
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid #e5e5e5; }
+    .brand-logo { font-size: 22px; font-weight: 900; letter-spacing: -1px; background: linear-gradient(135deg,#FF1B8D,#FF8C00,#FFE566); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .brand-sep { width: 1px; height: 24px; background: #ddd; }
+    .brand-label { font-size: 12px; font-weight: 600; color: #888; letter-spacing: 0.5px; }
+
+    /* Context card */
+    .context-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+    .context-card h2 { font-size: 18px; font-weight: 800; color: #111; margin-bottom: 4px; }
+    .context-meta { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+    .context-meta-item { flex: 1; min-width: 140px; }
+    .meta-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-bottom: 3px; }
+    .meta-value { font-size: 13px; color: #333; font-weight: 600; }
+    .service-tag { display: inline-block; background: rgba(255,27,141,0.08); color: #FF1B8D; border: 1px solid rgba(255,27,141,0.2); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; margin-top: 8px; }
+
+    /* Form */
+    .form-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .form-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-bottom: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 12px; font-weight: 600; color: #555; }
+    label .req { color: #FF1B8D; margin-left: 2px; }
+    input, select, textarea { border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; color: #111; background: #fafafa; transition: border-color 0.15s; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #FF1B8D; background: #fff; }
+    textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .calc-result { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px 12px; font-size: 15px; font-weight: 700; color: #166534; }
+
+    /* Divider */
+    .divider { height: 1px; background: #f0f0f0; margin: 20px 0; }
+
+    /* PDF Upload */
+    .pdf-zone { border: 2px dashed #ddd; border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+    .pdf-zone:hover, .pdf-zone.drag-over { border-color: #FF1B8D; background: rgba(255,27,141,0.03); }
+    .pdf-zone-icon { font-size: 32px; margin-bottom: 8px; }
+    .pdf-zone-text { font-size: 13px; color: #666; }
+    .pdf-zone-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+    .pdf-selected { display: flex; align-items: center; gap: 10px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
+    .pdf-selected span { font-size: 13px; color: #166534; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdf-remove { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding: 0 4px; }
+    input[type="file"] { display: none; }
+
+    /* Submit */
+    .btn-submit { display: block; width: 100%; padding: 15px; background: linear-gradient(135deg, #FF1B8D, #FF8C00); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; margin-top: 8px; }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* States */
+    #loading-view { text-align: center; padding: 64px 24px; color: #888; font-size: 14px; }
+    #submitted-view { display: none; text-align: center; padding: 48px 24px; }
+    #submitted-view .check { font-size: 56px; margin-bottom: 16px; }
+    #submitted-view h2 { font-size: 22px; font-weight: 800; color: #166534; margin-bottom: 8px; }
+    #submitted-view p { font-size: 14px; color: #555; line-height: 1.6; }
+    #error-view { display: none; text-align: center; padding: 64px 24px; }
+    #error-view h2 { font-size: 18px; font-weight: 700; color: #ef4444; margin-bottom: 8px; }
+    #error-view p { font-size: 13px; color: #888; }
+
+    @media (max-width: 480px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .context-meta { flex-direction: column; gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="brand">
+    <div class="brand-logo">SONORO.</div>
+    <div class="brand-sep"></div>
+    <div class="brand-label">Formato de cotización</div>
+  </div>
+
+  <div id="loading-view">Cargando información del evento...</div>
+
+  <div id="form-view" style="display:none">
+    <div class="context-card">
+      <h2 id="ctx-event-name">Evento</h2>
+      <div class="context-meta">
+        <div class="context-meta-item">
+          <div class="meta-label">Proveedor</div>
+          <div class="meta-value" id="ctx-supplier"></div>
+        </div>
+        <div class="context-meta-item">
+          <div class="meta-label">Fecha</div>
+          <div class="meta-value" id="ctx-date"></div>
+        </div>
+        <div class="context-meta-item" id="ctx-venue-wrap" style="display:none">
+          <div class="meta-label">Sede</div>
+          <div class="meta-value" id="ctx-venue"></div>
+        </div>
+      </div>
+      <div id="ctx-service-tag" style="display:none" class="service-tag"></div>
+    </div>
+
+    <form id="quote-form">
+      <!-- Descripción y precios -->
+      <div class="form-card">
+        <div class="form-section-title">Descripción del servicio</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Descripción del servicio<span class="req">*</span></label>
+            <textarea id="f-description" name="description" rows="3" placeholder="Describe el servicio que cotizas..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Precio unitario (COP)</label>
+            <input id="f-unit-price" name="unit_price" type="number" min="0" step="100" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Cantidad / Unidades</label>
+            <input id="f-qty" name="qty" type="number" min="1" step="1" value="1">
+          </div>
+          <div class="form-group">
+            <label>Subtotal sin IVA<span class="req">*</span></label>
+            <input id="f-subtotal" name="subtotal" type="number" min="0" step="100" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>IVA</label>
+            <select id="f-iva" name="iva_pct">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="19" selected>19%</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Total con IVA</label>
+            <div class="calc-result" id="f-total-display">$ 0</div>
+            <input type="hidden" id="f-total" name="total_con_iva">
+          </div>
+        </div>
+      </div>
+
+      <!-- Condiciones -->
+      <div class="form-card">
+        <div class="form-section-title">Condiciones</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Vigencia de la cotización</label>
+            <input id="f-vigencia" name="vigencia_fecha" type="date">
+          </div>
+          <div class="form-group">
+            <label>Condición de pago</label>
+            <select id="f-pago" name="condicion_pago">
+              <option value="">— Selecciona —</option>
+              <option value="Anticipo 50%">Anticipo 50%</option>
+              <option value="Anticipo 100%">Anticipo 100% (prepago)</option>
+              <option value="Contra entrega">Contra entrega</option>
+              <option value="Crédito 30 días">Crédito 30 días</option>
+              <option value="Crédito 15 días">Crédito 15 días</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Notas y condiciones adicionales</label>
+            <textarea id="f-notes" name="notes" rows="3" placeholder="Incluye cualquier condición especial, materiales incluidos, exclusiones, etc."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF -->
+      <div class="form-card">
+        <div class="form-section-title">Cotización formal (PDF)</div>
+        <p style="font-size:13px;color:#666;margin-bottom:14px;line-height:1.5;">
+          Opcionalmente, adjunta tu cotización en PDF membretada con el detalle completo.
+        </p>
+        <div class="pdf-zone" id="pdf-zone" onclick="document.getElementById('pdf-input').click()">
+          <div class="pdf-zone-icon">📎</div>
+          <div class="pdf-zone-text">Haz clic para adjuntar PDF</div>
+          <div class="pdf-zone-hint">Máximo 10 MB · Solo archivos PDF</div>
+        </div>
+        <div class="pdf-selected" id="pdf-selected" style="display:none">
+          <span id="pdf-name"></span>
+          <button type="button" class="pdf-remove" onclick="evRemovePdf()">✕</button>
+        </div>
+        <input type="file" id="pdf-input" name="pdf" accept=".pdf,application/pdf" onchange="evPdfSelected(this)">
+      </div>
+
+      <button type="submit" class="btn-submit" id="btn-submit">Enviar cotización</button>
+    </form>
+  </div>
+
+  <div id="submitted-view">
+    <div class="check">✅</div>
+    <h2>¡Cotización enviada!</h2>
+    <p>Hemos recibido tu cotización. El equipo de SONORO la revisará y se pondrá en contacto contigo.</p>
+  </div>
+
+  <div id="error-view">
+    <h2>Enlace inválido</h2>
+    <p id="error-msg">Este enlace de cotización no es válido o ya expiró.</p>
+  </div>
+
+</div>
+
+<script>
+  const token = window.location.pathname.split('/cotizacion/')[1];
+  const API = '';
+
+  async function init() {
+    console.log('[cotizacion] token:', token, '| path:', window.location.pathname);
+    if (!token) { showError('Enlace inválido — token no encontrado en URL'); return; }
+    try {
+      const url = `${API}/api/events/public/cotizacion/${token}`;
+      console.log('[cotizacion] GET', url);
+      const res = await fetch(url);
+      console.log('[cotizacion] response status:', res.status);
+      let data;
+      try { data = await res.json(); } catch(je) { showError('Respuesta inválida del servidor'); console.error('[cotizacion] JSON parse error:', je); return; }
+      if (!res.ok) { showError(data.error || 'Enlace inválido'); console.error('[cotizacion] API error:', data); return; }
+      if (data.status === 'recibida') { showSubmitted(); return; }
+      console.log('[cotizacion] populateContext data:', data);
+      populateContext(data);
+      document.getElementById('loading-view').style.display = 'none';
+      document.getElementById('form-view').style.display = 'block';
+    } catch(e) {
+      console.error('[cotizacion] init() catch:', e);
+      showError('Error cargando el formulario: ' + e.message);
+    }
+  }
+
+  function populateContext(d) {
+    document.title = `Cotización — ${d.event_name}`;
+    document.getElementById('ctx-event-name').textContent = d.event_name;
+    document.getElementById('ctx-supplier').textContent = d.supplier_name;
+    if (d.starts_at) {
+      const dateStr = new Date(d.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: d.timezone || 'America/Bogota' });
+      document.getElementById('ctx-date').textContent = dateStr;
+    } else {
+      document.getElementById('ctx-date').textContent = '—';
+    }
+    if (d.venue_name) {
+      document.getElementById('ctx-venue').textContent = d.venue_name;
+      document.getElementById('ctx-venue-wrap').style.display = '';
+    }
+    if (d.service_description) {
+      const tag = document.getElementById('ctx-service-tag');
+      tag.textContent = d.service_description;
+      tag.style.display = 'inline-block';
+      document.getElementById('f-description').value = d.service_description;
+    }
+    // Default vigencia: 15 days from today
+    const v = new Date(); v.setDate(v.getDate() + 15);
+    document.getElementById('f-vigencia').value = v.toISOString().split('T')[0];
+  }
+
+  // Auto-calc total
+  function calcTotal() {
+    const sub = parseFloat(document.getElementById('f-subtotal').value) || 0;
+    const iva = parseFloat(document.getElementById('f-iva').value) || 0;
+    const total = sub + (sub * iva / 100);
+    document.getElementById('f-total-display').textContent = fmtCOP(total);
+    document.getElementById('f-total').value = total;
+  }
+
+  // Auto-fill subtotal from unit price × qty
+  function calcSubtotal() {
+    const up = parseFloat(document.getElementById('f-unit-price').value) || 0;
+    const qty = parseFloat(document.getElementById('f-qty').value) || 1;
+    if (up > 0) {
+      document.getElementById('f-subtotal').value = up * qty;
+      calcTotal();
+    }
+  }
+
+  document.getElementById('f-unit-price').addEventListener('input', calcSubtotal);
+  document.getElementById('f-qty').addEventListener('input', calcSubtotal);
+  document.getElementById('f-subtotal').addEventListener('input', calcTotal);
+  document.getElementById('f-iva').addEventListener('change', calcTotal);
+
+  // PDF
+  function evPdfSelected(input) {
+    if (!input.files[0]) return;
+    document.getElementById('pdf-name').textContent = input.files[0].name;
+    document.getElementById('pdf-selected').style.display = 'flex';
+    document.getElementById('pdf-zone').style.display = 'none';
+  }
+  function evRemovePdf() {
+    document.getElementById('pdf-input').value = '';
+    document.getElementById('pdf-selected').style.display = 'none';
+    document.getElementById('pdf-zone').style.display = '';
+  }
+
+  // Drag and drop
+  const zone = document.getElementById('pdf-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Solo se aceptan archivos PDF'); return; }
+    const dt = new DataTransfer(); dt.items.add(file);
+    const input = document.getElementById('pdf-input');
+    input.files = dt.files;
+    evPdfSelected(input);
+  });
+
+  // Submit
+  document.getElementById('quote-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const desc = document.getElementById('f-description').value.trim();
+    const sub = document.getElementById('f-subtotal').value;
+    if (!desc) { alert('La descripción del servicio es requerida'); return; }
+    if (!sub || parseFloat(sub) <= 0) { alert('Ingresa el subtotal'); return; }
+
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+
+    try {
+      const fd = new FormData();
+      ['description','unit_price','qty','subtotal','iva_pct','total_con_iva','vigencia_fecha','condicion_pago','notes'].forEach(name => {
+        const el = document.querySelector(`[name="${name}"]`);
+        if (el) fd.append(name, el.value);
+      });
+      const pdfInput = document.getElementById('pdf-input');
+      if (pdfInput.files[0]) fd.append('pdf', pdfInput.files[0]);
+      const res = await fetch(`${API}/api/events/public/cotizacion/${token}`, { method: 'POST', body: fd });
+      let data = {};
+      try { data = await res.json(); } catch { /* non-JSON response */ }
+      if (!res.ok) { alert(data.error || 'Error al enviar'); btn.disabled = false; btn.textContent = 'Enviar cotización'; return; }
+      showSubmitted();
+    } catch(err) { alert('Error de conexión'); btn.disabled = false; btn.textContent = 'Enviar cotización'; }
+  });
+
+  function fmtCOP(n) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
+  }
+  function showSubmitted() {
+    document.getElementById('loading-view').style.display = 'none';
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('submitted-view').style.display = 'block';
+  }
+  function showError(msg) {
+    document.getElementById('loading-view').style.display = 'none';
+    document.getElementById('error-msg').textContent = msg;
+    document.getElementById('error-view').style.display = 'block';
+  }
+
+  init();
+</script>
+</body>
+</html>
