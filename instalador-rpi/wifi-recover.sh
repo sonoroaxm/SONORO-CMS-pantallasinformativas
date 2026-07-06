@@ -50,6 +50,13 @@ for NAME in "${SAVED[@]}"; do
     sleep 2
     if nmcli connection up "$NAME" ifname wlan0 >/dev/null 2>>"$LOG"; then
       log "OK: reconectado a '$NAME'"
+      # Reiniciar autossh: al cambiar de interfaz suele quedar con socket
+      # zombi y tarda minutos en reconectar por su propio backoff.
+      if systemctl is-active --quiet sonoro-tunnel.service; then
+        systemctl restart sonoro-tunnel.service 2>>"$LOG" \
+          && log "sonoro-tunnel reiniciado" \
+          || log "WARN: no pudo reiniciar sonoro-tunnel"
+      fi
       exit 0
     else
       log "FAIL: no pudo activar '$NAME' — reabriendo Hotspot"
