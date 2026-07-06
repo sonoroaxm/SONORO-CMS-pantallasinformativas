@@ -1,0 +1,10 @@
+[Unit]
+Description=Run wifi-recover every 5 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=wifi-recover.service
+
+[Install]
+WantedBy=timers.target

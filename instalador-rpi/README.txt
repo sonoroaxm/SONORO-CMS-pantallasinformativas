@@ -84,6 +84,15 @@ Hotspot de emergencia (si pierde WiFi):
   Clave:  sonorocms
   Portal: http://192.168.4.1:8080
 
+Recuperación automática WiFi (S161):
+  wifi-recover.sh + wifi-recover.timer chequean cada 5 min si
+  wlan0 quedó atascado en Hotspot y hay AP guardado a la vista;
+  si sí, tiran el Hotspot y activan la WiFi guardada.
+  Instalación: sudo install -m 755 wifi-recover.sh /usr/local/bin/
+               sudo install -m 644 wifi-recover.{service,timer} /etc/systemd/system/
+               sudo systemctl enable --now wifi-recover.timer
+  Log: /home/sonoro/logs/wifi-recover.log
+
 ═══════════════════════════════════════
   INSTALACIÓN ON-PREMISE (WINDOWS)
 ═══════════════════════════════════════
