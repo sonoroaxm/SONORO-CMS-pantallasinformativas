@@ -2243,6 +2243,294 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
   }
 });
 
+// ── BRIEF PDF (información general + sesiones + enlaces) ──────────────────
+router.get('/:id/brief/pdf', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const evRes = await pool.query(
+      `SELECT id, name, slug, status, starts_at, ends_at, timezone, venue_name, venue_address,
+              cover_image_url, config
+       FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const ev = evRes.rows[0];
+    const tz = ev.timezone || 'America/Bogota';
+
+    const sessionsRes = await pool.query(
+      `SELECT s.name, s.description, s.observations, s.speaker_name, s.venue_zone, s.capacity,
+              s.starts_at, s.ends_at, st.name AS responsible_name
+       FROM events.event_sessions s
+       LEFT JOIN events.event_staff st ON st.id = s.assigned_staff_id
+       WHERE s.event_id = $1 AND s.status != 'cancelled'
+       ORDER BY s.starts_at ASC`,
+      [req.params.id]
+    );
+    const sessions = sessionsRes.rows;
+
+    const base = (process.env.CMS_URL || 'https://cms.sonoro.com.co').replace(/\/$/, '');
+    const publicUrl = `${base}/evento/${ev.slug}`;
+    const staffUrl  = `${publicUrl}/staff`;
+    const kioskoUrl = `${publicUrl}/kiosko`;
+
+    const cfg = ev.config || {};
+    const ticketTypes = Array.isArray(cfg.ticket_types) ? cfg.ticket_types : [];
+    const maxCap = cfg.max_capacity ? parseInt(cfg.max_capacity) : null;
+    const desc = cfg.description || cfg.event_description || '';
+
+    const filename = `brief_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const doc = new PDFDocument({ margin: 0, size: 'A4', bufferPages: true });
+    doc.pipe(res);
+
+    const PAGE_W = 595;
+    const PAGE_H = 842;
+    // Marco tipo "contenedor email": fondo cálido con card blanco centrado
+    const OUTER_PAD  = 24;        // gutter alrededor del card
+    const CARD_X     = OUTER_PAD;
+    const CARD_W     = PAGE_W - OUTER_PAD * 2;
+    const CARD_PAD_X = 40;        // padding horizontal interno del card (como email)
+    const M          = CARD_X + CARD_PAD_X;
+    const W          = CARD_W - CARD_PAD_X * 2;
+
+    // Paleta: hereda emails
+    const MAGENTA  = '#FF1B8D';
+    const HEADER   = '#0F0F0F';
+    const PAGE_BG  = '#F4F4F4';
+    const CARD_BG  = '#FFFFFF';
+    const FOOTER_BG= '#F9F9F9';
+    const RULE     = '#EEEEEE';
+    const DARK     = '#111827';
+    const GRAY     = '#666666';
+    const GRAY_2   = '#999999';
+    const SUB      = '#B0B0B0';
+
+    const fmtDateLong = (d) => d ? new Date(d).toLocaleDateString('es-CO',
+      { timeZone: tz, day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+    const fmtDateShort = (d) => d ? new Date(d).toLocaleDateString('es-CO',
+      { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO',
+      { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+    const statusLbl = s => s === 'published' ? 'Publicado' : s === 'live' ? 'En vivo'
+                        : s === 'closed' ? 'Cerrado' : s === 'archived' ? 'Archivado' : 'Borrador';
+
+    // Fondo cálido de página (todas las páginas)
+    const paintPageBg = () => {
+      doc.save();
+      doc.rect(0, 0, PAGE_W, PAGE_H).fill(PAGE_BG);
+      doc.roundedRect(CARD_X, OUTER_PAD, CARD_W, PAGE_H - OUTER_PAD * 2, 12).fill(CARD_BG);
+      doc.restore();
+    };
+    paintPageBg();
+
+    // ── HEADER (negro + wordmark + hairline gradient) ────────────────────────
+    const HEADER_H = 96;
+    // Recorte redondeado superior del header (imita el card email)
+    doc.save();
+    doc.roundedRect(CARD_X, OUTER_PAD, CARD_W, HEADER_H, 12).clip();
+    doc.rect(CARD_X, OUTER_PAD, CARD_W, HEADER_H).fill(HEADER);
+    doc.restore();
+
+    // Wordmark: SONORO. (punto magenta)
+    doc.font('Helvetica-Bold').fontSize(28).fillColor('#FFFFFF')
+       .text('SONORO', CARD_X, OUTER_PAD + 24, { width: CARD_W, align: 'center' });
+    const wmW = doc.widthOfString('SONORO');
+    doc.fillColor(MAGENTA)
+       .text('.', (PAGE_W + wmW) / 2 - 2, OUTER_PAD + 24, { lineBreak: false });
+    // Sublabel
+    doc.font('Helvetica-Bold').fontSize(9).fillColor(SUB)
+       .text('BRIEF DEL EVENTO', CARD_X, OUTER_PAD + 62,
+             { width: CARD_W, align: 'center', characterSpacing: 3 });
+
+    // Hairline gradient de 3px (firma de marca)
+    const grad = doc.linearGradient(CARD_X, 0, CARD_X + CARD_W, 0);
+    grad.stop(0, '#FF1B8D').stop(0.55, '#FF8C00').stop(1, '#FFE566');
+    doc.rect(CARD_X, OUTER_PAD + HEADER_H, CARD_W, 3).fill(grad);
+
+    // ── SUB-HEADER: nombre evento + meta ────────────────────────────────────
+    let y = OUTER_PAD + HEADER_H + 3 + 32;
+    const dateRange = ev.starts_at && ev.ends_at && fmtDateShort(ev.starts_at) !== fmtDateShort(ev.ends_at)
+      ? `${fmtDateLong(ev.starts_at)} a ${fmtDateLong(ev.ends_at)}`
+      : fmtDateLong(ev.starts_at);
+    const genAt = new Date().toLocaleString('es-CO',
+      { timeZone: tz, day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+
+    doc.font('Helvetica-Bold').fontSize(20).fillColor(DARK)
+       .text(ev.name, M, y, { width: W });
+    y += doc.heightOfString(ev.name, { width: W }) + 6;
+    doc.font('Helvetica').fontSize(11).fillColor(GRAY)
+       .text(`${dateRange}. ${ev.venue_name || 'Sin sede'}. Estado: ${statusLbl(ev.status)}.`,
+             M, y, { width: W });
+    y += doc.heightOfString(`${dateRange}. ${ev.venue_name || 'Sin sede'}. Estado: ${statusLbl(ev.status)}.`, { width: W }) + 4;
+    doc.fillColor(GRAY_2).fontSize(9)
+       .text(`Generado el ${genAt}`, M, y, { width: W });
+    y += 24;
+
+    // Rule sutil separador
+    doc.strokeColor(RULE).lineWidth(1).moveTo(M, y).lineTo(M + W, y).stroke();
+    y += 24;
+
+    // ── Section helper (label uppercase + título, sin línea de color) ─────────
+    const section = (title) => {
+      if (y > PAGE_H - 140) { doc.addPage(); paintPageBg(); y = OUTER_PAD + 40; }
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(GRAY_2)
+         .text(title.toUpperCase(), M, y, { width: W, characterSpacing: 2 });
+      y += 20;
+    };
+    const kv = (label, value) => {
+      if (y > PAGE_H - 80) { doc.addPage(); paintPageBg(); y = OUTER_PAD + 40; }
+      const val = String(value || '—');
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY_2).text(label, M, y, { width: 130 });
+      doc.font('Helvetica').fontSize(11).fillColor(DARK).text(val, M + 140, y, { width: W - 140 });
+      const h = doc.heightOfString(val, { width: W - 140 });
+      y += Math.max(20, h + 6);
+    };
+
+    // ── INFORMACIÓN GENERAL ──────────────────────────────────────────────────
+    section('Información general');
+    kv('Fechas', dateRange);
+    kv('Horario', `${fmtTime(ev.starts_at)} a ${fmtTime(ev.ends_at)}`);
+    kv('Zona horaria', tz);
+    kv('Sede', ev.venue_name);
+    if (ev.venue_address) kv('Dirección', ev.venue_address);
+    kv('Capacidad máxima', maxCap ? `${maxCap} asistentes` : 'Sin límite');
+    kv('Tipos de entrada', ticketTypes.length ? ticketTypes.join(', ') : 'General');
+    kv('Estado', statusLbl(ev.status));
+    if (desc) kv('Descripción', desc);
+    y += 14;
+
+    // Rule
+    doc.strokeColor(RULE).lineWidth(1).moveTo(M, y).lineTo(M + W, y).stroke();
+    y += 24;
+
+    // ── ENLACES DEL EVENTO ───────────────────────────────────────────────────
+    section('Enlaces del evento');
+    const linkBlock = (title, url, hint) => {
+      const hintH = doc.font('Helvetica').fontSize(10).heightOfString(hint, { width: W });
+      const blockH = 18 + 14 + hintH + 8;
+      if (y + blockH > PAGE_H - 80) { doc.addPage(); paintPageBg(); y = OUTER_PAD + 40; }
+      doc.font('Helvetica-Bold').fontSize(12).fillColor(DARK)
+         .text(title, M, y, { width: W });
+      y += 18;
+      doc.font('Helvetica').fontSize(10).fillColor(MAGENTA)
+         .text(url, M, y, { width: W, link: url, underline: true });
+      y += 14;
+      doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+         .text(hint, M, y, { width: W });
+      y += hintH + 16;
+    };
+    linkBlock('Registro público',
+      publicUrl,
+      'Formulario de inscripción para asistentes. Comparte este enlace en tus campañas, redes sociales o correos de invitación.');
+    linkBlock('App Staff (tablet)',
+      staffUrl,
+      'Interfaz para el equipo de recepción. Acceso por PIN. Escaneo de QR para check-in y validación de servicios.');
+    linkBlock('Kiosko de check-in',
+      kioskoUrl,
+      'Auto check-in por escaneo de QR. Configurar en tablet o monitor a la entrada del evento en modo kiosko.');
+    y += 6;
+
+    // Rule
+    doc.strokeColor(RULE).lineWidth(1).moveTo(M, y).lineTo(M + W, y).stroke();
+    y += 24;
+
+    // ── SESIONES ─────────────────────────────────────────────────────────────
+    section(`Sesiones y jornadas (${sessions.length})`);
+    if (!sessions.length) {
+      doc.font('Helvetica-Oblique').fontSize(11).fillColor(GRAY)
+         .text('Sin sesiones creadas.', M, y, { width: W });
+      y += 20;
+    } else {
+      sessions.forEach((s, idx) => {
+        // Bloque tipográfico, separado por rule 1px (sin card).
+        const notes = [s.description, s.observations].filter(Boolean).join('. ');
+        const metaParts = [];
+        metaParts.push(fmtDateShort(s.starts_at));
+        metaParts.push(`${fmtTime(s.starts_at)} a ${fmtTime(s.ends_at)}`);
+        if (s.venue_zone) metaParts.push(s.venue_zone);
+        if (s.capacity) metaParts.push(`Cupo ${s.capacity}`);
+        const rolesParts = [];
+        if (s.speaker_name) rolesParts.push(`Orador: ${s.speaker_name}`);
+        if (s.responsible_name) rolesParts.push(`Responsable: ${s.responsible_name}`);
+
+        // Estimación de alto
+        const nameH  = doc.font('Helvetica-Bold').fontSize(13).heightOfString(s.name || 'Sin nombre', { width: W });
+        const metaH  = doc.font('Helvetica').fontSize(10).heightOfString(metaParts.join('  ·  '), { width: W });
+        const rolesH = rolesParts.length ? doc.font('Helvetica').fontSize(10).heightOfString(rolesParts.join('  ·  '), { width: W }) : 0;
+        const notesH = notes ? doc.font('Helvetica').fontSize(10).heightOfString(notes, { width: W }) : 0;
+        const blockH = 12 + nameH + 6 + metaH + (rolesH ? 4 + rolesH : 0) + (notesH ? 8 + notesH : 0) + 18;
+
+        if (y + blockH > PAGE_H - 80) { doc.addPage(); paintPageBg(); y = OUTER_PAD + 40; }
+
+        // Etiqueta jornada (neutra, no coloreada)
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAY_2)
+           .text(`JORNADA ${String(idx + 1).padStart(2, '0')}`, M, y, { characterSpacing: 2 });
+        y += 12;
+        // Nombre
+        doc.font('Helvetica-Bold').fontSize(13).fillColor(DARK)
+           .text(s.name || 'Sin nombre', M, y, { width: W });
+        y += nameH + 6;
+        // Meta
+        doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+           .text(metaParts.join('  ·  '), M, y, { width: W });
+        y += metaH;
+        // Roles
+        if (rolesParts.length) {
+          y += 4;
+          doc.font('Helvetica').fontSize(10).fillColor(DARK)
+             .text(rolesParts.join('  ·  '), M, y, { width: W });
+          y += rolesH;
+        }
+        // Notas
+        if (notes) {
+          y += 8;
+          doc.font('Helvetica').fontSize(10).fillColor(GRAY)
+             .text(notes, M, y, { width: W });
+          y += notesH;
+        }
+        y += 14;
+
+        // Separador entre sesiones (excepto la última)
+        if (idx < sessions.length - 1) {
+          doc.strokeColor(RULE).lineWidth(1).moveTo(M, y).lineTo(M + W, y).stroke();
+          y += 14;
+        }
+      });
+    }
+
+    // ── FOOTER (todas las páginas: fondo gris cálido + copy marca) ───────────
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      const footerH = 44;
+      const footerY = PAGE_H - OUTER_PAD - footerH;
+      // Recorte esquinas inferiores redondeadas del card
+      doc.save();
+      doc.roundedRect(CARD_X, footerY, CARD_W, footerH, 12).clip();
+      doc.rect(CARD_X, footerY, CARD_W, footerH).fill(FOOTER_BG);
+      doc.restore();
+      // Línea superior del footer
+      doc.strokeColor(RULE).lineWidth(1)
+         .moveTo(CARD_X, footerY).lineTo(CARD_X + CARD_W, footerY).stroke();
+      // Copy izquierda + paginación derecha (sin chain para evitar bug annotate)
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY_2)
+         .text('Este brief fue generado por SONORO CMS  ·  cms@sonoro.com.co',
+               M, footerY + 16, { width: W, align: 'left', lineBreak: false });
+      doc.font('Helvetica').fontSize(9).fillColor(GRAY_2)
+         .text(`Página ${i + 1} de ${pages.count}`,
+               M, footerY + 16, { width: W, align: 'right', lineBreak: false });
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET brief/pdf:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // ── CHECK-IN STATS POR SESIÓN (para gráfica en dashboard) ──────────────────
 router.get('/:id/checkin-stats', auth, async (req, res) => {
   const pool = global.pool;

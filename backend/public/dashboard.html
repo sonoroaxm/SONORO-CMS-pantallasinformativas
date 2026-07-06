@@ -1926,6 +1926,13 @@
                     <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir ↗</a>
                   </div>
                 </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);margin-top:4px;"></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:4px;">
+                  <div style="font-size:11px;color:var(--text-muted);line-height:1.4;flex:1;min-width:200px;">
+                    Descarga un PDF con la información general del evento, los enlaces y todas las sesiones creadas.
+                  </div>
+                  <button class="btn btn-grad btn-sm" onclick="evDownloadBrief()" style="padding:6px 14px;font-size:12px;">Exportar brief PDF</button>
+                </div>
               </div>
             </div>
           </div>
@@ -7664,6 +7671,28 @@ function evSelectConfirmMode(mode) {
 function evCopyLink(elementId) {
   const url = document.getElementById(elementId).textContent;
   navigator.clipboard.writeText(url).then(() => showStatus('Enlace copiado', 'success'));
+}
+
+async function evDownloadBrief() {
+  if (!evCurrentEvent) return;
+  try {
+    showStatus('Generando brief...', 'info');
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEvent.id}/brief/pdf`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) throw new Error('No se pudo generar el brief');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `brief_${(evCurrentEvent.name || 'evento').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showStatus('Brief descargado', 'success');
+  } catch (err) {
+    console.error(err);
+    showStatus('Error generando brief', 'error');
+  }
 }
 
 // ── SESIONES ───────────────────────────────────────────────────
