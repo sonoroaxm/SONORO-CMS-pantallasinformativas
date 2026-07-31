@@ -2708,6 +2708,58 @@ app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, asyn
   }
 });
 
+// RPI5-READINESS-CLIENT v1
+app.get('/api/rpi5-readiness/:deviceId', authenticateToken, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const dq = await pool.query(
+      `SELECT id, device_id, name, user_id, model, hdmi0_playlist_id, hdmi1_playlist_id
+         FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.user_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+    const totals = await pool.query(
+      `SELECT hevc_status, COUNT(*)::int AS n
+         FROM content WHERE user_id=$1 AND type='video'
+         GROUP BY hevc_status`, [device.user_id]
+    );
+    const by_status = { ready:0, pending:0, processing:0, failed:0, not_applicable:0 };
+    totals.rows.forEach(r => { by_status[r.hevc_status] = r.n; });
+    const playlistIds = [device.hdmi0_playlist_id, device.hdmi1_playlist_id].filter(Boolean);
+    let assigned = { total:0, playable:0, blocked:[] };
+    if (playlistIds.length) {
+      const items = await pool.query(
+        `SELECT DISTINCT c.id, c.title, c.filename, c.hevc_status, c.hevc_error
+           FROM playlist_items pi
+           JOIN content c ON pi.content_id = c.id
+          WHERE pi.playlist_id = ANY($1::int[]) AND c.type='video'`,
+        [playlistIds]
+      );
+      assigned.total    = items.rows.length;
+      assigned.playable = items.rows.filter(r => r.hevc_status === 'ready').length;
+      assigned.blocked  = items.rows
+        .filter(r => r.hevc_status !== 'ready')
+        .map(r => ({
+          content_id: r.id, title: r.title, filename: r.filename,
+          status: r.hevc_status, error: r.hevc_error
+        }));
+    }
+    res.json({
+      device: { device_id: device.device_id, name: device.name, user_id: device.user_id, model: device.model },
+      tenant_videos: { total: Object.values(by_status).reduce((a,b)=>a+b, 0), by_status },
+      assigned_playlists: { playlist_ids: playlistIds, ...assigned },
+      ready_to_pair: assigned.blocked.length === 0
+    });
+  } catch (err) {
+    console.error('rpi5-readiness client GET:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── ADMIN: RPi5 Readiness (estado + trigger reencode) ─────── // RPI5-READINESS-ADMIN v1
 app.get('/api/admin/rpi5-readiness/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
   const { deviceId } = req.params;

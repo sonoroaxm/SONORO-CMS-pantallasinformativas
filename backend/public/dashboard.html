@@ -940,6 +940,24 @@
       letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
     }
 
+    /* <!-- RPI5-BADGE-CLIENT v1 --> */
+    .model-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      text-transform: uppercase; flex-shrink: 0;
+    }
+    .model-pill.rpi4    { background:#1a2e1a; border:1px solid #2f5c2f; color:#8fdc8f; }
+    .model-pill.rpi5    { background:#1a1a3a; border:1px solid #3f3f7a; color:#a8a8f5; }
+    .model-pill.windows { background:#0d2340; border:1px solid #1e3f6e; color:#7eb8f7; }
+    .hevc-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+      flex-shrink: 0; cursor: help;
+    }
+    .hevc-pill.ok   { background: rgba(0,230,118,0.1); color: var(--online);  border: 1px solid rgba(0,230,118,0.25); }
+    .hevc-pill.warn { background: rgba(255,140,0,0.1); color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    .hevc-pill.err  { background: rgba(255,23,68,0.1); color: var(--offline); border: 1px solid rgba(255,23,68,0.25); }
+
     .dc-field-grid { display: grid; gap: 12px; }
     .dc-fg-2 { grid-template-columns: 1fr 1fr; }
     .dc-field-label {
@@ -4055,7 +4073,12 @@ async function loadDevices(silent = false) {
             <div class="dc-info">
               <div class="dc-name-row">
                 <div class="dc-name" id="dname_${d.device_id}">${d.name}</div>
-                ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+                ${(() => {
+                  const model = isWin ? 'windows' : (d.model || 'rpi4');
+                  const label = model === 'rpi5' ? 'RPi5' : model === 'rpi4' ? 'RPi4' : 'Windows';
+                  return `<span class="model-pill ${model}">${label}</span>`;
+                })()}
+                ${(!isWin && d.model === 'rpi5') ? `<span id="hevc_pill_${d.device_id}" class="hevc-pill warn" title="Consultando readiness HEVC...">HEVC: --</span>` : ''}
                 ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog reportó ${d.unhealthy_reload_count || '?'} reloads consecutivos sin recuperar el renderer">Unhealthy</span>` : ''}
               </div>
               <div class="dc-sub">
@@ -4122,11 +4145,42 @@ async function loadDevices(silent = false) {
 
     window._devicesCache = devices;
     devices.forEach(d => loadSchedules(d.device_id));
+    if (typeof refreshHevcPillsClient === 'function') refreshHevcPillsClient(devices);
     if (!silent) showStatus('Dispositivos actualizados', 'success');
   } catch (err) { if (!silent) container.innerHTML = `<p style="color:var(--offline);">Error: ${err.message}</p>`; }
 }
 
 // ── WINDOWS KIOSK PLAYER ─────────────────────────────────────
+// <!-- RPI5-BADGE-CLIENT v1 -->
+async function refreshHevcPillsClient(devices) {
+  const rpi5s = devices.filter(d => d.model === 'rpi5');
+  for (const d of rpi5s) {
+    const el = document.getElementById('hevc_pill_' + d.device_id);
+    if (!el) continue;
+    try {
+      const res = await fetch(`${API_URL}/api/rpi5-readiness/${encodeURIComponent(d.device_id)}`, {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const r = await res.json();
+      const total = r.assigned_playlists?.total || 0;
+      const playable = r.assigned_playlists?.playable || 0;
+      el.textContent = `HEVC: ${playable}/${total}`;
+      el.className = 'hevc-pill ' + (total === 0 ? 'warn' : r.ready_to_pair ? 'ok' : 'err');
+      const blocked = r.assigned_playlists?.blocked || [];
+      el.title = r.ready_to_pair
+        ? 'Todos los items reproducibles en RPi5'
+        : blocked.length
+          ? 'Bloqueados: ' + blocked.map(b => b.title + ' [' + b.status + ']').join(', ')
+          : 'Sin playlist asignado';
+    } catch (e) {
+      el.textContent = 'HEVC: ?';
+      el.className = 'hevc-pill err';
+      el.title = 'Error: ' + (e.message || e);
+    }
+  }
+}
+
 async function saveWinPolicy(deviceId) {
   const action   = document.getElementById(`wake_action_${deviceId}`)?.value;
   const target   = document.getElementById(`wake_target_${deviceId}`)?.value?.trim();
