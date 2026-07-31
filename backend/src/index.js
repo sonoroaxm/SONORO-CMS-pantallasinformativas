@@ -1524,7 +1524,8 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
         // Obtener items desde playlist_items JOIN content
         const itemsResult = await pool.query(
           `SELECT pi.display_order, pi.duration_override_ms,
-                  c.filename, c.type, c.duration_ms
+                  c.filename, c.type, c.duration_ms,
+                  c.hevc_file_path, c.hevc_status  -- // RPI5-HEVC-PATCH v1
            FROM playlist_items pi
            JOIN content c ON pi.content_id = c.id
            WHERE pi.playlist_id = $1
@@ -1533,17 +1534,29 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
         );
 
         const baseUrl = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+        const isRpi5  = device.model === 'rpi5';  // // RPI5-HEVC-PATCH v1
         for (const item of itemsResult.rows) {
-          if (item.filename) {
-            const duration = item.duration_override_ms || item.duration_ms || 10000;
-            assets.push({
-              filename: item.filename,
-              type:     item.type || 'video',
-              duration,
-              url:      `${baseUrl}/uploads/${item.filename}`,
-              checksum: null,
-            });
+          if (!item.filename) continue;
+          let filename = item.filename;
+          let codec    = 'h264';
+          if (isRpi5 && (item.type || 'video') === 'video') {
+            if (item.hevc_status === 'ready' && item.hevc_file_path) {
+              filename = item.hevc_file_path.replace(/^\/uploads\//, '');
+              codec    = 'hevc';
+            } else {
+              console.log(`  skip HEVC-missing device=${device_id} file=${item.filename} status=${item.hevc_status}`);
+              continue;
+            }
           }
+          const duration = item.duration_override_ms || item.duration_ms || 10000;
+          assets.push({
+            filename,
+            type:     item.type || 'video',
+            duration,
+            url:      `${baseUrl}/uploads/${filename}`,
+            checksum: null,
+            codec,
+          });
         }
       }
     }
@@ -2079,11 +2092,19 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
 app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
   try {
     const { playlistId } = req.params;
+    // // RPI5-HEVC-PATCH v1 — ?device_id opcional para aplicar gate HEVC RPi5
+    const reqDeviceId = req.query.device_id || null;
+    let isRpi5 = false;
+    if (reqDeviceId) {
+      const d = await pool.query('SELECT model FROM devices WHERE device_id=$1', [reqDeviceId]);
+      isRpi5 = d.rows[0]?.model === 'rpi5';
+    }
 
     const result = await pool.query(
       `SELECT p.id, p.name, p.description, p.shuffle_enabled, p.repeat_enabled,
               pi.id as item_id, pi.content_id, pi.display_order, pi.duration_override_ms,
-              c.title, c.type, c.file_path, c.duration_ms
+              c.title, c.type, c.file_path, c.duration_ms,
+              c.hevc_file_path, c.hevc_status
        FROM playlists p
        LEFT JOIN playlist_items pi ON p.id = pi.playlist_id
        LEFT JOIN content c ON pi.content_id = c.id
@@ -2103,15 +2124,24 @@ app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
       repeat_enabled: result.rows[0].repeat_enabled,
       items: result.rows
         .filter(row => row.item_id !== null)
-        .map(row => ({
-          item_id: row.item_id,
-          content_id: row.content_id,
-          display_order: row.display_order,
-          title: row.title,
-          type: row.type,
-          file_path: row.file_path,
-          duration_ms: row.duration_override_ms || row.duration_ms || 15000
-        }))
+        .filter(row => {
+          if (!isRpi5 || row.type !== 'video') return true;
+          return row.hevc_status === 'ready' && row.hevc_file_path;
+        })
+        .map(row => {
+          const useHevc = isRpi5 && row.type === 'video'
+                          && row.hevc_status === 'ready' && row.hevc_file_path;
+          return {
+            item_id: row.item_id,
+            content_id: row.content_id,
+            display_order: row.display_order,
+            title: row.title,
+            type: row.type,
+            file_path: useHevc ? row.hevc_file_path : row.file_path,
+            codec:     useHevc ? 'hevc' : 'h264',
+            duration_ms: row.duration_override_ms || row.duration_ms || 15000
+          };
+        })
     };
 
     res.json(playlist);
@@ -2643,6 +2673,28 @@ app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) =
 });
 
 // ── DELETE dispositivo ───────────────────────────────────────
+// ── ADMIN: cambiar model de un device ─────────────────────── // RPI5-MODEL-ADMIN v1
+app.patch('/api/admin/devices/:deviceId/model', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  const { model } = req.body || {};
+  const allowed = ['rpi4', 'rpi5', 'windows'];
+  if (!allowed.includes(model)) {
+    return res.status(400).json({ error: `model inválido, debe ser uno de ${allowed.join('|')}` });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE devices SET model=$1 WHERE device_id=$2 RETURNING device_id, model`,
+      [model, deviceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    console.log(`🏷️  device.model actualizado: ${deviceId} → ${model}`);
+    res.json({ success: true, ...rows[0] });
+  } catch (err) {
+    console.error('❌ PATCH device model:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
   const { deviceId } = req.params;
   try {
@@ -2652,6 +2704,139 @@ app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, asyn
     res.json({ success: true, device_id: rows[0].device_id });
   } catch (err) {
     console.error('❌ Error eliminando dispositivo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ADMIN: RPi5 Readiness (estado + trigger reencode) ─────── // RPI5-READINESS-ADMIN v1
+app.get('/api/admin/rpi5-readiness/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const dq = await pool.query(
+      `SELECT id, device_id, name, user_id, model, hdmi0_playlist_id, hdmi1_playlist_id
+         FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+
+    const totals = await pool.query(
+      `SELECT hevc_status, COUNT(*)::int AS n
+         FROM content WHERE user_id=$1 AND type='video'
+         GROUP BY hevc_status`, [device.user_id]
+    );
+    const by_status = { ready:0, pending:0, processing:0, failed:0, not_applicable:0 };
+    totals.rows.forEach(r => { by_status[r.hevc_status] = r.n; });
+
+    const playlistIds = [device.hdmi0_playlist_id, device.hdmi1_playlist_id].filter(Boolean);
+    let assigned = { total:0, playable:0, blocked:[] };
+    if (playlistIds.length) {
+      const items = await pool.query(
+        `SELECT DISTINCT c.id, c.title, c.filename, c.hevc_status, c.hevc_error
+           FROM playlist_items pi
+           JOIN content c ON pi.content_id = c.id
+          WHERE pi.playlist_id = ANY($1::int[]) AND c.type='video'`,
+        [playlistIds]
+      );
+      assigned.total    = items.rows.length;
+      assigned.playable = items.rows.filter(r => r.hevc_status === 'ready').length;
+      assigned.blocked  = items.rows
+        .filter(r => r.hevc_status !== 'ready')
+        .map(r => ({
+          content_id: r.id, title: r.title, filename: r.filename,
+          status: r.hevc_status, error: r.hevc_error
+        }));
+    }
+
+    res.json({
+      device: {
+        device_id: device.device_id, name: device.name,
+        user_id: device.user_id, model: device.model
+      },
+      tenant_videos: {
+        total: Object.values(by_status).reduce((a,b)=>a+b, 0),
+        by_status
+      },
+      assigned_playlists: {
+        playlist_ids: playlistIds,
+        ...assigned
+      },
+      ready_to_pair: assigned.blocked.length === 0
+    });
+  } catch (err) {
+    console.error('❌ rpi5-readiness GET:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/rpi5-readiness/:deviceId/enqueue', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  const { confirm, expected_count } = req.body || {};
+  try {
+    const dq = await pool.query(
+      `SELECT device_id, user_id, model FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+
+    // Candidatos: videos del tenant en not_applicable o failed (los ready ya están,
+    // los pending/processing ya están encolados — no re-encolar).
+    const cand = await pool.query(
+      `SELECT id, filename, hevc_status
+         FROM content
+        WHERE user_id=$1 AND type='video'
+          AND hevc_status IN ('not_applicable','failed')
+        ORDER BY id`,
+      [device.user_id]
+    );
+    const preview = {
+      candidate_count: cand.rows.length,
+      by_status: {
+        not_applicable: cand.rows.filter(r => r.hevc_status === 'not_applicable').length,
+        failed:         cand.rows.filter(r => r.hevc_status === 'failed').length
+      },
+      sample: cand.rows.slice(0, 10).map(r => ({ id: r.id, filename: r.filename, status: r.hevc_status }))
+    };
+
+    // dry_run OBLIGATORIO: sin confirm=true → devuelve preview y sale.
+    if (confirm !== true) {
+      return res.json({
+        dry_run: true, ...preview,
+        note: 'Para ejecutar: POST con {confirm:true, expected_count:<candidate_count>}. El expected_count debe coincidir exactamente con el preview actual.'
+      });
+    }
+
+    // Con confirm=true, exigimos expected_count exacto (anti-race).
+    if (typeof expected_count !== 'number' || expected_count !== preview.candidate_count) {
+      return res.status(409).json({
+        error: 'expected_count no coincide con el preview actual',
+        expected_count_received: expected_count,
+        candidate_count_now:     preview.candidate_count
+      });
+    }
+
+    if (preview.candidate_count === 0) {
+      return res.json({ enqueued: 0, note: 'nada que encolar' });
+    }
+
+    const ids = cand.rows.map(r => r.id);
+    const upd = await pool.query(
+      `UPDATE content
+          SET hevc_status='pending',
+              hevc_error='enqueued via admin rpi5-readiness (' || $2::text || ') @ ' || NOW()::text
+        WHERE id = ANY($1::int[])
+        RETURNING id`,
+      [ids, deviceId]
+    );
+    console.log(`📼 rpi5-readiness: encolados ${upd.rows.length} videos del user_id=${device.user_id} vía device=${deviceId}`);
+    res.json({ enqueued: upd.rows.length, ids: upd.rows.map(r => r.id) });
+  } catch (err) {
+    console.error('❌ rpi5-readiness POST:', err);
     res.status(500).json({ error: err.message });
   }
 });
