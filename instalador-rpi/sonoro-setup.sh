@@ -75,6 +75,22 @@ step "5/8 Instalando player"
 cp "${SCRIPT_DIR}/sync-app.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/activation-portal.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/package.json" "${PLAYER_DIR}/"
+# Fix S168 #8: instalador antes NO copiaba xinitrc.sh — RPis quedaban con drift
+# del filesystem base (algunas con xinitrc viejo sin touch /tmp/sonoro-x11-ready
+# ni tier-awareness). Ahora copia y setea permisos.
+cp "${SCRIPT_DIR}/xinitrc.sh" "${PLAYER_DIR}/"
+chmod +x "${PLAYER_DIR}/xinitrc.sh"
+# Fix S168 #7: tier default para xinitrc HDMI enforcement. Cambia a doble|pro si
+# el device es tier superior antes de shipping. RPi5 solo soporta sencilla hoy
+# (memoria project_producto1_licencias.md + D4 en RPI5-READINESS).
+if [ ! -f /etc/default/sonoro ]; then
+  cat > /etc/default/sonoro << DEF
+# SONORO AV — configuracion runtime del RPi
+# SONORO_TIER: sencilla|doble|pro (afecta xinitrc.sh HDMI enforcement).
+SONORO_TIER=sencilla
+DEF
+  log "/etc/default/sonoro creado (SONORO_TIER=sencilla)"
+fi
 # Ejecutar npm install como usuario sonoro (bug S168 #3: evita node_modules root-owned)
 sudo -u "${SONORO_USER}" bash -c "cd '${PLAYER_DIR}' && npm install --omit=dev --quiet"
 cat > "${PLAYER_DIR}/.env" << ENV
