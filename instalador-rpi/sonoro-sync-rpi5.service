@@ -1,0 +1,23 @@
+[Unit]
+Description=SONORO AV Sync (RPi5 headless — sin X11)
+After=network-online.target
+Wants=network-online.target
+# Excluye sonoro-x11.service y sonoro-player.service que están enmascaradas en RPi5.
+
+[Service]
+Type=simple
+User=sonoro
+Group=sonoro
+EnvironmentFile=-/etc/default/sonoro
+WorkingDirectory=/home/sonoro/sonoro-player
+Environment=HOME=/home/sonoro
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/node /home/sonoro/sonoro-player/sync-app.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SupplementaryGroups=video render
+
+[Install]
+WantedBy=multi-user.target

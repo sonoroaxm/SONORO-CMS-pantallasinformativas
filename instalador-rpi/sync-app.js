@@ -22,6 +22,11 @@ const MPV_PATH   = IS_WINDOWS
 // ── CONFIG ───────────────────────────────────────────────────
 const CMS_URL        = process.env.CMS_URL    || 'https://cms.sonoro.com.co';
 const DEVICE_ID      = process.env.DEVICE_ID  || generateDeviceId();
+// RPi5 refactor: cuando SONORO_MODEL=rpi5, la reproducción la maneja
+// player-rpi5.js (ffmpeg vout_drm + concat). sync-app.js sigue haciendo
+// heartbeat, download de assets (HEVC via manifest gate), CEC y portal.
+const SONORO_MODEL   = (process.env.SONORO_MODEL || '').toLowerCase();
+const IS_RPI5        = SONORO_MODEL === 'rpi5';
 const IMAGE_DURATION = parseInt(process.env.IMAGE_DURATION) || 15000;
 const QUEUE_FILE     = process.platform === 'win32'
   ? path.join(os.tmpdir(), 'sonoro-queue.json')
@@ -661,6 +666,18 @@ function showImage(filePath, durationMs, screenTarget = null) {
 // screenTarget: objeto de puerto { port, x, y } o null (canvas completo)
 // updateState: si true actualiza currentState (solo el loop primario debe hacerlo)
 async function playbackLoop(playlist, stopFlag, screenTarget = null, updateState = true) {
+  // RPi5: la reproducción la maneja player-rpi5.js vía ffmpeg vout_drm.
+  // sync-app.js solo persiste playlist en disco (ya lo hizo syncPlaylist)
+  // y actualiza current_playlist en el estado. No spawn mpv.
+  if (IS_RPI5) {
+    if (updateState) {
+      currentState.current_playlist = { id: playlist.id, name: playlist.name };
+      currentState.status = 'playing';
+      reportState();
+    }
+    console.log(`▶️  [RPi5] Playlist "${playlist.name}" delegada a player-rpi5.js`);
+    return;
+  }
   let items = [...playlist.items];
   const label = screenTarget ? (screenTarget.port || screenTarget) : 'all';
   console.log(`▶️  Loop iniciado: ${playlist.name} (${items.length} items) [${label}]`);
@@ -757,7 +774,12 @@ async function syncPlaylist(playlistId) {
   if (!playlistId) return null;
   console.log(`\n🔄 Sincronizando playlist ${playlistId}...`);
   try {
-    const response = await axios.get(`${CMS_URL}/api/player/playlist/${playlistId}`, { timeout: 8000 });
+    // ?device_id= activa el gate D5/D6: en RPi5 el manifest devuelve hevc_file_path
+    // en lugar de file_path (H.264). En RPi4 no cambia nada.
+    const response = await axios.get(
+      `${CMS_URL}/api/player/playlist/${playlistId}?device_id=${encodeURIComponent(DEVICE_ID)}`,
+      { timeout: 8000 }
+    );
     const playlist = response.data;
     if (!playlist.items || !playlist.items.length) { console.warn('⚠️ Playlist vacía'); return null; }
     const playlistDir = path.join(MEDIA_DIR, `playlist_${playlistId}`);
