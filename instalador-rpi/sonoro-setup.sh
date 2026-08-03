@@ -155,7 +155,7 @@ else
 fi
 
 step "6a/9 Preflight de dependencias Node.js"
-if ! sudo -u "${SONORO_USER}" node -e "['axios','dotenv','form-data','socket.io-client'].forEach(m => require(m))" 2>/dev/null; then
+if ! sudo -u "${SONORO_USER}" bash -c "cd '${PLAYER_DIR}' && node -e \"['axios','dotenv','form-data','socket.io-client'].forEach(m => require(m))\"" 2>/dev/null; then
   err "Faltan dependencias Node.js en ${PLAYER_DIR}/node_modules. Reintentar 'npm install' como usuario ${SONORO_USER}."
   exit 1
 fi
