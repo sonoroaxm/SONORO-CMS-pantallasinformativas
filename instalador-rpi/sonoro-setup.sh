@@ -190,6 +190,31 @@ else
 fi
 
 if [ "$IS_RPI5" = "1" ]; then
+  step "6b.0/9 Plymouth splash SONORO (S167 boot silencioso)"
+  # Instalar plymouth base + tema SONORO. Plymouth libera DRM antes de handoff
+  # a getty/ffmpeg → compatible con vout_drm. Sin fbcon=map:1 (deja TTY libre).
+  apt-get install -y -qq plymouth plymouth-themes >/dev/null 2>&1 || warn "plymouth apt install fallo"
+  PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/sonoro"
+  mkdir -p "$PLYMOUTH_THEME_DIR"
+  cp "${SCRIPT_DIR}/plymouth-sonoro/sonoro.plymouth" "${PLYMOUTH_THEME_DIR}/"
+  cp "${SCRIPT_DIR}/plymouth-sonoro/sonoro.script"   "${PLYMOUTH_THEME_DIR}/"
+  cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLYMOUTH_THEME_DIR}/splash.png"
+  # Fix S168b: CRLF de Windows rompe plymouth (memoria HISTORIAL:4701).
+  sed -i 's/\r$//' "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" "${PLYMOUTH_THEME_DIR}/sonoro.script"
+  plymouth-set-default-theme sonoro -R >/dev/null 2>&1 || warn "plymouth-set-default-theme fallo"
+
+  # cmdline.txt: agregar quiet splash plymouth.enable=1 si no estan (una sola linea).
+  CMDLINE="/boot/firmware/cmdline.txt"
+  [ -f "$CMDLINE" ] || CMDLINE="/boot/cmdline.txt"
+  if [ -f "$CMDLINE" ]; then
+    for kw in "quiet" "splash" "plymouth.enable=1" "logo.nologo" "vt.global_cursor_default=0"; do
+      grep -q "$kw" "$CMDLINE" || sed -i "1 s|$| $kw|" "$CMDLINE"
+    done
+    log "cmdline.txt: quiet splash plymouth.enable=1 logo.nologo vt.global_cursor_default=0"
+  else
+    warn "cmdline.txt no encontrado — splash puede no activarse"
+  fi
+
   step "6b.1/9 Boot headless (multi-user.target)"
   # RPi5: ffmpeg vout_drm necesita DRM master exclusivo. labwc/LXDE-Pi arranca en
   # graphical.target y toma DRM → ffmpeg falla. Signage puro = sin desktop.
