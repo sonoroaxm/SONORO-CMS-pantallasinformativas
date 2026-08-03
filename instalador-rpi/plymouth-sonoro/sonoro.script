@@ -1,15 +1,25 @@
-wallpaper_image = Image("splash.png");
-screen_width = Window.GetWidth();
-screen_height = Window.GetHeight();
-image_width = wallpaper_image.GetWidth();
-image_height = wallpaper_image.GetHeight();
-scale_x = screen_width / image_width;
-scale_y = screen_height / image_height;
-scale = scale_x < scale_y ? scale_x : scale_y;
-scaled_width = image_width * scale;
-scaled_height = image_height * scale;
-resized_wallpaper = wallpaper_image.Scale(scaled_width, scaled_height);
-wallpaper_sprite = Sprite(resized_wallpaper);
-wallpaper_sprite.SetX((screen_width - scaled_width) / 2);
-wallpaper_sprite.SetY((screen_height - scaled_height) / 2);
-wallpaper_sprite.SetZ(-100);
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+image = Image("splash.png");
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+iw = image.GetWidth();
+ih = image.GetHeight();
+
+sx = sw / iw;
+sy = sh / ih;
+if (sy < sx) {
+    scale = sy;
+} else {
+    scale = sx;
+}
+
+new_w = iw * scale;
+new_h = ih * scale;
+
+scaled = image.Scale(new_w, new_h);
+sprite = Sprite(scaled);
+sprite.SetX((sw - new_w) / 2);
+sprite.SetY((sh - new_h) / 2);
+sprite.SetZ(1);
