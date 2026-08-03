@@ -198,10 +198,24 @@ if [ "$IS_RPI5" = "1" ]; then
   mkdir -p "$PLYMOUTH_THEME_DIR"
   cp "${SCRIPT_DIR}/plymouth-sonoro/sonoro.plymouth" "${PLYMOUTH_THEME_DIR}/"
   cp "${SCRIPT_DIR}/plymouth-sonoro/sonoro.script"   "${PLYMOUTH_THEME_DIR}/"
-  cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLYMOUTH_THEME_DIR}/splash.png"
+  # sonoro.script (12/03/2026) referencia nombres literales splashhorizontalcms/verticalcms.png
+  cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLYMOUTH_THEME_DIR}/splashhorizontalcms.png"
+  cp "${SCRIPT_DIR}/splash_vertical.png"   "${PLYMOUTH_THEME_DIR}/splashverticalcms.png"
   # Fix S168b: CRLF de Windows rompe plymouth (memoria HISTORIAL:4701).
   sed -i 's/\r$//' "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" "${PLYMOUTH_THEME_DIR}/sonoro.script"
+  # Registrar como alternativa (necesario para que initramfs incluya default.plymouth).
+  update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+    default.plymouth "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" 100 >/dev/null 2>&1 || true
+  update-alternatives --set default.plymouth "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" >/dev/null 2>&1 || true
   plymouth-set-default-theme sonoro -R >/dev/null 2>&1 || warn "plymouth-set-default-theme fallo"
+
+  # disable_splash=1 en config.txt (memoria HISTORIAL 12/03/2026) — mata el rainbow splash del firmware.
+  CONFIG="/boot/firmware/config.txt"
+  [ -f "$CONFIG" ] || CONFIG="/boot/config.txt"
+  if [ -f "$CONFIG" ] && ! grep -q "^disable_splash=" "$CONFIG"; then
+    echo "disable_splash=1" >> "$CONFIG"
+    log "config.txt: disable_splash=1 anadido"
+  fi
 
   # cmdline.txt: agregar quiet splash plymouth.enable=1 si no estan (una sola linea).
   CMDLINE="/boot/firmware/cmdline.txt"

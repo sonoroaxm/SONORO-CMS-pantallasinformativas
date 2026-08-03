@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=SONORO
-Description=SONORO AV boot splash
+Description=SONORO boot splash
 ModuleName=script
 
 [script]

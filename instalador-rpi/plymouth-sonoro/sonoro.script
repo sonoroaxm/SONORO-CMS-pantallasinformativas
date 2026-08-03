@@ -1,25 +1,22 @@
-Window.SetBackgroundTopColor(0, 0, 0);
-Window.SetBackgroundBottomColor(0, 0, 0);
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
 
-image = Image("splash.png");
-sw = Window.GetWidth();
-sh = Window.GetHeight();
-iw = image.GetWidth();
-ih = image.GetHeight();
-
-sx = sw / iw;
-sy = sh / ih;
-if (sy < sx) {
-    scale = sy;
+if (screen_w >= screen_h) {
+    splash = Image("splashhorizontalcms.png");
 } else {
-    scale = sx;
+    splash = Image("splashverticalcms.png");
 }
 
-new_w = iw * scale;
-new_h = ih * scale;
+img_w = splash.GetWidth();
+img_h = splash.GetHeight();
 
-scaled = image.Scale(new_w, new_h);
+scale = screen_w / img_w;
+if (img_h * scale > screen_h) {
+    scale = screen_h / img_h;
+}
+
+scaled = splash.Scale(img_w * scale, img_h * scale);
 sprite = Sprite(scaled);
-sprite.SetX((sw - new_w) / 2);
-sprite.SetY((sh - new_h) / 2);
-sprite.SetZ(1);
+sprite.SetX((screen_w - scaled.GetWidth()) / 2);
+sprite.SetY((screen_h - scaled.GetHeight()) / 2);
+sprite.SetZ(0);
