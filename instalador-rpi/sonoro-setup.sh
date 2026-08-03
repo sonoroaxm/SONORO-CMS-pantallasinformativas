@@ -107,6 +107,9 @@ step "5/9 Instalando player"
 cp "${SCRIPT_DIR}/sync-app.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/activation-portal.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/package.json" "${PLAYER_DIR}/"
+# Splash idle (ambos modelos — sync-app.js los busca en PLAYER_DIR)
+cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLAYER_DIR}/" 2>/dev/null || warn "splash_horizontal.png no encontrado"
+cp "${SCRIPT_DIR}/splash_vertical.png"   "${PLAYER_DIR}/" 2>/dev/null || warn "splash_vertical.png no encontrado"
 
 if [ "$IS_RPI5" = "1" ]; then
   # RPi5: player nativo ffmpeg vout_drm + concat (S168b — gap 0ms visual)
