@@ -1,5 +1,7 @@
 #!/bin/bash
-# SONORO AV CMS — Instalador RPi v5.0 (RPi4 + RPi5 nativo)
+# SONORO AV CMS — Instalador RPi v5.1 (RPi4 + RPi5 nativo)
+# S169 (02/08/2026): plymouth theme symlink + MODULES=most + splash PNG real
+#                    + cmdline console=tty3 + fbcat/screenshot + hdmi hotplug
 # Ejecutar como: sudo bash sonoro-setup.sh
 
 set -e
@@ -48,7 +50,8 @@ BASE_PKGS="curl wget git openssh-server unzip ffmpeg espeak-ng alsa-utils \
 
 if [ "$IS_RPI5" = "1" ]; then
   # RPi5 nativo: ffmpeg vout_drm, sin X11/mpv/openbox/plymouth-en-DRM (bloquean DRM master)
-  apt-get install -y -qq $BASE_PKGS
+  # S169: imagemagick (splash JPEG→PNG real) + fbcat (screenshot helper).
+  apt-get install -y -qq $BASE_PKGS imagemagick fbcat
   log "Dependencias RPi5 instaladas (headless, ffmpeg vout_drm)"
 else
   # RPi4: flujo actual con mpv + Wayland tools (grim/swaybg/wlr-randr) + X11 vía sonoro-x11.service
@@ -193,6 +196,7 @@ if [ "$IS_RPI5" = "1" ]; then
   step "6b.0/9 Plymouth splash SONORO (S167 boot silencioso)"
   # Instalar plymouth base + tema SONORO. Plymouth libera DRM antes de handoff
   # a getty/ffmpeg → compatible con vout_drm. Sin fbcon=map:1 (deja TTY libre).
+  # S169: plymouth-themes arrastra script.so requerido en initramfs.
   apt-get install -y -qq plymouth plymouth-themes >/dev/null 2>&1 || warn "plymouth apt install fallo"
   PLYMOUTH_THEME_DIR="/usr/share/plymouth/themes/sonoro"
   mkdir -p "$PLYMOUTH_THEME_DIR"
@@ -201,13 +205,58 @@ if [ "$IS_RPI5" = "1" ]; then
   # sonoro.script (12/03/2026) referencia nombres literales splashhorizontalcms/verticalcms.png
   cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLYMOUTH_THEME_DIR}/splashhorizontalcms.png"
   cp "${SCRIPT_DIR}/splash_vertical.png"   "${PLYMOUTH_THEME_DIR}/splashverticalcms.png"
+  # Copia opcional splash.png si existe (fallback plymouth theme).
+  [ -f "${SCRIPT_DIR}/plymouth-sonoro/splash.png" ] && \
+    cp "${SCRIPT_DIR}/plymouth-sonoro/splash.png" "${PLYMOUTH_THEME_DIR}/splash.png"
+
+  # S169 fix crítico: los splash entregados eran JPEG con extensión .png →
+  # plymouth los rechaza silenciosamente y muestra pantalla negra. Detectar y
+  # reconvertir a PNG real con imagemagick.
+  for f in "${PLYMOUTH_THEME_DIR}/splashhorizontalcms.png" \
+           "${PLYMOUTH_THEME_DIR}/splashverticalcms.png" \
+           "${PLYMOUTH_THEME_DIR}/splash.png"; do
+    [ -f "$f" ] || continue
+    if file "$f" | grep -qi 'JPEG'; then
+      warn "$(basename $f) era JPEG disfrazado — reconvirtiendo a PNG real"
+      convert "$f" "${f}.real.png" && mv "${f}.real.png" "$f"
+    fi
+  done
+
   # Fix S168b: CRLF de Windows rompe plymouth (memoria HISTORIAL:4701).
   sed -i 's/\r$//' "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" "${PLYMOUTH_THEME_DIR}/sonoro.script"
   # Registrar como alternativa (necesario para que initramfs incluya default.plymouth).
   update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
     default.plymouth "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" 100 >/dev/null 2>&1 || true
   update-alternatives --set default.plymouth "${PLYMOUTH_THEME_DIR}/sonoro.plymouth" >/dev/null 2>&1 || true
-  plymouth-set-default-theme sonoro -R >/dev/null 2>&1 || warn "plymouth-set-default-theme fallo"
+  plymouth-set-default-theme sonoro >/dev/null 2>&1 || warn "plymouth-set-default-theme fallo"
+  # S169: Debian a veces NO crea el symlink /usr/share/plymouth/themes/default.plymouth,
+  # y plymouthd cae al tema `text` sin previo aviso. Forzarlo.
+  ln -sf /etc/alternatives/default.plymouth /usr/share/plymouth/themes/default.plymouth
+
+  # S169: initramfs necesita MODULES=most para incluir vc4 (KMS DRM RPi5),
+  # sin él plymouth arranca pero no puede pintar → pantalla negra.
+  if [ -f /etc/initramfs-tools/initramfs.conf ]; then
+    sed -i 's/^MODULES=.*/MODULES=most/' /etc/initramfs-tools/initramfs.conf
+  fi
+
+  # S169: plymouthd.conf con timings sanos para KMS RPi5.
+  mkdir -p /etc/plymouth
+  cat > /etc/plymouth/plymouthd.conf <<'PLYCONF'
+[Daemon]
+Theme=sonoro
+ShowDelay=0
+DeviceTimeout=8
+PLYCONF
+
+  # S169: acortar plymouth-quit-wait a 3s (default espera hasta que systemd
+  # complete el arranque de graphical.target; en headless nunca cierra).
+  mkdir -p /etc/systemd/system/plymouth-quit-wait.service.d
+  cat > /etc/systemd/system/plymouth-quit-wait.service.d/override.conf <<'PQW'
+[Service]
+ExecStart=
+ExecStart=/bin/sleep 3
+ExecStart=/usr/bin/plymouth quit
+PQW
 
   # disable_splash=1 en config.txt (memoria HISTORIAL 12/03/2026) — mata el rainbow splash del firmware.
   CONFIG="/boot/firmware/config.txt"
@@ -221,13 +270,35 @@ if [ "$IS_RPI5" = "1" ]; then
   CMDLINE="/boot/firmware/cmdline.txt"
   [ -f "$CMDLINE" ] || CMDLINE="/boot/cmdline.txt"
   if [ -f "$CMDLINE" ]; then
-    for kw in "quiet" "splash" "plymouth.enable=1" "logo.nologo" "vt.global_cursor_default=0"; do
+    # S169: quitar plymouth.debug si algún flash previo lo dejó (verboso).
+    sed -i 's/ *plymouth\.debug//g' "$CMDLINE"
+    # S169: console=tty1 hace visible en HDMI. Mover a tty3 (invisible).
+    sed -i 's/console=tty1/console=tty3/g' "$CMDLINE"
+    # S169: loglevel=0 silencia kernel messages residuales.
+    for kw in "quiet" "splash" "plymouth.enable=1" "logo.nologo" "vt.global_cursor_default=0" "loglevel=0"; do
       grep -q "$kw" "$CMDLINE" || sed -i "1 s|$| $kw|" "$CMDLINE"
     done
-    log "cmdline.txt: quiet splash plymouth.enable=1 logo.nologo vt.global_cursor_default=0"
+    log "cmdline.txt: quiet splash plymouth.enable=1 logo.nologo vt.global_cursor_default=0 loglevel=0 console=tty3"
   else
     warn "cmdline.txt no encontrado — splash puede no activarse"
   fi
+
+  # S169: config.txt — HDMI hotplug + boot_delay + RTC trickle charge.
+  if [ -f "$CONFIG" ]; then
+    for kv in "hdmi_force_hotplug=1" "boot_delay=3" "dtparam=rtc_bbat_vchg=3000000"; do
+      k="${kv%%=*}"
+      grep -q "^${k}=" "$CONFIG" || echo "$kv" >> "$CONFIG"
+    done
+    log "config.txt: hdmi_force_hotplug + boot_delay=3 + rtc_bbat_vchg"
+  fi
+
+  # S169: enmascarar getty@tty1 — compite con ffmpeg vout_drm por DRM master
+  # y en cold-boot puede pintar dialog "Press enter". tty2 sigue activo como fallback.
+  systemctl mask getty@tty1.service 2>/dev/null || true
+
+  # S169: regenerar initramfs para incorporar MODULES=most + plymouth theme.
+  update-initramfs -u >/dev/null 2>&1 || warn "update-initramfs fallo"
+  log "initramfs regenerado (vc4 + plymouth theme incluidos)"
 
   step "6b.1/9 Boot headless (multi-user.target)"
   # RPi5: ffmpeg vout_drm necesita DRM master exclusivo. labwc/LXDE-Pi arranca en
@@ -269,7 +340,33 @@ if [ -f /etc/ssh/sshd_config ]; then
   log "SSH PasswordAuthentication yes"
 fi
 
-step "6d/9 Deshabilitando WiFi power management"
+step "6d/9 Screenshot helper RPi5 (S169)"
+if [ "$IS_RPI5" = "1" ]; then
+  # sonoro-screenshot.sh: extrae frame del video actual con ffmpeg -vframes 1
+  # (fbcat no sirve — vout_drm usa plano overlay no fb0). sync-app.js lo llama
+  # via IS_RPI5 branch en socket.on('screenshot_request').
+  if [ -f "${SCRIPT_DIR}/sonoro-screenshot.sh" ]; then
+    cp "${SCRIPT_DIR}/sonoro-screenshot.sh" /usr/local/bin/sonoro-screenshot.sh
+    chmod +x /usr/local/bin/sonoro-screenshot.sh
+    log "sonoro-screenshot.sh instalado en /usr/local/bin"
+  else
+    warn "sonoro-screenshot.sh no encontrado en SCRIPT_DIR — screenshot RPi5 no funcionara"
+  fi
+fi
+
+step "6d2/9 CEC TV control script (tv-ctl.sh)"
+if [ -f "${SCRIPT_DIR}/tv-ctl.sh" ]; then
+  install -d -o sonoro -g sonoro /home/sonoro/tv-ctl
+  cp "${SCRIPT_DIR}/tv-ctl.sh" /home/sonoro/tv-ctl/tv-ctl.sh
+  sed -i 's/\r$//' /home/sonoro/tv-ctl/tv-ctl.sh
+  chown sonoro:sonoro /home/sonoro/tv-ctl/tv-ctl.sh
+  chmod +x /home/sonoro/tv-ctl/tv-ctl.sh
+  log "tv-ctl.sh instalado en /home/sonoro/tv-ctl/"
+else
+  warn "tv-ctl.sh no encontrado en SCRIPT_DIR — CEC TV control no funcionara"
+fi
+
+step "6e/9 Deshabilitando WiFi power management"
 mkdir -p /etc/NetworkManager/dispatcher.d
 cat > /etc/NetworkManager/dispatcher.d/99-disable-wifi-pm << 'PM'
 #!/bin/bash
@@ -333,7 +430,7 @@ TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 HOTSPOT_ID=$(echo "${DEVICE_ID}" | sed -E 's/^rpi[45]-//' | tr '[:lower:]' '[:upper:]' | rev | cut -c1-6 | rev)
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  SONORO AV CMS v5.0 instalado (${SONORO_MODEL})${NC}"
+echo -e "${GREEN}  SONORO AV CMS v5.1 instalado (${SONORO_MODEL})${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "  DEVICE_ID : ${DEVICE_ID}"

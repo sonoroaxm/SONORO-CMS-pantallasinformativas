@@ -1145,6 +1145,36 @@ function connectSocket() {
   });
 
   // 9. Info completa del sistema RPi (CPU, RAM, temperatura)
+
+  function emitSysinfoNow(sock) {
+    const cpus = os.cpus();
+    const totalMem = os.totalmem();
+    const freeMem  = os.freemem();
+    let temp = null;
+    if (!IS_WINDOWS) {
+      try {
+        const t = require('child_process').execSync('vcgencmd measure_temp 2>/dev/null', { encoding: 'utf8', timeout: 3000 });
+        const m = t.match(/temp=([\d.]+)/);
+        if (m) temp = parseFloat(m[1]);
+      } catch(e) {}
+    }
+    sock.emit('device_sysinfo', {
+      device_id: DEVICE_ID,
+      cpu: { cores: cpus.length, model: cpus[0]?.model, speed_mhz: cpus[0]?.speed },
+      memory: {
+        total_mb: Math.round(totalMem/1048576),
+        free_mb:  Math.round(freeMem/1048576),
+        used_mb:  Math.round((totalMem-freeMem)/1048576),
+        use_pct:  ((totalMem-freeMem)/totalMem*100).toFixed(1),
+      },
+      temp_celsius: temp,
+      platform: IS_WINDOWS ? 'windows' : 'linux',
+      node_version: process.version,
+      uptime_s: Math.floor((Date.now() - currentState.started_at) / 1000),
+      os_uptime_s: Math.floor(os.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  }
   socket.on('cmd_get_sysinfo', () => {
     console.log('⚡ [CMD] get_sysinfo');
     const cpus = os.cpus();
@@ -1175,6 +1205,9 @@ function connectSocket() {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // PERIODIC SYSINFO — emit every 30s so backend refreshes cpu_temp
+  setInterval(() => { try { socket.emit && socket.connected && emitSysinfoNow(socket); } catch(e) {} }, 30000);
 
   // 10. Listar archivos de media descargados en la RPi
   socket.on('cmd_list_media', () => {
@@ -1220,14 +1253,18 @@ function connectSocket() {
     });
   });
 
-  // 12. Screenshot — X11: scrot → base64 → screenshot_result socket event
+  // 12. Screenshot — RPi5 usa sonoro-screenshot.sh (frame del video actual);
+  //     RPi4/X11 usa scrot; Windows lo omite.
   socket.on('screenshot_request', ({ device_id }) => {
     if (IS_WINDOWS) return;
     const tmpPath = `/tmp/screenshot-${DEVICE_ID}-${Date.now()}.png`;
     console.log(`📸 Screenshot solicitado → ${tmpPath}`);
-    exec(`${DISPLAY_ENV} scrot ${tmpPath}`, (err) => {
+    const cmd = IS_RPI5
+      ? `/usr/local/bin/sonoro-screenshot.sh > ${tmpPath}`
+      : `${DISPLAY_ENV} scrot ${tmpPath}`;
+    exec(cmd, (err) => {
       if (err) {
-        console.error('❌ Screenshot error (scrot):', err.message);
+        console.error('❌ Screenshot error:', err.message);
         socket.emit('screenshot_result', { device_id, success: false, error: err.message });
         return;
       }
@@ -1241,6 +1278,14 @@ function connectSocket() {
         try { fs.unlinkSync(tmpPath); } catch(e) {}
       }
     });
+  });
+
+  // 13. Reboot — sin SSH, via socket.io (funciona detrás de NAT y sin key).
+  socket.on('reboot_request', ({ device_id } = {}) => {
+    if (device_id && device_id !== DEVICE_ID) return;
+    console.log('🔄 Reboot solicitado via socket');
+    try { socket.emit('reboot_result', { device_id: DEVICE_ID, success: true }); } catch(e) {}
+    setTimeout(() => { try { exec('sudo /sbin/reboot'); } catch(e) { console.error(e); } }, 500);
   });
 
   return socket;
