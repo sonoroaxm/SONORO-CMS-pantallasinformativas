@@ -59,7 +59,7 @@ fi
 step "2b/9 Instalando Piper TTS (voz neural offline)"
 PIPER_DIR="/home/${SONORO_USER}/piper"
 PIPER_VERSION="2023.11.14-2"
-PIPER_ARCH="aarch64"   # RPi4 ARM64
+PIPER_ARCH="linux_aarch64"   # RPi4/RPi5 ARM64 (naming actual del release)
 PIPER_TAR="piper_${PIPER_ARCH}.tar.gz"
 PIPER_URL="https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/${PIPER_TAR}"
 
