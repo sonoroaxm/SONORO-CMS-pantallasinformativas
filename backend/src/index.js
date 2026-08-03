@@ -1425,9 +1425,9 @@ app.post('/api/devices/register', registerDeviceLimiter, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO devices (device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, status, last_seen, platform, player_version, user_id)
-       VALUES ($1, COALESCE($2, $1), $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
+       VALUES ($1, COALESCE($2::varchar, $1), $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
        ON CONFLICT (device_id) DO UPDATE SET
-         name = COALESCE($2, devices.name),
+         name = COALESCE($2::varchar, devices.name),
          ip_address = $3,
          status = 'online',
          last_seen = CURRENT_TIMESTAMP,
@@ -1660,31 +1660,27 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 
 // POST - Reboot dispositivo via SSH
 app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
-  const { ip } = req.body;
-  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
-    if (error) {
-      console.warn(`⚠️ Reboot enviado a ${ip} (puede ser normal si SSH cierra):`, error.message);
-    }
-  });
-  console.log(`🔄 Reboot enviado a: ${ip}`);
-  res.json({ success: true, message: `Reboot enviado a ${ip}` });
+  const { ip, device_id } = req.body;
+  let targetId = device_id;
+  if (!targetId && ip) {
+    if (!isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
+    const r = await pool.query('SELECT device_id FROM devices WHERE ip_address = $1 ORDER BY last_seen DESC NULLS LAST LIMIT 1', [ip]);
+    targetId = r.rows[0]?.device_id;
+  }
+  if (!targetId) return res.status(400).json({ error: 'device_id o ip requeridos' });
+  io.to(`device_${targetId}`).emit('reboot_request', { device_id: targetId });
+  console.log(`🔄 Reboot emit → ${targetId}`);
+  res.json({ success: true, message: `Reboot enviado a ${targetId}` });
 });
 
 // POST - Reboot por device_id
 app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) => {
   const { device_id } = req.params;
   try {
-    const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
+    const result = await pool.query('SELECT device_id FROM devices WHERE device_id = $1', [device_id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
-    const ip = result.rows[0].ip_address;
-    if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP del dispositivo inválida' });
-    execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
-      if (error && !error.message.includes('closed') && !error.message.includes('exit')) {
-        console.warn(`⚠️ SSH reboot ${ip}:`, error.message);
-      }
-    });
-    console.log(`🔄 Reboot enviado a ${device_id} (${ip})`);
+    io.to(`device_${device_id}`).emit('reboot_request', { device_id });
+    console.log(`🔄 Reboot emit → ${device_id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Reboot error:', err.message);
@@ -1772,18 +1768,23 @@ app.post('/api/devices/:device_id/kill-player', authenticateToken, async (req, r
 // POST /api/devices/:device_id/tv/:action — via Socket.io (no SSH)
 app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, res) => {
   const { device_id, action } = req.params;
-  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
+  const target = (req.body && req.body.target) || 'all';
+  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
+  const validTargets = ['tv1','tv2','all'];
   if (!valid.includes(action))
     return res.status(400).json({ success: false, error: 'Accion invalida. Usar: ' + valid.join(' | ') });
+  if (!validTargets.includes(target))
+    return res.status(400).json({ success: false, error: 'Target invalido: tv1|tv2|all' });
   try {
     const result = await pool.query(
-      'SELECT name FROM devices WHERE device_id = $1 AND user_id = $2',
-      [device_id, req.user.id]
+      `SELECT name FROM devices WHERE device_id = $1
+         AND (user_id = $2 OR $3 = 'admin')`,
+      [device_id, req.user.id, req.user.role]
     );
     if (!result.rows.length)
       return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
-    const output = await doTV(device_id, action);
-    res.json({ success: true, device_id, device_name: result.rows[0].name, action, output });
+    const output = await doTV(device_id, action, target);
+    res.json({ success: true, device_id, device_name: result.rows[0].name, action, target, output });
   } catch (err) {
     console.error('TV control error:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -8343,6 +8344,14 @@ io.on('connection', (socket) => {
     } catch(e) { console.warn('heartbeat error:', e.message); }
   });
 
+  socket.on('device_sysinfo', async (info) => {
+    if (socket.role !== 'device') return;
+    if (!info?.device_id || info.temp_celsius == null) return;
+    try {
+      await pool.query('UPDATE devices SET cpu_temp = $1, last_seen = NOW() WHERE device_id = $2', [info.temp_celsius, info.device_id]);
+    } catch(e) { console.warn('sysinfo persist error:', e.message); }
+  });
+
   // device-unhealthy — el watchdog del player Windows lo emite tras 5 reloads
   // consecutivos sin recuperar el renderer. Persistimos el flag; el operador
   // ve el indicador en el dashboard y decide si reinstalar o intervenir.
@@ -8371,20 +8380,11 @@ io.on('connection', (socket) => {
 
   socket.on('reboot_device', requireUser(async ({ device_id }) => {
     try {
-      const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
+      const result = await pool.query('SELECT device_id FROM devices WHERE device_id = $1', [device_id]);
       if (!result.rows.length) return socket.emit('reboot_result', { success: false, error: 'Dispositivo no encontrado' });
-      const ip = result.rows[0].ip_address;
-      if (!ip || !isValidIP(ip)) return socket.emit('reboot_result', { success: false, error: 'IP del dispositivo inválida' });
-      console.log(`🔄 Reiniciando dispositivo ${device_id} en ${ip}`);
-      execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
-        if (error && error.code !== null && error.signal !== 'SIGTERM') {
-          console.error('❌ Reboot error:', error.message);
-          socket.emit('reboot_result', { success: false, error: error.message });
-        } else {
-          console.log(`✅ Reboot enviado a ${ip}`);
-          socket.emit('reboot_result', { success: true });
-        }
-      });
+      console.log(`🔄 Reboot emit → ${device_id}`);
+      io.to(`device_${device_id}`).emit('reboot_request', { device_id });
+      socket.emit('reboot_result', { success: true });
     } catch (err) {
       socket.emit('reboot_result', { success: false, error: err.message });
     }
