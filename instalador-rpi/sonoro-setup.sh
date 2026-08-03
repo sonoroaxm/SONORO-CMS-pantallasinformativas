@@ -189,6 +189,15 @@ else
   log "sonoro-player arrancado y verificado activo"
 fi
 
+if [ "$IS_RPI5" = "1" ]; then
+  step "6b.1/9 Boot headless (multi-user.target)"
+  # RPi5: ffmpeg vout_drm necesita DRM master exclusivo. labwc/LXDE-Pi arranca en
+  # graphical.target y toma DRM → ffmpeg falla. Signage puro = sin desktop.
+  # getty@tty2 (habilitado en 6c) sigue disponible como fallback local.
+  systemctl set-default multi-user.target
+  log "Default target = multi-user.target (labwc no arrancara al boot)"
+fi
+
 step "6c/9 Vias de recuperacion (leccion S168b brick seguritech)"
 # Regla de oro: en RPi5 nativo SIEMPRE al menos UNA via de recuperacion abierta
 # (getty en algun TTY + ethernet autoconnect). Cerrarlas todas = brick remoto.
