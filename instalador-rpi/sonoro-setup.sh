@@ -261,7 +261,7 @@ else
   CHECK_SVCS="sonoro-player sonoro-tunnel getty@tty2"
 fi
 for svc in $CHECK_SVCS; do
-  state=$(systemctl is-active "$svc" 2>&1)
+  state=$(systemctl is-active "$svc" 2>&1 || true)
   if [ "$state" = "active" ]; then
     log "  $svc → active"
   else
