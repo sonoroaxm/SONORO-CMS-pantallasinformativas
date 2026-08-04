@@ -16,7 +16,9 @@ const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
 // IS_DEMO=true: el RPi olvida perfiles WiFi al reboot (cómodo para demos moviéndose entre redes).
 // IS_DEMO=false (default, producción): persiste perfiles WiFi al SD lower para sobrevivir reboot.
 const IS_DEMO        = process.env.IS_DEMO === 'true';
-const HOTSPOT_IP = '192.168.4.1';
+// S172 fix: NetworkManager modo shared usa 10.42.0.0/24 (gw 10.42.0.1) desde ~2013.
+// La IP anterior (192.168.4.1) era residual del stack hostapd/dnsmasq pre-NM.
+const HOTSPOT_IP = '10.42.0.1';
 const PORT       = 8080;
 const _devSuffix = DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
 const HOTSPOT_NAME = `SCMS-${_devSuffix}`;
@@ -68,6 +70,16 @@ async function startHotspot() {
   try {
     try { await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {}
     await run(`sudo nmcli dev wifi hotspot ifname wlan0 ssid "${HOTSPOT_NAME}" password "sonorocms"`);
+    // S172 fix (bug B1): en RPi5 Debian 13 + NM 1.52 el hotspot queda con
+    // band="" + channel=0 → wlan0 en modo AP pero SIN emitir beacon (invisible
+    // en clientes). Forzar band=bg (2.4GHz) + canal 6 y reciclar la conexion.
+    try {
+      await run(`sudo nmcli con mod "${HOTSPOT_NAME}" 802-11-wireless.band bg 802-11-wireless.channel 6`);
+      await run(`sudo nmcli con down "${HOTSPOT_NAME}" 2>/dev/null || true`);
+      await run(`sudo nmcli con up "${HOTSPOT_NAME}"`);
+    } catch(e) {
+      log(`Advertencia — no se pudo fijar band/channel: ${e.message}`);
+    }
     hotspotActive = true;
     log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
     await setupCaptivePortal();
@@ -190,12 +202,33 @@ async function connectToWifi(ssid, password) {
       await persistWifiToSD(ssid);
       return true;
     }
-    // Eliminar perfil anterior si existe
-    try { await run(`sudo nmcli con delete "${ssid}" 2>/dev/null`); } catch(e) {}
-    if (password) {
-      await run(`sudo nmcli dev wifi connect "${ssid}" password "${password}" ifname wlan0`);
+    // S172 fix (bug B2): en RPi5 Debian 13 netplan+NM genera perfiles con
+    // nombre `netplan-<iface>-<ssid>` (SSID puede aparecer en 802-11-wireless.ssid).
+    // `nmcli con delete` sobre esos perfiles los borra pero netplan los regenera
+    // sin key-mgmt en el objeto NM en runtime → `dev wifi connect` falla con
+    // "802-11-wireless-security.key-mgmt: property is missing". Para evitarlo,
+    // detectar perfil existente con ese SSID y hacer `con modify` en vez de delete.
+    let existingProfile = '';
+    try {
+      existingProfile = (await run(
+        `nmcli -t -f NAME,802-11-wireless.ssid con show 2>/dev/null | awk -F: '$2=="${ssid.replace(/"/g,'')}"{print $1; exit}'`
+      )).trim();
+    } catch(e) { existingProfile = ''; }
+
+    if (existingProfile) {
+      log(`Perfil existente encontrado: ${existingProfile} — usando con modify`);
+      if (password) {
+        await run(`sudo nmcli con mod "${existingProfile}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "${password}"`);
+      }
+      await run(`sudo nmcli con mod "${existingProfile}" connection.autoconnect yes`);
+      await run(`sudo nmcli con up "${existingProfile}"`);
     } else {
-      await run(`sudo nmcli dev wifi connect "${ssid}" ifname wlan0`);
+      // Sin perfil previo: crear directo con `dev wifi connect` (flujo RPi4 original).
+      if (password) {
+        await run(`sudo nmcli dev wifi connect "${ssid}" password "${password}" ifname wlan0`);
+      } else {
+        await run(`sudo nmcli dev wifi connect "${ssid}" ifname wlan0`);
+      }
     }
 
     // Esperar conexion

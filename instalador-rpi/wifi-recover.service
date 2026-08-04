@@ -1,0 +1,8 @@
+[Unit]
+Description=SONORO WiFi Recover (sale de Hotspot fallback si aparece AP guardado)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wifi-recover.sh

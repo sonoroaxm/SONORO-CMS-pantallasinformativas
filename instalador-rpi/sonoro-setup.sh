@@ -1,5 +1,7 @@
 #!/bin/bash
-# SONORO AV CMS — Instalador RPi v5.1 (RPi4 + RPi5 nativo)
+# SONORO AV CMS — Instalador RPi v5.2 (RPi4 + RPi5 nativo)
+# S172 (04/08/2026): portal cautivo (wifi-recover + dnsmasq preseed + CAPTIVE_OWN_DNS)
+#                    + OverlayFS RPi5 (regresion v5.1 corregida) + iptables en base.
 # S169 (02/08/2026): plymouth theme symlink + MODULES=most + splash PNG real
 #                    + cmdline console=tty3 + fbcat/screenshot + hdmi hotplug
 # Ejecutar como: sudo bash sonoro-setup.sh
@@ -46,7 +48,8 @@ apt-get update -qq && apt-get upgrade -y -qq
 step "2/9 Instalando dependencias"
 # Base común (ambos modelos): red, ssh, ffmpeg, TTS, tunnel, utilidades
 BASE_PKGS="curl wget git openssh-server unzip ffmpeg espeak-ng alsa-utils \
-  pipewire pipewire-alsa wireplumber v4l-utils autossh qrencode network-manager"
+  pipewire pipewire-alsa wireplumber v4l-utils autossh qrencode network-manager \
+  iptables"
 
 if [ "$IS_RPI5" = "1" ]; then
   # RPi5 nativo: ffmpeg vout_drm, sin X11/mpv/openbox/plymouth-en-DRM (bloquean DRM master)
@@ -136,10 +139,20 @@ log "/etc/default/sonoro escrito (MODEL=${SONORO_MODEL} TIER=${SONORO_TIER} DEVI
 
 # Ejecutar npm install como usuario sonoro (bug S168 #3: evita node_modules root-owned)
 sudo -u "${SONORO_USER}" bash -c "cd '${PLAYER_DIR}' && npm install --omit=dev --quiet"
+# S172: CAPTIVE_OWN_DNS=1 default en RPi5 — el dnsmasq de NM en modo shared
+# no siempre honra dnsmasq-shared.d/ con wildcard `address=/#/`; el fallback
+# propio en :5353 + iptables UDP redirect garantiza que Android/iOS/Win vean
+# el portal cautivo. Default OFF en RPi4 (donde el flujo actual ya funciona).
+if [ "$IS_RPI5" = "1" ]; then
+  CAPTIVE_OWN_DNS_LINE="CAPTIVE_OWN_DNS=1"
+else
+  CAPTIVE_OWN_DNS_LINE="# CAPTIVE_OWN_DNS=1  # opt-in en RPi4"
+fi
 cat > "${PLAYER_DIR}/.env" << ENV
 CMS_URL=${CMS_URL}
 DEVICE_ID=${DEVICE_ID}
 SONORO_MODEL=${SONORO_MODEL}
+${CAPTIVE_OWN_DNS_LINE}
 ENV
 log "Player instalado"
 
@@ -380,6 +393,33 @@ chmod +x /etc/NetworkManager/dispatcher.d/99-disable-wifi-pm
 /usr/sbin/iw dev wlan0 set power_save off 2>/dev/null || true
 log "WiFi power management deshabilitado (evita desconexiones periodicas)"
 
+step "6f/9 Portal cautivo — preseed dnsmasq + wifi-recover (S172)"
+# Preseed dnsmasq wildcard: aunque activation-portal.js tambien lo crea al
+# arrancar el hotspot, dejarlo pre-instalado evita perderlo si el portal falla
+# antes de setupCaptivePortal(). Es idempotente (mismo path el portal reescribe).
+if [ -f "${SCRIPT_DIR}/sonoro-captive.conf" ]; then
+  mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+  cp "${SCRIPT_DIR}/sonoro-captive.conf" /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf
+  log "dnsmasq wildcard preseed instalado (10.42.0.1)"
+else
+  warn "sonoro-captive.conf no encontrado — dnsmasq preseed omitido"
+fi
+
+# wifi-recover: sale de Hotspot fallback cuando reaparece un AP guardado.
+# S161 (RPi4) + adaptado S172 para perfiles netplan-* de Debian 13.
+if [ -f "${SCRIPT_DIR}/wifi-recover.sh" ]; then
+  cp "${SCRIPT_DIR}/wifi-recover.sh"      /usr/local/bin/wifi-recover.sh
+  chmod +x /usr/local/bin/wifi-recover.sh
+  cp "${SCRIPT_DIR}/wifi-recover.service" /etc/systemd/system/wifi-recover.service
+  cp "${SCRIPT_DIR}/wifi-recover.timer"   /etc/systemd/system/wifi-recover.timer
+  systemctl daemon-reload
+  systemctl enable wifi-recover.timer
+  systemctl start  wifi-recover.timer 2>/dev/null || true
+  log "wifi-recover instalado (timer cada 2 min)"
+else
+  warn "wifi-recover.sh no encontrado — recovery Hotspot no funcionara"
+fi
+
 step "7/9 Configurando tunnel SSH"
 TUNNEL_KEY="/home/${SONORO_USER}/.ssh/vps_tunnel"
 mkdir -p "/home/${SONORO_USER}/.ssh"
@@ -423,6 +463,86 @@ echo ""
 echo "  /etc/default/sonoro:"
 sed 's/^/    /' /etc/default/sonoro
 
+step "8b/9 OverlayFS root RO (S172 — regresion v5.1 corregida en RPi5)"
+# Regla de oro (RPi4 stack, PARTE 2.5 ALISTAMIENTO-RPI.md): la MicroSD debe ir
+# en modo RO tras el arranque para sobrevivir cortes de energia. Upper layer en
+# tmpfs, lower en SD; cualquier cambio se pierde salvo persist explicito via
+# sonoro-sd-rw/sonoro-sd-ro. En v5.1 se perdio esta capa en RPi5 (regresion
+# confirmada S172). Reincorporado en v5.2.
+#
+# Se aplica solo si `overlayroot` esta disponible en el repo. En Debian 13
+# (RPi5) el paquete puede llamarse `overlayroot` desde Ubuntu-derived repos
+# o requerir compilacion — si falta, se salta con warn y se documenta.
+if [ "$IS_RPI5" = "1" ]; then
+  if apt-get install -y -qq overlayroot 2>/dev/null; then
+    log "overlayroot instalado"
+
+    # 1) Configuracion overlayroot: upper en tmpfs (RAM), lower en SD.
+    cat > /etc/overlayroot.local.conf << 'OVL'
+overlayroot="tmpfs:recurse=0"
+OVL
+
+    # 2) journald volatile (evita escritura constante a SD).
+    mkdir -p /etc/systemd/journald.conf.d
+    cat > /etc/systemd/journald.conf.d/volatile.conf << 'JC'
+[Journal]
+Storage=volatile
+RuntimeMaxUse=50M
+JC
+
+    # 3) Scripts de mantenimiento de la capa persistente.
+    cat > /usr/local/bin/sonoro-sd-rw << 'SDRW'
+#!/bin/bash
+mount -o remount,rw /media/root-ro
+SDRW
+
+    cat > /usr/local/bin/sonoro-sd-ro << 'SDRO'
+#!/bin/bash
+sync
+echo 3 > /proc/sys/vm/drop_caches
+mount -o remount,ro /media/root-ro
+SDRO
+
+    cat > /usr/local/bin/overlay-maintenance << 'OVM'
+#!/bin/bash
+echo "=== Estado overlay ==="
+mount | grep -E "overlay|root-ro"
+echo ""
+echo "=== Espacio lower (SD) ==="
+df -h /media/root-ro 2>/dev/null || echo "lower no montado"
+echo ""
+echo "=== Espacio upper (RAM) ==="
+df -h / | tail -1
+OVM
+
+    chmod +x /usr/local/bin/sonoro-sd-rw \
+             /usr/local/bin/sonoro-sd-ro \
+             /usr/local/bin/overlay-maintenance
+
+    # 4) Sudoers NOPASSWD para el usuario sonoro (persistencia automatica
+    #    desde sync-app.js / activation-portal.js persistWifiToSD()).
+    cat > /etc/sudoers.d/sonoro-persist << 'SUD'
+sonoro ALL=(root) NOPASSWD: /usr/local/bin/sonoro-sd-rw, /usr/local/bin/sonoro-sd-ro
+SUD
+    chmod 440 /etc/sudoers.d/sonoro-persist
+
+    # 5) Regenerar initramfs para incorporar el hook de overlayroot.
+    update-initramfs -u >/dev/null 2>&1 || warn "update-initramfs (overlayroot) fallo"
+    log "OverlayFS configurado — tras reboot / sera RO (upper en tmpfs)"
+    OVERLAY_ENABLED=1
+  else
+    warn "Paquete overlayroot no disponible en Debian 13 RPi5"
+    warn "  → root sigue RW; cortes de energia pueden corromper SD"
+    warn "  → deuda: portar overlayroot desde Ubuntu o alternativa systemd-overlay"
+    OVERLAY_ENABLED=0
+  fi
+else
+  # RPi4: OverlayFS ya configurado en el flujo maestro docs/ALISTAMIENTO-RPI.md
+  # PARTE 2.5. No tocamos aqui para no romper unidades desplegadas.
+  OVERLAY_ENABLED=0
+  log "RPi4 — OverlayFS gestionado por ALISTAMIENTO-RPI.md (no tocar)"
+fi
+
 step "9/9 Instalacion completada"
 TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 # Hotspot ID: quitar prefijo modelo (rpi4-|rpi5-) para que el sufijo sea el mismo
@@ -430,7 +550,7 @@ TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 HOTSPOT_ID=$(echo "${DEVICE_ID}" | sed -E 's/^rpi[45]-//' | tr '[:lower:]' '[:upper:]' | rev | cut -c1-6 | rev)
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  SONORO AV CMS v5.1 instalado (${SONORO_MODEL})${NC}"
+echo -e "${GREEN}  SONORO AV CMS v5.2 instalado (${SONORO_MODEL})${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "  DEVICE_ID : ${DEVICE_ID}"
