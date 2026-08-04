@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # tools/sync-vps.sh — Sincroniza archivos del VPS al repo con validación de contenido.
-# Uso: bash tools/sync-vps.sh [--dry-run]
+# Uso: bash tools/sync-vps.sh [--dry-run] [--force-branch]
 # Ejecutar siempre desde la raíz del repo.
 #
 # Comparación basada en md5sum (contenido), no en timestamps.
@@ -16,7 +16,13 @@ VPS="debian@45.181.156.171"
 VPS_ROOT="/opt/sonoro-cms"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DRY_RUN=0
-[[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
+FORCE_BRANCH=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry-run) DRY_RUN=1 ;;
+    --force-branch) FORCE_BRANCH=1 ;;
+  esac
+done
 
 # ── Archivos rastreados ───────────────────────────────────────────────────────
 # Al agregar un archivo nuevo al VPS: añadirlo aquí antes de cerrar la sesión.
@@ -75,6 +81,32 @@ if ! ssh_run "true" 2>/dev/null; then
   exit 1
 fi
 echo -e "${GRN}OK${NC}"
+
+# ── Validar rama activa VPS vs repo local (S172b, learn from S171 drift) ──────
+echo -n "  Validando rama activa VPS ↔ repo ... "
+VPS_BRANCH=$(ssh_run "git -C $VPS_ROOT rev-parse --abbrev-ref HEAD 2>/dev/null" 2>/dev/null || echo "unknown")
+LOCAL_BRANCH=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+if [[ "$VPS_BRANCH" != "$LOCAL_BRANCH" ]]; then
+  echo -e "${RED}MISMATCH${NC}"
+  echo ""
+  echo -e "  ${RED}⚠ VPS está en rama '$VPS_BRANCH' pero el repo local está en '$LOCAL_BRANCH'.${NC}"
+  echo -e "  ${YLW}En S171 este drift ocultó 2 meses de trabajo sin commitear.${NC}"
+  echo -e "  ${YLW}Sync'ear sobre rama distinta puede pisar cambios legítimos.${NC}"
+  echo ""
+  if [[ $FORCE_BRANCH -eq 1 ]]; then
+    echo -e "  ${YLW}--force-branch activo — continuando bajo tu responsabilidad.${NC}"
+    echo ""
+  else
+    echo -e "  ${YLW}Opciones:${NC}"
+    echo -e "    1. Cambiar rama local ($LOCAL_BRANCH → $VPS_BRANCH) y reintentar."
+    echo -e "    2. Cambiar rama VPS ($VPS_BRANCH → $LOCAL_BRANCH) — requiere reconciliar working tree."
+    echo -e "    3. Pasar --force-branch para ignorar (solo si sabes exactamente qué haces)."
+    exit 1
+  fi
+else
+  echo -e "${GRN}$VPS_BRANCH${NC}"
+fi
 
 # ── Obtener md5sums del VPS en un solo SSH call ───────────────────────────────
 echo -n "  Obteniendo checksums del VPS ... "
