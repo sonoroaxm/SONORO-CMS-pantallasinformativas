@@ -49,7 +49,7 @@ step "2/9 Instalando dependencias"
 # Base común (ambos modelos): red, ssh, ffmpeg, TTS, tunnel, utilidades
 BASE_PKGS="curl wget git openssh-server unzip ffmpeg espeak-ng alsa-utils \
   pipewire pipewire-alsa wireplumber v4l-utils autossh qrencode network-manager \
-  iptables"
+  iptables overlayroot cec-utils"
 
 if [ "$IS_RPI5" = "1" ]; then
   # RPi5 nativo: ffmpeg vout_drm, sin X11/mpv/openbox/plymouth-en-DRM (bloquean DRM master)
@@ -481,47 +481,43 @@ echo ""
 echo "  /etc/default/sonoro:"
 sed 's/^/    /' /etc/default/sonoro
 
-step "8b/9 OverlayFS root RO (S172 — regresion v5.1 corregida en RPi5)"
+step "8b/9 OverlayFS root RO (v5.4 — deterministico, sin fallback)"
 # Regla de oro (RPi4 stack, PARTE 2.5 ALISTAMIENTO-RPI.md): la MicroSD debe ir
 # en modo RO tras el arranque para sobrevivir cortes de energia. Upper layer en
 # tmpfs, lower en SD; cualquier cambio se pierde salvo persist explicito via
-# sonoro-sd-rw/sonoro-sd-ro. En v5.1 se perdio esta capa en RPi5 (regresion
-# confirmada S172). Reincorporado en v5.2.
+# sonoro-sd-rw/sonoro-sd-ro.
 #
-# Se aplica solo si `overlayroot` esta disponible en el repo. En Debian 13
-# (RPi5) el paquete puede llamarse `overlayroot` desde Ubuntu-derived repos
-# o requerir compilacion — si falta, se salta con warn y se documenta.
+# v5.4 (S172g): overlayroot movido a BASE_PKGS (fail-fast en paso 2 si el repo
+# Debian 13 no lo tiene). Confirmado disponible en trixie/main (0.18.debian14).
+# Sin condicionales — si llegamos aca, overlayroot esta instalado.
 if [ "$IS_RPI5" = "1" ]; then
-  if apt-get install -y -qq overlayroot 2>/dev/null; then
-    log "overlayroot instalado"
-
-    # 1) Configuracion overlayroot: upper en tmpfs (RAM), lower en SD.
-    cat > /etc/overlayroot.local.conf << 'OVL'
+  # 1) Configuracion overlayroot: upper en tmpfs (RAM), lower en SD.
+  cat > /etc/overlayroot.local.conf << 'OVL'
 overlayroot="tmpfs:recurse=0"
 OVL
 
-    # 2) journald volatile (evita escritura constante a SD).
-    mkdir -p /etc/systemd/journald.conf.d
-    cat > /etc/systemd/journald.conf.d/volatile.conf << 'JC'
+  # 2) journald volatile (evita escritura constante a SD).
+  mkdir -p /etc/systemd/journald.conf.d
+  cat > /etc/systemd/journald.conf.d/volatile.conf << 'JC'
 [Journal]
 Storage=volatile
 RuntimeMaxUse=50M
 JC
 
-    # 3) Scripts de mantenimiento de la capa persistente.
-    cat > /usr/local/bin/sonoro-sd-rw << 'SDRW'
+  # 3) Scripts de mantenimiento de la capa persistente.
+  cat > /usr/local/bin/sonoro-sd-rw << 'SDRW'
 #!/bin/bash
 mount -o remount,rw /media/root-ro
 SDRW
 
-    cat > /usr/local/bin/sonoro-sd-ro << 'SDRO'
+  cat > /usr/local/bin/sonoro-sd-ro << 'SDRO'
 #!/bin/bash
 sync
 echo 3 > /proc/sys/vm/drop_caches
 mount -o remount,ro /media/root-ro
 SDRO
 
-    cat > /usr/local/bin/overlay-maintenance << 'OVM'
+  cat > /usr/local/bin/overlay-maintenance << 'OVM'
 #!/bin/bash
 echo "=== Estado overlay ==="
 mount | grep -E "overlay|root-ro"
@@ -533,27 +529,21 @@ echo "=== Espacio upper (RAM) ==="
 df -h / | tail -1
 OVM
 
-    chmod +x /usr/local/bin/sonoro-sd-rw \
-             /usr/local/bin/sonoro-sd-ro \
-             /usr/local/bin/overlay-maintenance
+  chmod +x /usr/local/bin/sonoro-sd-rw \
+           /usr/local/bin/sonoro-sd-ro \
+           /usr/local/bin/overlay-maintenance
 
-    # 4) Sudoers NOPASSWD para el usuario sonoro (persistencia automatica
-    #    desde sync-app.js / activation-portal.js persistWifiToSD()).
-    cat > /etc/sudoers.d/sonoro-persist << 'SUD'
+  # 4) Sudoers NOPASSWD para el usuario sonoro (persistencia automatica
+  #    desde sync-app.js / activation-portal.js persistWifiToSD()).
+  cat > /etc/sudoers.d/sonoro-persist << 'SUD'
 sonoro ALL=(root) NOPASSWD: /usr/local/bin/sonoro-sd-rw, /usr/local/bin/sonoro-sd-ro
 SUD
-    chmod 440 /etc/sudoers.d/sonoro-persist
+  chmod 440 /etc/sudoers.d/sonoro-persist
 
-    # 5) Regenerar initramfs para incorporar el hook de overlayroot.
-    update-initramfs -u >/dev/null 2>&1 || warn "update-initramfs (overlayroot) fallo"
-    log "OverlayFS configurado — tras reboot / sera RO (upper en tmpfs)"
-    OVERLAY_ENABLED=1
-  else
-    warn "Paquete overlayroot no disponible en Debian 13 RPi5"
-    warn "  → root sigue RW; cortes de energia pueden corromper SD"
-    warn "  → deuda: portar overlayroot desde Ubuntu o alternativa systemd-overlay"
-    OVERLAY_ENABLED=0
-  fi
+  # 5) Regenerar initramfs para incorporar el hook de overlayroot.
+  update-initramfs -u >/dev/null 2>&1 || warn "update-initramfs (overlayroot) fallo"
+  log "OverlayFS configurado — tras reboot / sera RO (upper en tmpfs)"
+  OVERLAY_ENABLED=1
 else
   # RPi4: OverlayFS ya configurado en el flujo maestro docs/ALISTAMIENTO-RPI.md
   # PARTE 2.5. No tocamos aqui para no romper unidades desplegadas.
