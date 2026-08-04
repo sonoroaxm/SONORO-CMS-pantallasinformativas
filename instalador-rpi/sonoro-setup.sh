@@ -427,15 +427,33 @@ chmod 700 "/home/${SONORO_USER}/.ssh"
 if [ ! -f "${TUNNEL_KEY}" ]; then
   sudo -u "${SONORO_USER}" ssh-keygen -t ed25519 -f "${TUNNEL_KEY}" -N "" -q
 fi
+# v5.3 (S172f): endurecido contra race boot + zombie forward
+# - After/Wants network-online.target: no arranca sin default route
+# - ExitOnForwardFailure=yes: ssh sale si -R 2222 falla (autossh reintenta con conexion limpia)
+# - ServerAliveInterval/CountMax: detecta cuelgues VPS en <=90s
+# - RestartSec=30: da tiempo al VPS a liberar TIME_WAIT del socket anterior
+# - StartLimitBurst=0: systemd nunca deja de reintentar
+# - AUTOSSH_GATETIME=30: umbral antes de considerar la sesion estable
 cat > /etc/systemd/system/sonoro-tunnel.service << TUN
 [Unit]
 Description=SONORO SSH Tunnel
-After=network.target
+After=network-online.target sonoro-player.service
+Wants=network-online.target
 [Service]
 User=${SONORO_USER}
-ExecStart=/usr/bin/autossh -M 0 -N -R 2222:localhost:22 -i ${TUNNEL_KEY} -o StrictHostKeyChecking=no -o ServerAliveInterval=30 debian@45.181.156.171
+Environment="AUTOSSH_GATETIME=30"
+ExecStart=/usr/bin/autossh -M 0 -N \\
+  -o "ExitOnForwardFailure=yes" \\
+  -o "ServerAliveInterval=30" \\
+  -o "ServerAliveCountMax=3" \\
+  -o "StrictHostKeyChecking=no" \\
+  -o "UserKnownHostsFile=/dev/null" \\
+  -R 2222:localhost:22 \\
+  -i ${TUNNEL_KEY} \\
+  debian@45.181.156.171
 Restart=always
-RestartSec=15
+RestartSec=30
+StartLimitBurst=0
 [Install]
 WantedBy=multi-user.target
 TUN
