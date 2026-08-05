@@ -299,7 +299,8 @@ async function activateDevice(code) {
   const https = require('https');
   const http2 = require('http');
   const url = new URL(`${CMS_URL}/api/activate`);
-  const body = JSON.stringify({ code, device_id: DEVICE_ID });
+  const model = (process.env.SONORO_MODEL || '').trim() || null;
+  const body = JSON.stringify({ code, device_id: DEVICE_ID, model });
   
   return new Promise((resolve, reject) => {
     const client = url.protocol === 'https:' ? https : http2;

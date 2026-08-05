@@ -2288,11 +2288,15 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
 // ── VALIDAR CÓDIGO (sin JWT — llamado desde RPi) ─────────────
 app.post('/api/activate', activateLimiter, async (req, res) => {
   try {
-    const { code, device_id, ip_address, display_mode, platform, player_version } = req.body;
+    const { code, device_id, ip_address, display_mode, platform, player_version, model } = req.body;
 
     if (!code || !device_id) {
       return res.status(400).json({ error: 'code y device_id son requeridos' });
     }
+
+    const normalizedModel = (typeof model === 'string' && ['rpi4', 'rpi5', 'windows'].includes(model.toLowerCase()))
+      ? model.toLowerCase()
+      : null;
 
     // Buscar código válido
     const codeResult = await pool.query(
@@ -2311,8 +2315,8 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
 
     // Registrar o actualizar el dispositivo con el user_id
     const deviceResult = await pool.query(
-      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen, platform, player_version)
-       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP, $6, $7)
+      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen, platform, player_version, model)
+       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP, $6, $7, COALESCE($8, 'rpi4'))
        ON CONFLICT (device_id) DO UPDATE SET
          name           = COALESCE($2, devices.name),
          ip_address     = $3,
@@ -2320,7 +2324,8 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
          status         = 'online',
          last_seen      = CURRENT_TIMESTAMP,
          platform       = COALESCE($6, devices.platform),
-         player_version = COALESCE($7, devices.player_version)
+         player_version = COALESCE($7, devices.player_version),
+         model          = COALESCE($8, devices.model)
        RETURNING *`,
       [
         device_id,
@@ -2330,6 +2335,7 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
         activation.user_id,
         platform || null,
         player_version || null,
+        normalizedModel,
       ]
     );
 
