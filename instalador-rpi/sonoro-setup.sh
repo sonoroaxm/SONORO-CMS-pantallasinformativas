@@ -75,7 +75,24 @@ step "5/8 Instalando player"
 cp "${SCRIPT_DIR}/sync-app.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/activation-portal.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/package.json" "${PLAYER_DIR}/"
-cd "${PLAYER_DIR}" && npm install --quiet
+# Fix S168 #8: instalador antes NO copiaba xinitrc.sh — RPis quedaban con drift
+# del filesystem base (algunas con xinitrc viejo sin touch /tmp/sonoro-x11-ready
+# ni tier-awareness). Ahora copia y setea permisos.
+cp "${SCRIPT_DIR}/xinitrc.sh" "${PLAYER_DIR}/"
+chmod +x "${PLAYER_DIR}/xinitrc.sh"
+# Fix S168 #7: tier default para xinitrc HDMI enforcement. Cambia a doble|pro si
+# el device es tier superior antes de shipping. RPi5 solo soporta sencilla hoy
+# (memoria project_producto1_licencias.md + D4 en RPI5-READINESS).
+if [ ! -f /etc/default/sonoro ]; then
+  cat > /etc/default/sonoro << DEF
+# SONORO AV — configuracion runtime del RPi
+# SONORO_TIER: sencilla|doble|pro (afecta xinitrc.sh HDMI enforcement).
+SONORO_TIER=sencilla
+DEF
+  log "/etc/default/sonoro creado (SONORO_TIER=sencilla)"
+fi
+# Ejecutar npm install como usuario sonoro (bug S168 #3: evita node_modules root-owned)
+sudo -u "${SONORO_USER}" bash -c "cd '${PLAYER_DIR}' && npm install --omit=dev --quiet"
 cat > "${PLAYER_DIR}/.env" << ENV
 CMS_URL=${CMS_URL}
 DEVICE_ID=${DEVICE_ID}
@@ -83,25 +100,35 @@ ENV
 log "Player instalado"
 
 step "6/8 Configurando servicio"
-cat > /etc/systemd/system/sonoro-player.service << SVC
-[Unit]
-Description=SONORO AV Player
-After=network.target graphical.target
-[Service]
-User=${SONORO_USER}
-WorkingDirectory=${PLAYER_DIR}
-EnvironmentFile=${PLAYER_DIR}/.env
-ExecStart=/usr/bin/node ${PLAYER_DIR}/sync-app.js
-Restart=always
-RestartSec=10
-[Install]
-WantedBy=multi-user.target
-SVC
+# Fix S168 #1+#5: usar sonoro-player.service del instalador (tiene Environment DISPLAY/XAUTHORITY,
+# After sonoro-x11.service, ExecStartPre que espera al X11 listo). Antes se generaba inline un
+# service pobre que rompia detectar orientacion y splash porque no exportaba DISPLAY.
+cp "${SCRIPT_DIR}/sonoro-player.service" /etc/systemd/system/sonoro-player.service
 systemctl daemon-reload && systemctl enable sonoro-player
 log "Servicio habilitado"
 
+# Fix S168 #1: arrancar el service y verificar que corre. Antes el instalador terminaba con el
+# service enabled pero NUNCA started; el operador tenia que acordarse de correr systemctl start
+# a mano (§4.1 del navegable). Ahora es automatico y falla temprano si algo esta mal.
+step "6a/8 Preflight de dependencias Node.js"
+if ! sudo -u "${SONORO_USER}" node -e "['axios','dotenv','form-data','socket.io-client'].forEach(m => require(m))" 2>/dev/null; then
+  echo "[ERR] Faltan dependencias Node.js en ${PLAYER_DIR}/node_modules. Reintentar 'npm install' como usuario ${SONORO_USER}." >&2
+  exit 1
+fi
+log "Dependencias Node.js OK (axios, dotenv, form-data, socket.io-client)"
 
-step "6b/8 Deshabilitando WiFi power management"
+step "6b/8 Iniciando sonoro-player"
+systemctl start sonoro-player
+sleep 5
+if ! systemctl is-active --quiet sonoro-player; then
+  echo "[ERR] sonoro-player.service no arranco. Ver logs:" >&2
+  journalctl -u sonoro-player -n 40 --no-pager >&2
+  exit 1
+fi
+log "sonoro-player arrancado y verificado activo"
+
+
+step "6c/8 Deshabilitando WiFi power management"
 mkdir -p /etc/NetworkManager/dispatcher.d
 cat > /etc/NetworkManager/dispatcher.d/99-disable-wifi-pm << 'PM'
 #!/bin/bash
