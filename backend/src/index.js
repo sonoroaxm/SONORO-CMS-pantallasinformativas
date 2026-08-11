@@ -917,6 +917,25 @@ async function handleImageUpload(tempPath, fileId, originalName, userId) {
     );
 
     console.log('✅ Imagen procesada:', result.rows[0].id);
+
+    // 📼 FIX3-IMG — marcar hevc_status='pending' si el usuario tiene al menos un RPi5
+    try {
+      const rpi5Check = await pool.query(
+        "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1",
+        [userId]
+      );
+      if (rpi5Check.rows.length > 0) {
+        await pool.query(
+          "UPDATE content SET hevc_status='pending' WHERE id=$1",
+          [result.rows[0].id]
+        );
+        console.log('📼 hevc_status=pending marcado para imagen id=' + result.rows[0].id + ' (user tiene RPi5)');
+        setImmediate(runHevcWorker);
+      }
+    } catch (hevcMarkErr) {
+      console.error('⚠️ Error marcando hevc_status pending (imagen):', hevcMarkErr.message);
+    }
+
     io.emit('upload_complete', { success: true, content: result.rows[0], fileId });
 
   } catch (err) {
@@ -980,6 +999,24 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
     );
 
     console.log('✅ Video guardado en BD:', result.rows[0].id);
+
+    // 📼 FIX3 — marcar hevc_status='pending' si el usuario tiene al menos un RPi5
+    try {
+      const rpi5Check = await pool.query(
+        "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1",
+        [userId]
+      );
+      if (rpi5Check.rows.length > 0) {
+        await pool.query(
+          "UPDATE content SET hevc_status='pending' WHERE id=$1",
+          [result.rows[0].id]
+        );
+        console.log('📼 hevc_status=pending marcado para content id=' + result.rows[0].id + ' (user tiene RPi5)');
+        setImmediate(runHevcWorker);
+      }
+    } catch (hevcMarkErr) {
+      console.error('⚠️ Error marcando hevc_status pending:', hevcMarkErr.message);
+    }
 
     io.emit('upload_complete', {
       success: true,
@@ -2081,6 +2118,17 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     // Notificar al dispositivo via Socket.io
     io.emit(`device-config-update-${device_id}`, result.rows[0]);
 
+    // 📺 FIX2 — cmd_refresh_playlist: notificar al Pi si cambió playlist asignada
+    try {
+      const devRow2 = await pool.query('SELECT device_id FROM devices WHERE device_id=$1', [device_id]);
+      if (devRow2.rows[0]) {
+        io.to('device_' + devRow2.rows[0].device_id).emit('cmd_refresh_playlist');
+        console.log('📺 cmd_refresh_playlist emitido a device_' + devRow2.rows[0].device_id);
+      }
+    } catch (emitErr) {
+      console.error('⚠️ Error emitiendo cmd_refresh_playlist:', emitErr.message);
+    }
+
     res.json({ success: true, device: result.rows[0] });
     console.log(`✅ Dispositivo actualizado: ${device_id}`);
   } catch (err) {
@@ -2130,14 +2178,14 @@ app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
           return row.hevc_status === 'ready' && row.hevc_file_path;
         })
         .map(row => {
-          const useHevc = isRpi5 && row.type === 'video'
+          const useHevc = isRpi5 && (row.type === 'video' || row.type === 'image')
                           && row.hevc_status === 'ready' && row.hevc_file_path;
           return {
             item_id: row.item_id,
             content_id: row.content_id,
             display_order: row.display_order,
             title: row.title,
-            type: row.type,
+            type: (useHevc && row.type === 'image') ? 'video' : row.type,
             file_path: useHevc ? row.hevc_file_path : row.file_path,
             codec:     useHevc ? 'hevc' : 'h264',
             duration_ms: row.duration_override_ms || row.duration_ms || 15000
@@ -2978,8 +3026,19 @@ app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, asy
 });
 
 // ── ADMIN: Todos los dispositivos de todos los usuarios ───────
-app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, res) => {
+// S172j — acepta super admin y clients con multisede (scoping por user_id automático)
+app.get('/api/admin/all-devices', authenticateToken, async (req, res) => {
   try {
+    const uRow = await pool.query('SELECT role, features FROM users WHERE id = $1', [req.user.id]);
+    if (!uRow.rows.length) return res.status(401).json({ error: 'Usuario no encontrado' });
+    const role = uRow.rows[0].role;
+    const isAdmin = role === 'admin';
+    const isMultisede = (role === 'client' || role === 'user') && uRow.rows[0].features?.multisede === true;
+    if (!isAdmin && !isMultisede) {
+      return res.status(403).json({ error: 'Acceso restringido' });
+    }
+    const params = isAdmin ? [] : [req.user.id];
+    const where  = isAdmin ? '' : 'WHERE d.user_id = $1';
     const result = await pool.query(`
       SELECT d.*,
              u.email as user_email, u.name as user_name,
@@ -2990,10 +3049,12 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
       LEFT JOIN users u ON d.user_id = u.id
       LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
       LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+      ${where}
       ORDER BY u.name ASC, d.created_at DESC
-    `);
+    `, params);
     res.json(result.rows);
   } catch (err) {
+    console.error('❌ /api/admin/all-devices:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -10262,6 +10323,138 @@ app.delete('/api/admin/fids/playlists/:id/items/:mediaId', authenticateToken, re
 
 const mailerRouter = require('./routes/mailer');
 app.use(mailerRouter);
+
+// ============================================================
+// 📼 HEVC AUTO-WORKER — convierte videos pendientes cada 5 min
+// ============================================================
+let hevcWorkerRunning = false;
+let hevcStartupRecoveryDone = false;
+
+async function runHevcWorker() {
+  if (hevcWorkerRunning) {
+    console.log('📼 HEVC worker: ya hay una conversion en curso, saltando ciclo');
+    return;
+  }
+  hevcWorkerRunning = true;
+  try {
+    // Recovery: una sola vez al arrancar, resetear items atascados en processing
+    if (!hevcStartupRecoveryDone) {
+      hevcStartupRecoveryDone = true;
+      try {
+        const stale = await pool.query(
+          "UPDATE content SET hevc_status='pending', hevc_error='reset after stale processing' WHERE hevc_status='processing' RETURNING id"
+        );
+        if (stale.rowCount > 0) {
+          console.log('📼 HEVC worker startup recovery: reset ' + stale.rowCount + ' item(s) atascado(s) en processing ->', stale.rows.map(r => r.id));
+        }
+      } catch (recoveryErr) {
+        console.error('📼 HEVC worker recovery error:', recoveryErr.message);
+      }
+    }
+
+    const pending = await pool.query(
+      "SELECT id, file_path, filename, type, duration_ms FROM content WHERE hevc_status='pending' LIMIT 1"
+    );
+    if (pending.rows.length === 0) {
+      hevcWorkerRunning = false;
+      return;
+    }
+    const item = pending.rows[0];
+
+    // Marcar como processing ANTES de lanzar ffmpeg para evitar reentrada tras restart
+    await pool.query("UPDATE content SET hevc_status='processing' WHERE id=$1", [item.id]);
+
+    const srcPath = '/opt/sonoro-cms/backend' + item.file_path;
+    console.log('📼 HEVC worker: procesando id=' + item.id + ' src=' + srcPath);
+
+    if (!require('fs').existsSync(srcPath)) {
+      await pool.query(
+        "UPDATE content SET hevc_status='error', hevc_error=$1 WHERE id=$2",
+        ['Archivo fuente no encontrado en disco: ' + srcPath, item.id]
+      );
+      console.error('📼 HEVC worker: archivo no existe, marcado error id=' + item.id);
+      hevcWorkerRunning = false;
+      return;
+    }
+
+    const baseName = item.filename.replace(/.[^.]+$/, '');
+    const hevcFilename = baseName + '-hevc.mp4';
+    const hevcPath = '/opt/sonoro-cms/backend/uploads/' + hevcFilename;
+    const hevcFilePath = '/uploads/' + hevcFilename;
+
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      let args;
+      if (item.type === 'image') {
+        const durSec = Math.ceil((item.duration_ms || 10000) / 1000);
+        args = [
+          '-loop', '1',
+          '-i', srcPath,
+          '-t', String(durSec),
+          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2',
+          '-pix_fmt', 'yuv420p',
+          '-c:v', 'libx265',
+          '-preset', 'ultrafast',
+          '-crf', '28',
+          '-an',
+          '-movflags', '+faststart',
+          '-y',
+          hevcPath
+        ];
+      } else {
+        args = [
+          '-y',
+          '-i', srcPath,
+          '-c:v', 'libx265',
+          '-preset', 'fast',
+          '-crf', '28',
+          '-an',
+          hevcPath
+        ];
+      }
+      console.log('📼 HEVC worker: ffmpeg', args.join(' '));
+      const proc = spawn('ffmpeg', args, { stdio: 'pipe' });
+      proc.stderr.on('data', () => {}); // silenciar stderr ffmpeg
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error('ffmpeg exit code ' + code));
+      });
+      proc.on('error', reject);
+    });
+
+    const hevcSize = require('fs').statSync(hevcPath).size;
+    await pool.query(
+      "UPDATE content SET hevc_status='ready', hevc_file_path=$1, hevc_size_bytes=$2, hevc_generated_at=NOW() WHERE id=$3",
+      [hevcFilePath, hevcSize, item.id]
+    );
+    console.log('📼 HEVC worker: conversion OK id=' + item.id + ' -> ' + hevcFilename + ' (' + (hevcSize / 1024 / 1024).toFixed(1) + ' MB)');
+
+  } catch (workerErr) {
+    console.error('📼 HEVC worker error:', workerErr.message);
+    try {
+      const failedItem = await pool.query(
+        "SELECT id FROM content WHERE hevc_status='pending' LIMIT 1"
+      );
+      if (failedItem.rows.length > 0) {
+        await pool.query(
+          "UPDATE content SET hevc_status='error', hevc_error=$1 WHERE id=$2",
+          [workerErr.message, failedItem.rows[0].id]
+        );
+      }
+    } catch (_) {}
+  } finally {
+    hevcWorkerRunning = false;
+    // Si quedan pendientes, procesar el siguiente inmediatamente
+    try {
+      const next = await pool.query("SELECT id FROM content WHERE hevc_status='pending' LIMIT 1");
+      if (next.rows.length > 0) setImmediate(runHevcWorker);
+    } catch (_) {}
+  }
+}
+
+setInterval(runHevcWorker, 5 * 60 * 1000);
+setImmediate(runHevcWorker); // procesar pendientes al arrancar
+console.log('📼 HEVC auto-worker iniciado (cada 5 min)');
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);
