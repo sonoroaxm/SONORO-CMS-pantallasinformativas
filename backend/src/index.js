@@ -958,76 +958,93 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
     let duration = await getVideoDuration(tempPath);
     console.log(`⏱️ Duración: ${(duration / 1000).toFixed(2)}s`);
 
+    // Detectar dimensiones del fuente para orientación (antes de conversión)
+    const srcDimsVideo = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', tempPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        res({ w: parseInt(parts[0]) || 1920, h: parseInt(parts[1]) || 1080 });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const srcOrientation = srcDimsVideo.h > srcDimsVideo.w ? 'vertical' : 'horizontal';
+    console.log(`📐 Dimensiones: ${srcDimsVideo.w}x${srcDimsVideo.h} → modo ${srcOrientation.toUpperCase()}`);
+
+    // Insertar en BD inmediatamente con hevc_status='uploading' para que la UI muestre feedback
+    const placeholderFilename = `uploading-${fileId}.mp4`;
+    const rpi5CheckEarly = await pool.query(
+      "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1", [userId]
+    );
+    const hasRpi5 = rpi5CheckEarly.rows.length > 0;
+    const earlyResult = await pool.query(
+      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms, hevc_status, orientation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [userId, originalName, 'video', placeholderFilename, '', fs.statSync(tempPath).size, duration,
+       hasRpi5 ? 'uploading' : 'not_applicable', srcOrientation]
+    );
+    const contentId = earlyResult.rows[0].id;
+    console.log('✅ Video pre-registrado en BD id=' + contentId + ' hevc_status=' + earlyResult.rows[0].hevc_status);
+
+    // Emitir upload_complete inmediatamente para que la UI muestre el item con estado "Procesando"
+    io.emit('upload_complete', {
+      success: true,
+      content: earlyResult.rows[0],
+      fileId,
+      codec,
+      duration,
+      thumbnail: null
+    });
+
     let finalPath = tempPath;
     let finalFilename = `${Date.now()}-${originalName}`;
 
     if (needsConversion(codec)) {
       console.log(`⚠️ Video necesita conversión (${codec} → H.264)`);
-
       finalFilename = `converted-${fileId}.mp4`;
       const convertedPath = path.join(process.cwd(), 'uploads', finalFilename);
-
       await convertVideoToH264(tempPath, convertedPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
-
       finalPath = convertedPath;
-
     } else {
       console.log('✅ Video ya está en H.264, copiando...');
       finalPath = path.join(process.cwd(), 'uploads', finalFilename);
       fs.renameSync(tempPath, finalPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
     }
 
     // Generar thumbnail
     const thumbnailPath = path.join(process.cwd(), 'uploads', `thumb-${fileId}.jpg`);
     await generateThumbnail(finalPath, thumbnailPath);
 
-    // ✅ GUARDAR EN BASE DE DATOS (UNA SOLA VEZ)
-    const result = await pool.query(
-      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        userId,
-        originalName,
-        'video',
-        finalFilename,
-        `/uploads/${finalFilename}`,
-        fs.statSync(finalPath).size,
-        duration
-      ]
+    // Actualizar registro con path final y thumbnail
+    await pool.query(
+      `UPDATE content SET filename=$1, file_path=$2, size_bytes=$3, thumbnail_path=$4,
+       hevc_status=CASE WHEN hevc_status='uploading' THEN 'pending' ELSE hevc_status END
+       WHERE id=$5`,
+      [finalFilename, `/uploads/${finalFilename}`, fs.statSync(finalPath).size,
+       `/uploads/thumb-${fileId}.jpg`, contentId]
     );
 
-    console.log('✅ Video guardado en BD:', result.rows[0].id);
+    const result = await pool.query('SELECT * FROM content WHERE id=$1', [contentId]);
+    console.log('✅ Video guardado en BD:', contentId);
 
-    // 📼 FIX3 — marcar hevc_status='pending' si el usuario tiene al menos un RPi5
-    try {
-      const rpi5Check = await pool.query(
-        "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1",
-        [userId]
-      );
-      if (rpi5Check.rows.length > 0) {
-        await pool.query(
-          "UPDATE content SET hevc_status='pending' WHERE id=$1",
-          [result.rows[0].id]
-        );
-        console.log('📼 hevc_status=pending marcado para content id=' + result.rows[0].id + ' (user tiene RPi5)');
-        setImmediate(runHevcWorker);
-      }
-    } catch (hevcMarkErr) {
-      console.error('⚠️ Error marcando hevc_status pending:', hevcMarkErr.message);
+    if (hasRpi5) {
+      console.log('📼 hevc_status=pending marcado para content id=' + contentId + ' (user tiene RPi5)');
+      setImmediate(runHevcWorker);
     }
 
+    // Emitir actualización con thumbnail ya disponible
     io.emit('upload_complete', {
       success: true,
       content: result.rows[0],
       fileId,
-      codec: codec,
-      duration: duration,
+      codec,
+      duration,
       thumbnail: `/uploads/thumb-${fileId}.jpg`
     });
 

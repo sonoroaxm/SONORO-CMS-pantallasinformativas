@@ -3111,6 +3111,8 @@ function displayFiles(files) {
         <span class="file-type-badge ${file.type === 'image' ? 'badge-image' : 'badge-video'}">${file.type}</span>
         <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
         ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
+        ${file.hevc_status === 'uploading' ? `<div style="margin-top:4px;"><small style="color:#f59e0b;font-size:11px;">Preparando video...</small><div style="height:3px;background:var(--surface2);border-radius:2px;margin-top:3px;"><div style="height:3px;background:#f59e0b;border-radius:2px;width:100%;animation:pulse 1.5s infinite;"></div></div></div>` : ''}
+        ${file.hevc_status === 'pending' ? `<div style="margin-top:4px;"><small style="color:var(--text-muted);font-size:11px;">En cola HEVC...</small></div>` : ''}
         ${file.hevc_status === 'processing' ? `<div id="hevc-prog-${file.id}" style="margin-top:4px;"><small style="color:var(--text-muted);font-size:11px;">Procesando HEVC 0%</small><div style="height:3px;background:var(--surface2);border-radius:2px;margin-top:3px;"><div id="hevc-bar-${file.id}" style="height:3px;background:#7c3aed;border-radius:2px;width:0%;transition:width 0.5s;"></div></div></div>` : ''}
       </div>
       <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${escOnclick(file.title)}','${file.type}')">▶</button>
