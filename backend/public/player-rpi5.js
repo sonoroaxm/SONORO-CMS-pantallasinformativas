@@ -101,7 +101,7 @@ function launchFfmpeg() {
     '-hwaccel', 'drm', '-hwaccel_output_format', 'drm_prime',
     '-c:v', 'hevc',
     '-re',
-    '-f', 'concat', '-safe', '0', '-stream_loop', '-1',
+    '-f', 'concat', '-safe', '0', '-stream_loop', '-1', '-fflags', '+genpts',
     '-i', CONCAT_FILE,
     '-an', '-f', 'vout_drm', '-'
   ];
