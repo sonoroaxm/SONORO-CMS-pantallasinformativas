@@ -1356,6 +1356,17 @@ function connectSocket() {
     });
   });
 
+
+  socket.on('reboot_request', () => {
+    if (IS_WINDOWS) return;
+    console.log('Reboot solicitado por admin');
+    setTimeout(() => {
+      require('child_process').exec('sudo reboot', (err) => {
+        if (err) console.error('reboot error:', err.message);
+      });
+    }, 2000);
+  });
+
   return socket;
 }
 
