@@ -326,7 +326,11 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)
   `).catch(() => {}))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize)'))
+  // S176: orientación del contenido (detectada automáticamente al encodar HEVC)
+  .then(() => pool.query(`
+    ALTER TABLE content ADD COLUMN IF NOT EXISTS orientation VARCHAR(20) DEFAULT 'horizontal'
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize + content_orientation)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -10415,6 +10419,32 @@ async function runHevcWorker() {
     const hevcPath = '/opt/sonoro-cms/backend/uploads/' + hevcFilename;
     const hevcFilePath = '/uploads/' + hevcFilename;
 
+    // Detectar dimensiones del archivo fuente para determinar orientación
+    const srcDims = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', srcPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        const w = parseInt(parts[0]) || 1920;
+        const h = parseInt(parts[1]) || 1080;
+        res({ w, h });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const isVertical = srcDims.h > srcDims.w;
+    const TW = isVertical ? 1080 : 1920;
+    const TH = isVertical ? 1920 : 1080;
+    const orientation = isVertical ? 'vertical' : 'horizontal';
+    const scaleFilter = `scale=${TW}:${TH}:force_original_aspect_ratio=decrease,pad=${TW}:${TH}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1`;
+    console.log(`📼 HEVC worker: src=${srcDims.w}x${srcDims.h} → ${TW}x${TH} (${orientation})`);
+    await pool.query("UPDATE content SET orientation=$1 WHERE id=$2", [orientation, item.id]);
+
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process');
       let args;
@@ -10424,7 +10454,7 @@ async function runHevcWorker() {
           '-loop', '1',
           '-i', srcPath,
           '-t', String(durSec),
-          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1',
+          '-vf', scaleFilter,
           '-r', '25',
           '-color_range', 'tv',
           '-c:v', 'libx265',
@@ -10449,7 +10479,7 @@ async function runHevcWorker() {
           '-map', '0:v:0',
           '-map_metadata', '-1',
           '-map_chapters', '-1',
-          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1',
+          '-vf', scaleFilter,
           '-r', '25',
           '-an',
           hevcPath
