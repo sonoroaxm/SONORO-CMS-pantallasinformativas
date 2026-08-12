@@ -10429,7 +10429,9 @@ async function runHevcWorker() {
           '-c:v', 'libx265',
           '-preset', 'ultrafast',
           '-crf', '28',
-          '-bf', '0',
+          
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
           '-an',
           '-movflags', '+faststart',
           '-y',
@@ -10442,6 +10444,10 @@ async function runHevcWorker() {
           '-c:v', 'libx265',
           '-preset', 'fast',
           '-crf', '28',
+          '-map', '0:v:0',
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
+          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
           '-an',
           hevcPath
         ];

@@ -102,8 +102,9 @@ function launchFfmpeg() {
     '-c:v', 'hevc',
     '-re',
     '-f', 'concat', '-safe', '0', '-stream_loop', '-1', '-fflags', '+genpts',
+    '-ignore_unknown',
     '-i', CONCAT_FILE,
-    '-an', '-f', 'vout_drm', '-'
+    '-map', '0:v:0', '-an', '-f', 'vout_drm', '-'
   ];
   log(`ffmpeg spawn: ${args.slice(0, 12).join(' ')} ...`);
   ffmpegProc = spawn(FFMPEG, args, { stdio: ['ignore', 'inherit', 'inherit'] });
