@@ -12,6 +12,9 @@
 //
 // F3: buildConcatFile usa directiva 'duration' por item — el player controla
 //     la duración de cada pieza independientemente del archivo HEVC.
+//
+// killFfmpeg(cb): espera el exit real antes de llamar cb — evita que dos
+// procesos corran simultáneamente y compitan por el DRM master (EPERM).
 
 const fs   = require('fs');
 const path = require('path');
@@ -82,10 +85,14 @@ function playlistSignature(items) {
     .join('|');
 }
 
-function killFfmpeg() {
-  if (!ffmpegProc) return;
-  try { ffmpegProc.kill('SIGTERM'); } catch {}
+function killFfmpeg(cb) {
+  if (!ffmpegProc) { if (cb) cb(); return; }
+  const proc = ffmpegProc;
   ffmpegProc = null;
+  proc.once('exit', () => { if (cb) cb(); });
+  try { proc.kill('SIGTERM'); } catch {}
+  // SIGKILL fallback si ffmpeg no responde al SIGTERM en 5s
+  setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 5000);
 }
 
 function launchFfmpeg() {
@@ -137,10 +144,9 @@ function tick() {
 
   log(`Cambio detectado (playlist=${playlistId}, items=${sig.split('|').length}) → rebuild concat + respawn`);
   fs.writeFileSync(CONCAT_FILE, buildConcatFile(playlist.items), 'utf8');
-  killFfmpeg();
   currentPlaylistId = playlistId;
   currentSignature  = sig;
-  setTimeout(launchFfmpeg, 300);
+  killFfmpeg(() => setTimeout(launchFfmpeg, 300));
 }
 
 function shutdown(sig) {
