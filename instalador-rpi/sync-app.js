@@ -772,7 +772,20 @@ async function syncPlaylist(playlistId) {
         try { await downloadFile(`${CMS_URL}${item.file_path}`, localPath); console.log(`✅ Descargado: ${item.title}`); }
         catch(err) { console.error(`❌ Error descargando: ${err.message}`); continue; }
       }
-      localItems.push({ ...item, local_path: localPath, duration_ms: item.duration_ms || IMAGE_DURATION });
+      let finalPath = localPath;
+      if (item.type === 'image') {
+        const mp4Path = require('path').join(require('path').dirname(localPath), item.content_id + '.mp4');
+        if (!fs.existsSync(mp4Path)) {
+          try {
+            const { execSync } = require('child_process');
+            const dur = Math.ceil((item.duration_ms || 30000) / 1000);
+            execSync('ffmpeg -y -loop 1 -i "' + localPath + '" -t ' + dur + ' -vf scale=1920:1080 -vcodec libx264 -preset ultrafast -crf 28 -pix_fmt yuv420p -an "' + mp4Path + '"', { timeout: 60000 });
+            console.log('Imagen convertida: ' + require('path').basename(mp4Path));
+          } catch(e) { console.error('Error convirtiendo:', e.message); }
+        }
+        if (fs.existsSync(mp4Path)) finalPath = mp4Path;
+      }
+      localItems.push({ ...item, local_path: finalPath, duration_ms: item.duration_ms || IMAGE_DURATION });
     }
     const localPlaylist = { ...playlist, items: localItems, synced_at: new Date().toISOString() };
     fs.writeFileSync(path.join(playlistDir, 'playlist.json'), JSON.stringify(localPlaylist, null, 2));
@@ -1146,6 +1159,8 @@ function connectSocket() {
     currentState.status = 'refreshing';
     reportState(socket);
     killPlayers();
+    // Re-fetch config para obtener playlist_id actualizado desde el servidor
+    currentConfig = (await getDeviceConfig()) || currentConfig;
     if (currentConfig) {
       // Limpiar cache de ambas playlists para forzar descarga nueva
       const ids = [currentConfig.hdmi0_playlist_id, currentConfig.hdmi1_playlist_id].filter(Boolean);
@@ -1287,7 +1302,7 @@ function connectSocket() {
     if (IS_WINDOWS) return;
     const n = Math.min(Math.max(parseInt(lines) || 100, 10), 2000);
     console.log(`📜 Logs solicitados (${n} líneas)`);
-    exec(`journalctl -u sonoro-player -n ${n} --no-pager 2>&1`, { maxBuffer: 4 * 1024 * 1024, timeout: 12000 }, (err, stdout, stderr) => {
+    exec(`journalctl -u sonoro-player-rpi5 -u sonoro-sync-rpi5 -n ${n} --no-pager 2>&1`, { maxBuffer: 4 * 1024 * 1024, timeout: 12000 }, (err, stdout, stderr) => {
       const logs = (stdout || stderr || '').toString();
       axios.post(`${CMS_URL}/api/devices/${device_id}/logs-result`, {
         logs,
