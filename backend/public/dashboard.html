@@ -3050,7 +3050,7 @@ function connectWebSocket() {
     const wrap = document.getElementById('hevc-prog-' + content_id);
     if (wrap) wrap.querySelector('small').textContent = 'Procesando HEVC ' + percent + '%';
   });
-  socket.on('hevc_complete', () => { setTimeout(loadContent, 800); });
+  socket.on('hevc_complete', () => { updateStatus('Contenido listo para publicar', 'success'); setTimeout(loadContent, 800); });
   socket.on('upload_error', (data) => updateStatus(`Error: ${data.error}`, 'error'));
   socket.on('reboot_result', (data) => {
     if (data.success) showStatus('Dispositivo reiniciando...', 'success');

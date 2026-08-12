@@ -1098,7 +1098,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      'SELECT filename FROM content WHERE id = $1 AND user_id = $2',
+      'SELECT filename, hevc_file_path FROM content WHERE id = $1 AND user_id = $2',
       [id, userId] // ✅ Verificar que sea propietario
     );
 
@@ -1107,6 +1107,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     }
 
     const filename = result.rows[0].filename;
+    const hevcFilePath = result.rows[0].hevc_file_path;
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const filepath = path.join(uploadsDir, filename);
 
@@ -1132,6 +1133,17 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
 
     // Eliminar de BD
     await pool.query('DELETE FROM content WHERE id = $1 AND user_id = $2', [id, userId]);
+
+    // Notificar RPi5s del usuario para limpiar archivo HEVC local
+    if (hevcFilePath) {
+      try {
+        const rpi5Devs = await pool.query("SELECT device_id FROM devices WHERE user_id=$1 AND model='rpi5'", [userId]);
+        for (const d of rpi5Devs.rows) {
+          io.to(`device_${d.device_id}`).emit('cmd_delete_hevc', { hevc_file_path: hevcFilePath, content_id: parseInt(id) });
+          console.log(`🗑️ cmd_delete_hevc emitido a ${d.device_id}: ${hevcFilePath}`);
+        }
+      } catch(e) { console.error('cmd_delete_hevc error:', e); }
+    }
 
     res.json({ success: true, message: 'Archivo eliminado' });
   } catch (err) {

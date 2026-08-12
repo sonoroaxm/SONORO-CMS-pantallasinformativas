@@ -1082,6 +1082,26 @@ function connectSocket() {
     socket.emit('cmd_result', { command: 'refresh_playlist', success: true, device_id: DEVICE_ID });
   });
 
+  // Limpiar archivo HEVC local cuando contenido se elimina en CMS
+  socket.on('cmd_delete_hevc', ({ content_id }) => {
+    if (!content_id) return;
+    try {
+      const mediaEntries = fs.readdirSync(MEDIA_DIR);
+      for (const entry of mediaEntries) {
+        if (!entry.startsWith('playlist_')) continue;
+        const dir = path.join(MEDIA_DIR, entry);
+        const files = fs.readdirSync(dir);
+        for (const f of files) {
+          const base = path.parse(f).name;
+          if (String(base) === String(content_id)) {
+            const target = path.join(dir, f);
+            try { fs.unlinkSync(target); console.log(`🗑️ Orphan removed: ${target}`); } catch(e) {}
+          }
+        }
+      }
+    } catch(e) { console.error('cmd_delete_hevc error:', e); }
+  });
+
   // 2. Detener reproducción (mostrar splash)
   socket.on('cmd_stop', () => {
     console.log('⚡ [CMD] stop');
