@@ -1048,7 +1048,7 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
 app.get('/api/content', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
+      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at, hevc_status FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
       [req.user.id] // ✅ Filtrar por usuario autenticado
     );
 
@@ -1397,6 +1397,10 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
 
     res.json({ success: true, count: items.length });
     console.log(`✅ Items playlist sincronizados: ${playlistId} (${items.length} items)`);
+    try {
+      const devs = await pool.query("SELECT device_id FROM devices WHERE hdmi0_playlist_id=$1 OR hdmi1_playlist_id=$1", [parseInt(playlistId)]);
+      for (const d of devs.rows) { io.to("device_"+d.device_id).emit("cmd_refresh_playlist"); console.log("📺 cmd_refresh_playlist emitido a "+d.device_id); }
+    } catch(e) {}
   } catch (err) {
     console.error('❌ Error sincronizando items playlist:', err);
     res.status(500).json({ error: err.message });
@@ -1576,7 +1580,7 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
           if (!item.filename) continue;
           let filename = item.filename;
           let codec    = 'h264';
-          if (isRpi5 && (item.type || 'video') === 'video') {
+          if (isRpi5) {
             if (item.hevc_status === 'ready' && item.hevc_file_path) {
               filename = item.hevc_file_path.replace(/^\/uploads\//, '');
               codec    = 'hevc';
@@ -1957,6 +1961,26 @@ app.post('/api/devices/:device_id/tv-info', async (req, res) => {
     console.warn('tv-info error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// POST /api/admin/rpi/logs — admin solicita logs de un RPi via socket
+app.post('/api/admin/rpi/logs', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Solo admin' });
+  const { device_id, lines = 100 } = req.body;
+  if (!device_id) return res.status(400).json({ success: false, error: 'device_id requerido' });
+  if (!global.logsCallbacks) global.logsCallbacks = new Map();
+  if (global.logsCallbacks.has(device_id)) {
+    const old = global.logsCallbacks.get(device_id);
+    clearTimeout(old.timeout);
+    global.logsCallbacks.delete(device_id);
+  }
+  const timeout = setTimeout(() => {
+    global.logsCallbacks.delete(device_id);
+    if (!res.headersSent) res.status(504).json({ success: false, error: 'Timeout: RPi no respondio en 30s' });
+  }, 30000);
+  global.logsCallbacks.set(device_id, { res, timeout });
+  io.to(`device_${device_id}`).emit('logs_request', { device_id, lines: parseInt(lines) });
+  console.log(`📋 logs_request emitido a device_${device_id} (${lines} lineas)`);
 });
 
 // POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
@@ -10428,6 +10452,22 @@ async function runHevcWorker() {
       [hevcFilePath, hevcSize, item.id]
     );
     console.log('📼 HEVC worker: conversion OK id=' + item.id + ' -> ' + hevcFilename + ' (' + (hevcSize / 1024 / 1024).toFixed(1) + ' MB)');
+
+    // Notificar al dashboard y refrescar dispositivos asignados
+    io.emit('hevc_complete', { content_id: item.id, filename: hevcFilename });
+    try {
+      const affectedDevices = await pool.query(
+        `SELECT DISTINCT d.device_id FROM devices d
+         JOIN playlists pl ON d.hdmi0_playlist_id = pl.id OR d.hdmi1_playlist_id = pl.id
+         JOIN playlist_items pi ON pi.playlist_id = pl.id
+         WHERE pi.content_id = $1`,
+        [item.id]
+      );
+      for (const dev of affectedDevices.rows) {
+        io.to('device_' + dev.device_id).emit('cmd_refresh_playlist');
+        console.log('📼 HEVC worker: cmd_refresh_playlist emitido a ' + dev.device_id);
+      }
+    } catch (e) { console.error('📼 HEVC worker: error emitiendo refresh:', e.message); }
 
   } catch (workerErr) {
     console.error('📼 HEVC worker error:', workerErr.message);
