@@ -330,6 +330,14 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     ALTER TABLE content ADD COLUMN IF NOT EXISTS orientation VARCHAR(20) DEFAULT 'horizontal'
   `).catch(() => {}))
+  // S176: ampliar CHECK constraint hevc_status para incluir 'uploading' y 'error'
+  .then(() => pool.query(`
+    ALTER TABLE content DROP CONSTRAINT IF EXISTS content_hevc_status_check
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE content ADD CONSTRAINT content_hevc_status_check
+      CHECK (hevc_status IN ('uploading','pending','processing','ready','failed','not_applicable','error'))
+  `).catch(() => {}))
   .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize + content_orientation)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
