@@ -10429,7 +10429,7 @@ async function runHevcWorker() {
           '-c:v', 'libx265',
           '-preset', 'ultrafast',
           '-crf', '28',
-          
+          '-x265-params', 'repeat-headers=1',
           '-map_metadata', '-1',
           '-map_chapters', '-1',
           '-an',
@@ -10444,6 +10444,7 @@ async function runHevcWorker() {
           '-c:v', 'libx265',
           '-preset', 'fast',
           '-crf', '28',
+          '-x265-params', 'repeat-headers=1',
           '-map', '0:v:0',
           '-map_metadata', '-1',
           '-map_chapters', '-1',
