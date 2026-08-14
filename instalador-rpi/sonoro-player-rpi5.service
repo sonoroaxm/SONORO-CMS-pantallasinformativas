@@ -1,0 +1,25 @@
+[Unit]
+Description=SONORO Player RPi5 (ffmpeg vout_drm + concat demuxer, gap 0)
+Documentation=file:///home/sonoro/sonoro-player/README.txt
+After=network-online.target sonoro-sync-rpi5.service
+Wants=network-online.target
+Requires=sonoro-sync-rpi5.service
+# Se enmascara sonoro-x11.service en RPi5: vout_drm reclama DRM master exclusivo.
+Conflicts=sonoro-x11.service
+
+[Service]
+Type=simple
+User=sonoro
+Group=sonoro
+EnvironmentFile=-/etc/default/sonoro
+WorkingDirectory=/home/sonoro/sonoro-player
+ExecStart=/usr/bin/node /home/sonoro/sonoro-player/player-rpi5.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+# Acceso a DRM (video, render) y tarjeta de video
+SupplementaryGroups=video render
+
+[Install]
+WantedBy=multi-user.target
