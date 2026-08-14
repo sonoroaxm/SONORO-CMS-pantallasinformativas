@@ -1372,7 +1372,7 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
     const userId = req.user.id;
 
     const playlistCheck = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM playlists WHERE id = $1 AND user_id = $2',
       [playlistId, userId]
     );
 
@@ -1381,12 +1381,21 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
     }
 
     const contentCheck = await pool.query(
-      'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM content WHERE id = $1 AND user_id = $2',
       [content_id, userId]
     );
 
     if (contentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Contenido no encontrado' });
+    }
+
+    // Validar que orientación del contenido coincide con la de la playlist
+    const plOrientation = playlistCheck.rows[0].orientation;
+    const ctOrientation = contentCheck.rows[0].orientation;
+    if (plOrientation && ctOrientation && plOrientation !== ctOrientation) {
+      return res.status(400).json({
+        error: `Orientación incompatible: la lista es ${plOrientation} pero el contenido es ${ctOrientation}. Usa contenido ${plOrientation} en esta lista.`
+      });
     }
 
     const orderResult = await pool.query(
@@ -1461,20 +1470,25 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
     const userId = req.user.id;
 
     const check = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM playlists WHERE id = $1 AND user_id = $2',
       [playlistId, userId]
     );
     if (check.rows.length === 0) return res.status(404).json({ error: 'Playlist no encontrada' });
+    const plOrient = check.rows[0].orientation;
 
     await pool.query('DELETE FROM playlist_items WHERE playlist_id = $1', [playlistId]);
 
     for (let i = 0; i < items.length; i++) {
-      // Verificar que el content_id pertenece al usuario antes de insertar
+      // Verificar que el content_id pertenece al usuario y que la orientación coincide
       const contentOwner = await pool.query(
-        'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+        'SELECT id, orientation FROM content WHERE id = $1 AND user_id = $2',
         [items[i].content_id, userId]
       );
       if (!contentOwner.rows.length) continue;
+      if (plOrient && contentOwner.rows[0].orientation && plOrient !== contentOwner.rows[0].orientation) {
+        console.log(`⚠️ Playlist sync: item ${items[i].content_id} omitido (orientación ${contentOwner.rows[0].orientation} ≠ ${plOrient})`);
+        continue;
+      }
       await pool.query(
         'INSERT INTO playlist_items (playlist_id, content_id, display_order, duration_override_ms) VALUES ($1, $2, $3, $4)',
         [playlistId, items[i].content_id, i + 1, items[i].duration_override_ms || null]

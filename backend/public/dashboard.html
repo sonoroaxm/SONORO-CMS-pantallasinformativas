@@ -3044,7 +3044,7 @@ function connectWebSocket() {
   });
   socket.on('connect', () => updateStatus('Conectado al servidor', 'success'));
   socket.on('upload_complete', () => { updateStatus('Archivo procesado', 'success'); setTimeout(loadContent, 1000); });
-  socket.on('upload_error', (data) => updateStatus(`Error: ${data.error}`, 'error'));
+  socket.on('upload_error', (data) => updateStatus(data.message || data.error || 'Error al procesar el archivo', 'error'));
   socket.on('reboot_result', (data) => {
     if (data.success) showStatus('Dispositivo reiniciando...', 'success');
     else showStatus('Error al reiniciar: ' + data.error, 'error');
@@ -3119,6 +3119,7 @@ function updateContentSelector(files) {
     opt.value = file.id;
     opt.textContent = `${file.type === 'image' ? '🖼' : '▶'} ${file.title}`;
     opt.dataset.type = file.type;
+    opt.dataset.orientation = file.orientation || 'horizontal';
     selector.appendChild(opt);
   });
 }
@@ -3170,7 +3171,13 @@ function addContent() {
   const fileName = selector.options[selector.selectedIndex].textContent;
   if (playlistItems.find(item => item.content_id == contentId)) { updateStatus('Ya está agregado', 'error'); return; }
   const fileType = selector.options[selector.selectedIndex]?.dataset?.type || 'unknown';
-  playlistItems.push({ content_id: parseInt(contentId), title: fileName, type: fileType, duration_ms: 15000 });
+  const fileOrientation = selector.options[selector.selectedIndex]?.dataset?.orientation || 'horizontal';
+  const playlistOrientation = document.getElementById('playlistOrientation').value || 'horizontal';
+  if (fileOrientation !== playlistOrientation) {
+    updateStatus(`Contenido ${fileOrientation} no es compatible con lista ${playlistOrientation}. Usa contenido ${playlistOrientation}.`, 'error');
+    return;
+  }
+  playlistItems.push({ content_id: parseInt(contentId), title: fileName, type: fileType, orientation: fileOrientation, duration_ms: 15000 });
   renderPlaylistContent();
   selector.value = '';
 }
@@ -4131,7 +4138,7 @@ async function tvControl(deviceId, action) {
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = "...";
   try {
-    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv/${action}`, {
+    const res = await fetch(`${API_URL}/api/admin/rpi/tv`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${authToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ device_id: deviceId, action, target })
