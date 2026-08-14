@@ -326,7 +326,19 @@ pool.query('SELECT 1')
   .then(() => pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)
   `).catch(() => {}))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize)'))
+  // S176: orientación del contenido (detectada automáticamente al encodar HEVC)
+  .then(() => pool.query(`
+    ALTER TABLE content ADD COLUMN IF NOT EXISTS orientation VARCHAR(20) DEFAULT 'horizontal'
+  `).catch(() => {}))
+  // S176: ampliar CHECK constraint hevc_status para incluir 'uploading' y 'error'
+  .then(() => pool.query(`
+    ALTER TABLE content DROP CONSTRAINT IF EXISTS content_hevc_status_check
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE content ADD CONSTRAINT content_hevc_status_check
+      CHECK (hevc_status IN ('uploading','pending','processing','ready','failed','not_applicable','error'))
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize + content_orientation)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -905,15 +917,45 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
 async function handleImageUpload(tempPath, fileId, originalName, userId) {
   try {
+    // Validar dimensiones FHD antes de guardar
+    const imgDims = await new Promise((res) => {
+      const probe = require('child_process').spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', tempPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        res({ w: parseInt(parts[0]) || 0, h: parseInt(parts[1]) || 0 });
+      });
+      probe.on('error', () => res({ w: 0, h: 0 }));
+    });
+    const _ratioImg = imgDims.w / imgDims.h;
+    const _is169Img = Math.abs(_ratioImg - 16/9) < 0.02;
+    const _is916Img = Math.abs(_ratioImg - 9/16) < 0.02;
+    if (!_is169Img && !_is916Img && imgDims.w > 0) {
+      fs.unlink(tempPath, () => {});
+      const _gcdImg = (a,b) => b ? _gcdImg(b, a%b) : a;
+      const _dImg = _gcdImg(imgDims.w, imgDims.h);
+      const _ratioStrImg = `${imgDims.w/_dImg}:${imgDims.h/_dImg}`;
+      const dimMsg = `Imagen rechazada: tus dimensiones ${imgDims.w}x${imgDims.h} tienen relación ${_ratioStrImg}. Se requiere 16:9 horizontal (ej. 1920x1080, 3840x2160) o 9:16 vertical (ej. 1080x1920, 2160x3840).`;
+      io.to('user_' + userId).emit('upload_error', { message: dimMsg });
+      console.log('❌ Imagen rechazada por relación de aspecto: ' + imgDims.w + 'x' + imgDims.h);
+      return;
+    }
+
     const filename = `${Date.now()}-${originalName}`;
     const finalPath = path.join(process.cwd(), 'uploads', filename);
 
     fs.renameSync(tempPath, finalPath);
 
+    const imgOrientation = imgDims.h > imgDims.w ? 'vertical' : 'horizontal';
     const result = await pool.query(
-      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, originalName, 'image', filename, `/uploads/${filename}`, fs.statSync(finalPath).size]
+      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, orientation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [userId, originalName, 'image', filename, `/uploads/${filename}`, fs.statSync(finalPath).size, imgOrientation]
     );
 
     console.log('✅ Imagen procesada:', result.rows[0].id);
@@ -954,76 +996,108 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
     let duration = await getVideoDuration(tempPath);
     console.log(`⏱️ Duración: ${(duration / 1000).toFixed(2)}s`);
 
+    // Detectar dimensiones del fuente para orientación (antes de conversión)
+    const srcDimsVideo = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', tempPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        res({ w: parseInt(parts[0]) || 1920, h: parseInt(parts[1]) || 1080 });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const srcOrientation = srcDimsVideo.h > srcDimsVideo.w ? 'vertical' : 'horizontal';
+    console.log(`📐 Dimensiones: ${srcDimsVideo.w}x${srcDimsVideo.h} → modo ${srcOrientation.toUpperCase()}`);
+
+    // Validar relación de aspecto 16:9 / 9:16 (acepta hasta 4K)
+    const _ratioVid = srcDimsVideo.w / srcDimsVideo.h;
+    const _is169Vid = Math.abs(_ratioVid - 16/9) < 0.02;
+    const _is916Vid = Math.abs(_ratioVid - 9/16) < 0.02;
+    if (!_is169Vid && !_is916Vid) {
+      fs.unlink(tempPath, () => {});
+      const _gcdVid = (a,b) => b ? _gcdVid(b, a%b) : a;
+      const _dVid = _gcdVid(srcDimsVideo.w, srcDimsVideo.h);
+      const _ratioStrVid = `${srcDimsVideo.w/_dVid}:${srcDimsVideo.h/_dVid}`;
+      const dimMsg = `Video rechazado: tus dimensiones ${srcDimsVideo.w}x${srcDimsVideo.h} tienen relación ${_ratioStrVid}. Se requiere 16:9 horizontal (ej. 1920x1080, 3840x2160) o 9:16 vertical (ej. 1080x1920, 2160x3840).`;
+      io.to('user_' + userId).emit('upload_error', { message: dimMsg });
+      console.log('❌ Video rechazado por relación de aspecto: ' + srcDimsVideo.w + 'x' + srcDimsVideo.h);
+      return res.status(400).json({ success: false, message: dimMsg });
+    }
+
+    // Insertar en BD inmediatamente con hevc_status='uploading' para que la UI muestre feedback
+    const placeholderFilename = `uploading-${fileId}.mp4`;
+    const rpi5CheckEarly = await pool.query(
+      "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1", [userId]
+    );
+    const hasRpi5 = rpi5CheckEarly.rows.length > 0;
+    const earlyResult = await pool.query(
+      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms, hevc_status, orientation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [userId, originalName, 'video', placeholderFilename, '', fs.statSync(tempPath).size, duration,
+       hasRpi5 ? 'uploading' : 'not_applicable', srcOrientation]
+    );
+    const contentId = earlyResult.rows[0].id;
+    console.log('✅ Video pre-registrado en BD id=' + contentId + ' hevc_status=' + earlyResult.rows[0].hevc_status);
+
+    // Emitir upload_complete inmediatamente para que la UI muestre el item con estado "Procesando"
+    io.emit('upload_complete', {
+      success: true,
+      content: earlyResult.rows[0],
+      fileId,
+      codec,
+      duration,
+      thumbnail: null
+    });
+
     let finalPath = tempPath;
     let finalFilename = `${Date.now()}-${originalName}`;
 
     if (needsConversion(codec)) {
       console.log(`⚠️ Video necesita conversión (${codec} → H.264)`);
-
       finalFilename = `converted-${fileId}.mp4`;
       const convertedPath = path.join(process.cwd(), 'uploads', finalFilename);
-
       await convertVideoToH264(tempPath, convertedPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
-
       finalPath = convertedPath;
-
     } else {
       console.log('✅ Video ya está en H.264, copiando...');
       finalPath = path.join(process.cwd(), 'uploads', finalFilename);
       fs.renameSync(tempPath, finalPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
     }
 
     // Generar thumbnail
     const thumbnailPath = path.join(process.cwd(), 'uploads', `thumb-${fileId}.jpg`);
     await generateThumbnail(finalPath, thumbnailPath);
 
-    // ✅ GUARDAR EN BASE DE DATOS (UNA SOLA VEZ)
-    const result = await pool.query(
-      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        userId,
-        originalName,
-        'video',
-        finalFilename,
-        `/uploads/${finalFilename}`,
-        fs.statSync(finalPath).size,
-        duration
-      ]
+    // Actualizar registro con path final y thumbnail
+    await pool.query(
+      `UPDATE content SET filename=$1, file_path=$2, size_bytes=$3, thumbnail_path=$4,
+       hevc_status=CASE WHEN hevc_status='uploading' THEN 'pending' ELSE hevc_status END
+       WHERE id=$5`,
+      [finalFilename, `/uploads/${finalFilename}`, fs.statSync(finalPath).size,
+       `/uploads/thumb-${fileId}.jpg`, contentId]
     );
 
-    console.log('✅ Video guardado en BD:', result.rows[0].id);
+    const result = await pool.query('SELECT * FROM content WHERE id=$1', [contentId]);
+    console.log('✅ Video guardado en BD:', contentId);
 
-    // 📼 FIX3 — marcar hevc_status='pending' si el usuario tiene al menos un RPi5
-    try {
-      const rpi5Check = await pool.query(
-        "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1",
-        [userId]
-      );
-      if (rpi5Check.rows.length > 0) {
-        await pool.query(
-          "UPDATE content SET hevc_status='pending' WHERE id=$1",
-          [result.rows[0].id]
-        );
-        console.log('📼 hevc_status=pending marcado para content id=' + result.rows[0].id + ' (user tiene RPi5)');
-        setImmediate(runHevcWorker);
-      }
-    } catch (hevcMarkErr) {
-      console.error('⚠️ Error marcando hevc_status pending:', hevcMarkErr.message);
+    if (hasRpi5) {
+      console.log('📼 hevc_status=pending marcado para content id=' + contentId + ' (user tiene RPi5)');
+      setImmediate(runHevcWorker);
     }
 
+    // Emitir actualización con thumbnail ya disponible
     io.emit('upload_complete', {
       success: true,
       content: result.rows[0],
       fileId,
-      codec: codec,
-      duration: duration,
+      codec,
+      duration,
       thumbnail: `/uploads/thumb-${fileId}.jpg`
     });
 
@@ -1069,7 +1143,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      'SELECT filename FROM content WHERE id = $1 AND user_id = $2',
+      'SELECT filename, hevc_file_path FROM content WHERE id = $1 AND user_id = $2',
       [id, userId] // ✅ Verificar que sea propietario
     );
 
@@ -1078,6 +1152,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     }
 
     const filename = result.rows[0].filename;
+    const hevcFilePath = result.rows[0].hevc_file_path;
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const filepath = path.join(uploadsDir, filename);
 
@@ -1103,6 +1178,17 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
 
     // Eliminar de BD
     await pool.query('DELETE FROM content WHERE id = $1 AND user_id = $2', [id, userId]);
+
+    // Notificar RPi5s del usuario para limpiar archivo HEVC local
+    if (hevcFilePath) {
+      try {
+        const rpi5Devs = await pool.query("SELECT device_id FROM devices WHERE user_id=$1 AND model='rpi5'", [userId]);
+        for (const d of rpi5Devs.rows) {
+          io.to(`device_${d.device_id}`).emit('cmd_delete_hevc', { hevc_file_path: hevcFilePath, content_id: parseInt(id) });
+          console.log(`🗑️ cmd_delete_hevc emitido a ${d.device_id}: ${hevcFilePath}`);
+        }
+      } catch(e) { console.error('cmd_delete_hevc error:', e); }
+    }
 
     res.json({ success: true, message: 'Archivo eliminado' });
   } catch (err) {
@@ -2198,8 +2284,10 @@ app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
       items: result.rows
         .filter(row => row.item_id !== null)
         .filter(row => {
-          if (!isRpi5 || row.type !== 'video') return true;
-          return row.hevc_status === 'ready' && row.hevc_file_path;
+          if (!isRpi5) return true;
+          if (row.type === 'video' || row.type === 'image')
+            return row.hevc_status === 'ready' && row.hevc_file_path;
+          return true;
         })
         .map(row => {
           const useHevc = isRpi5 && (row.type === 'video' || row.type === 'image')
@@ -10377,7 +10465,14 @@ async function runHevcWorker() {
     }
 
     const pending = await pool.query(
-      "SELECT id, file_path, filename, type, duration_ms FROM content WHERE hevc_status='pending' LIMIT 1"
+      `SELECT c.id, c.file_path, c.filename, c.type,
+              COALESCE(MAX(pi.duration_override_ms), c.duration_ms, 30000) AS duration_ms
+       FROM content c
+       LEFT JOIN playlist_items pi ON pi.content_id = c.id
+       WHERE c.hevc_status = 'pending'
+         AND c.type IN ('video', 'image')
+       GROUP BY c.id
+       LIMIT 1`
     );
     if (pending.rows.length === 0) {
       hevcWorkerRunning = false;
@@ -10406,20 +10501,50 @@ async function runHevcWorker() {
     const hevcPath = '/opt/sonoro-cms/backend/uploads/' + hevcFilename;
     const hevcFilePath = '/uploads/' + hevcFilename;
 
+    // Detectar dimensiones del archivo fuente para determinar orientación
+    const srcDims = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', srcPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        const w = parseInt(parts[0]) || 1920;
+        const h = parseInt(parts[1]) || 1080;
+        res({ w, h });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const isVertical = srcDims.h > srcDims.w;
+    const TW = isVertical ? 1080 : 1920;
+    const TH = isVertical ? 1920 : 1080;
+    const orientation = isVertical ? 'vertical' : 'horizontal';
+    const scaleFilter = `scale=${TW}:${TH}:force_original_aspect_ratio=decrease,pad=${TW}:${TH}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1`;
+    console.log(`📼 HEVC worker: src=${srcDims.w}x${srcDims.h} → ${TW}x${TH} (${orientation})`);
+    await pool.query("UPDATE content SET orientation=$1 WHERE id=$2", [orientation, item.id]);
+
     await new Promise((resolve, reject) => {
       const { spawn } = require('child_process');
       let args;
       if (item.type === 'image') {
-        const durSec = Math.ceil((item.duration_ms || 10000) / 1000);
+        const durSec = Math.ceil((item.duration_ms || 30000) / 1000);
         args = [
           '-loop', '1',
           '-i', srcPath,
           '-t', String(durSec),
-          '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(1920-iw)/2:(1080-ih)/2',
-          '-pix_fmt', 'yuv420p',
+          '-vf', scaleFilter,
+          '-r', '25',
+          '-color_range', 'tv',
           '-c:v', 'libx265',
           '-preset', 'ultrafast',
           '-crf', '28',
+          '-x265-params', 'repeat-headers=1',
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
           '-an',
           '-movflags', '+faststart',
           '-y',
@@ -10432,13 +10557,35 @@ async function runHevcWorker() {
           '-c:v', 'libx265',
           '-preset', 'fast',
           '-crf', '28',
+          '-x265-params', 'repeat-headers=1',
+          '-map', '0:v:0',
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
+          '-vf', scaleFilter,
+          '-r', '25',
           '-an',
           hevcPath
         ];
       }
       console.log('📼 HEVC worker: ffmpeg', args.join(' '));
       const proc = spawn('ffmpeg', args, { stdio: 'pipe' });
-      proc.stderr.on('data', () => {}); // silenciar stderr ffmpeg
+      let totalSec = item.type === 'image'
+        ? Math.ceil((item.duration_ms || 30000) / 1000)
+        : Math.max(1, (item.duration_ms || 30000) / 1000);
+      let lastProgressEmit = 0;
+      proc.stderr.on('data', (chunk) => {
+        const str = chunk.toString();
+        const m = str.match(/time=(\d+):(\d+):([\d.]+)/);
+        if (m) {
+          const cur = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseFloat(m[3]);
+          const pct = Math.min(99, Math.round(cur / totalSec * 100));
+          const now = Date.now();
+          if (now - lastProgressEmit > 1000) {
+            lastProgressEmit = now;
+            io.emit('hevc_progress', { content_id: item.id, percent: pct });
+          }
+        }
+      });
       proc.on('close', (code) => {
         if (code === 0) resolve();
         else reject(new Error('ffmpeg exit code ' + code));
@@ -10455,6 +10602,35 @@ async function runHevcWorker() {
 
     // Notificar al dashboard y refrescar dispositivos asignados
     io.emit('hevc_complete', { content_id: item.id, filename: hevcFilename });
+
+    // S177: warning si orientación del contenido no coincide con la del dispositivo
+    try {
+      const contentOrientation = item.orientation || 'horizontal';
+      const devicesWithMismatch = await pool.query(
+        `SELECT DISTINCT d.device_id, d.name, d.orientation_hdmi0, d.orientation_hdmi1, d.user_id
+         FROM devices d
+         JOIN playlists pl ON d.hdmi0_playlist_id = pl.id OR d.hdmi1_playlist_id = pl.id
+         JOIN playlist_items pi ON pi.playlist_id = pl.id
+         WHERE pi.content_id = $1
+           AND (
+             (d.hdmi0_playlist_id IS NOT NULL AND d.orientation_hdmi0 != $2) OR
+             (d.hdmi1_playlist_id IS NOT NULL AND d.orientation_hdmi1 != $2)
+           )`,
+        [item.id, contentOrientation]
+      );
+      for (const dev of devicesWithMismatch.rows) {
+        const userSockets = io.sockets.adapter.rooms.get('user_' + dev.user_id);
+        if (userSockets) {
+          io.to('user_' + dev.user_id).emit('hevc_orientation_warning', {
+            content_id: item.id,
+            content_orientation: contentOrientation,
+            device_name: dev.name,
+            device_id: dev.device_id
+          });
+          console.log('⚠️ Orientacion mismatch: content=' + contentOrientation + ' device=' + dev.device_id);
+        }
+      }
+    } catch (e) { console.error('⚠️ Error check orientacion:', e.message); }
     try {
       const affectedDevices = await pool.query(
         `SELECT DISTINCT d.device_id FROM devices d
