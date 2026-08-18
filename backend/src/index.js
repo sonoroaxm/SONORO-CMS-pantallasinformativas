@@ -1122,7 +1122,7 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
 app.get('/api/content', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at, hevc_status FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
+      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at, hevc_status, orientation, width, height FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
       [req.user.id] // ✅ Filtrar por usuario autenticado
     );
 
