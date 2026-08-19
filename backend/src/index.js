@@ -1632,7 +1632,7 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const UUID_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|win-[0-9a-f]+|rpi-[0-9a-f]+)$/i;
     if (!UUID_RE.test(device_id)) return res.status(400).json({ error: 'device_id inválido' });
 
     const deviceResult = await pool.query(
@@ -5405,7 +5405,7 @@ app.get('/api/queue/reports/appointments-summary', authenticateToken, async (req
 
 const APPT_INSERT_MAX_RETRIES = 3;
 const APPT_INSERT_BACKOFF_MS  = [50, 100, 200];
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|win-[0-9a-f]+|rpi-[0-9a-f]+)$/i;
 const APPT_STATUS_VALID = new Set([
   'pending','confirmed','attended','no_show','cancelled','pending_reschedule'
 ]);
@@ -10534,10 +10534,10 @@ async function runHevcWorker() {
       probe.on('error', () => res({ w: 1920, h: 1080 }));
     });
     const isVertical = srcDims.h > srcDims.w;
-    const TW = isVertical ? 1080 : 1920;
-    const TH = isVertical ? 1920 : 1080;
+    const TW = 1920;
+    const TH = 1080;
     const orientation = isVertical ? 'vertical' : 'horizontal';
-    const scaleFilter = `scale=${TW}:${TH}:force_original_aspect_ratio=decrease,pad=${TW}:${TH}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1`;
+    const scaleFilter = `${isVertical?"transpose=2,":""}scale=${TW}:${TH}:force_original_aspect_ratio=decrease,pad=${TW}:${TH}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1`;
     console.log(`📼 HEVC worker: src=${srcDims.w}x${srcDims.h} → ${TW}x${TH} (${orientation})`);
     await pool.query("UPDATE content SET orientation=$1 WHERE id=$2", [orientation, item.id]);
 
