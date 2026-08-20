@@ -1389,10 +1389,10 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
       return res.status(404).json({ error: 'Contenido no encontrado' });
     }
 
-    // Validar que orientación del contenido coincide con la de la playlist
-    const plOrientation = playlistCheck.rows[0].orientation;
-    const ctOrientation = contentCheck.rows[0].orientation;
-    if (plOrientation && ctOrientation && plOrientation !== ctOrientation) {
+    // Poka-yoke fail-closed: orientación del contenido debe coincidir con la playlist
+    const plOrientation = playlistCheck.rows[0].orientation || 'horizontal';
+    const ctOrientation = contentCheck.rows[0].orientation || 'horizontal';
+    if (plOrientation !== ctOrientation) {
       return res.status(400).json({
         error: `Orientación incompatible: la lista es ${plOrientation} pero el contenido es ${ctOrientation}. Usa contenido ${plOrientation} en esta lista.`
       });
@@ -1485,8 +1485,10 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
         [items[i].content_id, userId]
       );
       if (!contentOwner.rows.length) continue;
-      if (plOrient && contentOwner.rows[0].orientation && plOrient !== contentOwner.rows[0].orientation) {
-        console.log(`⚠️ Playlist sync: item ${items[i].content_id} omitido (orientación ${contentOwner.rows[0].orientation} ≠ ${plOrient})`);
+      const ctOr = contentOwner.rows[0].orientation || 'horizontal';
+      const plOr = plOrient || 'horizontal';
+      if (plOr !== ctOr) {
+        console.log(`⚠️ Playlist sync: item ${items[i].content_id} omitido (orientación ${ctOr} ≠ ${plOr})`);
         continue;
       }
       await pool.query(
