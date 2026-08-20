@@ -496,12 +496,14 @@ router.put('/users/:id/notification-emails', auth, requireAdminRole, async (req,
 
 // ── BULK PUSH — PREVIEW ───────────────────────────────────────
 router.post('/bulk-push/preview', auth, async (req, res) => {
-  const { playlist_id, city, location_id, orientation } = req.body;
+  const { playlist_id, city, location_id } = req.body;
   if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
   try {
     const db = req.app.get('db');
-    const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
+    // Cargar orientación de la playlist para filtrado poka-yoke
+    const pl = await db.query('SELECT id, name, orientation FROM playlists WHERE id = $1', [playlist_id]);
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
+    const plOrient = pl.rows[0].orientation || 'horizontal';
 
     const userRow = await db.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
     const isAdmin = userRow.rows[0]?.role === 'admin';
@@ -513,10 +515,13 @@ router.post('/bulk-push/preview', auth, async (req, res) => {
     if (!isAdmin)    { conditions.push(`d.user_id = $${pi++}`);     params.push(req.user.id); }
     if (city)        { conditions.push(`l.city = $${pi++}`);        params.push(city); }
     if (location_id) { conditions.push(`d.location_id = $${pi++}`); params.push(location_id); }
-    if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
+    // Poka-yoke: solo devices con al menos un HDMI que coincida con orientación de playlist
+    conditions.push(`(d.orientation_hdmi0 = $${pi} OR d.orientation_hdmi1 = $${pi})`);
+    params.push(plOrient); pi++;
 
     const query = `
-      SELECT d.device_id, d.name, d.display_mode, d.orientation,
+      SELECT d.device_id, d.name, d.display_mode,
+             d.orientation_hdmi0, d.orientation_hdmi1,
              d.hdmi0_playlist_id, d.hdmi1_playlist_id,
              d.status, d.last_seen,
              p0.name AS current_playlist_hdmi0,
@@ -548,8 +553,9 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     const io = req.app.get('io');
     const emailService = require('../services/email');
 
-    const pl = await db.query('SELECT id, name FROM playlists WHERE id = $1', [playlist_id]);
+    const pl = await db.query('SELECT id, name, orientation FROM playlists WHERE id = $1', [playlist_id]);
     if (!pl.rows.length) return res.status(404).json({ error: 'Playlist no encontrada' });
+    const plOrient = pl.rows[0].orientation || 'horizontal';
 
     const userRow = await db.query('SELECT role FROM users WHERE id = $1', [req.user.id]);
     const isAdmin = userRow.rows[0]?.role === 'admin';
@@ -561,10 +567,13 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     if (!isAdmin)    { conditions.push(`d.user_id = $${pi++}`);     params.push(req.user.id); }
     if (city)        { conditions.push(`l.city = $${pi++}`);        params.push(city); }
     if (location_id) { conditions.push(`d.location_id = $${pi++}`); params.push(location_id); }
-    if (orientation) { conditions.push(`d.orientation = $${pi++}`); params.push(orientation); }
+    // Poka-yoke: solo devices con al menos un HDMI que coincida con orientación de playlist
+    conditions.push(`(d.orientation_hdmi0 = $${pi} OR d.orientation_hdmi1 = $${pi})`);
+    params.push(plOrient); pi++;
 
     const selectQ = `
       SELECT d.device_id, d.display_mode, d.status, d.last_seen,
+             d.orientation_hdmi0, d.orientation_hdmi1,
              d.hdmi0_playlist_id, d.hdmi1_playlist_id,
              d.name, l.name AS location_name, l.city
       FROM devices d
@@ -573,13 +582,19 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
     `;
     const { rows: devices } = await db.query(selectQ, params);
 
-    let updated = 0, notified = 0, errors = [];
+    let updated = 0, notified = 0, skipped = 0, errors = [];
 
     for (const d of devices) {
       try {
         const isDual = d.display_mode === 'extended';
+        const match0 = (d.orientation_hdmi0 || 'horizontal') === plOrient;
+        const match1 = isDual && (d.orientation_hdmi1 || 'horizontal') === plOrient;
+        if (!match0 && !match1) { skipped++; continue; }
+        const sets = [];
+        if (match0) sets.push('hdmi0_playlist_id = $1');
+        if (match1) sets.push('hdmi1_playlist_id = $1');
         await db.query(
-          `UPDATE devices SET hdmi0_playlist_id = $1 ${isDual ? ', hdmi1_playlist_id = $1' : ''} WHERE device_id = $2`,
+          `UPDATE devices SET ${sets.join(', ')} WHERE device_id = $2`,
           [playlist_id, d.device_id]
         );
         updated++;
@@ -612,15 +627,16 @@ router.post('/bulk-push/apply', auth, async (req, res) => {
           total: devices.length,
           updated,
           notified,
+          skipped,
           errors,
-          filters: { city, location_id, orientation },
+          filters: { city, location_id, playlist_orientation: plOrient },
           timestamp: new Date().toISOString()
         }).catch(e => console.error('❌ Email bulk push:', e.message));
       }
     }
 
-    console.log(`📡 Bulk Push: playlist "${pl.rows[0].name}" → ${updated} dispositivos (${notified} notificados en tiempo real)`);
-    res.json({ success: true, playlist: pl.rows[0].name, total: devices.length, updated, notified, errors });
+    console.log(`📡 Bulk Push: playlist "${pl.rows[0].name}" (${plOrient}) → ${updated} devices, ${skipped} skipped, ${notified} notificados`);
+    res.json({ success: true, playlist: pl.rows[0].name, playlist_orientation: plOrient, total: devices.length, updated, skipped, notified, errors });
   } catch(e) {
     console.error('❌ Bulk push apply error:', e);
     res.status(500).json({ error: 'Error interno del servidor' });

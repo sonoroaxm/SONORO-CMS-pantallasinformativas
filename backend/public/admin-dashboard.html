@@ -3415,6 +3415,15 @@ function renderAllDevices(devices) {
                 return `<span class="model-pill ${model}" title="Cambiar modelo" onclick="event.stopPropagation();changeDeviceModel('${d.device_id}','${model}')">${label}</span>`;
               })()}
               ${(!isWin && d.model === 'rpi5') ? `<span id="hevc_pill_${d.device_id}" class="hevc-pill warn" title="Consultando readiness HEVC...">HEVC: --</span>` : ''}
+              ${!isWin ? (() => {
+                const or0 = d.orientation_hdmi0 || 'horizontal';
+                const or1 = d.orientation_hdmi1 || 'horizontal';
+                const b0 = or0 === 'vertical' ? 'V' : 'H';
+                const b1 = or1 === 'vertical' ? 'V' : 'H';
+                const isDual = d.display_mode === 'extended';
+                const txt = isDual ? `H1:${b0} · H2:${b1}` : `Orient: ${b0}`;
+                return `<span style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;color:var(--muted);" title="Orientación configurada (poka-yoke)">${txt}</span>`;
+              })() : ''}
               ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">
@@ -3840,6 +3849,15 @@ async function loadAllDevices() {
                   return `<span class="model-pill ${model}" title="Cambiar modelo" onclick="event.stopPropagation();changeDeviceModel('${d.device_id}','${model}')">${label}</span>`;
                 })()}
                 ${(!isWin && d.model === 'rpi5') ? `<span id="hevc_pill_${d.device_id}" class="hevc-pill warn" title="Consultando readiness HEVC...">HEVC: --</span>` : ''}
+              ${!isWin ? (() => {
+                const or0 = d.orientation_hdmi0 || 'horizontal';
+                const or1 = d.orientation_hdmi1 || 'horizontal';
+                const b0 = or0 === 'vertical' ? 'V' : 'H';
+                const b1 = or1 === 'vertical' ? 'V' : 'H';
+                const isDual = d.display_mode === 'extended';
+                const txt = isDual ? `H1:${b0} · H2:${b1}` : `Orient: ${b0}`;
+                return `<span style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;color:var(--muted);" title="Orientación configurada (poka-yoke)">${txt}</span>`;
+              })() : ''}
                 ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:4px;">
