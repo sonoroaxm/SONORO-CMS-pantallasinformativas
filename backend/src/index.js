@@ -2209,6 +2209,30 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
       });
     }
 
+    // ── Poka-yoke: validar orientación playlist ↔ device ─────────
+    // Si se asigna una playlist a un HDMI, su orientación debe coincidir
+    // con orientation_hdmiN. Evita reproducir vertical en pantalla horizontal.
+    const curOr = await pool.query(
+      'SELECT orientation_hdmi0, orientation_hdmi1 FROM devices WHERE device_id = $1',
+      [device_id]
+    );
+    const effOr0 = orientation_hdmi0 || curOr.rows[0]?.orientation_hdmi0 || 'horizontal';
+    const effOr1 = orientation_hdmi1 || curOr.rows[0]?.orientation_hdmi1 || 'horizontal';
+    const checkAssign = async (plId, devOr, label) => {
+      if (!plId) return null;
+      const pl = await pool.query('SELECT orientation, name FROM playlists WHERE id = $1', [plId]);
+      if (!pl.rows.length) return null;
+      const plOr = pl.rows[0].orientation || 'horizontal';
+      if (plOr !== devOr) {
+        return `No se puede asignar la playlist "${pl.rows[0].name}" (${plOr}) a ${label} configurado como ${devOr}. Cambia la orientación del dispositivo o selecciona una playlist ${devOr}.`;
+      }
+      return null;
+    };
+    const err0 = await checkAssign(hdmi0_playlist_id, effOr0, 'HDMI 1');
+    if (err0) return res.status(400).json({ error: err0 });
+    const err1 = await checkAssign(hdmi1_playlist_id, effOr1, 'HDMI 2');
+    if (err1) return res.status(400).json({ error: err1 });
+
     const ownerFilter = req.user.role === 'admin' ? '' : 'AND user_id = $12';
     const queryParams = [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
        orientation_hdmi0, orientation_hdmi1,

@@ -3553,9 +3553,10 @@ async function loadDevices(silent = false) {
       const playlistOpts = (selId) =>
         '<option value="">-- Sin playlist --</option>' +
         playlists.map(p => {
-          const badge    = p.orientation === 'vertical' ? 'V' : 'H';
+          const orient   = p.orientation || 'horizontal';
+          const badge    = orient === 'vertical' ? 'V' : 'H';
           const selected = (selId === 'hdmi0' ? pl0 : pl1) == p.id ? 'selected' : '';
-          return '<option value="' + p.id + '" ' + selected + '>' + p.name + ' · ' + badge + '</option>';
+          return '<option value="' + p.id + '" data-orientation="' + orient + '" ' + selected + '>' + p.name + ' · ' + badge + '</option>';
         }).join('');
 
       const orientOpts = (cur) =>
@@ -3959,6 +3960,25 @@ async function saveDevice(deviceId) {
   const vwLayout    = document.getElementById(`vw_layout_${deviceId}`)?.value || 'horizontal';
   const vwSlot      = document.getElementById(`vw_slot_${deviceId}`)?.value   || '1';
   const branchId    = document.getElementById(`branch_${deviceId}`)?.value    || null;
+
+  // Poka-yoke: validar orientación playlist ↔ device antes de enviar
+  const getPlOrient = (selectId) => {
+    const sel = document.getElementById(selectId);
+    if (!sel || !sel.value) return null;
+    return sel.options[sel.selectedIndex]?.dataset?.orientation || 'horizontal';
+  };
+  const plOr0 = getPlOrient(`playlist0_${deviceId}`);
+  if (plOr0 && plOr0 !== or0) {
+    showStatus(`La playlist seleccionada para HDMI 1 (${plOr0}) no coincide con la orientación del dispositivo (${or0}). Cambia la orientación o selecciona una playlist ${or0}.`, 'error');
+    return;
+  }
+  if (isDual) {
+    const plOr1 = getPlOrient(`playlist1_${deviceId}`);
+    if (plOr1 && plOr1 !== or1) {
+      showStatus(`La playlist seleccionada para HDMI 2 (${plOr1}) no coincide con la orientación del dispositivo (${or1}). Cambia la orientación o selecciona una playlist ${or1}.`, 'error');
+      return;
+    }
+  }
 
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}`, {
