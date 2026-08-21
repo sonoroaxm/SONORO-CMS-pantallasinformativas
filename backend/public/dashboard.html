@@ -4167,10 +4167,10 @@ async function tvControl(deviceId, action) {
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = "...";
   try {
-    const res = await fetch(`${API_URL}/api/admin/rpi/tv`, {
+    const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv/${action}`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${authToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ device_id: deviceId, action, target })
+      body: JSON.stringify({ target })
     });
     const data = await res.json();
     if (data.success) {
