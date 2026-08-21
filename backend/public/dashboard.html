@@ -4161,11 +4161,17 @@ async function tvControlHdmi(deviceId) {
   await tvControl(deviceId, sel.value);
 }
 
+window.__tvBusy = window.__tvBusy || new Set();
 async function tvControl(deviceId, action) {
+  if (window.__tvBusy.has(deviceId)) {
+    showStatus('Espera, hay una acción TV en curso...', 'warning');
+    return;
+  }
   const target = document.getElementById(`tv_target_${deviceId}`)?.value || 'all';
   const btn = event.currentTarget;
   const original = btn.textContent;
   btn.disabled = true; btn.textContent = "...";
+  window.__tvBusy.add(deviceId);
   try {
     const res = await fetch(`${API_URL}/api/devices/${deviceId}/tv/${action}`, {
       method: "POST",
@@ -4201,6 +4207,7 @@ async function tvControl(deviceId, action) {
     showStatus("Error: " + e.message, "error");
   } finally {
     btn.disabled = false; btn.textContent = original;
+    window.__tvBusy.delete(deviceId);
   }
 }
 
