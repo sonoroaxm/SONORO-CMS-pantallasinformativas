@@ -25,6 +25,7 @@ function auth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'No token' });
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Token inválido' });
+    if (user?.role !== 'admin') return res.status(403).json({ error: 'Requiere rol admin' });
     req.user = user;
     next();
   });

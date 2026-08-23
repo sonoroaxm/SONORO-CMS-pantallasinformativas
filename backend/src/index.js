@@ -52,7 +52,8 @@ const { videoConversionQueue, addConversionJob, getJobStatus, getQueueStats } = 
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 if (!ALLOWED_ORIGINS.length && process.env.NODE_ENV === 'production') {
-  console.warn('⚠️  ALLOWED_ORIGINS no configurado en producción — CORS abierto a todos los orígenes');
+  console.error('❌ FATAL: ALLOWED_ORIGINS no definido en .env (requerido en producción)');
+  process.exit(1);
 }
 const corsOrigin = ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : '*';
 
@@ -97,23 +98,31 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(fileUpload({
   limits: { fileSize: 500 * 1024 * 1024 },
-  abortOnLimit: true
+  abortOnLimit: true,
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
 }));
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// ✅ Servir uploads con CORS correcto
-app.use('/uploads', express.static('uploads', {
+const uploadsCorsHeader = (req) => {
+  if (!ALLOWED_ORIGINS.length) return '*';
+  const origin = req.headers.origin;
+  return origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+};
+
+app.use('/uploads', (req, res, next) => {
+  const allow = uploadsCorsHeader(req);
+  res.set('Vary', 'Origin');
+  res.set('Access-Control-Allow-Origin', allow);
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static('uploads', {
   setHeaders: (res, filepath) => {
     if (filepath.endsWith('.mp4') || filepath.endsWith('.webm')) {
       res.set('Content-Type', 'video/mp4');
       res.set('Accept-Ranges', 'bytes');
-      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.set('Access-Control-Allow-Origin', '*');
       res.set('Cache-Control', 'public, max-age=86400');
-    } else if (filepath.endsWith('.jpg') || filepath.endsWith('.jpeg') || filepath.endsWith('.png')) {
-      res.set('Access-Control-Allow-Origin', '*');
-      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     }
   }
 }));
@@ -2056,7 +2065,7 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
 });
 
 // POST /api/devices/:device_id/tv-info — RPi reporta CEC vendor/OSD + EDID por HDMI
-app.post('/api/devices/:device_id/tv-info', async (req, res) => {
+app.post('/api/devices/:device_id/tv-info', publicLimiter, async (req, res) => {
   const { device_id } = req.params;
   const { tv_info } = req.body || {};
   if (!tv_info || typeof tv_info !== 'object') {
