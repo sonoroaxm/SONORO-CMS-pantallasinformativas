@@ -475,6 +475,59 @@ router.put('/devices/:deviceId/orientation', auth, async (req, res) => {
   }
 });
 
+// ── TUNNEL PORT ASSIGNMENT (feature/tunnel-ports-v1) ──────────
+// Rango 22200-22299 (100 slots). Idempotente: si device ya tiene puerto,
+// lo devuelve sin re-asignar. Race-safe vía UNIQUE constraint + retry.
+const TUNNEL_PORT_MIN = 22200;
+const TUNNEL_PORT_MAX = 22299;
+
+router.post('/devices/:deviceId/tunnel-port/assign', auth, async (req, res) => {
+  const { deviceId } = req.params;
+  const db = req.app.get('db');
+  try {
+    const existing = await db.query(
+      'SELECT id, device_id, tunnel_port FROM devices WHERE device_id = $1',
+      [deviceId]
+    );
+    if (!existing.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    if (existing.rows[0].tunnel_port) {
+      return res.json({ success: true, device_id: deviceId, tunnel_port: existing.rows[0].tunnel_port, reused: true });
+    }
+    const free = await db.query(
+      `SELECT p FROM generate_series($1::int, $2::int) AS p
+       WHERE p NOT IN (SELECT tunnel_port FROM devices WHERE tunnel_port IS NOT NULL)
+       ORDER BY p LIMIT 1`,
+      [TUNNEL_PORT_MIN, TUNNEL_PORT_MAX]
+    );
+    if (!free.rows.length) return res.status(409).json({ error: 'Rango de puertos agotado (22200-22299)' });
+    const port = free.rows[0].p;
+    const upd = await db.query(
+      'UPDATE devices SET tunnel_port = $1 WHERE device_id = $2 AND tunnel_port IS NULL RETURNING tunnel_port',
+      [port, deviceId]
+    );
+    if (!upd.rows.length) {
+      const recheck = await db.query('SELECT tunnel_port FROM devices WHERE device_id = $1', [deviceId]);
+      return res.json({ success: true, device_id: deviceId, tunnel_port: recheck.rows[0].tunnel_port, reused: true });
+    }
+    res.json({ success: true, device_id: deviceId, tunnel_port: port, reused: false });
+  } catch(e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'Colisión de puerto, reintentar' });
+    console.error('tunnel-port/assign error:', e);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+router.get('/devices/tunnel-ports', auth, async (req, res) => {
+  try {
+    const r = await req.app.get('db').query(
+      `SELECT id, device_id, name, tunnel_port FROM devices WHERE tunnel_port IS NOT NULL ORDER BY tunnel_port`
+    );
+    res.json({ assignments: r.rows, range: { min: TUNNEL_PORT_MIN, max: TUNNEL_PORT_MAX } });
+  } catch(e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // ── EMAILS DE NOTIFICACIÓN POR USUARIO ────────────────────────
 router.put('/users/:id/notification-emails', auth, requireAdminRole, async (req, res) => {
   const { id } = req.params;
