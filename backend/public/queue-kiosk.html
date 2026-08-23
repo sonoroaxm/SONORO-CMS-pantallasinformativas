@@ -378,14 +378,40 @@
     .btn-confirm-appt {
       display: block; width: 100%; max-width: 640px;
       padding: 32px 48px;
-      background: white; border: 3px solid var(--magenta);
+      background: var(--surface); border: 2px solid var(--border);
       border-radius: 20px;
       font-family: 'Montserrat', sans-serif;
-      font-size: clamp(18px, 2.5vw, 26px); font-weight: 800; color: var(--magenta);
+      font-size: clamp(18px, 2.5vw, 26px); font-weight: 800; color: var(--text);
       cursor: pointer; transition: all 0.18s;
       line-height: 1.2;
+      position: relative; overflow: hidden;
     }
-    .btn-confirm-appt:active { background: rgba(255,27,141,0.08); transform: scale(0.97); }
+    .btn-confirm-appt::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: var(--magenta);
+      border-radius: 20px 20px 0 0;
+    }
+    .btn-confirm-appt:active { background: rgba(255,27,141,0.04); transform: scale(0.97); }
+    /* == botones cita kiosko: heredan diseno de btn-confirm-appt (no override) == */
+    .btn-solicitar-cita { }
+    /* == overlay booking iframe == */
+    #bookingOverlay { display:none; position:fixed; inset:0; background:#0a0a0f; z-index:2000; flex-direction:column; }
+    #bookingOverlay.open { display:flex; }
+    #bookingHeader { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; background:#111; border-bottom:1px solid #333; flex-shrink:0; }
+    #bookingHeader span { font-size:15px; font-weight:600; color:#eee; }
+    #bookingClose { background:none; border:1px solid #555; color:#ccc; border-radius:8px; padding:6px 16px; font-size:14px; cursor:pointer; }
+    #bookingFrame { flex:1; border:none; width:100%; background:#fff; }
+    /* == boton QR kiosko == */
+    .btn-confirm-qr { }
+    /* == pantalla QR kiosko == */
+    #kioskQrWaiting { text-align:center; margin-top:32px; }
+    #kioskQrWaiting .qr-icon { font-size:72px; margin-bottom:16px; }
+    #kioskQrWaiting .qr-label { font-size:22px; font-weight:700; margin-bottom:8px; }
+    #kioskQrWaiting .qr-sub   { font-size:16px; color:var(--text-secondary,#888); }
+    #kioskQrError { display:none; margin-top:20px; padding:14px 18px; border-radius:12px;
+                    background:rgba(255,80,80,.12); border:1px solid #ff5050;
+                    color:#ff7070; font-size:16px; text-align:center; }
   </style>
 </head>
 <body>
@@ -418,9 +444,19 @@
     <!-- Se llena dinámicamente -->
   </div>
 
-  <div id="apptConfirmSection" style="display:none; margin-top:28px; padding:8px 0; width:100%; max-width:640px; display:none;">
-    <button class="btn-confirm-appt" onclick="showScreen('confirmApptScreen');resetNumpad()">
+  <div id="apptConfirmSection" style="display:none; margin-top:28px; padding:0; width:100%; max-width:640px;">
+    <!-- data-kiosk-btn: visibilidad configurable desde admin -->
+    <button class="btn-confirm-appt btn-solicitar-cita" data-kiosk-btn="booking"
+            style="margin-bottom:16px;" onclick="openKioskBooking()">
+      Solicitar cita
+    </button>
+    <button class="btn-confirm-appt" data-kiosk-btn="confirm-id"
+            style="margin-bottom:16px;" onclick="showScreen('confirmApptScreen');resetNumpad()">
       ¿Tienes cita?<br>Confirma aquí
+    </button>
+    <button class="btn-confirm-appt btn-confirm-qr" data-kiosk-btn="confirm-qr"
+            onclick="openKioskQrScreen()">
+      Confirmar por QR
     </button>
   </div>
 </div>
@@ -822,6 +858,125 @@ async function submitConfirmAppt() {
 
 // ── START ──────────────────────────────────────────────────────
 init();
+</script>
+<!-- Overlay solicitar cita (iframe booking form) -->
+<div id="bookingOverlay">
+  <div id="bookingHeader">
+    <span>Solicitar cita</span>
+    <button id="bookingClose" onclick="closeKioskBooking()">Cerrar</button>
+  </div>
+  <iframe id="bookingFrame" src="" title="Solicitar cita"></iframe>
+</div>
+
+<!-- Pantalla QR kiosko -->
+<div id="confirmQrScreen" class="screen" style="display:none;">
+  <div id="kioskQrWaiting">
+    <div class="qr-label">Escanea tu codigo QR</div>
+    <div class="qr-sub">Apunta el escaner al QR de tu confirmacion de cita</div>
+  </div>
+  <div id="kioskQrError"></div>
+  <!-- Input invisible captura el lector HID USB/BT -->
+  <input id="kioskQrHidInput" type="text"
+         style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"
+         autocomplete="off" autocorrect="off" spellcheck="false"
+         onkeydown="kioskQrKeydown(event)" />
+  <button class="btn-cancel" style="margin-top:40px;" onclick="kioskQrCancel()">Cancelar</button>
+</div>
+
+<script>
+// == Confirmacion por QR en kiosko ==
+function openKioskQrScreen() {
+  showScreen('confirmQrScreen');
+  document.getElementById('kioskQrHidInput').value = '';
+  document.getElementById('kioskQrError').style.display = 'none';
+  setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 120);
+}
+
+function kioskQrCancel() {
+  showScreen('serviceScreen');
+}
+
+function kioskQrKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const raw = document.getElementById('kioskQrHidInput').value.trim();
+    kioskQrSubmit(raw);
+  }
+}
+
+async function kioskQrSubmit(raw) {
+  const errEl = document.getElementById('kioskQrError');
+  errEl.style.display = 'none';
+  if (!raw) return;
+
+  const urlMatch = raw.match(/\/cita\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  const uuidRe   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const token    = urlMatch ? urlMatch[1] : (uuidRe.test(raw) ? raw : null);
+
+  if (!token) {
+    errEl.textContent = 'Codigo QR no reconocido. Intenta de nuevo.';
+    errEl.style.display = 'block';
+    document.getElementById('kioskQrHidInput').value = '';
+    setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 80);
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/queue/kiosk/confirm-by-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Branch-Token': KIOSK_TOKEN },
+      body: JSON.stringify({ token })
+    });
+    const data = await r.json();
+
+    if (r.ok && data.confirmed) {
+      showConfirmation(
+        { token_number: data.token_number,
+          estimated_wait_minutes: data.estimated_wait_minutes,
+          position_in_queue: data.queue_position },
+        data.service_name || '',
+        data.service_color || '#7c3aed'
+      );
+    } else {
+      errEl.textContent = data.code === 'ALREADY_CONFIRMED'
+        ? 'Esta cita ya fue confirmada anteriormente.'
+        : (data.error || 'No se pudo confirmar la cita.');
+      errEl.style.display = 'block';
+      document.getElementById('kioskQrHidInput').value = '';
+      setTimeout(() => document.getElementById('kioskQrHidInput').focus(), 80);
+    }
+  } catch (e) {
+    errEl.textContent = 'Error de conexion. Intenta de nuevo.';
+    errEl.style.display = 'block';
+    console.error('kioskQrSubmit:', e);
+    document.getElementById('kioskQrHidInput').value = '';
+  }
+}
+
+// == Solicitar cita desde kiosko (booking form en iframe) ==
+var BOOKING_URL = '';
+
+function _resolveBookingUrl() {
+  if (BOOKING_URL) return BOOKING_URL;
+  // booking_slug viene del JOIN con users en GET /api/queue/display/:branchId
+  const slug = typeof branchData !== "undefined" && branchData
+              && (branchData.booking_slug || branchData.slug);
+  if (slug) return window.location.origin + "/agendar/" + slug;
+  return null;
+}
+
+function openKioskBooking() {
+  const url = _resolveBookingUrl();
+  if (!url) { alert('Enlace de citas no configurado para esta sucursal.'); return; }
+  const frame = document.getElementById('bookingFrame');
+  if (frame.src !== url) frame.src = url;
+  document.getElementById('bookingOverlay').classList.add('open');
+}
+
+function closeKioskBooking() {
+  document.getElementById('bookingOverlay').classList.remove('open');
+  document.getElementById('bookingFrame').src = '';
+}
 </script>
 </body>
 </html>

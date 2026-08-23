@@ -665,6 +665,42 @@
     .license-badge.active   { background: rgba(0,230,118,0.1); color: var(--online); border: 1px solid rgba(0,230,118,0.25); }
     .license-badge.expired  { background: rgba(255,23,68,0.1);  color: var(--offline); border: 1px solid rgba(255,23,68,0.25); }
     .license-badge.suspended{ background: rgba(255,140,0,0.1);  color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    /* ── QUEUE v2 FEATURE ROWS ── */
+    .q2-feat-row { display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border); }
+    .q2-feat-row:last-child { border-bottom:none; }
+    .q2-feat-info { flex:1;min-width:0; }
+    .q2-feat-name { font-size:12px;font-weight:600;color:var(--text); }
+    .q2-feat-desc { font-size:11px;color:var(--muted);margin-top:1px; }
+    .q2-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0; }
+    .q2-badge.on   { background:rgba(0,230,118,0.1);color:var(--online);border:1px solid rgba(0,230,118,0.25); }
+    .q2-badge.off  { background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border); }
+    .q2-badge.soon { background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.25); }
+    .q2-act-btn { font-size:11px;padding:3px 12px;border-radius:6px;cursor:pointer;border:1px solid;white-space:nowrap;font-weight:600;transition:all 0.15s;flex-shrink:0; }
+    .q2-act-btn.activate   { color:var(--online);border-color:rgba(0,230,118,0.4);background:rgba(0,230,118,0.08); }
+    .q2-act-btn.activate:hover { background:rgba(0,230,118,0.18); }
+    .q2-act-btn.deactivate { color:var(--offline);border-color:rgba(255,23,68,0.35);background:rgba(255,23,68,0.05); }
+    .q2-act-btn.deactivate:hover { background:rgba(255,23,68,0.12); }
+    .q2-act-btn.q2-disabled { color:var(--muted);border-color:var(--border);background:transparent;cursor:default;opacity:0.45; }
+    .feat-confirm-lic  { margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);font-size:12px;line-height:1.8; }
+    .feat-confirm-warn { margin-top:10px;padding:9px 12px;border-radius:8px;font-size:11px;line-height:1.5; }
+    .feat-confirm-warn.danger  { background:rgba(255,23,68,0.08);color:#ff6b6b;border:1px solid rgba(255,23,68,0.2); }
+    .feat-confirm-warn.caution { background:rgba(255,140,0,0.08);color:var(--warning);border:1px solid rgba(255,140,0,0.2); }
+    .role-badge { display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.8px;padding:2px 7px;border-radius:10px;vertical-align:middle;margin-left:6px;text-transform:uppercase; }
+    .role-badge.super  { background:rgba(0,245,212,0.15);color:var(--magenta);border:1px solid rgba(0,245,212,0.3); }
+    .role-badge.client { background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3); }
+    .agent-count-badge { display:inline-flex;align-items:center;padding:3px 9px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:12px;font-size:10px;font-weight:700;color:#f59e0b;cursor:pointer;letter-spacing:0.5px; }
+    .agent-count-badge:hover { background:rgba(245,158,11,0.2); }
+    .agents-section { border-top:0.5px solid var(--border); }
+    .agents-section-header { display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px; }
+    .agent-row { display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:0.5px solid rgba(255,255,255,0.04); }
+    .agent-row:last-child { border-bottom:none; }
+    .agent-avatar { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0; }
+    .agent-info { flex:1;min-width:0; }
+    .agent-name { font-size:12px;font-weight:600;color:var(--text); }
+    .agent-branch { font-size:10px;color:var(--muted); }
+    .agent-status { font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;flex-shrink:0; }
+    .agent-status.on  { background:rgba(0,230,118,0.12);color:#00e676; }
+    .agent-status.off { background:rgba(255,23,68,0.10);color:#ff4569; }
     .user-card {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; margin-bottom: 12px; overflow: hidden;
@@ -740,6 +776,65 @@
     .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(0,245,212,0.2); }
     .sidebar-group.contenido .sidebar-btn.active { background: rgba(0,245,212,0.08); color: var(--magenta); border-left-color: var(--magenta); }
     .sidebar-group.contenido .sidebar-btn:hover { color: var(--magenta); }
+
+    /* ── SIDEBAR FIDS GROUP ── */
+    .sidebar-group.fids .sidebar-group-label { color: #3b82f6; }
+    .sidebar-group.fids .sidebar-group-header:hover { background: rgba(59,130,246,0.06); }
+    .sidebar-group.fids .sidebar-children-inner { border-color: rgba(59,130,246,0.25); }
+    .sidebar-group.fids .sidebar-btn.active { background: rgba(59,130,246,0.1); color: #3b82f6; border-left-color: #3b82f6; }
+    .sidebar-group.fids .sidebar-btn:hover { color: #3b82f6; }
+
+    /* ── FIDS PANEL STYLES ── */
+    .fids-group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px,1fr)); gap: 16px; margin-top: 4px; }
+    .fids-group-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .2s; }
+    .fids-group-card:hover { border-color: rgba(59,130,246,.4); }
+    .fids-group-card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .fids-group-card-body { padding: 14px 18px; }
+    .fids-group-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 9px; }
+    .fids-group-row-label { color: var(--muted); }
+    .fids-group-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .fids-slaves-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .fids-slaves-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; }
+    .fids-slave-row { display:flex; align-items:center; gap:6px; padding:4px 0; }
+    .fids-slave-name { flex:1; font-size:11px; color:var(--text-sec); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .fids-cache-bar { width: 90px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; }
+    .fids-cache-fill { height: 100%; border-radius: 2px; }
+    .fids-mode-selector { display: flex; gap: 8px; }
+    .fids-mode-opt { flex: 1; padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    .fids-mode-opt:hover { border-color: #3b82f6; }
+    .fids-mode-opt.selected { border-color: #3b82f6; background: rgba(59,130,246,.1); }
+    .fids-mode-icon { font-size: 16px; margin-bottom: 3px; }
+    .fids-mode-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+    .fids-mode-opt.selected .fids-mode-label { color: #3b82f6; }
+    .fids-mode-config { display: none; margin-top: 12px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+    .fids-mode-config.visible { display: block; }
+    .fids-iata-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fids-iata-chip { padding: 7px 12px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: .5px; transition: all .15s; text-align: center; }
+    .fids-iata-chip:hover { border-color: #3b82f6; }
+    .fids-iata-chip.selected { background: rgba(59,130,246,.12); border-color: #3b82f6; color: #3b82f6; }
+    .fids-iata-sublabel { font-size: 9px; font-weight: 500; color: var(--muted); display: block; letter-spacing: 0; margin-top: 1px; }
+    .fids-type-toggle { display: flex; border-radius: 7px; overflow: hidden; border: 1px solid var(--border); width: fit-content; }
+    .fids-type-btn { padding: 8px 14px; background: var(--surface2); border: none; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; font-family: inherit; }
+    .fids-type-btn:hover { background: var(--surface3); color: var(--text); }
+    .fids-type-btn.active { background: #3b82f6; color: #fff; }
+
+    /* ── FIDS MEDIA LIBRARY ── */
+    .fids-file-item { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:10px; transition:border-color .2s; }
+    .fids-file-item:hover { border-color: var(--border2); }
+    .fids-file-info { flex:1; min-width:0; }
+    .fids-file-info strong { display:block; font-size:14px; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fids-file-info small { font-size:11px; color:var(--muted); display:inline-block; margin-right:10px; }
+    .fids-type-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-right:8px; }
+    .fids-badge-video { background:rgba(255,140,0,.15); color:#FF8C00; }
+    .fids-badge-image { background:rgba(59,130,246,.12); color:#3b82f6; }
+    .fids-pl-content-list { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin-top:8px; min-height:60px; }
+    .fids-pl-content-item { display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--surface3); border-radius:6px; margin-bottom:6px; }
+    .fids-pl-content-item:last-child { margin-bottom:0; }
+    .fids-pci-name { flex:1; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .fids-pci-order { display:flex; gap:2px; }
+    .fids-pci-order button { background:var(--surface2); border:1px solid var(--border); color:var(--muted); border-radius:4px; padding:2px 6px; font-size:11px; cursor:pointer; }
+    .fids-pci-order button:hover { color:var(--text); }
+    .fids-dur-input { width:54px; padding:4px 6px; font-size:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:monospace; text-align:center; }
 
     /* ── HDMI PORT PILLS ── */
     .hdmi-ports { display: flex; gap: 4px; align-items: center; }
@@ -862,6 +957,24 @@
       letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; cursor: help;
     }
 
+    /* <!-- RPI5-BADGE v1 --> */
+    .model-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      text-transform: uppercase; flex-shrink: 0; cursor: pointer;
+    }
+    .model-pill.rpi4    { background:#1a2e1a; border:1px solid #2f5c2f; color:#8fdc8f; }
+    .model-pill.rpi5    { background:#1a1a3a; border:1px solid #3f3f7a; color:#a8a8f5; }
+    .model-pill.windows { background:#0d2340; border:1px solid #1e3f6e; color:#7eb8f7; }
+    .hevc-pill {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+      flex-shrink: 0; cursor: help;
+    }
+    .hevc-pill.ok   { background: rgba(0,230,118,0.1); color: var(--online);  border: 1px solid rgba(0,230,118,0.25); }
+    .hevc-pill.warn { background: rgba(255,140,0,0.1); color: var(--warning); border: 1px solid rgba(255,140,0,0.25); }
+    .hevc-pill.err  { background: rgba(255,23,68,0.1); color: var(--offline); border: 1px solid rgba(255,23,68,0.25); } <!-- RPI5-BADGE-FIX v1 -->
+
     @media (max-width: 900px) {
       .grid-2, .grid-3 { grid-template-columns: 1fr; }
       .sidebar { display: none; }
@@ -947,6 +1060,25 @@
           <button class="sidebar-btn" onclick="showTab('users', this)">Usuarios y Licencias</button>
           <button class="sidebar-btn" onclick="showTab('alldevices', this)">Todos los Dispositivos</button>
           <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- FIDS -->
+    <div class="sidebar-group fids open admin-only" id="sg-fids">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-fids')">
+        <div class="sidebar-group-label">FIDS</div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('fids-grupos',this)">Grupos de Vuelos</button>
+          <button class="sidebar-btn" onclick="showTab('fids-devices',this)">Dispositivos</button>
+          <button class="sidebar-btn" onclick="showTab('fids-cache',this)">Estado Caché</button>
+          <button class="sidebar-btn" onclick="showTab('fids-media',this)">Contenido FIDS</button>
+          <button class="sidebar-btn" onclick="showTab('fids-listas',this)">Playlist FIDS</button>
         </div>
       </div>
     </div>
@@ -1116,9 +1248,59 @@
           <div class="section-title">Usuarios y Licencias</div>
           <div class="section-sub">Gestión de clientes y estado de licencias</div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Actualizar</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">+ Crear cliente</button>
+          <button class="btn btn-outline btn-sm" onclick="loadUsers()">↻ Actualizar</button>
+        </div>
       </div>
       <div id="users-list"><div class="loading">Cargando usuarios...</div></div>
+    </div>
+
+    <!-- Modal Crear Cliente (S158e) -->
+    <div id="createUserModal" class="modal" style="display:none;">
+      <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header">
+          <h3>Crear cliente</h3>
+          <button class="modal-close" onclick="closeCreateUserModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <label style="font-size:12px;color:#666;">Nombre completo
+              <input id="cuName" type="text" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Email
+              <input id="cuEmail" type="email" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Teléfono (opcional)
+              <input id="cuPhone" type="tel" placeholder="+57 300 000 0000" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+            </label>
+            <label style="font-size:12px;color:#666;">Plan
+              <select id="cuTier" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+                <option value="cms_sencilla">CMS Sencilla</option>
+                <option value="cms_doble">CMS Doble</option>
+                <option value="cms_pro">CMS Pro</option>
+                <option value="cms_queue">CMS + Atención</option>
+                <option value="queue">Atención</option>
+                <option value="windows">Windows</option>
+              </select>
+            </label>
+            <label style="font-size:12px;color:#666;">Duración
+              <select id="cuMonths" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+                <option value="12" selected>1 año</option>
+                <option value="24">2 años</option>
+                <option value="36">3 años</option>
+              </select>
+            </label>
+            <div style="font-size:12px;color:#888;background:#f9f9f9;padding:10px;border-radius:6px;">
+              Se generará una contraseña temporal y se enviará al correo del cliente junto con la guía de activación.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="closeCreateUserModal()">Cancelar</button>
+          <button class="btn btn-primary" id="cuSubmit" onclick="submitCreateUser()">Crear y enviar correo</button>
+        </div>
+      </div>
     </div>
 
     <!-- ═══════════════ TODOS LOS DISPOSITIVOS ═══════════════ -->
@@ -1313,7 +1495,132 @@
       </div>
     </div>
 
+    <!-- ═══════════════ FIDS — GRUPOS ═══════════════ -->
+    <div id="tab-fids-grupos" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Grupos de Vuelos</div>
+          <div class="section-sub">Configuración de aeropuertos y tipos por pantalla FIDS</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openFidsModal()">+ Nuevo Grupo</button>
+      </div>
+      <div class="stats-grid" style="margin-bottom:24px;" id="fids-kpis">
+        <div class="stat-card"><div class="stat-label">Grupos activos</div><div class="stat-value" id="fids-kpi-groups" style="color:#3b82f6">—</div><div class="stat-sub" id="fids-kpi-airports">—</div></div>
+        <div class="stat-card"><div class="stat-label">Dispositivos FIDS</div><div class="stat-value ok" id="fids-kpi-devices">—</div><div class="stat-sub" id="fids-kpi-online">—</div></div>
+        <div class="stat-card"><div class="stat-label">Modo datos</div><div class="stat-value" id="fids-kpi-mode" style="font-size:14px;margin-top:4px;">—</div><div class="stat-sub">FIDS_DEV_MOCK env</div></div>
+      </div>
+      <div class="fids-group-grid" id="fids-grupos-grid">
+        <div class="loading">Cargando grupos...</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — DISPOSITIVOS ═══════════════ -->
+    <div id="tab-fids-devices" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Dispositivos FIDS</div>
+          <div class="section-sub">Asignación de RPis a grupos de vuelos</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;" id="fids-devices-card">
+        <div class="loading" style="padding:20px;">Cargando dispositivos...</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — CACHÉ ═══════════════ -->
+    <div id="tab-fids-cache" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Estado de Caché</div>
+          <div class="section-sub">Datos almacenados en <code style="font-size:11px;color:#3b82f6">fids_cache</code> — TTL dev 300s</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadFidsCache()">↻ Actualizar</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;" id="fids-cache-card">
+        <div class="loading" style="padding:20px;">Cargando caché...</div>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted);" id="fids-cache-note"></div>
+    </div>
+
+    <!-- ═══════════════ FIDS — ARCHIVOS ═══════════════ -->
+    <div id="tab-fids-media" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Contenido FIDS</div>
+          <div class="section-sub">Contenido exclusivo para publicidad en pantallas de vuelos</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadFidsMedia()">↻ Actualizar</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Subir archivo FIDS</div>
+        <input type="file" id="fidsFileInput" accept="video/*,image/*">
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="uploadFidsMedia()">↑ Subir</button>
+        </div>
+        <div style="display:none;margin:10px 0;" id="fidsUploadProgress">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;">Subiendo: <strong id="fidsUploadName"></strong></div>
+          <div class="progress-bar-bg" style="height:6px;border-radius:6px;overflow:hidden;">
+            <div id="fidsProgressBar" class="progress-bar-fill" style="width:0%;height:100%;transition:width .3s;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Vista previa</div>
+        <video id="fids-player" controls style="display:none;width:100%;max-height:280px;background:#000;border-radius:10px;border:1px solid var(--border);margin-top:10px;"></video>
+        <img id="fids-image-display" style="display:none;width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--border);margin-top:10px;" alt="Vista previa">
+      </div>
+      <div class="card">
+        <div class="card-title">Archivos</div>
+        <div id="fids-file-list"><div class="loading" style="padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ FIDS — LISTAS ═══════════════ -->
+    <div id="tab-fids-listas" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Playlist FIDS</div>
+          <div class="section-sub">Listas de reproducción para el overlay publicitario en pantallas de vuelos</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openCreateFidsPlaylist()">+ Nueva lista</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div id="fids-playlists-list" style="padding:8px 0;"><div class="loading" style="padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
+
   </main>
+</div>
+
+<!-- MODAL FIDS — LIBRERIA PLAYLIST -->
+<div class="modal-overlay" id="modal-fids-playlist">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title" id="fidsPlModalTitle">Nueva lista FIDS</div>
+      <button class="modal-close" onclick="closeFidsPlaylistModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Nombre de la lista</label>
+        <input class="renew-input" type="text" id="fidsPlName" placeholder="ej. Publicidad AXM · Temporada Alta" style="width:100%;">
+      </div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:18px 0 10px;">Archivos en esta lista</div>
+      <div class="fids-pl-content-list" id="fidsPlContentList">
+        <p style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0;">Vacio</p>
+      </div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:20px 0 10px;">Agregar archivo</div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <select id="fidsContentSelector" class="renew-select" style="flex:1;padding:9px 12px;font-size:13px;">
+          <option value="">-- Seleccionar archivo FIDS --</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="addToFidsPlaylist()">Agregar</button>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+        <button class="btn btn-outline btn-sm" onclick="closeFidsPlaylistModal()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="saveFidsPlaylist()">Guardar lista</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL LOGS -->
@@ -1332,6 +1639,7 @@
           <option value="500">500 líneas</option>
         </select>
         <button class="btn btn-outline btn-sm" onclick="refreshModalLogs()">↻ Refrescar</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadLogsTxt()">Descargar .txt</button>
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto;">
           <input type="checkbox" id="log-live" onchange="toggleLiveLogs(this.checked)">
           Live
@@ -1357,12 +1665,193 @@
   </div>
 </div>
 
+<!-- MODAL FIDS — CREAR/EDITAR GRUPO -->
+<div class="modal-overlay" id="modal-fids-grupo">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="fids-modal-title">Nuevo Grupo FIDS</div>
+      <button class="modal-close" onclick="closeModal('modal-fids-grupo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fids-grupo-id">
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Nombre del grupo</div>
+        <input class="renew-input" type="text" id="fids-grupo-name" placeholder="Ej: AXM Combinado, BOG Salidas…" style="width:100%;">
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Aeropuerto (IATA)</div>
+        <div class="fids-iata-chips" id="fids-iata-chips">
+          <div class="fids-iata-chip selected" data-iata="AXM" onclick="fidsSelectIata(this)">AXM<span class="fids-iata-sublabel">El Edén</span></div>
+          <div class="fids-iata-chip" data-iata="BOG" onclick="fidsSelectIata(this)">BOG<span class="fids-iata-sublabel">El Dorado</span></div>
+          <div class="fids-iata-chip" data-iata="MDE" onclick="fidsSelectIata(this)">MDE<span class="fids-iata-sublabel">J.M. Córdova</span></div>
+          <div class="fids-iata-chip" data-iata="CLO" onclick="fidsSelectIata(this)">CLO<span class="fids-iata-sublabel">A. Bonilla</span></div>
+          <div class="fids-iata-chip" data-iata="PEI" onclick="fidsSelectIata(this)">PEI<span class="fids-iata-sublabel">Matecaña</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Solo aeropuertos validados en AviationStack.</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Tipo de vuelos</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn" data-type="departures" onclick="fidsSelectType(this)">Salidas</button>
+          <button class="fids-type-btn" data-type="arrivals" onclick="fidsSelectType(this)">Llegadas</button>
+          <button class="fids-type-btn active" data-type="combined" onclick="fidsSelectType(this)">Combinado</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Combinado muestra salidas y llegadas lado a lado.</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Máximo de vuelos por panel</div>
+        <input class="renew-input" type="number" id="fids-grupo-maxflights" value="12" min="4" max="30" style="width:100px;">
+        <span style="font-size:11px;color:var(--muted);margin-left:8px;">vuelos (en combinado aplica por separado)</span>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Tema de pantalla</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn fids-theme-btn active" data-theme="dark" onclick="fidsSelectTheme(this)">Oscuro</button>
+          <button class="fids-type-btn fids-theme-btn" data-theme="light" onclick="fidsSelectTheme(this)">Claro</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Publicidad / Lower thirds</div>
+        <div class="fids-mode-selector">
+          <div class="fids-mode-opt selected" data-mode="off" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">○</div>
+            <div class="fids-mode-label">Apagado</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="ticker" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">≡</div>
+            <div class="fids-mode-label">Ticker</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="overlay_ad" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">▶</div>
+            <div class="fids-mode-label">Pauta</div>
+          </div>
+          <div class="fids-mode-opt" data-mode="lower_bar" onclick="fidsSelectMode(this)">
+            <div class="fids-mode-icon">▬</div>
+            <div class="fids-mode-label">Banda inf.</div>
+          </div>
+        </div>
+
+        <div class="fids-mode-config" id="fids-config-ticker">
+          <div class="form-label">Mensajes del ticker <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(uno por línea)</span></div>
+          <textarea id="fids-ticker-messages" style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:9px 12px;font-size:12px;font-family:inherit;resize:vertical;min-height:70px;outline:none;" placeholder="Vuele con Avianca desde AXM&#10;Información sujeta a cambios"></textarea>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+            <div>
+              <div class="form-label">Velocidad <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(seg por ciclo — menor = más rápido)</span></div>
+              <input class="renew-input" type="number" id="fids-ticker-speed" value="35" min="8" max="120" style="width:80px;">
+            </div>
+            <div>
+              <div class="form-label">Color del texto</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input type="color" id="fids-ticker-color" value="#ffe566" style="width:40px;height:36px;border:1px solid var(--border);border-radius:6px;padding:2px;background:var(--surface3);cursor:pointer;">
+                <button class="btn btn-outline btn-sm" onclick="document.getElementById('fids-ticker-color').value='#ffe566'" style="font-size:10px;">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fids-mode-config" id="fids-config-overlay">
+          <div style="margin-bottom:12px;">
+            <div class="form-label">Playlist de publicidad</div>
+            <select id="fids-overlay-playlist" class="renew-select" style="width:100%;">
+              <option value="">— Seleccionar playlist —</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Gestionadas en <strong>Playlist FIDS</strong> del sidebar.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="form-label">Intervalo</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input class="renew-input" type="number" id="fids-overlay-interval" value="10" min="1" max="120" style="width:70px;">
+                <span style="font-size:11px;color:var(--muted);">minutos</span>
+              </div>
+            </div>
+            <div>
+              <div class="form-label">Duración</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input class="renew-input" type="number" id="fids-overlay-duration" value="20" min="5" max="120" style="width:70px;">
+                <span style="font-size:11px;color:var(--muted);">segundos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <div class="fids-mode-config" id="fids-config-lowerbar">
+          <div style="margin-bottom:12px;">
+            <div class="form-label">Playlist de contenido</div>
+            <select id="fids-lowerbar-playlist" class="renew-select" style="width:100%;">
+              <option value="">— Seleccionar playlist FIDS —</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Gestionada en <strong>Playlist FIDS</strong> del sidebar. Se reproduce en bucle continuo.</div>
+          </div>
+          <div>
+            <div class="form-label">Alto de la banda</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="renew-input" type="number" id="fids-lowerbar-height" value="200" min="80" max="400" style="width:80px;">
+              <span style="font-size:11px;color:var(--muted);">px (recomendado 160–240)</span>
+            </div>
+          </div>
+        </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('modal-fids-grupo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFidsGrupo()">Guardar Grupo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FIDS — ASIGNAR DISPOSITIVO -->
+<div class="modal-overlay" id="modal-fids-assign">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">Asignar Dispositivo a Grupo FIDS</div>
+      <button class="modal-close" onclick="closeModal('modal-fids-assign')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="fids-assign-device-id">
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Dispositivo</div>
+        <div id="fids-assign-device-name" style="font-size:13px;font-weight:700;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;"></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div class="form-label">Grupo FIDS</div>
+        <select id="fids-assign-group" class="renew-select" style="width:100%;">
+          <option value="">— Sin asignar —</option>
+        </select>
+      </div>
+      <div style="margin-bottom:0;">
+        <div class="form-label">Rol</div>
+        <div class="fids-type-toggle">
+          <button class="fids-type-btn active" data-role="master" onclick="fidsSelectRole(this)">Master</button>
+          <button class="fids-type-btn" data-role="slave" onclick="fidsSelectRole(this)">Slave</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Master: pantalla principal. Slave: pantalla adicional en el mismo grupo.</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-outline" onclick="closeModal('modal-fids-assign')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFidsAssign()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
 <script>
 const API_URL = window.location.origin;
 let authToken = localStorage.getItem('authToken');
+let currentUserEmail = '';
+const SUPER_ADMIN_EMAIL = 'admin@sonoro.com.co';
+function isSuperAdmin() { return currentUserEmail === SUPER_ADMIN_EMAIL; }
 let isClientAdmin = false;
 let socket = null;
 let adminUserId = null;
@@ -1425,6 +1914,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       adminUserId = data.id;
       isClientAdmin = isMultisede;
+      currentUserEmail = data.email || '';
       document.getElementById('topbar-user').textContent = data.email || '';
       if (isAdmin) document.body.classList.add('super-admin');
       if (isStaff) { const sb = document.getElementById('topbar-staff-badge'); if (sb) sb.style.display = ''; }
@@ -1479,7 +1969,264 @@ function showTab(name, btn) {
     case 'client-overview': loadClientOverview(); autoRefreshInterval = setInterval(loadClientOverview, 30000); break;
     case 'mis-dispositivos': loadMisDispositivos(); autoRefreshInterval = setInterval(loadMisDispositivos, 30000); break;
     case 'mis-sedes':        loadMisSedes(); break;
+    case 'fids-grupos':  loadFidsGrupos(); break;
+    case 'fids-devices': loadFidsDevices(); break;
+    case 'fids-cache':   loadFidsCache(); break;
+    case 'fids-media':  loadFidsMedia(); break;
+    case 'fids-listas': loadFidsPlaylists(); break;
   }
+}
+
+// ── FIDS MEDIA LIBRARY ────────────────────────────────────────────────────────
+let _fidsMedia = [];
+let _fidsPlItems = [];
+let _currentFidsPlId = null;
+
+async function loadFidsMedia() {
+  const list = document.getElementById('fids-file-list');
+  if (!list) return;
+  list.innerHTML = '<div class="loading" style="padding:12px;">Cargando...</div>';
+  const data = await api('/api/admin/fids/media');
+  if (!data) return;
+  _fidsMedia = data;
+  if (!data.length) {
+    list.innerHTML = '<p style="padding:16px;color:var(--muted);font-size:13px;">No hay archivos FIDS. Sube el primero arriba.</p>';
+    return;
+  }
+  list.innerHTML = data.map(f => {
+    const mb = (f.size_bytes / 1024 / 1024).toFixed(2);
+    const dur = f.type === 'video' && f.duration_ms ? fidsFmtDur(f.duration_ms) : '';
+    return `<div class="fids-file-item">
+      <div class="fids-file-info">
+        <strong>${escHtml(f.title)}</strong>
+        <span class="fids-type-badge ${f.type === 'image' ? 'fids-badge-image' : 'fids-badge-video'}">${f.type}</span>
+        <small>${mb} MB</small>
+        ${dur ? `<small>${dur}</small>` : ''}
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="previewFidsFile('${escHtml(f.file_path)}','${f.type}')">&#9654;</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsMedia(${f.id},'${escOnclick(f.title)}')">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function fidsFmtDur(ms) {
+  const s = Math.round(ms / 1000);
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function previewFidsFile(path, type) {
+  const video = document.getElementById('fids-player');
+  const img   = document.getElementById('fids-image-display');
+  if (!video || !img) return;
+  if (type === 'image') {
+    video.style.display = 'none'; img.style.display = 'block'; img.src = path;
+  } else {
+    img.style.display = 'none'; video.style.display = 'block';
+    video.src = path; video.play().catch(() => {});
+  }
+}
+
+async function uploadFidsMedia() {
+  const input = document.getElementById('fidsFileInput');
+  const file  = input ? input.files[0] : null;
+  if (!file) { toast('Selecciona un archivo', 'error'); return; }
+  const progressDiv = document.getElementById('fidsUploadProgress');
+  const bar         = document.getElementById('fidsProgressBar');
+  const nameEl      = document.getElementById('fidsUploadName');
+  if (nameEl) nameEl.textContent = file.name;
+  if (progressDiv) progressDiv.style.display = 'block';
+  if (bar) bar.style.width = '0%';
+  const fd = new FormData();
+  fd.append('file', file);
+  const xhr = new XMLHttpRequest();
+  xhr.upload.addEventListener('progress', e => {
+    if (e.lengthComputable && bar) bar.style.width = Math.round(e.loaded / e.total * 100) + '%';
+  });
+  xhr.addEventListener('load', () => {
+    if (progressDiv) progressDiv.style.display = 'none';
+    if (bar) bar.style.width = '0%';
+    if (input) input.value = '';
+    try {
+      const res = JSON.parse(xhr.responseText);
+      if (xhr.status === 200 || xhr.status === 201) {
+        toast('Archivo subido', 'success');
+        loadFidsMedia();
+        updateFidsSelector();
+      } else {
+        toast(res.error || 'Error al subir', 'error');
+      }
+    } catch(e2) { toast('Error al subir', 'error'); }
+  });
+  xhr.addEventListener('error', () => {
+    if (progressDiv) progressDiv.style.display = 'none';
+    toast('Error de red', 'error');
+  });
+  xhr.open('POST', API_URL + '/api/admin/fids/media');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+  xhr.send(fd);
+}
+
+async function deleteFidsMedia(id, title) {
+  if (!confirm('Eliminar "' + title + '"?')) return;
+  const ok = await api('/api/admin/fids/media/' + id, { method: 'DELETE' });
+  if (ok && ok.success) { toast('Archivo eliminado', ''); loadFidsMedia(); }
+  else toast('Error al eliminar', 'error');
+}
+
+async function loadFidsPlaylists() {
+  const container = document.getElementById('fids-playlists-list');
+  if (!container) return;
+  container.innerHTML = '<div class="loading" style="padding:16px;">Cargando...</div>';
+  const data = await api('/api/admin/fids/playlists');
+  if (!data) return;
+  if (!data.length) {
+    container.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px;">No hay listas FIDS. Crea la primera con el boton de arriba.</div>';
+    return;
+  }
+  container.innerHTML = data.map(pl => `
+    <div class="fids-file-item" style="margin:0;border-radius:0;border-left:none;border-right:none;border-top:none;">
+      <div class="fids-file-info">
+        <strong>${escHtml(pl.name)}</strong>
+        <small>${pl.item_count || 0} elemento${pl.item_count !== 1 ? 's' : ''}</small>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="editFidsPlaylist(${pl.id})">&#x270F; Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFidsPlaylist(${pl.id},'${escOnclick(pl.name)}')">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+async function openCreateFidsPlaylist() {
+  _currentFidsPlId = null;
+  _fidsPlItems = [];
+  document.getElementById('fidsPlModalTitle').textContent = 'Nueva lista FIDS';
+  document.getElementById('fidsPlName').value = '';
+  renderFidsPlContent();
+  await updateFidsSelector();
+  openModal('modal-fids-playlist');
+}
+
+async function editFidsPlaylist(plId) {
+  _currentFidsPlId = plId;
+  const items = await api('/api/admin/fids/playlists/' + plId + '/items');
+  if (!items) return;
+  _fidsPlItems = items.map(it => ({
+    media_id: it.media_id, title: it.title, type: it.type,
+    display_order: it.display_order, duration_override_ms: it.duration_override_ms
+  }));
+  const plData = await api('/api/admin/fids/playlists');
+  const pl = plData ? plData.find(p => p.id === plId) : null;
+  document.getElementById('fidsPlModalTitle').textContent = 'Editar lista FIDS';
+  document.getElementById('fidsPlName').value = pl ? pl.name : '';
+  renderFidsPlContent();
+  await updateFidsSelector();
+  openModal('modal-fids-playlist');
+}
+
+function closeFidsPlaylistModal() { closeModal('modal-fids-playlist'); }
+
+async function updateFidsSelector() {
+  if (!_fidsMedia.length) {
+    const data = await api('/api/admin/fids/media');
+    if (data) _fidsMedia = data;
+  }
+  const sel = document.getElementById('fidsContentSelector');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Seleccionar archivo FIDS --</option>';
+  _fidsMedia.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = (m.type === 'video' ? '▶ ' : '🖼 ') + m.title;
+    opt.dataset.type = m.type;
+    sel.appendChild(opt);
+  });
+}
+
+function addToFidsPlaylist() {
+  const sel = document.getElementById('fidsContentSelector');
+  const id  = parseInt(sel ? sel.value : '');
+  if (!id) { toast('Selecciona un archivo', 'error'); return; }
+  if (_fidsPlItems.find(it => it.media_id === id)) { toast('Ya esta en la lista', 'error'); return; }
+  const m = _fidsMedia.find(x => x.id === id);
+  if (!m) return;
+  _fidsPlItems.push({
+    media_id: id, title: m.title, type: m.type,
+    display_order: _fidsPlItems.length + 1,
+    duration_override_ms: m.type === 'image' ? 5000 : null
+  });
+  if (sel) sel.value = '';
+  renderFidsPlContent();
+}
+
+function renderFidsPlContent() {
+  const container = document.getElementById('fidsPlContentList');
+  if (!container) return;
+  if (!_fidsPlItems.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:8px 0;">Vacio — agrega archivos abajo</p>';
+    return;
+  }
+  container.innerHTML = _fidsPlItems.map((item, idx) => `
+    <div class="fids-pl-content-item">
+      <span style="color:var(--muted);font-size:12px;width:18px;text-align:center;">${idx + 1}</span>
+      <span class="fids-type-badge ${item.type === 'image' ? 'fids-badge-image' : 'fids-badge-video'}" style="margin:0">${item.type === 'video' ? 'VIDEO' : 'IMG'}</span>
+      <span class="fids-pci-name">${escHtml(item.title)}</span>
+      ${item.type !== 'video' ? `
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+          <input type="number" class="fids-dur-input" value="${Math.round((item.duration_override_ms || 5000) / 1000)}"
+            min="1" max="300" title="Duracion en segundos"
+            onchange="_fidsPlItems[${idx}].duration_override_ms=parseInt(this.value)*1000">
+          <small style="color:var(--muted);font-size:11px;">seg</small>
+        </div>` : ''}
+      <div class="fids-pci-order">
+        <button onclick="moveFidsPlItem(${idx},-1)">&#x25B2;</button>
+        <button onclick="moveFidsPlItem(${idx},1)">&#x25BC;</button>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="_fidsPlItems.splice(${idx},1);renderFidsPlContent()">&#x2715;</button>
+    </div>
+  `).join('');
+}
+
+function moveFidsPlItem(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= _fidsPlItems.length) return;
+  const tmp = _fidsPlItems[idx];
+  _fidsPlItems[idx] = _fidsPlItems[newIdx];
+  _fidsPlItems[newIdx] = tmp;
+  renderFidsPlContent();
+}
+
+async function saveFidsPlaylist() {
+  const name = document.getElementById('fidsPlName').value.trim();
+  if (!name) { toast('Escribe un nombre para la lista', 'error'); return; }
+  if (!_fidsPlItems.length) { toast('Agrega al menos un archivo', 'error'); return; }
+  const body = JSON.stringify({
+    name,
+    items: _fidsPlItems.map((it, i) => ({
+      media_id: it.media_id,
+      display_order: i + 1,
+      duration_override_ms: it.duration_override_ms
+    }))
+  });
+  let ok;
+  if (_currentFidsPlId) {
+    ok = await api('/api/admin/fids/playlists/' + _currentFidsPlId, { method: 'PUT', body });
+  } else {
+    ok = await api('/api/admin/fids/playlists', { method: 'POST', body });
+  }
+  if (ok && (ok.id || ok.success)) {
+    closeFidsPlaylistModal();
+    loadFidsPlaylists();
+    toast('Lista guardada', 'success');
+    _fidsPlaylists = [];
+  } else {
+    toast('Error al guardar', 'error');
+  }
+}
+
+async function deleteFidsPlaylist(plId, name) {
+  if (!confirm('Eliminar "' + name + '"?')) return;
+  const ok = await api('/api/admin/fids/playlists/' + plId, { method: 'DELETE' });
+  if (ok && ok.success) { loadFidsPlaylists(); toast('Lista eliminada', ''); _fidsPlaylists = []; }
+  else toast('Error al eliminar', 'error');
 }
 
 // ── API HELPER ───────────────────────────────────────
@@ -1578,11 +2325,11 @@ async function loadProcesses() {
           </div>
         </div>
         <div class="process-actions">
-          <button class="btn btn-outline btn-sm" onclick="pmAction('${p.name}','restart')">Reiniciar</button>
-          <button class="btn btn-${p.isRunning?'warn':'outline'} btn-sm" onclick="pmAction('${p.name}','${p.isRunning?'stop':'start'}')">
+          <button class="btn btn-outline btn-sm" onclick="pmAction('${escOnclick(p.name)}','restart')">Reiniciar</button>
+          <button class="btn btn-${p.isRunning?'warn':'outline'} btn-sm" onclick="pmAction('${escOnclick(p.name)}','${p.isRunning?'stop':'start'}')">
             ${p.isRunning ? 'Parar' : 'Iniciar'}
           </button>
-          <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${p.name}')">Logs</button>
+          <button class="btn btn-outline btn-sm" onclick="openProcessLogs('${escOnclick(p.name)}')">Logs</button>
         </div>
       </div>`).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando procesos</div>'; }
@@ -1620,13 +2367,33 @@ async function fetchLogs(name) {
   } catch(e) { el.innerHTML = 'Error cargando logs'; }
 }
 
-function refreshModalLogs() { if (currentLogProcess) fetchLogs(currentLogProcess); }
+function refreshModalLogs() {
+  if (!currentLogProcess) return;
+  if (currentLogProcess.startsWith('__rpi__')) {
+    fetchRpiLogs(currentLogProcess.slice(7));
+  } else {
+    fetchLogs(currentLogProcess);
+  }
+}
 
 function toggleLiveLogs(on) {
   if (on) { liveLogsInterval = setInterval(refreshModalLogs, 3000); }
   else stopLiveLogs();
 }
 function stopLiveLogs() { clearInterval(liveLogsInterval); liveLogsInterval = null; }
+
+function downloadLogsTxt() {
+  const el = document.getElementById('modal-logs-content');
+  if (!el || !el.textContent.trim()) { toast('Sin logs para descargar', 'warning'); return; }
+  const title = (document.getElementById('modal-logs-title')?.textContent || 'logs').replace(/[^\w\-]+/g, '_').slice(0, 60);
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const blob = new Blob([el.innerText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${title}_${ts}.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // ── SYSTEM ───────────────────────────────────────────
 async function loadSystem() {
@@ -2250,6 +3017,50 @@ const USER_COLORS = [
   { border: '#ec4899', bg: 'rgba(236,72,153,0.06)' },
 ];
 
+function renderStorageRow(u) {
+  const usedMb = u.storage_used_mb != null ? u.storage_used_mb : 0;
+  if (u.storage_unlimited) {
+    return `<div class="stat-row">
+      <span class="stat-row-label">Almacenamiento</span>
+      <span class="stat-row-val">${usedMb} MB · Ilimitado</span>
+    </div>`;
+  }
+  const limitMb = u.storage_limit_mb != null ? u.storage_limit_mb : 500;
+  const pct = u.storage_percent != null ? u.storage_percent : 0;
+  const color = pct >= 95 ? '#FF1B8D' : pct >= 80 ? '#FF8C00' : '#00e676';
+  return `<div class="stat-row" style="flex-direction:column;align-items:stretch;gap:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span class="stat-row-label">Almacenamiento</span>
+      <span class="stat-row-val" style="display:flex;align-items:center;gap:6px;">
+        ${usedMb} MB / <input type="number" min="0" step="100" value="${limitMb}"
+          id="storage-limit-${u.id}"
+          onclick="event.stopPropagation()"
+          style="width:80px;padding:3px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:inherit;text-align:right;">
+        MB
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();saveStorageLimit(${u.id})" style="padding:3px 8px;font-size:11px;">Guardar</button>
+      </span>
+    </div>
+    <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;width:${pct}%;background:${color};transition:width .3s;"></div>
+    </div>
+  </div>`;
+}
+
+async function saveStorageLimit(userId) {
+  const input = document.getElementById(`storage-limit-${userId}`);
+  if (!input) return;
+  const raw = input.value.trim();
+  const val = raw === '' ? null : parseInt(raw, 10);
+  if (val !== null && (Number.isNaN(val) || val < 0)) { alert('Valor inválido'); return; }
+  try {
+    await api(`/api/admin/users/${userId}/storage-limit`, {
+      method: 'PATCH',
+      body: JSON.stringify({ storage_limit_mb: val })
+    });
+    loadUsers();
+  } catch(e) { alert('Error guardando límite: ' + e.message); }
+}
+
 async function loadUsers() {
   const el = document.getElementById('users-list');
   el.innerHTML = '<div class="loading">Cargando...</div>';
@@ -2263,23 +3074,25 @@ async function loadUsers() {
       const licStatus = isExpired ? 'expired' : (u.license_status || 'active');
       const licLabel  = licStatus === 'expired' ? 'Vencida' : licStatus === 'suspended' ? 'Suspendida' : 'Activa';
       const licEnd    = u.license_end ? new Date(u.license_end).toLocaleDateString('es-CO') : '—';
-      const typeLabels = { cms:'CMS', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
-      const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS';
-      const isAdmin   = u.role === 'admin';
-      const isStaffUser = u.role === 'staff';
+      const typeLabels = { cms:'CMS Sencilla', cms_sencilla:'CMS Sencilla', cms_doble:'CMS Doble', cms_pro:'CMS Pro', cms_queue:'CMS + Atención', queue:'Atención', rpi:'RPi', windows:'Windows' };
+      const typeLabel = typeLabels[u.license_type] || u.license_type || 'CMS Sencilla';
+      const isAdmin  = u.role === 'admin';
+      const isClient = u.role === 'client';
       const _safeName = (u.name || u.email).replace(/'/g, '');
-      const promoteBtn = isAdmin ? '' : isStaffUser
-        ? `<button class="btn btn-outline btn-sm super-only" style="color:var(--warning);border-color:rgba(255,140,0,0.4);" onclick="event.stopPropagation();changeUserRole(${u.id}, 'user', '${_safeName}')">Bajar a usuario</button>`
-        : `<button class="btn btn-outline btn-sm super-only" onclick="event.stopPropagation();changeUserRole(${u.id}, 'staff', '${_safeName}')">Subir a admin</button>`;
+      const agentCount = parseInt(u.agent_count) || 0;
+      const agentCountBadge = isClient && agentCount > 0
+        ? `<span class="agent-count-badge" onclick="event.stopPropagation();loadUserAgents(${u.id})">${agentCount} agente${agentCount !== 1 ? 's' : ''}</span>`
+        : '';
       return `
       <div class="user-card card-collapsed" style="border-left: 3px solid ${uc.border}; background: linear-gradient(135deg, ${uc.bg} 0%, var(--surface) 40%);">
         <div class="user-card-header" onclick="toggleCard(this.closest('.user-card'))">
           <div>
-            <div class="user-name">${u.name || u.email}${isAdmin ? ' <span style="font-size:10px;color:var(--magenta);font-weight:700;margin-left:6px;">SUPER ADMIN</span>' : isStaffUser ? ' <span style="font-size:10px;color:#a78bfa;font-weight:700;margin-left:6px;">ADMIN</span>' : ''}</div>
+            <div class="user-name">${u.name || u.email}${isAdmin ? '<span class="role-badge super">Super Admin</span>' : isClient ? '<span class="role-badge client">Titular</span>' : ''}</div>
             <div class="user-email">${u.email}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:11px;color:var(--muted);">${typeLabel}</span>
+            ${agentCountBadge}
             <span class="license-badge ${licStatus}">${licLabel}</span>
             <span class="card-chevron">▶</span>
           </div>
@@ -2289,61 +3102,32 @@ async function loadUsers() {
             <div class="stat-row"><span class="stat-row-label">Vencimiento</span><span class="stat-row-val ${isExpired ? 'err' : daysLeft <= 7 ? 'warn' : 'ok'}">${licEnd}${daysLeft !== null ? ` (${daysLeft > 0 ? daysLeft + ' días' : 'Vencida'})` : ''}</span></div>
             <div class="stat-row"><span class="stat-row-label">Reproductores</span><span class="stat-row-val">${u.device_count}</span></div>
             <div class="stat-row"><span class="stat-row-label">Contenido / Playlists</span><span class="stat-row-val">${u.content_count} archivos · ${u.playlist_count} listas</span></div>
+            ${renderStorageRow(u)}
             <div class="stat-row"><span class="stat-row-label">Registrado</span><span class="stat-row-val">${new Date(u.created_at).toLocaleDateString('es-CO')}</span></div>
           </div>
           ${!isAdmin ? `
           <div class="user-actions">
             <select class="renew-select" id="renew-months-${u.id}">
-              <option value="3">3 meses</option>
-              <option value="6">6 meses</option>
-              <option value="12" selected>12 meses</option>
+              <option value="12" selected>1 año</option>
+              <option value="24">2 años</option>
+              <option value="36">3 años</option>
             </select>
             <select class="renew-select" id="renew-type-${u.id}">
-              <option value="cms"       ${u.license_type === 'cms'       ? 'selected' : ''}>CMS</option>
-              <option value="cms_queue" ${u.license_type === 'cms_queue' ? 'selected' : ''}>CMS + Atención</option>
-              <option value="queue"     ${u.license_type === 'queue'     ? 'selected' : ''}>Solo Atención</option>
-              <option value="rpi"       ${u.license_type === 'rpi'       ? 'selected' : ''}>RPi</option>
-              <option value="windows"   ${u.license_type === 'windows'   ? 'selected' : ''}>Windows</option>
+              <option value="cms_sencilla" ${u.license_type === 'cms_sencilla' ? 'selected' : ''}>CMS Sencilla (1 HDMI)</option>
+              <option value="cms_doble"    ${u.license_type === 'cms_doble'    ? 'selected' : ''}>CMS Doble (Mirror)</option>
+              <option value="cms_pro"      ${u.license_type === 'cms_pro'      ? 'selected' : ''}>CMS Pro (Independiente)</option>
+              <option value="cms_queue"    ${u.license_type === 'cms_queue'    ? 'selected' : ''}>CMS + Atención</option>
+              <option value="queue"        ${u.license_type === 'queue'        ? 'selected' : ''}>Solo Atención</option>
+              <option value="rpi"          ${u.license_type === 'rpi'          ? 'selected' : ''}>RPi</option>
+              <option value="windows"      ${u.license_type === 'windows'      ? 'selected' : ''}>Windows</option>
             </select>
-            <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id})">Renovar</button>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')">Ver Dispositivos</button>
+            <button class="btn btn-primary" onclick="event.stopPropagation();renewLicense(${u.id}, ${u.license_start ? 'false' : 'true'})">${u.license_start ? 'Renovar' : 'Activar plan y notificar'}</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();viewUserDevices(${u.id}, '${escOnclick(u.name || u.email)}')">Ver Dispositivos</button>
             ${licStatus !== 'suspended' ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();suspendLicense(${u.id})">Suspender</button>` : `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();renewLicense(${u.id})">Reactivar</button>`}
-            <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${(u.name || u.email).replace(/'/g, '')}')" style="margin-left:auto;">Eliminar</button>
-            ${promoteBtn}
+            <button class="btn btn-danger btn-sm super-only" onclick="event.stopPropagation();deleteUser(${u.id}, '${escOnclick(u.name || u.email)}')" style="margin-left:auto;">Eliminar</button>
           </div>
-          <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
-            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Módulos activos</div>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;">
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-turnos-${u.id}" ${(u.features?.turnos) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'turnos', this.checked)">
-                🎟 Puntos de Atención
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-analytics-${u.id}" ${(u.features?.analytics) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'analytics', this.checked)">
-                📊 Reportes / Analytics
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-dual-${u.id}" ${(u.features?.dual_hdmi) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'dual_hdmi', this.checked)">
-                🖥 Dual HDMI Premium
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-onpremise-${u.id}" ${(u.features?.onpremise) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'onpremise', this.checked)">
-                On-Premise / Red local
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                <input type="checkbox" id="feat-multisede-${u.id}" ${(u.features?.multisede) ? 'checked' : ''}
-                  onchange="toggleFeature(${u.id}, 'multisede', this.checked)">
-                Multi-sede / Panel cliente
-              </label>
-            </div>
-            <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">
-              Los módulos se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.
-            </div>
-          </div>
+          ${renderBaseFeatures(u)}
+          ${renderQ2Features(u)}
           <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
             <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Correos de notificación (máx. 2)</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -2358,27 +3142,119 @@ async function loadUsers() {
               <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();saveNotifEmails(${u.id})">Guardar</button>
             </div>
             <div style="margin-top:5px;font-size:10px;color:var(--muted);opacity:0.7;">Reciben resumen tras cada Bulk Push y alertas de pantallas.</div>
-          </div>` : ''}
+          </div>
+          ${isClient ? `<div class="agents-section" id="agents-section-${u.id}">
+            <div class="agents-section-header">
+              <span>Agentes (${agentCount})</span>
+              ${agentCount > 0 ? `<button class="btn btn-outline btn-sm" onclick="event.stopPropagation();loadUserAgents(${u.id})">Ver agentes</button>` : '<span style="font-size:10px;font-weight:400;color:var(--muted);">Sin agentes</span>'}
+            </div>
+            <div id="agents-list-${u.id}"></div>
+          </div>` : ''}` : ''}
         </div>
       </div>`;
     }).join('');
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando usuarios</div>'; }
 }
 
+async function loadUserAgents(userId) {
+  const listEl = document.getElementById(`agents-list-${userId}`);
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:var(--muted);">Cargando...</div>';
+  try {
+    const agents = await api(`/api/admin/users/${userId}/agents`);
+    if (!agents || !agents.length) {
+      listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:var(--muted);">Sin agentes registrados.</div>';
+      return;
+    }
+    listEl.innerHTML = agents.map(a => {
+      const initials = (a.name || '?').slice(0, 2).toUpperCase();
+      const color    = a.avatar_color || '#7b61ff';
+      const on       = a.active !== false;
+      return `<div class="agent-row">
+        <div class="agent-avatar" style="background:${color};">${initials}</div>
+        <div class="agent-info">
+          <div class="agent-name">${escHtml(a.name || '—')}</div>
+          <div class="agent-branch">${escHtml(a.branch_name || '—')}</div>
+        </div>
+        <span class="agent-status ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:#ff4569;">Error cargando agentes</div>';
+  }
+}
+
 // Mapa de features por tipo de licencia (mirror del backend)
 const LICENSE_FEATURES_MAP = {
-  cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-  cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
-  queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
-  rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-  windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+  cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+  cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+  queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false },
+  rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
+  windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false },
 };
+
+const BASE_FEATURE_DEFS = [
+  { key: 'turnos',    label: 'Puntos de Atención',      desc: 'Acceso al módulo de turnos y atención al público (Queue v1).' },
+  { key: 'analytics', label: 'Reportes / Analytics',    desc: 'Reportes de operación, métricas y análisis de uso.' },
+  { key: 'dual_hdmi', label: 'Dual HDMI Premium',       desc: 'Reproducción simultánea en dos salidas HDMI (Dual / Videowall).' },
+  { key: 'onpremise', label: 'On-Premise / Red local',  desc: 'Instalación y operación en red corporativa (Windows On-Premise).' },
+  { key: 'multisede', label: 'Multi-sede',               desc: 'Panel multi-sede para clientes con múltiples ubicaciones.' },
+  { key: 'events_v1', label: 'Gestión de Eventos',      desc: 'Módulo de eventos: registro público, QR, check-in multi-día, dashboard de producción.' },
+];
+
+const Q2_FEATURE_DEFS = [
+  { key: 'queue_v2_appointments',   label: 'Citas & Bloqueos',        desc: 'Gestión de citas programadas, bloqueos de horario y confirmación de presencia.' },
+  { key: 'queue_v2_public_booking', label: 'Booking público',          desc: 'Página /agendar/{slug} para que clientes reserven su cita sin login.' },
+  { key: 'queue_v2_bulk',           label: 'Operaciones masivas',      desc: 'Mover, reasignar o cancelar múltiples citas en un solo paso.' },
+  { key: 'queue_v2_agent_notes',    label: 'Notas del agente',         desc: 'Registro de observaciones por turno y programación de citas de seguimiento.' },
+  { key: 'queue_v2_calendars',      label: 'Integración calendarios',  desc: 'Sincronización con Google Calendar y Outlook.', soon: true },
+];
+
+function renderFeatureRows(defs, u) {
+  const licEndRaw = u.license_end || '';
+  const licStatus = u.is_expired ? 'expired' : (u.license_status || 'active');
+  return defs.map(f => {
+    const on = !!(u.features && u.features[f.key]);
+    if (f.soon) {
+      return `<div class="q2-feat-row">
+        <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
+        <span class="q2-badge soon">Próximamente</span>
+        <button class="q2-act-btn q2-disabled" disabled>No disponible</button>
+      </div>`;
+    }
+    const safeUser = escOnclick(u.name || u.email || '');
+    return `<div class="q2-feat-row">
+      <div class="q2-feat-info"><div class="q2-feat-name">${f.label}</div><div class="q2-feat-desc">${f.desc}</div></div>
+      <span class="q2-badge ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
+      <button class="q2-act-btn ${on ? 'deactivate' : 'activate'}"
+        onclick="event.stopPropagation();confirmFeatureChange(${u.id},'${f.key}',${!on},'${safeUser}','${licEndRaw}','${licStatus}')">
+        ${on ? 'Desactivar' : 'Activar'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function renderBaseFeatures(u) {
+  return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Módulos activos</div>
+    ${renderFeatureRows(BASE_FEATURE_DEFS, u)}
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Se asignan automáticamente al renovar la licencia y pueden ajustarse manualmente.</div>
+  </div>`;
+}
+
+function renderQ2Features(u) {
+  return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Queue v2 — Citas &amp; Agendamiento</div>
+    ${renderFeatureRows(Q2_FEATURE_DEFS, u)}
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Requiere licencia activa. Se desactivan automáticamente al suspender la licencia.</div>
+  </div>`;
+}
 
 async function toggleFeature(userId, feature, enabled) {
   try {
     const users = await api('/api/admin/users');
     const user = users.find(u => u.id === userId);
-    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
+    const defaults = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, events_v1: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false };
     const features = Object.assign(defaults, user?.features || {});
     features[feature] = enabled;
     const data = await api(`/api/admin/users/${userId}/features`, {
@@ -2395,16 +3271,55 @@ async function toggleFeature(userId, feature, enabled) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
-async function renewLicense(userId) {
+function openCreateUserModal() {
+  ['cuName','cuEmail','cuPhone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('cuTier').value = 'cms_sencilla';
+  document.getElementById('cuMonths').value = '12';
+  document.getElementById('createUserModal').style.display = 'flex';
+}
+function closeCreateUserModal() {
+  document.getElementById('createUserModal').style.display = 'none';
+}
+async function submitCreateUser() {
+  const name  = document.getElementById('cuName').value.trim();
+  const email = document.getElementById('cuEmail').value.trim();
+  const phone = document.getElementById('cuPhone').value.trim();
+  const license_type = document.getElementById('cuTier').value;
+  const months = parseInt(document.getElementById('cuMonths').value);
+  if (!name || !email) { alert('Nombre y email son requeridos'); return; }
+  const btn = document.getElementById('cuSubmit');
+  btn.disabled = true; btn.textContent = 'Creando...';
+  try {
+    await api('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, phone, license_type, months })
+    });
+    closeCreateUserModal();
+    alert('Cliente creado. Se envió email con credenciales.');
+    loadUsers();
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Crear y enviar correo';
+  }
+}
+
+async function renewLicense(userId, isFirstActivation) {
   const months  = document.getElementById(`renew-months-${userId}`)?.value || 12;
   const licType = document.getElementById(`renew-type-${userId}`)?.value || 'rpi';
-  if (!confirm(`¿Renovar licencia por ${months} meses?`)) return;
+  const years   = Math.round(parseInt(months) / 12);
+  const yLabel  = years === 1 ? '1 año' : `${years} años`;
+  const msg = isFirstActivation
+    ? `¿Activar plan (${licType}) por ${yLabel} y enviar email de bienvenida al cliente?`
+    : `¿Renovar licencia por ${yLabel}?`;
+  if (!confirm(msg)) return;
   try {
     const data = await api(`/api/admin/users/${userId}/license/renew`, {
       method: 'POST',
       body: JSON.stringify({ months: parseInt(months), license_type: licType })
     });
-    toast(data?.success ? `✓ Licencia renovada por ${months} meses` : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+    const okMsg = isFirstActivation ? `✓ Plan activado. Email de bienvenida enviado.` : `✓ Licencia renovada por ${yLabel}`;
+    toast(data?.success ? okMsg : (data?.error || 'Error'), data?.success ? 'success' : 'error');
     loadUsers();
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
@@ -2464,6 +3379,7 @@ function filterAllDevices() {
 function renderAllDevices(devices) {
   const el = document.getElementById('all-devices-list');
   if (!devices.length) { el.innerHTML = '<div class="empty">Sin resultados</div>'; return; }
+  if (isSuperAdmin()) setTimeout(() => devices.forEach(d => { if (d.platform !== 'windows') checkTunnel(d.device_id); }), 100);
   const byUser = {};
   devices.forEach(d => {
     const key = d.user_email || 'Sin usuario';
@@ -2493,23 +3409,111 @@ function renderAllDevices(devices) {
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
-              ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+              ${(() => {
+                const model = isWin ? 'windows' : (d.model || 'rpi4');
+                const label = model === 'rpi5' ? 'RPi5' : model === 'rpi4' ? 'RPi4' : 'Windows';
+                return `<span class="model-pill ${model}" title="Cambiar modelo" onclick="event.stopPropagation();changeDeviceModel('${d.device_id}','${model}')">${label}</span>`;
+              })()}
+              ${(!isWin && d.model === 'rpi5') ? `<span id="hevc_pill_${d.device_id}" class="hevc-pill warn" title="Consultando readiness HEVC...">HEVC: --</span>` : ''}
+              ${!isWin ? (() => {
+                const or0 = d.orientation_hdmi0 || 'horizontal';
+                const or1 = d.orientation_hdmi1 || 'horizontal';
+                const b0 = or0 === 'vertical' ? 'V' : 'H';
+                const b1 = or1 === 'vertical' ? 'V' : 'H';
+                const isDual = d.display_mode === 'extended';
+                const txt = isDual ? `H1:${b0} · H2:${b1}` : `Orient: ${b0}`;
+                return `<span style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;color:var(--muted);" title="Orientación configurada (poka-yoke)">${txt}</span>`;
+              })() : ''}
               ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">
               ${d.device_id} · ${d.ip_address || 'Sin IP'} · ${isWin ? 'single' : (d.display_mode || 'mirror')} · Playlist: ${d.hdmi0_playlist_name || '—'} · Verificado ${lastSeen}
             </div>
+            ${!isWin ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              ${isSuperAdmin() ? `<span style="display:inline-flex;align-items:center;gap:5px;">
+                <span id="alltunnel_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#666;display:inline-block;"></span>
+                Túnel: <span id="alltunnel_txt_${d.device_id}">--</span>
+              </span>` : ''}
+              <span style="display:inline-flex;align-items:center;gap:5px;">TV: <span id="alltv_txt_${d.device_id}">${renderTvInfoCompact(d)}</span></span>
+            </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
             ${!isWin
               ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
-              : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
+              : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
           </div>
         </div>`;
       }).join('')}
     </div>`;
   }).join('');
+  window.__lastAllDevices = devices;
+  refreshHevcPills(devices);
+}
+
+// <!-- RPI5-BADGE v1 -->
+async function refreshHevcPills(devices) {
+  const rpi5s = devices.filter(d => d.model === 'rpi5');
+  for (const d of rpi5s) {
+    const el = document.getElementById('hevc_pill_' + d.device_id);
+    if (!el) continue;
+    try {
+      const r = await api('/api/admin/rpi5-readiness/' + encodeURIComponent(d.device_id));
+      const { assigned_playlists, ready_to_pair } = r;
+      const total = assigned_playlists?.total || 0;
+      const playable = assigned_playlists?.playable || 0;
+      el.textContent = `HEVC: ${playable}/${total}`;
+      el.className = 'hevc-pill ' + (total === 0 ? 'warn' : ready_to_pair ? 'ok' : 'err');
+      const blocked = assigned_playlists?.blocked || [];
+      el.title = ready_to_pair
+        ? `Todos los items reproducibles en RPi5`
+        : blocked.length
+          ? `Bloqueados: ${blocked.map(b => b.title + ' [' + b.status + ']').join(', ')}`
+          : 'Sin playlist asignado';
+    } catch (e) {
+      el.textContent = 'HEVC: ?';
+      el.className = 'hevc-pill err';
+      el.title = 'Error consultando readiness: ' + (e.message || e);
+    }
+  }
+}
+
+async function changeDeviceModel(deviceId, currentModel) {
+  const options = ['rpi4', 'rpi5', 'windows'].filter(m => m !== currentModel);
+  const target = prompt(
+    `Modelo actual: ${currentModel}\n\nEscribir el nuevo modelo:\n  ${options.join(' | ')}`,
+    options[0]
+  );
+  if (!target) return;
+  if (!['rpi4','rpi5','windows'].includes(target)) {
+    alert('Modelo inválido');
+    return;
+  }
+  if (target === currentModel) return;
+  if (target === 'rpi5') {
+    const ok = confirm(
+      'Cambiar a RPi5 activa la política HEVC (D7):\n' +
+      '• El player omitirá videos sin HEVC ready.\n' +
+      '• Para encolar reencode del catálogo, luego usar el botón "Encolar HEVC".\n\n' +
+      '¿Continuar?'
+    );
+    if (!ok) return;
+  }
+  try {
+    await api(`/api/admin/devices/${encodeURIComponent(deviceId)}/model`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: target })
+    });
+    if (typeof renderAllDevices === 'function' && Array.isArray(window.__lastAllDevices)) {
+      // recargar la vista completa
+      loadAllDevices();
+    } else {
+      location.reload();
+    }
+  } catch (e) {
+    alert('Error cambiando modelo: ' + (e.message || e));
+  }
 }
 
 // ── FILTROS RPIs ───────────────────────────────────────────────
@@ -2569,6 +3573,74 @@ function filterRpis() {
     (d.ip_address || '').toLowerCase().includes(textVal)
   );
   renderRpis(filtered);
+}
+
+async function checkTunnel(deviceId) {
+  const dots = [document.getElementById('tunnel_dot_' + deviceId), document.getElementById('alltunnel_dot_' + deviceId)].filter(Boolean);
+  const txts = [document.getElementById('tunnel_txt_' + deviceId), document.getElementById('alltunnel_txt_' + deviceId)].filter(Boolean);
+  txts.forEach(t => t.textContent = '...');
+  dots.forEach(d => d.style.background = '#666');
+  try {
+    const r = await api(`/api/admin/devices/${deviceId}/tunnel-status`);
+    dots.forEach(d => d.style.background = r.active ? 'var(--online)' : 'var(--offline)');
+    txts.forEach(t => t.textContent = r.active ? `Activo :${r.port}` : `Inactivo :${r.port}`);
+  } catch (e) {
+    dots.forEach(d => d.style.background = 'var(--warning)');
+    txts.forEach(t => t.textContent = 'Error');
+  }
+}
+
+function renderTvInfoCompact(d) {
+  const hdmi = (d.tv_info && d.tv_info.hdmi) || {};
+  const parts = [];
+  for (const k of ['hdmi0','hdmi1']) {
+    const s = hdmi[k]; if (!s) continue;
+    const label = k === 'hdmi0' ? 'H0' : 'H1';
+    const name = (s.cec && s.cec.osd_name) || (s.edid && (s.edid.monitor_name || s.edid.model)) || null;
+    const vendor = (s.cec && s.cec.vendor_id) || (s.edid && s.edid.mfg) || null;
+    if (name || vendor) parts.push(`${label}: ${name || vendor}`);
+  }
+  return parts.length ? parts.join(' · ') : 'sin detectar';
+}
+
+function renderTvInfoBlock(d) {
+  const info = d.tv_info || {};
+  const hdmi = info.hdmi || {};
+  const ts   = d.tv_info_updated_at;
+  const ago  = ts ? timeAgo(new Date(ts)) : '—';
+  const slots = ['hdmi0','hdmi1'];
+  const cards = slots.map((k, i) => {
+    const s = hdmi[k];
+    if (!s) return '';
+    const edid = s.edid || {};
+    const cec  = s.cec  || {};
+    const vendor = cec.vendor_id || edid.mfg || null;
+    const model  = edid.monitor_name || edid.model || null;
+    const osd    = cec.osd_name || null;
+    const res    = edid.native_res || null;
+    const hasAny = vendor || model || osd || res;
+    const label  = 'HDMI ' + i;
+    if (!hasAny) {
+      return `<div style="flex:1;min-width:140px;background:rgba(0,0,0,0.2);border-radius:6px;padding:6px 10px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Sin TV detectado</div>
+      </div>`;
+    }
+    return `<div style="flex:1;min-width:140px;background:rgba(0,0,0,0.25);border-radius:6px;padding:6px 10px;">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+      ${osd    ? `<div style="font-size:12px;font-weight:600;margin-top:2px;">${osd}</div>` : ''}
+      ${vendor ? `<div style="font-size:11px;color:var(--muted);">Vendor: ${vendor}</div>` : ''}
+      ${model  ? `<div style="font-size:11px;color:var(--muted);">Modelo: ${model}</div>` : ''}
+      ${res    ? `<div style="font-size:11px;color:var(--muted);">Nativa: ${res}</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">TV conectado (CEC/EDID)</div>
+      <div style="font-size:10px;color:var(--muted);">Última lectura: ${ago}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${cards || '<div style="font-size:12px;color:var(--muted);">Sin datos aún</div>'}</div>
+  </div>`;
 }
 
 function renderRpis(devices) {
@@ -2653,23 +3725,31 @@ function renderRpis(devices) {
         <div class="rpi-actions">
           <button class="btn btn-outline btn-sm" onclick="verifyRpi('${d.device_id}')">Verificar</button>
           <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
-          <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Screenshot</button>
+          <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}','${d.ip_address}','${escOnclick(d.name||d.device_id)}')">Screenshot</button>
           ${!isWin ? `
           <button class="btn btn-warn btn-sm" onclick="updatePlayer('${d.device_id}','${d.ip_address}')">Actualizar</button>
           <button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>
           ` : `
-          <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener player</button>
+          <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener player</button>
           `}
         </div>
         ${!isWin ? `
-        <div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
-          <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Acceso SSH remoto via tunnel</div>
+        ${isSuperAdmin() ? `<div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Acceso SSH remoto via tunnel</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span id="tunnel_dot_${d.device_id}" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;" title="Estado túnel"></span>
+              <span id="tunnel_txt_${d.device_id}" style="font-size:10px;color:var(--muted);">--</span>
+              <button onclick="event.stopPropagation(); checkTunnel('${d.device_id}')" style="padding:2px 8px;font-size:10px;background:rgba(255,255,255,0.06);color:var(--text);border:0.5px solid rgba(255,255,255,0.1);border-radius:4px;cursor:pointer;">Verificar</button>
+            </div>
+          </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <code style="flex:1;font-size:11px;font-family:monospace;color:#60a5fa;background:rgba(0,0,0,0.3);padding:5px 8px;border-radius:4px;overflow-x:auto;white-space:nowrap;">ssh -p 2222 sonoro@45.181.156.171</code>
             <button onclick="navigator.clipboard.writeText('ssh -p 2222 sonoro@45.181.156.171').then(()=>toast('Copiado','success'))" style="padding:4px 10px;font-size:11px;background:#1A3A5C;color:#B5D4F4;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">Copiar</button>
           </div>
           <div style="font-size:10px;color:var(--muted);margin-top:4px;">Requiere tunnel activo en el RPi (sonoro-tunnel.service)</div>
-        </div>
+        </div>` : ''}
+        ${renderTvInfoBlock(d)}
         <div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:8px;border:0.5px solid rgba(255,255,255,0.08);padding:10px 12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Control TV</div>
@@ -2711,7 +3791,7 @@ function renderRpis(devices) {
       </div>
     </div>`;
   }).join('');
-  devices.forEach(d => { if (d.platform !== 'windows') loadSchedulesAdmin(d.device_id); });
+  devices.forEach(d => { if (d.platform !== 'windows') { loadSchedulesAdmin(d.device_id); if (isSuperAdmin()) checkTunnel(d.device_id); } });
 }
 
 // ── HELPER: poblar select de usuarios ─────────────────────────
@@ -2763,7 +3843,21 @@ async function loadAllDevices() {
             <div style="flex:1;">
               <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>${d.name || d.device_id}
-                ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+                ${(() => {
+                  const model = isWin ? 'windows' : (d.model || 'rpi4');
+                  const label = model === 'rpi5' ? 'RPi5' : model === 'rpi4' ? 'RPi4' : 'Windows';
+                  return `<span class="model-pill ${model}" title="Cambiar modelo" onclick="event.stopPropagation();changeDeviceModel('${d.device_id}','${model}')">${label}</span>`;
+                })()}
+                ${(!isWin && d.model === 'rpi5') ? `<span id="hevc_pill_${d.device_id}" class="hevc-pill warn" title="Consultando readiness HEVC...">HEVC: --</span>` : ''}
+              ${!isWin ? (() => {
+                const or0 = d.orientation_hdmi0 || 'horizontal';
+                const or1 = d.orientation_hdmi1 || 'horizontal';
+                const b0 = or0 === 'vertical' ? 'V' : 'H';
+                const b1 = or1 === 'vertical' ? 'V' : 'H';
+                const isDual = d.display_mode === 'extended';
+                const txt = isDual ? `H1:${b0} · H2:${b1}` : `Orient: ${b0}`;
+                return `<span style="font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;color:var(--muted);" title="Orientación configurada (poka-yoke)">${txt}</span>`;
+              })() : ''}
                 ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog: ${d.unhealthy_reload_count || '?'} reloads consecutivos">Unhealthy</span>` : ''}
               </div>
               <div style="font-size:11px;color:var(--muted);margin-top:4px;">
@@ -2774,12 +3868,14 @@ async function loadAllDevices() {
               <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
               ${!isWin
                 ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
-                : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${(d.name||d.device_id).replace(/'/g,"\\'")}')">Detener</button>`}
+                : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
             </div>
           </div>`;
         }).join('')}
       </div>`;
     }).join('');
+    window.__lastAllDevices = devices;
+    if (typeof refreshHevcPills === 'function') refreshHevcPills(devices);
   } catch(e) { el.innerHTML = '<div class="empty">Error cargando dispositivos</div>'; }
 }
 
@@ -2794,6 +3890,520 @@ function row(label, val, cls = '') {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function escOnclick(s) {
+  // Encodifica un valor para usarlo como string literal JS dentro de onclick="fn('...')"
+  // Aplica doble escaping: JS (backslash+quote) + HTML (entidades para & " < >)
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+// ══════════════════════════════════════════════════════════
+// FIDS — F2 Admin Panel
+// ══════════════════════════════════════════════════════════
+
+const FIDS_IATA_NAMES = { AXM:'El Edén', BOG:'El Dorado', MDE:'J.M. Córdova', CLO:'A. Bonilla', PEI:'Matecaña' };
+const FIDS_TTL_DEV = 300;
+
+function fidsTypeBadge(type) {
+  if (type === 'combined')   return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">COMBINADO</span>';
+  if (type === 'departures') return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">SALIDAS</span>';
+  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">LLEGADAS</span>';
+}
+function fidsModeBadge(lt) {
+  const mode = lt?.mode || 'off';
+  if (mode === 'ticker')     return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25);">Ticker</span>';
+  if (mode === 'overlay_ad') return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">Pauta</span>';
+  if (mode === 'lower_bar')  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25);">Banda inf.</span>';
+  return '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Apagado</span>';
+}
+function fidsCacheBar(ageSec) {
+  if (!ageSec && ageSec !== 0) return '—';
+  const pct = Math.min(100, Math.round(ageSec / FIDS_TTL_DEV * 100));
+  const color = pct < 40 ? '#00e676' : pct < 80 ? '#ff8c00' : '#ff4444';
+  return `<div class="fids-cache-bar"><div class="fids-cache-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span style="font-size:10px;color:var(--muted);margin-left:6px;">${ageSec}s</span>`;
+}
+
+// ── GRUPOS ────────────────────────────────────────────────
+async function loadFidsGrupos() {
+  const grid = document.getElementById('fids-grupos-grid');
+  grid.innerHTML = '<div class="loading">Cargando grupos...</div>';
+  const [groups, cacheData] = await Promise.all([
+    api('/api/admin/fids/groups'),
+    api('/api/admin/fids/cache'),
+  ]);
+  if (!groups) return;
+
+  // KPIs
+  const airports = [...new Set(groups.map(g => g.airport))];
+  document.getElementById('fids-kpi-groups').textContent  = groups.length;
+  document.getElementById('fids-kpi-airports').textContent = airports.length + ' aeropuerto' + (airports.length !== 1 ? 's' : '');
+  const totalDev = groups.reduce((s, g) => s + parseInt(g.device_count || 0), 0);
+  const onlineDev = groups.reduce((s, g) => s + parseInt(g.online_count || 0), 0);
+  document.getElementById('fids-kpi-devices').textContent  = totalDev;
+  document.getElementById('fids-kpi-online').textContent   = onlineDev + ' online ahora';
+  document.getElementById('fids-kpi-mode').innerHTML = cacheData?.mock_mode
+    ? '<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">MOCK</span>'
+    : '<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">LIVE</span>';
+
+  if (!groups.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted);">
+      <div style="font-size:32px;margin-bottom:12px;opacity:.3;">✈</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Sin grupos configurados</div>
+      <div style="font-size:12px;">Crea un grupo para empezar a mostrar vuelos en pantallas.</div>
+    </div>`;
+    return;
+  }
+
+  const cacheMap = {};
+  if (cacheData?.entries) cacheData.entries.forEach(e => { cacheMap[`${e.airport}:${e.type}`] = e; });
+
+  grid.innerHTML = groups.map(g => {
+    const lt = g.lower_thirds || {};
+    const depEntry = cacheMap[`${g.airport}:departures`];
+    const arrEntry = cacheMap[`${g.airport}:arrivals`];
+    const singleEntry = cacheMap[`${g.airport}:${g.type}`];
+    const flightInfo = g.type === 'combined'
+      ? `${depEntry?.flight_count ?? '—'} / ${arrEntry?.flight_count ?? '—'} vuelos (sal/lle)`
+      : `${singleEntry?.flight_count ?? '—'} vuelos`;
+    const ageEntry = g.type === 'combined' ? (depEntry || arrEntry) : singleEntry;
+    const ageDisplay = ageEntry ? fidsCacheBar(ageEntry.age_sec) : '—';
+    const devCount = parseInt(g.device_count || 0);
+    const devBadge = devCount > 0
+      ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(0,230,118,.1);color:#00e676;border:1px solid rgba(0,230,118,.25);">● ${devCount} dispositivo${devCount !== 1 ? 's' : ''}</span>`
+      : `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Sin dispositivos</span>`;
+    const previewDevice = g.sample_device_id;
+    const previewBtn = previewDevice
+      ? `<button class="btn btn-outline btn-sm" onclick="window.open('/fids?device_id=${escHtml(previewDevice)}','_blank')">Ver pantalla</button>`
+      : `<button class="btn btn-outline btn-sm" style="opacity:.4;" title="Asigna un dispositivo primero" disabled>Ver pantalla</button>`;
+    return `
+    <div class="fids-group-card">
+      <div class="fids-group-card-header">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${escHtml(g.name)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">grupo #${g.id} · ${escHtml(g.airport)} ${FIDS_IATA_NAMES[g.airport] ? '· ' + FIDS_IATA_NAMES[g.airport] : ''}</div>
+        </div>
+        ${fidsTypeBadge(g.type)}
+      </div>
+      <div class="fids-group-card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${devBadge}</div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Vuelos en caché</span><span>${flightInfo}</span></div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Age caché</span><span>${ageDisplay}</span></div>
+        <div class="fids-group-row"><span class="fids-group-row-label">Publicidad</span><span>${fidsModeBadge(lt)}</span></div>
+        ${lt.playlist_name ? `<div class="fids-group-row"><span class="fids-group-row-label">Playlist</span><span style="font-size:11px;color:#3b82f6;">${escHtml(lt.playlist_name)}</span></div>` : ''}
+        <div class="fids-group-actions">
+          <button class="btn btn-outline btn-sm" onclick="openFidsModal(${g.id})">Editar</button>
+          ${previewBtn}
+          <button class="btn btn-outline btn-sm" onclick="generateFidsSlave(${g.id}, this)">+ Enlace</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="deleteFidsGrupo(${g.id},'${escOnclick(g.name)}')">Eliminar</button>
+        </div>
+        ${fidsSlavesHtml(g.slaves, g.id)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── DISPOSITIVOS ──────────────────────────────────────────
+async function loadFidsDevices() {
+  const card = document.getElementById('fids-devices-card');
+  card.innerHTML = '<div class="loading" style="padding:20px;">Cargando dispositivos...</div>';
+  const devices = await api('/api/admin/fids/devices');
+  if (!devices) return;
+  if (!devices.length) {
+    card.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">Sin dispositivos registrados</div>';
+    return;
+  }
+  card.innerHTML = `
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Dispositivo</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Grupo FIDS</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Rol</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Estado</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${devices.map(d => {
+        const isOnline = d.status === 'online' && d.last_seen && (Date.now() - new Date(d.last_seen).getTime()) < 90000;
+        const statusDot = isOnline
+          ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00e676;margin-right:5px;"></span>'
+          : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#888;margin-right:5px;"></span>';
+        const groupBadge = d.group_name
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">${escHtml(d.group_name)}</span>`
+          : `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Sin asignar</span>`;
+        const roleBadge = d.fids_role === 'master'
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">MASTER</span>`
+          : d.fids_role === 'slave'
+          ? `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.25);">SLAVE</span>`
+          : `<span style="color:var(--muted);font-size:11px;">—</span>`;
+        return `<tr>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+            <div style="font-weight:600">${escHtml(d.name || d.device_id)}</div>
+            <div style="font-size:11px;color:var(--muted);">${escHtml(d.device_id)}</div>
+          </td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${groupBadge}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${roleBadge}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${statusDot}${isOnline ? 'Online' : 'Offline'}</td>
+          <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+            <button class="btn btn-outline btn-sm" onclick="openFidsAssignModal('${d.device_id}','${escOnclick(d.name || d.device_id)}',${d.fids_group_id || 'null'},'${d.fids_role || ''}')">
+              ${d.fids_group_id ? 'Reasignar' : 'Asignar a grupo'}
+            </button>
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── CACHÉ ──────────────────────────────────────────────────
+async function loadFidsCache() {
+  const card = document.getElementById('fids-cache-card');
+  const note = document.getElementById('fids-cache-note');
+  card.innerHTML = '<div class="loading" style="padding:20px;">Cargando caché...</div>';
+  const data = await api('/api/admin/fids/cache');
+  if (!data) return;
+  note.innerHTML = `La caché es compartida entre todos los grupos del mismo aeropuerto+tipo. Modo: <strong style="color:${data.mock_mode ? '#ff8c00' : '#00e676'}">${data.mock_mode ? 'FIDS_DEV_MOCK=true (datos estáticos)' : 'LIVE — AviationStack activo'}</strong>. TTL: <strong>${FIDS_TTL_DEV}s</strong>.`;
+  if (!data.entries?.length) {
+    card.innerHTML = '<div style="padding:24px;text-align:center;color:var(--muted);">Caché vacía — el cron actualizará en el próximo tick (60s).</div>';
+    return;
+  }
+  card.innerHTML = `
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Aeropuerto</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Tipo</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Vuelos</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Vigencia</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Último fetch</th>
+        <th style="text-align:left;padding:8px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--border);">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${data.entries.map(e => `<tr>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);"><strong>${escHtml(e.airport)}</strong> <span style="color:var(--muted);font-size:11px">${FIDS_IATA_NAMES[e.airport] || ''}</span></td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${e.type === 'departures' ? '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25);">SALIDAS</span>' : '<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(255,140,0,.1);color:#ff8c00;border:1px solid rgba(255,140,0,.25);">LLEGADAS</span>'}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${e.flight_count}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">${fidsCacheBar(e.age_sec)}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px;">${e.fetched_at ? new Date(e.fetched_at).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true}) : '—'}</td>
+        <td style="padding:11px 14px;border-bottom:1px solid var(--border);">
+          <button class="btn btn-outline btn-sm" onclick="fidsRefreshCache('${escHtml(e.airport)}','${escHtml(e.type)}')">Refresh</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function fidsRefreshCache(airport, type) {
+  const ok = await api(`/api/admin/fids/cache/${airport}/${type}`, { method: 'DELETE' });
+  if (ok?.success) { toast('Caché invalidada — el cron la refrescará en el próximo tick', 'success'); loadFidsCache(); }
+  else toast('Error al invalidar caché', 'error');
+}
+
+// ── MODAL GRUPO — abrir ────────────────────────────────────
+let _fidsPlaylists = [];
+async function openFidsModal(groupId) {
+  document.getElementById('fids-grupo-id').value = groupId || '';
+  document.getElementById('fids-modal-title').textContent = groupId ? 'Editar Grupo FIDS' : 'Nuevo Grupo FIDS';
+
+  // Cargar playlists
+  if (!_fidsPlaylists.length) {
+    const pl = await api('/api/admin/fids/playlists');
+    _fidsPlaylists = pl || [];
+  }
+  const sel = document.getElementById('fids-overlay-playlist');
+  sel.innerHTML = '<option value="">— Seleccionar playlist —</option>' +
+    _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  const selLb = document.getElementById('fids-lowerbar-playlist');
+  selLb.innerHTML = '<option value="">— Seleccionar playlist FIDS —</option>' +
+    _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+
+  if (groupId) {
+    const groups = await api('/api/admin/fids/groups');
+    const g = groups?.find(x => x.id === groupId);
+    if (g) {
+      document.getElementById('fids-grupo-name').value = g.name;
+      document.getElementById('fids-grupo-maxflights').value = g.filters?.max_flights || 12;
+      document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === (g.filters?.theme || 'dark')));
+      // IATA
+      document.querySelectorAll('.fids-iata-chip').forEach(c => c.classList.toggle('selected', c.dataset.iata === g.airport));
+      // Type
+      document.querySelectorAll('.fids-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === g.type));
+      // Mode
+      const lt = g.lower_thirds || {};
+      document.querySelectorAll('.fids-mode-opt').forEach(o => o.classList.toggle('selected', o.dataset.mode === (lt.mode || 'off')));
+      document.getElementById('fids-config-ticker').classList.toggle('visible', lt.mode === 'ticker');
+      document.getElementById('fids-config-overlay').classList.toggle('visible', lt.mode === 'overlay_ad');
+      if (lt.mode === 'ticker') {
+        document.getElementById('fids-ticker-messages').value = (lt.messages || []).join('\n');
+        document.getElementById('fids-ticker-speed').value = lt.scroll_speed || 35;
+        document.getElementById('fids-ticker-color').value = lt.text_color || '#ffe566';
+      }
+      if (lt.mode === 'overlay_ad') {
+        sel.value = lt.playlist_id || '';
+        document.getElementById('fids-overlay-interval').value = lt.interval_min || 10;
+        document.getElementById('fids-overlay-duration').value = lt.duration_sec || 20;
+      }
+      if (lt.mode === 'lower_bar') {
+        selLb.value = lt.playlist_id || '';
+        document.getElementById('fids-lowerbar-height').value = lt.bar_height || 200;
+        document.getElementById('fids-config-lowerbar').classList.add('visible');
+      }
+    }
+  } else {
+    document.getElementById('fids-grupo-name').value = '';
+    document.getElementById('fids-grupo-maxflights').value = 12;
+    document.querySelectorAll('.fids-iata-chip').forEach((c,i) => c.classList.toggle('selected', i === 0));
+    document.querySelectorAll('.fids-type-btn').forEach((b,i) => b.classList.toggle('active', b.dataset.type === 'combined'));
+    document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === 'dark'));
+    document.querySelectorAll('.fids-mode-opt').forEach((o,i) => o.classList.toggle('selected', i === 0));
+    document.getElementById('fids-config-ticker').classList.remove('visible');
+    document.getElementById('fids-config-overlay').classList.remove('visible');
+    document.getElementById('fids-config-lowerbar').classList.remove('visible');
+  }
+  openModal('modal-fids-grupo');
+}
+
+async function saveFidsGrupo() {
+  const id = document.getElementById('fids-grupo-id').value;
+  const name = document.getElementById('fids-grupo-name').value.trim();
+  if (!name) { toast('El nombre es obligatorio', 'error'); return; }
+  const airport = document.querySelector('.fids-iata-chip.selected')?.dataset.iata;
+  if (!airport) { toast('Selecciona un aeropuerto', 'error'); return; }
+  const type = document.querySelector('.fids-type-btn.active')?.dataset.type;
+  const maxFlights = parseInt(document.getElementById('fids-grupo-maxflights').value) || 12;
+  const mode = document.querySelector('.fids-mode-opt.selected')?.dataset.mode || 'off';
+  let lower_thirds = { mode };
+  if (mode === 'ticker') {
+    lower_thirds.messages    = document.getElementById('fids-ticker-messages').value.split('\n').filter(l => l.trim());
+    lower_thirds.scroll_speed = parseInt(document.getElementById('fids-ticker-speed').value) || 35;
+    lower_thirds.text_color   = document.getElementById('fids-ticker-color').value || '#ffe566';
+  }
+  if (mode === 'overlay_ad') {
+    lower_thirds.playlist_id = parseInt(document.getElementById('fids-overlay-playlist').value) || null;
+    lower_thirds.interval_min = parseInt(document.getElementById('fids-overlay-interval').value) || 10;
+    lower_thirds.duration_sec = parseInt(document.getElementById('fids-overlay-duration').value) || 20;
+    const pl = _fidsPlaylists.find(p => p.id == lower_thirds.playlist_id);
+    if (pl) lower_thirds.playlist_name = pl.name;
+  }
+  if (mode === 'lower_bar') {
+    lower_thirds.playlist_id = parseInt(document.getElementById('fids-lowerbar-playlist').value) || null;
+    lower_thirds.bar_height  = parseInt(document.getElementById('fids-lowerbar-height').value) || 200;
+    const pl = _fidsPlaylists.find(p => p.id == lower_thirds.playlist_id);
+    if (pl) lower_thirds.playlist_name = pl.name;
+  }
+  const theme = document.querySelector('.fids-theme-btn.active')?.dataset.theme || 'dark';
+  const body = { name, airport, type, filters: { max_flights: maxFlights, theme }, lower_thirds };
+  const result = id
+    ? await api(`/api/admin/fids/groups/${id}`, { method:'PUT', body: JSON.stringify(body) })
+    : await api('/api/admin/fids/groups', { method:'POST', body: JSON.stringify(body) });
+  if (result?.id || result?.success) {
+    toast(id ? 'Grupo actualizado' : 'Grupo creado', 'success');
+    closeModal('modal-fids-grupo');
+    loadFidsGrupos();
+  } else {
+    toast(result?.error || 'Error al guardar', 'error');
+  }
+}
+
+async function deleteFidsGrupo(id, name) {
+  if (!confirm(`¿Eliminar el grupo "${name}"?\nLos dispositivos asignados quedarán sin grupo.`)) return;
+  const r = await api(`/api/admin/fids/groups/${id}`, { method: 'DELETE' });
+  if (r?.success) { toast('Grupo eliminado', 'success'); loadFidsGrupos(); }
+  else toast(r?.error || 'Error al eliminar', 'error');
+}
+
+// ── MODAL ASIGNAR ──────────────────────────────────────────
+async function openFidsAssignModal(deviceId, deviceName, currentGroupId, currentRole) {
+  document.getElementById('fids-assign-device-id').value = deviceId;
+  document.getElementById('fids-assign-device-name').textContent = deviceName + ' (' + deviceId + ')';
+  const groups = await api('/api/admin/fids/groups');
+  const sel = document.getElementById('fids-assign-group');
+  sel.innerHTML = '<option value="">— Sin asignar —</option>' +
+    (groups || []).map(g => `<option value="${g.id}" ${g.id == currentGroupId ? 'selected' : ''}>${escHtml(g.name)} (${g.airport} ${g.type})</option>`).join('');
+  document.querySelectorAll('#modal-fids-assign .fids-type-btn').forEach(b => b.classList.toggle('active', b.dataset.role === (currentRole || 'master')));
+  openModal('modal-fids-assign');
+}
+
+async function saveFidsAssign() {
+  const deviceId  = document.getElementById('fids-assign-device-id').value;
+  const groupId   = document.getElementById('fids-assign-group').value || null;
+  const role      = document.querySelector('#modal-fids-assign .fids-type-btn.active')?.dataset.role || null;
+  const r = await api(`/api/admin/fids/devices/${deviceId}`, {
+    method: 'PUT', body: JSON.stringify({ fids_group_id: groupId ? parseInt(groupId) : null, fids_role: groupId ? role : null })
+  });
+  if (r?.success) { toast('Dispositivo actualizado', 'success'); closeModal('modal-fids-assign'); loadFidsDevices(); }
+  else toast(r?.error || 'Error al guardar', 'error');
+}
+
+// ── FORM HELPERS ───────────────────────────────────────────
+function fidsSelectIata(el)  { document.querySelectorAll('.fids-iata-chip').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); }
+function fidsSelectType(el)  { document.querySelectorAll('.fids-type-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+function fidsSelectRole(el)  { document.querySelectorAll('#modal-fids-assign .fids-type-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+function fidsSelectTheme(el) { document.querySelectorAll('.fids-theme-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); }
+
+function fidsSlavesHtml(slaves, groupId) {
+  const s = (slaves || [])[0];
+  if (!s) return '';
+  const url = window.location.origin + '/fids?device_id=' + s.device_id;
+  const shortId = s.device_id.slice(5, 17) + '…';
+  return '<div class="fids-slaves-section">'
+    + '<div class="fids-slaves-label">Enlace esclavo activo</div>'
+    + '<div class="fids-slave-row">'
+    + '<span class="fids-slave-name" style="font-family:monospace;font-size:10px;color:var(--accent);">' + shortId + '</span>'
+    + '<button class="btn btn-outline btn-sm" onclick="copyFidsSlaveUrl(\'' + url + '\')">Copiar URL</button>'
+    + '<button class="btn btn-danger btn-sm" onclick="revokeFidsSlave(\'' + s.device_id + '\',' + groupId + ')">Revocar</button>'
+    + '</div></div>';
+}
+
+async function generateFidsSlave(groupId, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '...';
+  const result = await api('/api/admin/fids/groups/' + groupId + '/slave', { method: 'POST' });
+  btn.disabled = false; btn.textContent = orig;
+  if (!result) return;
+  const url = window.location.origin + '/fids?device_id=' + result.device_id;
+  await navigator.clipboard.writeText(url).catch(() => {});
+  toast(result.reused ? 'URL copiada (enlace ya existia)' : 'Enlace generado y copiado', 'success');
+  loadFidsGrupos();
+}
+
+async function revokeFidsSlave(deviceId, groupId) {
+  if (!confirm('¿Revocar este enlace? Las pantallas que lo usen dejarán de cargar.')) return;
+  const result = await api('/api/admin/fids/slaves/' + deviceId, { method: 'DELETE' });
+  if (!result) return;
+  toast('Enlace revocado', 'success');
+  loadFidsGrupos();
+}
+
+function copyFidsSlaveUrl(url) {
+  navigator.clipboard.writeText(url)
+    .then(() => toast('URL copiada al portapapeles', 'success'))
+    .catch(() => prompt('Copia esta URL:', url));
+}
+function fidsSelectMode(el) {
+  document.querySelectorAll('.fids-mode-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  const m = el.dataset.mode;
+  document.getElementById('fids-config-ticker').classList.toggle('visible', m === 'ticker');
+  document.getElementById('fids-config-overlay').classList.toggle('visible', m === 'overlay_ad');
+  document.getElementById('fids-config-lowerbar').classList.toggle('visible', m === 'lower_bar');
+}
+
+// ── FEATURE CONFIRMATION ───────────────────────────────────────
+const ALL_FEATURE_LABELS = {
+  turnos:                  'Puntos de Atención',
+  analytics:               'Reportes / Analytics',
+  dual_hdmi:               'Dual HDMI Premium',
+  onpremise:               'On-Premise / Red local',
+  multisede:               'Multi-sede',
+  events_v1:               'Gestión de Eventos',
+  queue_v2_appointments:   'Citas & Bloqueos',
+  queue_v2_public_booking: 'Booking público',
+  queue_v2_bulk:           'Operaciones masivas',
+  queue_v2_agent_notes:    'Notas del agente',
+  queue_v2_calendars:      'Integración calendarios',
+};
+
+let _pendingFeatChange = null;
+
+function confirmFeatureChange(userId, feature, enable, userName, licenseEnd, licenseStatus) {
+  _pendingFeatChange = { userId, feature, enable };
+  const label     = ALL_FEATURE_LABELS[feature] || feature;
+  const actionCap = enable ? 'Activar' : 'Desactivar';
+
+  document.getElementById('feat-confirm-title').textContent = actionCap + ' módulo';
+
+  const descEl = document.getElementById('feat-confirm-desc');
+  descEl.innerHTML = '¿Confirmas ' + (enable ? 'activar' : 'desactivar') +
+    ' el módulo <strong>' + label + '</strong> para <strong>' + userName + '</strong>?' +
+    (!enable ? '<br><span style="font-size:11px;color:var(--muted);display:block;margin-top:4px;">El usuario perderá acceso en su próximo inicio de sesión.</span>' : '');
+
+  // Licencia info
+  const licEndDate = licenseEnd ? new Date(licenseEnd) : null;
+  const licEndStr  = licEndDate
+    ? licEndDate.toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Sin fecha definida';
+  const daysLeft   = licEndDate ? Math.ceil((licEndDate - Date.now()) / 86400000) : null;
+  const statusLabels = { active: 'Activa', suspended: 'Suspendida', expired: 'Vencida' };
+  const statusLabel  = statusLabels[licenseStatus] || licenseStatus;
+  const daysStr      = daysLeft !== null && daysLeft > 0
+    ? ' <span style="color:var(--muted);font-weight:400;">(' + daysLeft + ' días restantes)</span>'
+    : '';
+
+  document.getElementById('feat-confirm-lic').innerHTML =
+    '<div style="display:flex;justify-content:space-between;">' +
+      '<span style="color:var(--muted);">Estado de licencia</span>' +
+      '<span style="font-weight:600;">' + statusLabel + '</span>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-top:4px;">' +
+      '<span style="color:var(--muted);">Válida hasta</span>' +
+      '<span style="font-weight:600;">' + licEndStr + daysStr + '</span>' +
+    '</div>';
+
+  // Advertencia según estado de licencia
+  const warnEl = document.getElementById('feat-confirm-warn');
+  warnEl.style.display = 'none';
+  warnEl.className = 'feat-confirm-warn';
+  if (enable) {
+    const now = new Date();
+    if (licenseStatus === 'suspended') {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('danger');
+      warnEl.innerHTML = '<strong>Licencia suspendida.</strong> El módulo quedará registrado pero no funcionará hasta renovar la licencia.';
+    } else if (licenseStatus === 'expired' || (licEndDate && licEndDate < now)) {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('danger');
+      warnEl.innerHTML = '<strong>Licencia vencida.</strong> Activa el módulo solo si planeas renovar pronto.';
+    } else if (daysLeft !== null && daysLeft <= 30) {
+      warnEl.style.display = 'block';
+      warnEl.classList.add('caution');
+      warnEl.innerHTML = '<strong>Licencia próxima a vencer</strong> (' + daysLeft + ' días). Considera renovarla para asegurar continuidad del servicio.';
+    }
+  }
+
+  const confirmBtn = document.getElementById('feat-confirm-btn');
+  confirmBtn.textContent = actionCap;
+  confirmBtn.className   = 'btn ' + (enable ? 'btn-primary' : 'btn-danger');
+
+  document.getElementById('modal-feat-confirm').classList.add('open');
+}
+
+async function execFeatureChange() {
+  if (!_pendingFeatChange) return;
+  const { userId, feature, enable } = _pendingFeatChange;
+  _pendingFeatChange = null;
+  closeModal('modal-feat-confirm');
+  await toggleFeature(userId, feature, enable);
+  loadUsers();
+}
 </script>
+
+<!-- Modal: confirmación de cambio de módulo Queue v2 -->
+<div class="modal-overlay" id="modal-feat-confirm">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title" id="feat-confirm-title">Confirmar cambio de módulo</div>
+      <button class="modal-close" onclick="closeModal('modal-feat-confirm')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="feat-confirm-desc" style="font-size:13px;color:var(--text);line-height:1.6;"></div>
+      <div class="feat-confirm-lic" id="feat-confirm-lic"></div>
+      <div id="feat-confirm-warn" style="display:none;"></div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 22px;border-top:1px solid var(--border);">
+      <button class="btn btn-outline" onclick="closeModal('modal-feat-confirm')">Cancelar</button>
+      <button class="btn btn-primary" id="feat-confirm-btn" onclick="execFeatureChange()">Confirmar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

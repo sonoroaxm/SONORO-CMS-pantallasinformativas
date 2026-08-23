@@ -8,6 +8,7 @@ const os = require('os');
 
 // ── DETECCIÓN DE PLATAFORMA ──────────────────────────────────
 const IS_WINDOWS = process.platform === 'win32';
+const IS_RPI5    = process.env.SONORO_MODEL === 'rpi5';
 
 // ── RUTAS ────────────────────────────────────────────────────
 const APP_DIR    = IS_WINDOWS
@@ -757,7 +758,7 @@ async function syncPlaylist(playlistId) {
   if (!playlistId) return null;
   console.log(`\n🔄 Sincronizando playlist ${playlistId}...`);
   try {
-    const response = await axios.get(`${CMS_URL}/api/player/playlist/${playlistId}`, { timeout: 8000 });
+    const response = await axios.get(`${CMS_URL}/api/player/playlist/${playlistId}?device_id=${DEVICE_ID}`, { timeout: 8000 });
     const playlist = response.data;
     if (!playlist.items || !playlist.items.length) { console.warn('⚠️ Playlist vacía'); return null; }
     const playlistDir = path.join(MEDIA_DIR, `playlist_${playlistId}`);
@@ -1203,9 +1204,12 @@ function connectSocket() {
     if (IS_WINDOWS) return;
     const tmpPath = `/tmp/screenshot-${DEVICE_ID}-${Date.now()}.png`;
     console.log(`📸 Screenshot solicitado → ${tmpPath}`);
-    exec(`${DISPLAY_ENV} scrot ${tmpPath}`, (err) => {
+    const screenshotCmd = IS_RPI5
+      ? `/usr/local/bin/sonoro-screenshot.sh > ${tmpPath}`
+      : `${DISPLAY_ENV} scrot ${tmpPath}`;
+    exec(screenshotCmd, (err) => {
       if (err) {
-        console.error('❌ Screenshot error (scrot):', err.message);
+        console.error('❌ Screenshot error:', err.message);
         socket.emit('screenshot_result', { device_id, success: false, error: err.message });
         return;
       }
@@ -1342,6 +1346,15 @@ async function startPlayer(config) {
   if (playerBusy) { console.log('⏭️  startPlayer ignorado — ya en ejecución'); return; }
   playerBusy = true;
   try {
+    if (IS_RPI5) {
+      // RPi5: solo sincronizar media; player-rpi5.js maneja reproduccion via ffmpeg+vout_drm
+      const pid = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
+      if (pid) {
+        await syncPlaylist(pid);
+        console.log('RPi5: sync completado — player-rpi5.js detectara cambios en playlist.json');
+      }
+      return;
+    }
     killPlayers();
     await new Promise(r => setTimeout(r, 500));
 

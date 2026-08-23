@@ -243,6 +243,10 @@
   </style>
 </head>
 <body>
+<div id="authErrorBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#FF1B8D; color:white; padding:14px 24px; font-family:Montserrat,sans-serif; font-size:14px; font-weight:700; align-items:center; justify-content:space-between; gap:12px;">
+  <span>Tu sesion ha expirado. Vuelve a iniciar sesion para ver los reportes.</span>
+  <a href="/dashboard.html" style="color:white;text-decoration:underline;white-space:nowrap;">Iniciar sesion &rarr;</a>
+</div>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -439,6 +443,11 @@ let apptRevExpChart      = null;
 let exportData = { agents: [], services: [], appointments: null, kpis: {}, from: '', to: '', branch: '' };
 
 // ── INIT ──────────────────────────────────────────────────────
+function showAuthError() {
+  const el = document.getElementById("authErrorBanner");
+  if (el) el.style.display = "flex";
+}
+
 async function init() {
   if (!authToken) { window.location.href = '/dashboard.html'; return; }
 
@@ -454,15 +463,16 @@ async function init() {
 // ── SUCURSALES ────────────────────────────────────────────────
 async function loadBranches() {
   try {
-    const res      = await fetch(`${API_URL}/api/queue/branches`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const res = await fetch(`${API_URL}/api/queue/branches`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (res.status === 401 || res.status === 403) { showAuthError(); return; }
     const branches = await res.json();
-    const sel      = document.getElementById('branchFilter');
+    if (!Array.isArray(branches)) { showAuthError(); return; }
+    const sel = document.getElementById('branchFilter');
     branches.forEach(b => {
       sel.innerHTML += `<option value="${b.id}">${b.name}</option>`;
     });
-    // Si solo hay una sucursal, seleccionarla automáticamente
     if (branches.length === 1) sel.value = branches[0].id;
-  } catch(e) {}
+  } catch(e) { console.error('loadBranches:', e); }
 }
 
 // ── CARGAR REPORTE ────────────────────────────────────────────
@@ -543,7 +553,7 @@ async function loadKPIs(branchId, from, to) {
     document.getElementById('kpiNoShow').textContent     = totalNoShow;
     const total = totalAttended + totalNoShow;
     document.getElementById('kpiNoShowPct').textContent  = total ? `${Math.round(totalNoShow/total*100)}% del total` : 'del total';
-  } catch(e) {}
+  } catch(e) { console.error('loadKPIs:', e); }
 }
 
 // ── GRÁFICO HORARIO ───────────────────────────────────────────
@@ -583,7 +593,7 @@ async function loadServicesCharts(branchId, from, to) {
   try {
     const res      = await fetch(`${API_URL}/api/queue/reports/services?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const services = await res.json();
-    if (!services.length) return;
+    if (!Array.isArray(services) || !services.length) return;
 
     const names    = services.map(s => s.name);
     const totals   = services.map(s => parseInt(s.total_tokens || 0));
@@ -642,6 +652,7 @@ async function loadAgentsTable(branchId, from, to) {
   try {
     const res    = await fetch(`${API_URL}/api/queue/reports/agents?branch_id=${branchId}&date_from=${from}&date_to=${to}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const agents = await res.json();
+    if (!Array.isArray(agents)) { container.innerHTML = '<div class="empty-state">Sesion expirada — <a href="/dashboard.html">inicia sesion</a></div>'; return; }
     exportData.agents = agents;
     exportData.from   = from;
     exportData.to     = to;

@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SONORO · Staff</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #0a0a0a;
+    --surface:  #141414;
+    --border:   #222;
+    --text:     #f0f0f0;
+    --muted:    #555;
+    --brand:    #FF1B8D;
+    --green:    #00e676;
+    --green-bg: #001f0d;
+    --amber:    #f59e0b;
+    --amber-bg: #1f1200;
+    --red:      #ef4444;
+    --red-bg:   #1f0000;
+    --blue:     #60a5fa;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    height: 100dvh; overflow: hidden;
+    display: flex; flex-direction: column;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hidden { display: none !important; }
+
+  /* ── LOADING / ERROR ────────────────────────── */
+  #s-loading, #s-error {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px;
+    background: radial-gradient(ellipse at 50% 0%, #1a0030 0%, var(--bg) 65%);
+  }
+  .init-logo {
+    font-size: 22px; font-weight: 900; letter-spacing: -1px;
+    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+  .init-spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--brand);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .init-msg { font-size: 13px; color: var(--muted); }
+  .init-err-msg { font-size: 14px; color: var(--red); text-align: center; max-width: 300px; }
+  .init-retry {
+    padding: 10px 28px; background: transparent;
+    border: 1px solid var(--brand); border-radius: 8px;
+    color: var(--brand); font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+
+  /* ── SESSION PICKER ─────────────────────────── */
+  #s-session { flex: 1; display: flex; flex-direction: column; }
+  .sess-pick-body {
+    flex: 1; overflow-y: auto; padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sess-pick-btn {
+    width: 100%; padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--muted);
+    border-radius: 12px; color: var(--text);
+    text-align: left; cursor: pointer;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .sess-pick-btn:active { background: #1e1e1e; }
+  .sess-pick-btn.general { border-left-color: var(--brand); }
+  .sess-pick-btn.session  { border-left-color: var(--blue); }
+  .sess-pick-label { font-size: 15px; font-weight: 700; }
+  .sess-pick-meta  { font-size: 12px; color: var(--muted); }
+
+  /* ── SCANNER ───────────────────────────────── */
+  #s-scanner { flex: 1; display: flex; flex-direction: column; }
+
+  .ev-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; gap: 12px;
+  }
+  .ev-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .staff-badge {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px 4px 6px;
+  }
+  .staff-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg,#FF1B8D,#FF8C00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .staff-info-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
+  .staff-info-role { font-size: 10px; color: var(--muted); line-height: 1.2; }
+
+  .scanner-body { flex: 1; display: flex; overflow: hidden; }
+
+  /* Camera */
+  .camera-panel {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px; gap: 14px; min-width: 0;
+  }
+  .camera-wrap {
+    width: 100%; max-width: 320px; aspect-ratio: 1; position: relative;
+    border-radius: 12px; overflow: hidden; background: #000;
+    border: 2px solid var(--border);
+  }
+  #camera-video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  #camera-canvas { display: none; }
+  .scan-overlay { position: absolute; inset: 0; pointer-events: none; }
+  .scan-corner {
+    position: absolute; width: 22px; height: 22px;
+    border-color: var(--green); border-style: solid;
+  }
+  .scan-corner.tl { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+  .scan-corner.tr { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+  .scan-corner.bl { bottom: 10px; left: 10px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+  .scan-corner.br { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+  .scan-line {
+    position: absolute; left: 10px; right: 10px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    animation: scanline 2s ease-in-out infinite;
+  }
+  @keyframes scanline {
+    0%,100% { top: 10px; opacity: 0; }
+    10%      { opacity: 1; }
+    90%      { opacity: 1; }
+    50%      { top: calc(100% - 10px); }
+  }
+  .camera-no-support {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--muted); text-align: center; padding: 16px;
+  }
+  .camera-hint { font-size: 12px; color: var(--muted); text-align: center; }
+  .manual-row { display: flex; gap: 8px; width: 100%; max-width: 320px; }
+  .manual-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; color: var(--text);
+    font-size: 13px; font-family: monospace; outline: none; min-width: 0;
+  }
+  .manual-input::placeholder { color: var(--muted); }
+  .manual-input:focus { border-color: var(--brand); }
+  .manual-btn {
+    padding: 10px 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .manual-btn:active { background: #222; }
+
+  /* Stats panel */
+  .stats-panel {
+    width: 210px; flex-shrink: 0;
+    border-left: 1px solid var(--border); background: var(--surface);
+    display: flex; flex-direction: column; padding: 16px 14px; gap: 10px; overflow: hidden;
+  }
+  .sp-title { font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; }
+  .sp-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .sp-num { font-size: 26px; font-weight: 900; line-height: 1; }
+  .sp-lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .sp-card.green .sp-num { color: var(--green); }
+  .sp-card.blue  .sp-num { color: var(--blue); }
+  .sp-card.amber .sp-num { color: var(--amber); }
+
+  .log-title { font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; }
+  .log-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+  .log-scroll::-webkit-scrollbar { width: 3px; }
+  .log-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .log-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 9px; border-radius: 6px; background: var(--bg);
+    font-size: 11px; overflow: hidden;
+  }
+  .log-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .log-dot.g { background: var(--green); }
+  .log-dot.a { background: var(--amber); }
+  .log-dot.r { background: var(--red); }
+  .log-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .log-time { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+
+  .logout-btn {
+    width: 100%; padding: 8px; background: transparent;
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 11px; cursor: pointer; flex-shrink: 0;
+  }
+  .logout-btn:active { border-color: var(--red); color: var(--red); }
+
+  /* ── RESULT ────────────────────────────────── */
+  /* iframe oculto para impresión */
+  #print-frame { position: fixed; right: -9999px; bottom: -9999px; width: 90mm; height: 38mm; border: 0; }
+  #s-result {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    padding: 32px;
+  }
+  #s-result.success { background: var(--green-bg); }
+  #s-result.already { background: var(--red-bg); }
+  #s-result.error   { background: var(--red-bg); }
+
+  .result-body {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px; text-align: center; max-width: 500px; width: 100%;
+  }
+  .result-icon-wrap {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; flex-shrink: 0;
+  }
+  .success .result-icon-wrap { background: rgba(0,230,118,.15); }
+  .already .result-icon-wrap { background: rgba(239,68,68,.15); }
+  .error   .result-icon-wrap { background: rgba(239,68,68,.15); }
+
+  .result-status {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+  }
+  .success .result-status { color: var(--green); }
+  .already .result-status { color: var(--red); }
+  .error   .result-status { color: var(--red); }
+
+  .result-name {
+    font-size: clamp(28px, 6vw, 52px); font-weight: 900;
+    line-height: 1.1; color: #fff; word-break: break-word;
+  }
+  .result-msg { font-size: 14px; color: rgba(255,255,255,.45); }
+
+  .result-continue {
+    margin-top: 8px; padding: 12px 32px;
+    border: 1px solid rgba(255,255,255,.15); border-radius: 8px;
+    background: rgba(255,255,255,.06); color: rgba(255,255,255,.6);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .result-continue:active { background: rgba(255,255,255,.12); }
+
+  /* Clock */
+  .clock { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOADING ══════════════ -->
+<div id="s-loading">
+  <div class="init-logo">SONORO.</div>
+  <div class="init-spinner"></div>
+  <div class="init-msg">Cargando evento…</div>
+</div>
+
+<!-- ══════════════ ERROR ══════════════ -->
+<div id="s-error" class="hidden">
+  <div class="init-logo">SONORO.</div>
+  <div class="init-err-msg" id="init-err-msg">No se pudo cargar el evento</div>
+  <button class="init-retry" onclick="autoInit()">Reintentar</button>
+</div>
+
+<!-- ══════════════ SESSION PICKER ══════════════ -->
+<div id="s-session" class="hidden">
+  <div class="ev-header">
+    <div style="min-width:0;">
+      <div class="ev-name" id="sess-ev-name">—</div>
+      <div class="ev-meta">Selecciona tu punto de check-in</div>
+    </div>
+    <div class="staff-badge">
+      <div class="staff-avatar" id="sess-staff-av">?</div>
+      <div>
+        <div class="staff-info-name" id="sess-staff-name">—</div>
+        <div class="staff-info-role" id="sess-staff-role">—</div>
+      </div>
+    </div>
+  </div>
+  <div class="sess-pick-body" id="sess-pick-list"></div>
+</div>
+
+<!-- ══════════════ SCANNER ══════════════ -->
+<div id="s-scanner" class="hidden">
+
+  <div class="ev-header">
+    <div style="min-width:0;">
+      <div class="ev-name" id="ev-name">—</div>
+      <div class="ev-meta"><span id="ev-day-label">—</span> &nbsp;·&nbsp; <span class="clock" id="clock">—</span></div>
+      <div style="font-size:11px;color:var(--blue);margin-top:3px;cursor:pointer;" onclick="showSessionPicker()"><span id="ev-sess-active">—</span> <span style="color:var(--muted);font-size:10px;">cambiar</span></div>
+    </div>
+    <div class="staff-badge">
+      <div class="staff-avatar" id="staff-av">?</div>
+      <div>
+        <div class="staff-info-name" id="staff-name-lbl">—</div>
+        <div class="staff-info-role" id="staff-role-lbl">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scanner-body">
+
+    <!-- Cámara + entrada manual -->
+    <div class="camera-panel">
+      <div class="camera-wrap" id="camera-wrap">
+        <video id="camera-video" autoplay playsinline muted></video>
+        <canvas id="camera-canvas"></canvas>
+        <div class="scan-overlay">
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line"></div>
+        </div>
+        <div class="camera-no-support hidden" id="camera-no-support">
+          Cámara no disponible<br>Usa la entrada manual
+        </div>
+      </div>
+      <div class="camera-hint">Apunta al código QR del asistente</div>
+      <div class="manual-row">
+        <input id="manual-inp" class="manual-input" type="text"
+               placeholder="Código QR manual (Enter)" autocomplete="off"
+               autocorrect="off" spellcheck="false">
+        <button class="manual-btn" onclick="submitManual()">→</button>
+      </div>
+    </div>
+
+    <!-- Stats + log -->
+    <div class="stats-panel">
+      <div class="sp-title">Hoy</div>
+      <div class="sp-card green">
+        <div class="sp-num" id="sp-today">—</div>
+        <div class="sp-lbl" id="sp-today-lbl">Check-ins hoy</div>
+      </div>
+      <div class="sp-card blue">
+        <div class="sp-num" id="sp-total">—</div>
+        <div class="sp-lbl">Inscritos</div>
+      </div>
+      <div class="sp-card amber">
+        <div class="sp-num" id="sp-pending">—</div>
+        <div class="sp-lbl">Pendientes</div>
+      </div>
+
+      <div class="log-title">Últimas entradas</div>
+      <div class="log-scroll" id="log-list"></div>
+
+      <button class="logout-btn" onclick="location.reload()">Reiniciar</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- iframe oculto para impresión de etiqueta -->
+<iframe id="print-frame"></iframe>
+
+<!-- ══════════════ RESULT ══════════════ -->
+<div id="s-result" class="hidden" onclick="backToScanner()">
+  <div class="result-body">
+    <div class="result-icon-wrap" id="r-icon"></div>
+    <div class="result-status" id="r-status"></div>
+    <div class="result-name" id="r-name"></div>
+    <div class="result-msg" id="r-msg"></div>
+    <button id="r-print" class="result-continue" style="display:none;background:#fff;color:#000;margin-bottom:8px;" onclick="event.stopPropagation();printLastLabel();">🖨 Imprimir etiqueta</button>
+    <button class="result-continue" onclick="backToScanner()">Siguiente →</button>
+  </div>
+</div>
+
+<!-- jsQR para decodificación de QR desde cámara -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<!-- qrcode para generar QR de etiquetas Brother QL -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+'use strict';
+
+const API = window.location.origin;
+
+// Estado global
+let token     = null;
+let eventId   = null;
+let eventData = null;
+let staffData = null;
+let processing     = false;
+let lastCheckin    = null;
+let scanActive     = false;
+let scanRAF        = null;
+let currentSession = undefined; // undefined=no elegida, null=entrada general, {id,name,meta}=sesion
+
+// HID scanner buffer (lectores de código de barras mandan texto rápido + Enter)
+let hidBuffer = '';
+let hidTimer  = null;
+
+// ── INIT ──────────────────────────────────────────────────────
+(function init() {
+  const saved = sessionStorage.getItem('staff_session');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      token = s.token; eventId = s.eventId; eventData = s.event; staffData = s.staff;
+      currentSession = ('session' in s) ? s.session : undefined;
+      startScanner();
+      return;
+    } catch(e) { sessionStorage.removeItem('staff_session'); }
+  }
+  autoInit();
+})();
+
+async function autoInit() {
+  show('s-loading');
+
+  const parts = location.pathname.split('/').filter(Boolean);
+  const slug  = parts[1]; // /evento/:slug/staff
+
+  if (!slug) { showInitError('URL inválida — abre este enlace desde el dashboard del evento'); return; }
+
+  try {
+    const [evRes, tkRes] = await Promise.all([
+      fetch(`${API}/api/events/public/${encodeURIComponent(slug)}`),
+      fetch(`${API}/api/events/public/${encodeURIComponent(slug)}/staff-token`),
+    ]);
+    if (!evRes.ok) {
+      const d = await evRes.json().catch(() => ({}));
+      throw new Error(d.error || 'Evento no encontrado o no publicado');
+    }
+    if (!tkRes.ok) {
+      const d = await tkRes.json().catch(() => ({}));
+      throw new Error(d.error || 'No se pudo obtener acceso al evento');
+    }
+    const ev   = await evRes.json();
+    const tkData = await tkRes.json();
+
+    token     = tkData.token;
+    eventId   = ev.id;
+    eventData = ev;
+    staffData = null;
+
+    sessionStorage.setItem('staff_session', JSON.stringify({
+      token, eventId, event: eventData, staff: null,
+    }));
+    startScanner();
+  } catch(e) {
+    showInitError(e.message);
+  }
+}
+
+function showInitError(msg) {
+  document.getElementById('init-err-msg').textContent = msg;
+  show('s-error');
+}
+
+// ── SCANNER ───────────────────────────────────────────────────
+function startScanner() {
+  if (currentSession === undefined) { showSessionPicker(); return; }
+
+  document.getElementById('ev-name').textContent        = eventData.name || '—';
+  document.getElementById('staff-name-lbl').textContent = staffData?.name || 'Staff';
+  document.getElementById('staff-role-lbl').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
+  document.getElementById('staff-av').textContent =
+    (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('ev-sess-active').textContent =
+    currentSession ? currentSession.name : 'Entrada general';
+
+  show('s-scanner');
+  startCamera();
+  loadStats();
+  startClock();
+
+  // HID scanner
+  document.addEventListener('keydown', onHIDKey);
+
+  // Stats cada 30s
+  setInterval(loadStats, 30000);
+}
+
+// ── CÁMARA ────────────────────────────────────────────────────
+function startCamera() {
+  const video  = document.getElementById('camera-video');
+  const canvas = document.getElementById('camera-canvas');
+  const noSup  = document.getElementById('camera-no-support');
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    noSup.classList.remove('hidden'); video.classList.add('hidden'); return;
+  }
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+      scanActive = true;
+      scanLoop(video, canvas);
+    })
+    .catch(() => {
+      noSup.classList.remove('hidden');
+      video.classList.add('hidden');
+    });
+}
+
+function stopCamera() {
+  scanActive = false;
+  if (scanRAF) cancelAnimationFrame(scanRAF);
+  const video = document.getElementById('camera-video');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+}
+
+function scanLoop(video, canvas) {
+  if (!scanActive || processing) {
+    scanRAF = requestAnimationFrame(() => scanLoop(video, canvas));
+    return;
+  }
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = typeof jsQR !== 'undefined'
+      ? jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' })
+      : null;
+    if (code?.data) {
+      doCheckin(code.data);
+      // Mantener RAF activo; processing=true lo pausa hasta que vuelva el scanner
+      scanRAF = requestAnimationFrame(() => scanLoop(video, canvas));
+      return;
+    }
+  }
+  scanRAF = requestAnimationFrame(() => scanLoop(video, canvas));
+}
+
+// ── HID SCANNER ───────────────────────────────────────────────
+function onHIDKey(e) {
+  // Ignorar cuando hay foco en un input
+  if (document.activeElement?.tagName === 'INPUT') return;
+  if (e.key === 'Enter') {
+    if (hidBuffer.trim()) { doCheckin(hidBuffer.trim()); hidBuffer = ''; }
+    return;
+  }
+  if (e.key.length === 1) {
+    hidBuffer += e.key;
+    clearTimeout(hidTimer);
+    hidTimer = setTimeout(() => { hidBuffer = ''; }, 600);
+  }
+}
+
+// ── MANUAL INPUT ──────────────────────────────────────────────
+function submitManual() {
+  const inp = document.getElementById('manual-inp');
+  const val = inp.value.trim();
+  if (!val) return;
+  inp.value = '';
+  doCheckin(val);
+}
+
+document.getElementById('manual-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitManual();
+});
+
+// ── CHECK-IN ──────────────────────────────────────────────────
+async function doCheckin(qrToken) {
+  if (processing) return;
+  processing = true;
+
+  try {
+    const res  = await fetch(`${API}/api/events/staff/${eventId}/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ qr_token: qrToken, session_id: currentSession?.id || null }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      const dayLabel = currentSession ? currentSession.name : formatDay(data.event_day);
+      lastCheckin = { qr_token: data.qr_token, name: data.name, custom_fields: data.custom_fields, registration_id: data.registration_id };
+      showResult('success', data.name, 'Bienvenido', dayLabel);
+      addLog(data.name, 'g');
+      bumpStat('sp-today');
+    } else if (res.status === 401 || res.status === 403) {
+      // Token expirado — limpiar y reiniciar
+      sessionStorage.removeItem('staff_session');
+      stopCamera();
+      token = eventId = eventData = staffData = null;
+      currentSession = undefined;
+      autoInit();
+      processing = false;
+      return;
+    } else if (data.code === 'ALREADY_CHECKED_IN') {
+      showResult('already', data.attendee_name || '—', 'Ya registrado', data.error || 'Entrada registrada anteriormente');
+      addLog(data.attendee_name || '—', 'a');
+    } else if (data.code === 'CANCELLED') {
+      showResult('error', 'Inscripción cancelada', 'No válido', data.error || '');
+      addLog('Cancelado', 'r');
+    } else {
+      showResult('error', data.error || 'Error', 'No válido', 'Código no reconocido para este evento');
+      addLog('?', 'r');
+    }
+  } catch(e) {
+    showResult('error', 'Sin conexión', 'Error de red', 'Verifica la conexión e intenta de nuevo');
+  }
+}
+
+// ── SESSION PICKER ────────────────────────────────────────────
+async function showSessionPicker() {
+  document.getElementById('sess-ev-name').textContent    = eventData.name || '—';
+  document.getElementById('sess-staff-name').textContent = staffData?.name || 'Staff';
+  document.getElementById('sess-staff-role').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
+  document.getElementById('sess-staff-av').textContent   =
+    (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  show('s-session');
+
+  const list = document.getElementById('sess-pick-list');
+  list.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:20px 0;">Cargando sesiones…</div>';
+
+  try {
+    const res = await fetch(`${API}/api/events/staff/${eventId}/sessions`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const sessions = res.ok ? await res.json() : [];
+    const tz = eventData.timezone || 'America/Bogota';
+
+    const generalSection = [
+      '<div class="sess-group-lbl">Acceso general</div>',
+      `<button class="sess-pick-btn general" onclick="pickSession(null,'Entrada general',null)">
+        <div class="sess-pick-label">Entrada general</div>
+        <div class="sess-pick-meta">Registro de llegada al evento</div>
+       </button>`,
+    ];
+    const sessionSection = sessions.length ? [
+      '<div class="sess-group-lbl">Sesiones</div>',
+      ...sessions.map(s => {
+        const t = new Date(s.starts_at).toLocaleTimeString('es-CO',
+          { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz });
+        const meta = [t, s.venue_zone].filter(Boolean).join(' · ');
+        const safeName = s.name.replace(/"/g, '&quot;');
+        const safeMeta = meta.replace(/"/g, '&quot;');
+        return `<button class="sess-pick-btn session"
+          data-sid="${s.id}" data-sname="${safeName}" data-smeta="${safeMeta}"
+          onclick="pickSessionFromBtn(this)">
+          <div class="sess-pick-label">${esc(s.name)}</div>
+          <div class="sess-pick-meta">${meta ? esc(meta) : '—'}</div>
+         </button>`;
+      })
+    ] : [];
+    list.innerHTML = [...generalSection, ...sessionSection].join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:20px 0;">Error cargando sesiones</div>';
+  }
+}
+
+function pickSessionFromBtn(btn) {
+  pickSession(btn.dataset.sid || null, btn.dataset.sname, btn.dataset.smeta || null);
+}
+
+function pickSession(id, name, meta) {
+  currentSession = id ? { id, name, meta } : null;
+  try {
+    const s = JSON.parse(sessionStorage.getItem('staff_session') || '{}');
+    s.session = currentSession;
+    sessionStorage.setItem('staff_session', JSON.stringify(s));
+  } catch(e) {}
+  stopCamera(); // reiniciar camara limpia al volver
+  scanActive = false;
+  startScanner();
+}
+
+// ── RESULT SCREEN ─────────────────────────────────────────────
+function showResult(type, name, status, msg) {
+  const el = document.getElementById('s-result');
+  el.className = type;
+  const _iconEl = document.getElementById('r-icon');
+  if (type === 'success') {
+    _iconEl.innerHTML = '<svg width="42" height="42" viewBox="0 0 42 42" fill="none">'
+      + '<polyline points="9,22 17,30 33,13" stroke="#00e676" stroke-width="3"'
+      + ' stroke-linecap="round" stroke-linejoin="round"/>'
+      + '</svg>';
+  } else {
+    _iconEl.innerHTML = '<svg width="42" height="42" viewBox="0 0 42 42" fill="none">'
+      + '<line x1="11" y1="11" x2="31" y2="31" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>'
+      + '<line x1="31" y1="11" x2="11" y2="31" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>'
+      + '</svg>';
+  }
+  document.getElementById('r-status').textContent = status;
+  document.getElementById('r-name').textContent   = name || '—';
+  document.getElementById('r-msg').textContent    = msg || '';
+  document.getElementById('r-print').style.display = (type === 'success' && lastCheckin?.qr_token) ? 'block' : 'none';
+  show('s-result');
+}
+
+// ── IMPRESIÓN ETIQUETA QR (Brother QL-810W DK-1208 90x38mm) ──────
+function lblCompany(cf) {
+  if (!cf) return null;
+  const key = Object.keys(cf).find(k => /empresa|compa|company|organiz/i.test(k));
+  return key ? String(cf[key]).trim() : null;
+}
+
+function printLastLabel() {
+  if (!lastCheckin?.registration_id) return;
+  const url = `${API}/api/events/staff/${eventId}/registrations/${lastCheckin.registration_id}/label.pdf?t=${encodeURIComponent(token)}`;
+  window.open(url, '_blank');
+}
+
+function backToScanner() {
+  processing = false;
+  show('s-scanner');
+  // Reiniciar camara si el stream se perdio
+  const video = document.getElementById('camera-video');
+  if (!video.srcObject || !scanActive) startCamera();
+  document.getElementById('manual-inp').blur();
+}
+
+// ── STATS ─────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const sid = currentSession?.id ?? '';
+    const url = `${API}/api/events/staff/${eventId}/stats${sid ? `?session_id=${sid}` : ''}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('sp-today').textContent   = d.checked_in_today ?? '—';
+    document.getElementById('sp-total').textContent   = d.total ?? '—';
+    document.getElementById('sp-pending').textContent = d.pending ?? '—';
+    // Label dinamico: nombre de sesion o 'Check-ins hoy'
+    const lbl = document.getElementById('sp-today-lbl');
+    if (lbl) lbl.textContent = currentSession ? currentSession.name : 'Check-ins hoy';
+    // Actualizar label del día
+    if (d.event_day) {
+      const tz = eventData?.timezone || 'America/Bogota';
+      document.getElementById('ev-day-label').textContent = formatDayFull(d.event_day, tz);
+    }
+  } catch(e) { /* silencioso */ }
+}
+
+function bumpStat(id) {
+  const el = document.getElementById(id);
+  const n  = parseInt(el.textContent);
+  if (!isNaN(n)) el.textContent = n + 1;
+}
+
+// ── LOG ───────────────────────────────────────────────────────
+function addLog(name, dotClass) {
+  const list = document.getElementById('log-list');
+  const now  = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `<div class="log-dot ${dotClass}"></div><div class="log-name">${esc(name)}</div><div class="log-time">${now}</div>`;
+  list.prepend(item);
+  // Mantener max 20 entradas
+  while (list.children.length > 20) list.removeChild(list.lastChild);
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────
+function startClock() {
+  function tick() {
+    const tz  = eventData?.timezone || 'America/Bogota';
+    const now = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+    const el  = document.getElementById('clock');
+    if (el) el.textContent = now;
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function show(id) {
+  ['s-loading','s-error','s-session','s-scanner','s-result'].forEach(s => {
+    document.getElementById(s).classList.toggle('hidden', s !== id);
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function roleLabel(r) {
+  return { coordinator:'Coordinador', registration:'Registro', tech:'Técnico',
+           host:'Host', security:'Seguridad', catering:'Catering',
+           artistic_entertainment:'Arte / Entretenimiento', other:'Staff' }[r] || r || 'Staff';
+}
+
+function formatDay(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function formatDayFull(dateStr, tz) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
+}
+</script>
+</body>
+</html>

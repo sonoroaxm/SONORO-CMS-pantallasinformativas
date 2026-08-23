@@ -11,6 +11,7 @@ const config = require('../config/video-conversion.config');
 const videoConversionQueue = new Queue('video-conversion', {
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
+    password: process.env.REDIS_PASSWORD || undefined,
     port: process.env.REDIS_PORT || 6379,
     maxRetriesPerRequest: null,  // ⭐ IMPORTANTE: Evita el error "max retries"
     enableReadyCheck: false

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SONORO CMS — Gestión de información y atención para tu negocio</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',sans-serif;background:#f5f5f8;color:#111827;overflow-x:hidden}
+
+/* ── NAV ───────────────────────────────────────────── */
+nav{position:fixed;top:16px;left:0;right:0;z-index:100;padding:0 32px}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:14px 24px;box-shadow:0 2px 20px rgba(0,0,0,.07)}
+.nav-logo{font-size:17px;font-weight:900;letter-spacing:-1px;color:#111827;text-decoration:none}
+.nav-logo span{background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-links{display:flex;align-items:center;gap:6px}
+.nav-links a{font-size:13px;font-weight:800;color:#111827;text-decoration:none;padding:9px 16px;border-radius:8px;letter-spacing:.3px;transition:background .18s,color .18s;background:transparent}
+.nav-links a:hover{background:rgba(0,0,0,.06)}
+.nav-links .sep{width:1px;height:16px;background:rgba(0,0,0,.1)}
+.nav-wa{background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#15803d;font-size:12px;font-weight:700;padding:7px 16px;border-radius:7px;text-decoration:none;letter-spacing:.5px}
+.nav-acc{font-size:12px;font-weight:700;color:rgba(17,24,39,.3);text-decoration:none;padding:7px 14px}
+
+/* ── HERO ──────────────────────────────────────────── */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:140px 32px 80px;position:relative;overflow:hidden;background:#fff}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 10% 50%,rgba(249,115,22,.07) 0%,transparent 60%),radial-gradient(ellipse 50% 40% at 90% 30%,rgba(168,85,247,.06) 0%,transparent 60%)}
+.hero-inner{max-width:1200px;margin:0 auto;position:relative}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.08);border-radius:30px;padding:6px 16px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(17,24,39,.4);margin-bottom:36px}
+.hero-badge-dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ec4899)}
+.hero h1{font-size:clamp(48px,6vw,88px);font-weight:900;line-height:.95;letter-spacing:-3px;color:#111827;margin-bottom:28px;max-width:900px}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(16px,2vw,22px);font-weight:600;color:rgba(17,24,39,.48);line-height:1.6;max-width:660px;margin-bottom:48px}
+.hero-ctas{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.btn-primary{background:linear-gradient(135deg,#f97316,#ec4899);color:#fff;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;padding:16px 32px;border-radius:10px;text-decoration:none;border:none;cursor:pointer;letter-spacing:.5px}
+.btn-ghost{color:rgba(17,24,39,.45);font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;padding:16px 24px;border-radius:10px;text-decoration:none;border:1px solid rgba(17,24,39,.15);background:transparent;cursor:pointer}
+.btn-ghost:hover{color:#111827;border-color:rgba(17,24,39,.3)}
+.hero-note{font-size:12px;color:rgba(17,24,39,.28);font-weight:600;margin-top:16px}
+
+/* ── SECTION BASE ─────────────────────────────────── */
+section{padding:100px 32px}
+.section-inner{max-width:1200px;margin:0 auto}
+.section-label{font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:rgba(17,24,39,.3);margin-bottom:16px}
+.section-title{font-size:clamp(32px,4vw,52px);font-weight:900;line-height:1;letter-spacing:-2px;color:#111827;margin-bottom:16px}
+.section-title em{font-style:normal;background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.section-sub{font-size:18px;font-weight:600;color:rgba(17,24,39,.42);line-height:1.6;max-width:600px}
+
+/* ── MÓDULOS ──────────────────────────────────────── */
+#modulos{background:#f5f5f8;padding-top:40px;border-top:1px solid rgba(0,0,0,.05)}
+.modules-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px}
+
+.mod-card{background:#fff;border-radius:20px;padding:40px;display:flex;flex-direction:column;gap:0;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 12px rgba(0,0,0,.04);transition:box-shadow .3s,border-color .3s}
+.mod-card:hover{border-color:rgba(0,0,0,.14);box-shadow:0 4px 24px rgba(0,0,0,.07)}
+
+.acc-pant{color:#f97316}
+.tag-pant{background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.2);color:#ea6b00}
+.acc-cons{color:#0d9488}
+.tag-cons{background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);color:#0d9488}
+.acc-ev{color:#d97706}
+.tag-ev{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);color:#d97706}
+
+.mod-tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:28px;position:relative}
+.mod-card h2{font-size:26px;font-weight:900;line-height:1.1;letter-spacing:-1px;color:#111827;margin-bottom:12px;position:relative}
+.mod-tagline{font-size:15px;font-weight:700;color:rgba(17,24,39,.42);line-height:1.5;margin-bottom:28px;position:relative}
+.mod-divider{height:1px;background:rgba(0,0,0,.06);margin-bottom:24px}
+.mod-features{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;position:relative;flex:1}
+.mod-feat{display:flex;align-items:flex-start;gap:10px}
+.mod-feat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:6px}
+.mod-feat span{font-size:13px;font-weight:600;color:rgba(17,24,39,.6);line-height:1.5}
+.mod-price{font-size:13px;font-weight:700;color:rgba(17,24,39,.35);letter-spacing:.5px;margin-bottom:16px;position:relative}
+.mod-price strong{font-size:20px;font-weight:900;letter-spacing:-1px}
+.mod-cta{display:block;font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;text-decoration:none;padding:13px 20px;border-radius:9px;text-align:center;position:relative;transition:all .2s}
+.mod-cta-pant{border:1px solid rgba(249,115,22,.3);color:#f97316}
+.mod-cta-pant:hover{background:rgba(249,115,22,.06)}
+.mod-cta-cons{border:1px solid rgba(20,184,166,.3);color:#0d9488}
+.mod-cta-cons:hover{background:rgba(20,184,166,.06)}
+.mod-cta-ev{border:1px solid rgba(245,158,11,.3);color:#d97706}
+.mod-cta-ev:hover{background:rgba(245,158,11,.06)}
+
+/* ── PLATAFORMA COMPARTIDA ───────────────────────── */
+#plataforma{background:#fff;border-top:1px solid rgba(0,0,0,.05)}
+.platform-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;margin-top:56px}
+.platform-points{display:flex;flex-direction:column;gap:28px}
+.pp{display:flex;gap:16px;align-items:flex-start}
+.pp-accent{width:3px;border-radius:2px;flex-shrink:0;align-self:stretch;min-height:20px}
+.pp-body h3{font-size:17px;font-weight:800;color:#111827;margin-bottom:4px}
+.pp-body p{font-size:14px;font-weight:600;color:rgba(17,24,39,.48);line-height:1.6}
+.platform-visual{background:#f9f9fb;border:1px solid rgba(0,0,0,.07);border-radius:20px;padding:28px;display:flex;flex-direction:column;gap:16px;box-shadow:0 2px 20px rgba(0,0,0,.05)}
+.pv-header{display:flex;align-items:center;justify-content:space-between}
+.pv-logo{font-size:14px;font-weight:900;color:rgba(17,24,39,.4);letter-spacing:-1px}
+.pv-logo span{background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.pv-live{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#15803d}
+.pv-live-dot{width:6px;height:6px;border-radius:50%;background:#16a34a}
+.pv-modules{display:flex;flex-direction:column;gap:8px}
+.pv-mod{display:flex;align-items:center;gap:12px;background:#fff;border-radius:10px;padding:12px 14px;border:1px solid rgba(0,0,0,.06)}
+.pv-mod-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pv-mod-name{font-size:13px;font-weight:700;color:rgba(17,24,39,.7);flex:1}
+.pv-mod-status{font-size:11px;font-weight:700;color:rgba(17,24,39,.3)}
+.pv-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06)}
+.pv-stat{text-align:center}
+.pv-stat-val{font-size:22px;font-weight:900;letter-spacing:-1px}
+.pv-stat-lbl{font-size:10px;font-weight:700;color:rgba(17,24,39,.3);text-transform:uppercase;letter-spacing:1px}
+
+/* ── ¿POR DÓNDE EMPEZAR? ──────────────────────────── */
+#quien{background:#f5f5f8;border-top:1px solid rgba(0,0,0,.05)}
+.quien-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px}
+.quien-card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;padding:32px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 8px rgba(0,0,0,.04)}
+.quien-stripe{height:3px;border-radius:2px;width:40px}
+.quien-title{font-size:17px;font-weight:800;color:#111827;line-height:1.3}
+.quien-desc{font-size:13px;font-weight:600;color:rgba(17,24,39,.5);line-height:1.6}
+.quien-link{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:rgba(17,24,39,.35);text-decoration:none;margin-top:auto;letter-spacing:.5px}
+.quien-link:hover{color:#111827}
+
+/* ── CTA FINAL ──────────────────────────────────── */
+#contacto{background:#111827}
+.contact-inner{text-align:center;max-width:640px;margin:0 auto}
+.contact-inner .section-label{color:rgba(255,255,255,.25)}
+.contact-inner h2{font-size:clamp(32px,4vw,52px);font-weight:900;line-height:.95;letter-spacing:-2px;margin-bottom:20px;color:#fff}
+.contact-inner h2 em{font-style:normal;background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.contact-inner p{font-size:17px;font-weight:600;color:rgba(255,255,255,.38);line-height:1.6;margin-bottom:40px}
+.contact-ctas{display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin-bottom:20px}
+.contact-note{font-size:12px;color:rgba(255,255,255,.2);font-weight:600}
+.btn-ghost-light{color:rgba(255,255,255,.5);font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;padding:16px 24px;border-radius:10px;text-decoration:none;border:1px solid rgba(255,255,255,.15);background:transparent;cursor:pointer}
+
+/* ── FOOTER ─────────────────────────────────────── */
+footer{background:#0f172a;border-top:1px solid rgba(255,255,255,.05);padding:40px 32px}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.footer-logo{font-size:15px;font-weight:900;letter-spacing:-1px;color:rgba(255,255,255,.35);text-decoration:none}
+.footer-logo span{background:linear-gradient(135deg,#f97316,#ec4899,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap}
+.footer-links a{font-size:12px;font-weight:600;color:rgba(255,255,255,.25);text-decoration:none;letter-spacing:.5px}
+.footer-links a:hover{color:rgba(255,255,255,.5)}
+.footer-copy{font-size:11px;color:rgba(255,255,255,.15);font-weight:600}
+
+/* ── WHATSAPP FLOAT ──────────────────────────────── */
+.wa-float{position:fixed;bottom:28px;right:28px;background:#25d366;border-radius:50px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(37,211,102,.35);z-index:9999;text-decoration:none;transition:transform .2s;padding:14px 22px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:#fff;letter-spacing:.5px}
+.wa-float:hover{transform:scale(1.04)}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">SONORO <span>CMS</span></a>
+    <div class="nav-links">
+      <a href="/pantallas/">Pantallas informativas</a>
+      <div class="sep"></div>
+      <a href="/consultorios/">Consultorios</a>
+      <div class="sep"></div>
+      <a href="/eventos/">Eventos</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <a href="https://wa.me/573144460990?text=Hola%2C%20quiero%20conocer%20SONORO%20CMS" class="nav-wa" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="/dashboard.html" class="nav-acc">Acceder</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      Plataforma SONORO CMS
+    </div>
+    <h1>Gestión de información<br>y atención para<br><em>tu negocio.</em></h1>
+    <p class="hero-sub">Pantallas informativas, citas y turnos, gestión de eventos — en un solo sistema desde la nube. Sin técnicos, sin complicaciones, con datos reales.</p>
+    <div class="hero-ctas">
+      <a href="https://wa.me/573144460990?text=Hola%2C%20quiero%20conocer%20SONORO%20CMS" class="btn-primary" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>
+      <a href="#modulos" class="btn-ghost">Ver módulos</a>
+    </div>
+    <p class="hero-note">Sin compromiso · Respuesta en menos de 2 horas · cms@sonoro.com.co</p>
+  </div>
+</section>
+
+<!-- MÓDULOS -->
+<section id="modulos">
+  <div class="section-inner">
+    <div class="section-label">Los tres módulos</div>
+    <h2 class="section-title">Un sistema.<br><em>Tres formas</em> de usarlo.</h2>
+    <p class="section-sub">Cada módulo resuelve un problema concreto. Puedes empezar por uno y sumar los demás cuando lo necesites.</p>
+
+    <div class="modules-grid">
+
+      <!-- PANTALLAS INFORMATIVAS -->
+      <div class="mod-card">
+        <div class="mod-tag tag-pant">Pantallas Informativas</div>
+        <h2>Tu TV apagada<br>no vende nada.</h2>
+        <p class="mod-tagline">Instálalo tú mismo en 10 minutos en cualquier TV con HDMI. Control total desde el celular.</p>
+        <div class="mod-divider"></div>
+        <div class="mod-features">
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#f97316"></div>
+            <span>Funciona en cualquier TV con HDMI — sin hardware especial</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#f97316"></div>
+            <span>Lo instalas tú mismo en 10 minutos, sin técnicos</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#f97316"></div>
+            <span>Actualiza contenido, programa horarios y controla pantallas desde el celular</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#f97316"></div>
+            <span>Una cuenta para todas tus sedes — 100% remoto, sin visitas técnicas</span>
+          </div>
+        </div>
+        <div class="mod-price">
+          desde <strong class="acc-pant">$800.000</strong> COP + IVA<br>
+          <span style="font-size:11px;color:rgba(17,24,39,.25)">SONORO Player + licencia CMS vitalicia + Soporte por WhatsApp</span>
+        </div>
+        <a href="/pantallas/" class="mod-cta mod-cta-pant">Ver pantallas informativas</a>
+      </div>
+
+      <!-- CONSULTORIOS -->
+      <div class="mod-card">
+        <div class="mod-tag tag-cons">Citas y Turnos</div>
+        <h2>Administra tu<br>consultorio desde<br><span class="acc-cons">$180.000</span> al mes.</h2>
+        <p class="mod-tagline">Citas · Turnos · Información · Sincroniza con Google y Outlook</p>
+        <div class="mod-divider"></div>
+        <div class="mod-features">
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#0d9488"></div>
+            <span>Link propio para que tus pacientes reserven sin intermediarios</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#0d9488"></div>
+            <span>Turno digital en pantalla — sala de espera organizada sin filas en recepción</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#0d9488"></div>
+            <span>Panel del día: ingresos proyectados, citas pendientes y atendidas en tiempo real</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#0d9488"></div>
+            <span>Sincronización automática con Google Calendar y Microsoft Outlook</span>
+          </div>
+        </div>
+        <div class="mod-price">
+          desde <strong class="acc-cons">$180.000</strong> / mes<br>
+          <span style="font-size:11px;color:rgba(17,24,39,.25)">Módulos: Gestión de Citas · Turnos · Información en pantalla</span>
+        </div>
+        <a href="/consultorios/" class="mod-cta mod-cta-cons">Ver citas y turnos</a>
+      </div>
+
+      <!-- EVENTOS -->
+      <div class="mod-card">
+        <div class="mod-tag tag-ev">Gestión de Eventos</div>
+        <h2>¿Sigues organizando<br>eventos con<br><span class="acc-ev">Excel y WhatsApp?</span></h2>
+        <p class="mod-tagline">Registro online, check-in por QR y Minuto a Minuto del productor en tiempo real.</p>
+        <div class="mod-divider"></div>
+        <div class="mod-features">
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#d97706"></div>
+            <span>Registro con formulario configurable — QR único por asistente enviado por email</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#d97706"></div>
+            <span>Check-in por QR en menos de 2 segundos — app staff en cualquier tablet sin instalar</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#d97706"></div>
+            <span>Minuto a Minuto del productor: libreto con cues en vivo y stats en tiempo real</span>
+          </div>
+          <div class="mod-feat">
+            <div class="mod-feat-dot" style="background:#d97706"></div>
+            <span>Gestión de proveedores y presupuesto — reporte PDF y CSV post-evento</span>
+          </div>
+        </div>
+        <div class="mod-price">
+          <strong class="acc-ev">Primer evento gratis</strong><br>
+          <span style="font-size:11px;color:rgba(17,24,39,.25)">Sin tarjeta de crédito · Planes: por evento o licencia corporativa</span>
+        </div>
+        <a href="/eventos/" class="mod-cta mod-cta-ev">Ver gestión de eventos</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PLATAFORMA COMPARTIDA -->
+<section id="plataforma">
+  <div class="section-inner">
+    <div class="platform-grid">
+      <div>
+        <div class="section-label">Una sola plataforma</div>
+        <h2 class="section-title">Empieza por uno.<br><em>Crece</em> con todos.</h2>
+        <p class="section-sub" style="margin-bottom:48px">Los tres módulos corren sobre la misma plataforma. Puedes empezar con pantallas informativas y sumar citas o eventos cuando tu negocio lo necesite — sin migrar ni volver a configurar nada.</p>
+
+        <div class="platform-points">
+          <div class="pp">
+            <div class="pp-accent" style="background:#f97316"></div>
+            <div class="pp-body">
+              <h3>Las pantallas van incluidas en el módulo de turnos</h3>
+              <p>El módulo de Citas y Turnos incluye la gestión de información en pantalla. La pantalla de llamado de turnos es la misma plataforma de señalización.</p>
+            </div>
+          </div>
+          <div class="pp">
+            <div class="pp-accent" style="background:#d97706"></div>
+            <div class="pp-body">
+              <h3>Eventos hace broadcast a las pantallas del recinto</h3>
+              <p>Si ya tienes pantallas SONORO CMS en tu sede, el módulo de Eventos puede enviar mensajes en tiempo real a todas ellas durante el evento.</p>
+            </div>
+          </div>
+          <div class="pp">
+            <div class="pp-accent" style="background:#a855f7"></div>
+            <div class="pp-body">
+              <h3>Una sola cuenta para todo</h3>
+              <p>Un solo login, un solo panel. Tu equipo no aprende tres sistemas distintos — aprende uno.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mini dashboard visual -->
+      <div class="platform-visual">
+        <div class="pv-header">
+          <div class="pv-logo">SONORO <span>CMS</span></div>
+          <div class="pv-live"><div class="pv-live-dot"></div>En línea</div>
+        </div>
+        <div class="pv-modules">
+          <div class="pv-mod">
+            <div class="pv-mod-dot" style="background:#f97316"></div>
+            <div class="pv-mod-name">Pantallas Informativas</div>
+            <div class="pv-mod-status">3 activas</div>
+          </div>
+          <div class="pv-mod">
+            <div class="pv-mod-dot" style="background:#0d9488"></div>
+            <div class="pv-mod-name">Citas y Turnos</div>
+            <div class="pv-mod-status">18 citas hoy</div>
+          </div>
+          <div class="pv-mod">
+            <div class="pv-mod-dot" style="background:#d97706"></div>
+            <div class="pv-mod-name">Gestión de Eventos</div>
+            <div class="pv-mod-status">1 próximo</div>
+          </div>
+        </div>
+        <div style="height:1px;background:rgba(0,0,0,.06);margin:4px 0"></div>
+        <div style="font-size:11px;font-weight:700;color:rgba(17,24,39,.28);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Resumen del día</div>
+        <div class="pv-stats">
+          <div class="pv-stat">
+            <div class="pv-stat-val" style="color:#f97316">3</div>
+            <div class="pv-stat-lbl">Pantallas</div>
+          </div>
+          <div class="pv-stat">
+            <div class="pv-stat-val" style="color:#0d9488">18</div>
+            <div class="pv-stat-lbl">Citas</div>
+          </div>
+          <div class="pv-stat">
+            <div class="pv-stat-val" style="color:#d97706">247</div>
+            <div class="pv-stat-lbl">Asistentes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ¿POR DÓNDE EMPEZAR? -->
+<section id="quien">
+  <div class="section-inner">
+    <div class="section-label">¿Por dónde empiezo?</div>
+    <h2 class="section-title">Depende de<br><em>tu negocio.</em></h2>
+
+    <div class="quien-grid">
+      <div class="quien-card">
+        <div class="quien-stripe" style="background:#f97316"></div>
+        <div class="quien-title">Tengo un restaurante, gimnasio o tienda</div>
+        <p class="quien-desc">Tu dolor es la TV apagada o el menú desactualizado. Empieza por Pantallas Informativas — $800.000 una sola vez, instalación en 10 minutos.</p>
+        <a href="/pantallas/" class="quien-link">Ver pantallas informativas</a>
+      </div>
+      <div class="quien-card">
+        <div class="quien-stripe" style="background:#0d9488"></div>
+        <div class="quien-title">Tengo un consultorio, clínica o centro médico</div>
+        <p class="quien-desc">Tu dolor son las filas, la agenda manual y no saber qué pasa en tu consultorio. Empieza por Citas y Turnos — desde $180.000 al mes.</p>
+        <a href="/consultorios/" class="quien-link">Ver citas y turnos</a>
+      </div>
+      <div class="quien-card">
+        <div class="quien-stripe" style="background:#d97706"></div>
+        <div class="quien-title">Organizo eventos corporativos o empresariales</div>
+        <p class="quien-desc">Tu dolor es el caos del día del evento — check-in manual, sin visibilidad, Excel que nadie tiene actualizado. Primer evento gratis, sin tarjeta.</p>
+        <a href="/eventos/" class="quien-link">Ver gestión de eventos</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section id="contacto">
+  <div class="section-inner">
+    <div class="contact-inner">
+      <div class="section-label" style="text-align:center;margin-bottom:24px">Hablemos</div>
+      <h2>Respondo personalmente.<br><em>Cuanto antes.</em></h2>
+      <p>Cuéntame qué necesitas — pantallas, citas, turnos o eventos — y te explico cómo funciona en 5 minutos. Sin presentaciones largas. Sin compromiso.</p>
+      <div class="contact-ctas">
+        <a href="https://wa.me/573144460990?text=Hola%20Daniel%2C%20quiero%20conocer%20SONORO%20CMS" class="btn-primary" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+        <a href="mailto:cms@sonoro.com.co" class="btn-ghost-light">cms@sonoro.com.co</a>
+      </div>
+      <p class="contact-note">+57 314 446 0990 · Sin compromiso · Respuesta en menos de 2 horas hábiles</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <a href="#" class="footer-logo">SONORO <span>CMS</span></a>
+    <div class="footer-links">
+      <a href="/pantallas/">Pantallas Informativas</a>
+      <a href="/consultorios/">Citas y Turnos</a>
+      <a href="/eventos/">Gestión de Eventos</a>
+      <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>
+    </div>
+    <div class="footer-copy">SONORO AV SAS · Colombia · 2026</div>
+  </div>
+</footer>
+
+<!-- WhatsApp flotante -->
+<a href="https://wa.me/573144460990?text=Hola%2C%20quiero%20conocer%20SONORO%20CMS" class="wa-float" target="_blank" rel="noopener">
+  WhatsApp
+</a>
+
+</body>
+</html>

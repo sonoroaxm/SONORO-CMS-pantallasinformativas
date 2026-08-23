@@ -15,3 +15,4 @@ Thumbs.db
 # Temp 
 *.bat.bak 
 .claude/
+_vps_snapshot_*/

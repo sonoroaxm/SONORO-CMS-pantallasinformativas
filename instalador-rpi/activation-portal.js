@@ -16,8 +16,16 @@ const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
 // IS_DEMO=true: el RPi olvida perfiles WiFi al reboot (cómodo para demos moviéndose entre redes).
 // IS_DEMO=false (default, producción): persiste perfiles WiFi al SD lower para sobrevivir reboot.
 const IS_DEMO        = process.env.IS_DEMO === 'true';
-const HOTSPOT_IP = '192.168.4.1';
+// NM `nmcli dev wifi hotspot` asigna 10.42.0.1/24 por defecto (ipv4.method=shared).
+// Debe coincidir con la IP real de wlan0 en modo AP; de lo contrario el HTTP server
+// no bindea, el DNS spoof apunta a IP muerta y el iptables REDIRECT queda inútil.
+const HOTSPOT_IP = '10.42.0.1';
 const PORT       = 8080;
+// Fallback DNS spoof en proceso (opt-in). Cuando NM shared no lee dnsmasq-shared.d,
+// levantamos un DNS propio en :5353 y REDIRECT UDP 53→5353 vía iptables.
+const OWN_DNS_ENABLED = process.env.CAPTIVE_OWN_DNS === '1' || process.env.CAPTIVE_OWN_DNS === 'true';
+const OWN_DNS_PORT = 5353;
+let ownDnsSocket = null;
 const _devSuffix = DEVICE_ID.replace(/^rpi4-/,'').replace(/[^a-zA-Z0-9]/g,'-').toUpperCase().slice(-6);
 const HOTSPOT_NAME = `SCMS-${_devSuffix}`;
 
@@ -67,15 +75,34 @@ async function startHotspot() {
   log(`Creando hotspot: ${HOTSPOT_NAME}`);
   try {
     try { await run(`sudo nmcli con delete "${HOTSPOT_NAME}" 2>/dev/null`); } catch(e) {}
+    // Escribir DNS spoof ANTES del hotspot: NM lanza dnsmasq al levantar la conexión
+    // shared y lee dnsmasq-shared.d en ese momento. Si escribimos después, HUP no
+    // recarga el include-dir en dnsmasq 2.85+ y la detección captive del OS falla.
+    await preSeedCaptiveDNS();
     await run(`sudo nmcli dev wifi hotspot ifname wlan0 ssid "${HOTSPOT_NAME}" password "sonorocms"`);
     hotspotActive = true;
-    log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`);
+    // Log del IP real asignado a wlan0 para diagnóstico
+    try {
+      const realIP = (await run(`ip -4 -br addr show wlan0 | awk '{print $3}'`)).trim();
+      log(`Hotspot activo: ${HOTSPOT_NAME} — wlan0 IP real: ${realIP} (esperado ${HOTSPOT_IP}/24)`);
+    } catch(e) { log(`Hotspot activo: ${HOTSPOT_NAME} en ${HOTSPOT_IP}`); }
     await setupCaptivePortal();
     return true;
   } catch(e) {
     log(`Error creando hotspot: ${e.message}`);
     return false;
   }
+}
+
+// Pre-siembra el archivo de DNS spoof antes de arrancar el hotspot para que NM lo
+// incluya al lanzar dnsmasq. Sin esto, escribir después + HUP no basta en varias
+// versiones de dnsmasq (ignoran cambios en include-dir salvo restart completo).
+async function preSeedCaptiveDNS() {
+  try {
+    await run('sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d');
+    await run(`echo "address=/#/${HOTSPOT_IP}" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf > /dev/null`);
+    log('DNS spoof pre-sembrado en dnsmasq-shared.d');
+  } catch(e) { log(`Advertencia — pre-seed DNS falló: ${e.message}`); }
 }
 
 async function stopHotspot() {
@@ -92,16 +119,67 @@ async function stopHotspot() {
 // Configura DNS spoofing + redireccion de puerto para el portal cautivo.
 // Con esto, cualquier peticion HTTP que haga el dispositivo conectado al
 // hotspot llega a nuestro servidor sin que el usuario tenga que teclear nada.
+// DNS wildcard propio (opt-in) — responde a cualquier A query con HOTSPOT_IP.
+// Se usa cuando dnsmasq de NM no lee dnsmasq-shared.d y el auto-launch captive
+// de Android falla porque las URLs de detección (connectivitycheck.gstatic.com,
+// clients3.google.com, etc.) no resuelven al portal.
+function startOwnDnsSpoof() {
+  return new Promise((resolve, reject) => {
+    try {
+      const dgram = require('dgram');
+      const sock = dgram.createSocket('udp4');
+      const [a,b,c,dOct] = HOTSPOT_IP.split('.').map(n => parseInt(n,10));
+      sock.on('message', (msg, rinfo) => {
+        try {
+          // Construir respuesta: copiar header, marcar QR=1, RA=1; sacar QNAME del query
+          const resp = Buffer.alloc(msg.length + 16);
+          msg.copy(resp, 0);
+          resp[2] = 0x81; resp[3] = 0x80;             // flags: response, RA
+          resp[6] = 0x00; resp[7] = 0x01;             // ANCOUNT=1
+          // Encontrar fin del QNAME (null terminator) + QTYPE(2) + QCLASS(2)
+          let p = 12;
+          while (p < msg.length && msg[p] !== 0) p += msg[p] + 1;
+          p += 5;                                     // saltar null + QTYPE(2) + QCLASS(2)
+          if (p > msg.length) p = msg.length;
+          let off = p;
+          resp[off++] = 0xc0; resp[off++] = 0x0c;     // NAME pointer al QNAME (offset 12)
+          resp[off++] = 0x00; resp[off++] = 0x01;     // TYPE A
+          resp[off++] = 0x00; resp[off++] = 0x01;     // CLASS IN
+          resp[off++] = 0x00; resp[off++] = 0x00; resp[off++] = 0x00; resp[off++] = 0x3c; // TTL 60
+          resp[off++] = 0x00; resp[off++] = 0x04;     // RDLENGTH 4
+          resp[off++] = a; resp[off++] = b; resp[off++] = c; resp[off++] = dOct;
+          sock.send(resp.slice(0, off), rinfo.port, rinfo.address);
+        } catch(e) { /* drop */ }
+      });
+      sock.on('error', (e) => { log(`DNS spoof error: ${e.message}`); });
+      sock.bind(OWN_DNS_PORT, '0.0.0.0', () => {
+        log(`DNS spoof propio activo en :${OWN_DNS_PORT} → ${HOTSPOT_IP}`);
+        ownDnsSocket = sock;
+        resolve();
+      });
+    } catch(e) { reject(e); }
+  });
+}
+
 async function setupCaptivePortal() {
-  log('Configurando portal cautivo (DNS + iptables)...');
+  log('Configurando portal cautivo (iptables)...');
   try {
-    // DNS spoofing: dnsmasq resuelve TODOS los dominios al IP del hotspot
-    await run('sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d');
-    await run(`echo "address=/#/${HOTSPOT_IP}" | sudo tee /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf > /dev/null`);
-    await run('sudo pkill -HUP dnsmasq 2>/dev/null || true');
-    // Redirigir puerto 80 → 8080: el browser del portal cautivo usa puerto 80
+    // El DNS spoof ya fue pre-sembrado en preSeedCaptiveDNS(). Aquí solo redirect.
     await run(`sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port ${PORT}`);
-    log('Portal cautivo listo — todos los dominios resuelven a ' + HOTSPOT_IP);
+    if (OWN_DNS_ENABLED) {
+      try {
+        await startOwnDnsSpoof();
+        await run(`sudo iptables -t nat -A PREROUTING -i wlan0 -p udp --dport 53 -j REDIRECT --to-port ${OWN_DNS_PORT}`);
+        log(`iptables REDIRECT UDP 53 → :${OWN_DNS_PORT} activo`);
+      } catch(e) { log(`Advertencia — own-dns fallback falló: ${e.message}`); }
+    }
+    // Log de sanidad: confirmar que dnsmasq está corriendo y qué archivos incluyó
+    try {
+      const dnsmasqPid = await run('pgrep -f "dnsmasq.*NetworkManager" | head -1');
+      const cmdline = dnsmasqPid.trim() ? await run(`cat /proc/${dnsmasqPid.trim()}/cmdline | tr '\\0' ' '`) : '';
+      log(`dnsmasq PID=${dnsmasqPid.trim() || 'N/A'} — args: ${cmdline.slice(0, 300)}`);
+    } catch(e) { /* diag opcional */ }
+    log('Portal cautivo listo — DNS spoof + iptables activos, resuelve a ' + HOTSPOT_IP);
   } catch(e) {
     log(`Advertencia — portal cautivo parcial: ${e.message}`);
   }
@@ -110,8 +188,10 @@ async function setupCaptivePortal() {
 async function teardownCaptivePortal() {
   try {
     await run(`sudo iptables -t nat -D PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port ${PORT} 2>/dev/null || true`);
+    await run(`sudo iptables -t nat -D PREROUTING -i wlan0 -p udp --dport 53 -j REDIRECT --to-port ${OWN_DNS_PORT} 2>/dev/null || true`);
     await run('sudo rm -f /etc/NetworkManager/dnsmasq-shared.d/sonoro-captive.conf 2>/dev/null || true');
     await run('sudo pkill -HUP dnsmasq 2>/dev/null || true');
+    if (ownDnsSocket) { try { ownDnsSocket.close(); } catch(_){} ownDnsSocket = null; }
     log('Portal cautivo limpiado');
   } catch(e) {}
 }
@@ -219,7 +299,8 @@ async function activateDevice(code) {
   const https = require('https');
   const http2 = require('http');
   const url = new URL(`${CMS_URL}/api/activate`);
-  const body = JSON.stringify({ code, device_id: DEVICE_ID });
+  const model = (process.env.SONORO_MODEL || '').trim() || null;
+  const body = JSON.stringify({ code, device_id: DEVICE_ID, model });
   
   return new Promise((resolve, reject) => {
     const client = url.protocol === 'https:' ? https : http2;

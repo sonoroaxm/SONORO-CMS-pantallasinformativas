@@ -13,6 +13,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fileUpload = require('express-fileupload');
 const rateLimit = require('express-rate-limit');
+const eventsRouter       = require('./routes/events');
+const eventsPublicRouter = require('./routes/events-public');
+const eventsProductionPublicRouter = require('./routes/events-production-public');
+const eventsStaffRouter  = require('./routes/events-staff');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
@@ -144,6 +148,38 @@ const activateLimiter = rateLimit({
 
 // Limiter para endpoints públicos del player (sin JWT) — generoso para sync legítimo,
 // restrictivo para enumeración de IDs
+const publicLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes, reintenta en un momento' },
+});
+
+const publicBookingCreateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes de agendamiento, reintenta en un momento' },
+});
+
+const publicBookingDayLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Límite diario de agendamientos alcanzado, reintenta mañana' },
+});
+
+const publicTokenActionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos, reintenta en un momento' },
+});
+
 const playerLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -268,7 +304,41 @@ pool.query('SELECT 1')
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `))
-  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens)'))
+  // S157: quota de almacenamiento por usuario. NULL = ilimitado (super admin).
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS storage_limit_mb INTEGER DEFAULT 500
+  `))
+  .then(() => pool.query(`
+    UPDATE users SET storage_limit_mb = NULL WHERE email = 'admin@sonoro.com.co'
+  `).catch(() => {}))
+  // S157: tracking de tamaño en tablas de assets de CI (todavía no funcionales, pero preparadas)
+  .then(() => pool.query(`
+    ALTER TABLE product_assets ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE creative_pieces ADD COLUMN IF NOT EXISTS size_bytes BIGINT DEFAULT 0
+  `).catch(() => {}))
+  // S158: normalizar tier 'cms' viejo → 'cms_sencilla' (una sola vez, aditivo)
+  .then(() => pool.query(`
+    UPDATE users SET license_type = 'cms_sencilla' WHERE license_type = 'cms'
+  `).catch(() => {}))
+  // S158e: phone en users (para contacto post-alta)
+  .then(() => pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)
+  `).catch(() => {}))
+  // S176: orientación del contenido (detectada automáticamente al encodar HEVC)
+  .then(() => pool.query(`
+    ALTER TABLE content ADD COLUMN IF NOT EXISTS orientation VARCHAR(20) DEFAULT 'horizontal'
+  `).catch(() => {}))
+  // S176: ampliar CHECK constraint hevc_status para incluir 'uploading' y 'error'
+  .then(() => pool.query(`
+    ALTER TABLE content DROP CONSTRAINT IF EXISTS content_hevc_status_check
+  `).catch(() => {}))
+  .then(() => pool.query(`
+    ALTER TABLE content ADD CONSTRAINT content_hevc_status_check
+      CHECK (hevc_status IN ('uploading','pending','processing','ready','failed','not_applicable','error'))
+  `).catch(() => {}))
+  .then(() => console.log('✅ Migraciones OK (counters + tv_schedules + content + playlist_items + playlists + devices + branches + agents + password_reset_tokens + storage_limit_mb + size_bytes CI + cms_tier_normalize + content_orientation)'))
   .catch(err => console.error('❌ Error PostgreSQL:', err));
 emailService.verifyConnection();
 
@@ -282,6 +352,10 @@ global.pool = pool;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('❌ FATAL: JWT_SECRET no definido en .env');
+  process.exit(1);
+}
+if (JWT_SECRET.length < 32) {
+  console.error('❌ FATAL: JWT_SECRET debe tener mínimo 32 caracteres');
   process.exit(1);
 }
 const JWT_EXPIRES_IN = '24h';
@@ -501,6 +575,12 @@ app.get('/dashboard.html', (req, res) => {
 // ========================================
 
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
+  // S158d: register público cerrado. Las cuentas ahora se crean sólo por admin.
+  return res.status(403).json({
+    error: 'registro_cerrado',
+    message: 'El registro público está deshabilitado. Contacta a SONORO por WhatsApp al +57 314 446 0990 para activar tu cuenta.'
+  });
+  // eslint-disable-next-line no-unreachable
   try {
     const { email, password, name } = req.body;
 
@@ -536,7 +616,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     );
 
     console.log(`✅ Usuario registrado: ${email}`);
-    emailService.sendWelcomeEmail(user).catch(e => console.warn('Email bienvenida:', e.message));
+    // S158: el email de bienvenida ya NO se envía en el register.
+    // Se dispara cuando el admin asigna la primera licencia (endpoint /license/renew).
 
     res.json({
       success: true,
@@ -624,7 +705,7 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter, async (req, res) =>
   }
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
@@ -649,6 +730,110 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ========================================
+// STORAGE QUOTA — S157
+// ========================================
+
+// Suma bytes usados por el usuario en todas las tablas de assets.
+// NULL en storage_limit_mb = ilimitado (super admin).
+async function getUserStorage(userId) {
+  const q = await pool.query(`
+    SELECT
+      (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = $1) +
+      (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = $1) AS used_bytes,
+      (SELECT storage_limit_mb FROM users WHERE id = $1) AS limit_mb
+  `, [userId]);
+  const row = q.rows[0] || { used_bytes: 0, limit_mb: 500 };
+  const usedBytes = Number(row.used_bytes) || 0;
+  const limitMb = row.limit_mb; // puede ser null
+  const limitBytes = limitMb === null || limitMb === undefined ? null : limitMb * 1024 * 1024;
+  const percent = limitBytes === null ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+  return { used_bytes: usedBytes, limit_mb: limitMb, limit_bytes: limitBytes, percent, unlimited: limitBytes === null };
+}
+
+// Endpoint público para el dashboard
+app.get('/api/user/storage', authenticateToken, async (req, res) => {
+  try {
+    const info = await getUserStorage(req.user.id);
+    res.json({
+      used_mb: Math.round(info.used_bytes / 1024 / 1024 * 10) / 10,
+      used_bytes: info.used_bytes,
+      limit_mb: info.limit_mb,
+      percent: info.percent,
+      unlimited: info.unlimited
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/storage:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: GET /api/user/me — perfil del usuario logeado (Mi Cuenta)
+app.get('/api/user/me', authenticateToken, async (req, res) => {
+  try {
+    const q = await pool.query(`
+      SELECT id, email, name, role, license_type, license_status, license_start, license_end, created_at, features
+      FROM users WHERE id = $1
+    `, [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const u = q.rows[0];
+    const storage = await getUserStorage(u.id);
+    const now = new Date();
+    const end = u.license_end ? new Date(u.license_end) : null;
+    const daysLeft = end ? Math.ceil((end - now) / (1000*60*60*24)) : null;
+    const isExpired = end ? end < now : false;
+    res.json({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      license_type: u.license_type,
+      license_status: isExpired ? 'expired' : (u.license_status || 'active'),
+      license_start: u.license_start,
+      license_end: u.license_end,
+      days_left: daysLeft,
+      is_expired: isExpired,
+      created_at: u.created_at,
+      features: u.features || {},
+      storage: {
+        used_mb: Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10,
+        limit_mb: storage.limit_mb,
+        percent: storage.percent,
+        unlimited: storage.unlimited
+      }
+    });
+  } catch (err) {
+    console.error('❌ Error /api/user/me:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// S158: POST /api/user/change-password — cambio de contraseña propia
+app.post('/api/user/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Faltan campos' });
+    }
+    if (String(new_password).length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+    const q = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!q.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const ok = await bcrypt.compare(current_password, q.rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    const newHash = await bcrypt.hash(new_password, 10);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
+    console.log(`🔐 Password cambiado por usuario ${req.user.id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error /api/user/change-password:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ========================================
 // UPLOAD CON CONVERSIÓN (PROTEGIDO)
 // ========================================
 
@@ -660,9 +845,30 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
     const file = req.files.file;
     const userId = req.user.id; // ✅ DEL JWT
-    const allowedMimes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png'];
 
-    if (!allowedMimes.some(mime => file.mimetype.includes(mime.split('/')[0]))) {
+    // S157: gate de quota antes de aceptar el upload
+    try {
+      const storage = await getUserStorage(userId);
+      if (!storage.unlimited) {
+        const incomingBytes = file.size || 0;
+        if (storage.used_bytes + incomingBytes > storage.limit_bytes) {
+          const usedMb = Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10;
+          return res.status(413).json({
+            error: 'storage_limit_exceeded',
+            message: `Has alcanzado tu límite de ${storage.limit_mb} MB. Elimina contenido o contacta a SONORO para ampliar tu espacio.`,
+            used_mb: usedMb,
+            limit_mb: storage.limit_mb,
+            incoming_mb: Math.round(incomingBytes / 1024 / 1024 * 10) / 10
+          });
+        }
+      }
+    } catch (qErr) {
+      console.warn('⚠️ Storage quota check falló, permitiendo upload:', qErr.message);
+    }
+
+    const allowedMimes = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska', 'image/jpeg', 'image/png']);
+
+    if (!allowedMimes.has(file.mimetype)) {
       return res.status(400).json({
         error: 'Tipo de archivo no soportado',
         supported: 'Videos (MP4, WebM, MOV, MKV) o Imágenes (JPG, PNG)'
@@ -711,18 +917,67 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
 
 async function handleImageUpload(tempPath, fileId, originalName, userId) {
   try {
+    // Validar dimensiones FHD antes de guardar
+    const imgDims = await new Promise((res) => {
+      const probe = require('child_process').spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', tempPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        res({ w: parseInt(parts[0]) || 0, h: parseInt(parts[1]) || 0 });
+      });
+      probe.on('error', () => res({ w: 0, h: 0 }));
+    });
+    const _ratioImg = imgDims.w / imgDims.h;
+    const _is169Img = Math.abs(_ratioImg - 16/9) < 0.02;
+    const _is916Img = Math.abs(_ratioImg - 9/16) < 0.02;
+    if (!_is169Img && !_is916Img && imgDims.w > 0) {
+      fs.unlink(tempPath, () => {});
+      const _gcdImg = (a,b) => b ? _gcdImg(b, a%b) : a;
+      const _dImg = _gcdImg(imgDims.w, imgDims.h);
+      const _ratioStrImg = `${imgDims.w/_dImg}:${imgDims.h/_dImg}`;
+      const dimMsg = `Imagen rechazada: tus dimensiones ${imgDims.w}x${imgDims.h} tienen relación ${_ratioStrImg}. Se requiere 16:9 horizontal (ej. 1920x1080, 3840x2160) o 9:16 vertical (ej. 1080x1920, 2160x3840).`;
+      io.to('user_' + userId).emit('upload_error', { message: dimMsg });
+      console.log('❌ Imagen rechazada por relación de aspecto: ' + imgDims.w + 'x' + imgDims.h);
+      return;
+    }
+
     const filename = `${Date.now()}-${originalName}`;
     const finalPath = path.join(process.cwd(), 'uploads', filename);
 
     fs.renameSync(tempPath, finalPath);
 
+    const imgOrientation = imgDims.h > imgDims.w ? 'vertical' : 'horizontal';
     const result = await pool.query(
-      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, originalName, 'image', filename, `/uploads/${filename}`, fs.statSync(finalPath).size]
+      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, orientation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [userId, originalName, 'image', filename, `/uploads/${filename}`, fs.statSync(finalPath).size, imgOrientation]
     );
 
     console.log('✅ Imagen procesada:', result.rows[0].id);
+
+    // 📼 FIX3-IMG — marcar hevc_status='pending' si el usuario tiene al menos un RPi5
+    try {
+      const rpi5Check = await pool.query(
+        "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1",
+        [userId]
+      );
+      if (rpi5Check.rows.length > 0) {
+        await pool.query(
+          "UPDATE content SET hevc_status='pending' WHERE id=$1",
+          [result.rows[0].id]
+        );
+        console.log('📼 hevc_status=pending marcado para imagen id=' + result.rows[0].id + ' (user tiene RPi5)');
+        setImmediate(runHevcWorker);
+      }
+    } catch (hevcMarkErr) {
+      console.error('⚠️ Error marcando hevc_status pending (imagen):', hevcMarkErr.message);
+    }
+
     io.emit('upload_complete', { success: true, content: result.rows[0], fileId });
 
   } catch (err) {
@@ -741,58 +996,108 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
     let duration = await getVideoDuration(tempPath);
     console.log(`⏱️ Duración: ${(duration / 1000).toFixed(2)}s`);
 
+    // Detectar dimensiones del fuente para orientación (antes de conversión)
+    const srcDimsVideo = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', tempPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        res({ w: parseInt(parts[0]) || 1920, h: parseInt(parts[1]) || 1080 });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const srcOrientation = srcDimsVideo.h > srcDimsVideo.w ? 'vertical' : 'horizontal';
+    console.log(`📐 Dimensiones: ${srcDimsVideo.w}x${srcDimsVideo.h} → modo ${srcOrientation.toUpperCase()}`);
+
+    // Validar relación de aspecto 16:9 / 9:16 (acepta hasta 4K)
+    const _ratioVid = srcDimsVideo.w / srcDimsVideo.h;
+    const _is169Vid = Math.abs(_ratioVid - 16/9) < 0.02;
+    const _is916Vid = Math.abs(_ratioVid - 9/16) < 0.02;
+    if (!_is169Vid && !_is916Vid) {
+      fs.unlink(tempPath, () => {});
+      const _gcdVid = (a,b) => b ? _gcdVid(b, a%b) : a;
+      const _dVid = _gcdVid(srcDimsVideo.w, srcDimsVideo.h);
+      const _ratioStrVid = `${srcDimsVideo.w/_dVid}:${srcDimsVideo.h/_dVid}`;
+      const dimMsg = `Video rechazado: tus dimensiones ${srcDimsVideo.w}x${srcDimsVideo.h} tienen relación ${_ratioStrVid}. Se requiere 16:9 horizontal (ej. 1920x1080, 3840x2160) o 9:16 vertical (ej. 1080x1920, 2160x3840).`;
+      io.to('user_' + userId).emit('upload_error', { message: dimMsg });
+      console.log('❌ Video rechazado por relación de aspecto: ' + srcDimsVideo.w + 'x' + srcDimsVideo.h);
+      return res.status(400).json({ success: false, message: dimMsg });
+    }
+
+    // Insertar en BD inmediatamente con hevc_status='uploading' para que la UI muestre feedback
+    const placeholderFilename = `uploading-${fileId}.mp4`;
+    const rpi5CheckEarly = await pool.query(
+      "SELECT id FROM devices WHERE user_id=$1 AND model='rpi5' LIMIT 1", [userId]
+    );
+    const hasRpi5 = rpi5CheckEarly.rows.length > 0;
+    const earlyResult = await pool.query(
+      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms, hevc_status, orientation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [userId, originalName, 'video', placeholderFilename, '', fs.statSync(tempPath).size, duration,
+       hasRpi5 ? 'uploading' : 'not_applicable', srcOrientation]
+    );
+    const contentId = earlyResult.rows[0].id;
+    console.log('✅ Video pre-registrado en BD id=' + contentId + ' hevc_status=' + earlyResult.rows[0].hevc_status);
+
+    // Emitir upload_complete inmediatamente para que la UI muestre el item con estado "Procesando"
+    io.emit('upload_complete', {
+      success: true,
+      content: earlyResult.rows[0],
+      fileId,
+      codec,
+      duration,
+      thumbnail: null
+    });
+
     let finalPath = tempPath;
     let finalFilename = `${Date.now()}-${originalName}`;
 
     if (needsConversion(codec)) {
       console.log(`⚠️ Video necesita conversión (${codec} → H.264)`);
-
       finalFilename = `converted-${fileId}.mp4`;
       const convertedPath = path.join(process.cwd(), 'uploads', finalFilename);
-
       await convertVideoToH264(tempPath, convertedPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
-
       finalPath = convertedPath;
-
     } else {
       console.log('✅ Video ya está en H.264, copiando...');
       finalPath = path.join(process.cwd(), 'uploads', finalFilename);
       fs.renameSync(tempPath, finalPath);
-
-      // ⚠️ Cola RPi4 deshabilitada (Redis no disponible)
-      console.log('⚠️  Video guardado sin optimización RPi4 (Redis no instalado)');
     }
 
     // Generar thumbnail
     const thumbnailPath = path.join(process.cwd(), 'uploads', `thumb-${fileId}.jpg`);
     await generateThumbnail(finalPath, thumbnailPath);
 
-    // ✅ GUARDAR EN BASE DE DATOS (UNA SOLA VEZ)
-    const result = await pool.query(
-      `INSERT INTO content (user_id, title, type, filename, file_path, size_bytes, duration_ms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [
-        userId,
-        originalName,
-        'video',
-        finalFilename,
-        `/uploads/${finalFilename}`,
-        fs.statSync(finalPath).size,
-        duration
-      ]
+    // Actualizar registro con path final y thumbnail
+    await pool.query(
+      `UPDATE content SET filename=$1, file_path=$2, size_bytes=$3, thumbnail_path=$4,
+       hevc_status=CASE WHEN hevc_status='uploading' THEN 'pending' ELSE hevc_status END
+       WHERE id=$5`,
+      [finalFilename, `/uploads/${finalFilename}`, fs.statSync(finalPath).size,
+       `/uploads/thumb-${fileId}.jpg`, contentId]
     );
 
-    console.log('✅ Video guardado en BD:', result.rows[0].id);
+    const result = await pool.query('SELECT * FROM content WHERE id=$1', [contentId]);
+    console.log('✅ Video guardado en BD:', contentId);
 
+    if (hasRpi5) {
+      console.log('📼 hevc_status=pending marcado para content id=' + contentId + ' (user tiene RPi5)');
+      setImmediate(runHevcWorker);
+    }
+
+    // Emitir actualización con thumbnail ya disponible
     io.emit('upload_complete', {
       success: true,
       content: result.rows[0],
       fileId,
-      codec: codec,
-      duration: duration,
+      codec,
+      duration,
       thumbnail: `/uploads/thumb-${fileId}.jpg`
     });
 
@@ -817,7 +1122,7 @@ async function handleVideoUpload(tempPath, fileId, originalName, userId) {
 app.get('/api/content', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
+      'SELECT id, title, type, filename, file_path, size_bytes, duration_ms, uploaded_at, hevc_status, orientation, width, height FROM content WHERE user_id = $1 ORDER BY uploaded_at DESC',
       [req.user.id] // ✅ Filtrar por usuario autenticado
     );
 
@@ -838,7 +1143,7 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(
-      'SELECT filename FROM content WHERE id = $1 AND user_id = $2',
+      'SELECT filename, hevc_file_path FROM content WHERE id = $1 AND user_id = $2',
       [id, userId] // ✅ Verificar que sea propietario
     );
 
@@ -847,11 +1152,12 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
     }
 
     const filename = result.rows[0].filename;
+    const hevcFilePath = result.rows[0].hevc_file_path;
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const filepath = path.join(uploadsDir, filename);
 
     // Verificar que la ruta resultante siga dentro de uploads (previene path traversal)
-    if (!filepath.startsWith(uploadsDir + path.sep) && filepath !== uploadsDir) {
+    if (!filepath.startsWith(uploadsDir + path.sep)) {
       return res.status(400).json({ error: 'Nombre de archivo inválido' });
     }
 
@@ -872,6 +1178,17 @@ app.delete('/api/content/:id', authenticateToken, async (req, res) => {
 
     // Eliminar de BD
     await pool.query('DELETE FROM content WHERE id = $1 AND user_id = $2', [id, userId]);
+
+    // Notificar RPi5s del usuario para limpiar archivo HEVC local
+    if (hevcFilePath) {
+      try {
+        const rpi5Devs = await pool.query("SELECT device_id FROM devices WHERE user_id=$1 AND model='rpi5'", [userId]);
+        for (const d of rpi5Devs.rows) {
+          io.to(`device_${d.device_id}`).emit('cmd_delete_hevc', { hevc_file_path: hevcFilePath, content_id: parseInt(id) });
+          console.log(`🗑️ cmd_delete_hevc emitido a ${d.device_id}: ${hevcFilePath}`);
+        }
+      } catch(e) { console.error('cmd_delete_hevc error:', e); }
+    }
 
     res.json({ success: true, message: 'Archivo eliminado' });
   } catch (err) {
@@ -1055,7 +1372,7 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
     const userId = req.user.id;
 
     const playlistCheck = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM playlists WHERE id = $1 AND user_id = $2',
       [playlistId, userId]
     );
 
@@ -1064,12 +1381,21 @@ app.post('/api/playlists/:playlistId/items', authenticateToken, async (req, res)
     }
 
     const contentCheck = await pool.query(
-      'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM content WHERE id = $1 AND user_id = $2',
       [content_id, userId]
     );
 
     if (contentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Contenido no encontrado' });
+    }
+
+    // Poka-yoke fail-closed: orientación del contenido debe coincidir con la playlist
+    const plOrientation = playlistCheck.rows[0].orientation || 'horizontal';
+    const ctOrientation = contentCheck.rows[0].orientation || 'horizontal';
+    if (plOrientation !== ctOrientation) {
+      return res.status(400).json({
+        error: `Orientación incompatible: la lista es ${plOrientation} pero el contenido es ${ctOrientation}. Usa contenido ${plOrientation} en esta lista.`
+      });
     }
 
     const orderResult = await pool.query(
@@ -1144,20 +1470,27 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
     const userId = req.user.id;
 
     const check = await pool.query(
-      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      'SELECT id, orientation FROM playlists WHERE id = $1 AND user_id = $2',
       [playlistId, userId]
     );
     if (check.rows.length === 0) return res.status(404).json({ error: 'Playlist no encontrada' });
+    const plOrient = check.rows[0].orientation;
 
     await pool.query('DELETE FROM playlist_items WHERE playlist_id = $1', [playlistId]);
 
     for (let i = 0; i < items.length; i++) {
-      // Verificar que el content_id pertenece al usuario antes de insertar
+      // Verificar que el content_id pertenece al usuario y que la orientación coincide
       const contentOwner = await pool.query(
-        'SELECT id FROM content WHERE id = $1 AND user_id = $2',
+        'SELECT id, orientation FROM content WHERE id = $1 AND user_id = $2',
         [items[i].content_id, userId]
       );
       if (!contentOwner.rows.length) continue;
+      const ctOr = contentOwner.rows[0].orientation || 'horizontal';
+      const plOr = plOrient || 'horizontal';
+      if (plOr !== ctOr) {
+        console.log(`⚠️ Playlist sync: item ${items[i].content_id} omitido (orientación ${ctOr} ≠ ${plOr})`);
+        continue;
+      }
       await pool.query(
         'INSERT INTO playlist_items (playlist_id, content_id, display_order, duration_override_ms) VALUES ($1, $2, $3, $4)',
         [playlistId, items[i].content_id, i + 1, items[i].duration_override_ms || null]
@@ -1166,6 +1499,10 @@ app.put('/api/playlists/:playlistId/items', authenticateToken, async (req, res) 
 
     res.json({ success: true, count: items.length });
     console.log(`✅ Items playlist sincronizados: ${playlistId} (${items.length} items)`);
+    try {
+      const devs = await pool.query("SELECT device_id FROM devices WHERE hdmi0_playlist_id=$1 OR hdmi1_playlist_id=$1", [parseInt(playlistId)]);
+      for (const d of devs.rows) { io.to("device_"+d.device_id).emit("cmd_refresh_playlist"); console.log("📺 cmd_refresh_playlist emitido a "+d.device_id); }
+    } catch(e) {}
   } catch (err) {
     console.error('❌ Error sincronizando items playlist:', err);
     res.status(500).json({ error: err.message });
@@ -1231,9 +1568,9 @@ app.post('/api/devices/register', registerDeviceLimiter, async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO devices (device_id, name, ip_address, display_mode, hdmi0_playlist_id, hdmi1_playlist_id, status, last_seen, platform, player_version, user_id)
-       VALUES ($1, COALESCE($2, $1), $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
+       VALUES ($1, COALESCE($2::varchar, $1), $3, $4, $5, $6, 'online', CURRENT_TIMESTAMP, $7, $8, $9)
        ON CONFLICT (device_id) DO UPDATE SET
-         name = COALESCE($2, devices.name),
+         name = COALESCE($2::varchar, devices.name),
          ip_address = $3,
          status = 'online',
          last_seen = CURRENT_TIMESTAMP,
@@ -1297,6 +1634,9 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
   try {
     const { device_id } = req.params;
 
+    const UUID_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|win-[0-9a-f]+|rpi-[0-9a-f]+)$/i;
+    if (!UUID_RE.test(device_id)) return res.status(400).json({ error: 'device_id inválido' });
+
     const deviceResult = await pool.query(
       `SELECT d.*, u.features
        FROM devices d
@@ -1327,7 +1667,8 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
         // Obtener items desde playlist_items JOIN content
         const itemsResult = await pool.query(
           `SELECT pi.display_order, pi.duration_override_ms,
-                  c.filename, c.type, c.duration_ms
+                  c.filename, c.type, c.duration_ms,
+                  c.hevc_file_path, c.hevc_status  -- // RPI5-HEVC-PATCH v1
            FROM playlist_items pi
            JOIN content c ON pi.content_id = c.id
            WHERE pi.playlist_id = $1
@@ -1336,17 +1677,29 @@ app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
         );
 
         const baseUrl = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+        const isRpi5  = device.model === 'rpi5';  // // RPI5-HEVC-PATCH v1
         for (const item of itemsResult.rows) {
-          if (item.filename) {
-            const duration = item.duration_override_ms || item.duration_ms || 10000;
-            assets.push({
-              filename: item.filename,
-              type:     item.type || 'video',
-              duration,
-              url:      `${baseUrl}/uploads/${item.filename}`,
-              checksum: null,
-            });
+          if (!item.filename) continue;
+          let filename = item.filename;
+          let codec    = 'h264';
+          if (isRpi5) {
+            if (item.hevc_status === 'ready' && item.hevc_file_path) {
+              filename = item.hevc_file_path.replace(/^\/uploads\//, '');
+              codec    = 'hevc';
+            } else {
+              console.log(`  skip HEVC-missing device=${device_id} file=${item.filename} status=${item.hevc_status}`);
+              continue;
+            }
           }
+          const duration = item.duration_override_ms || item.duration_ms || 10000;
+          assets.push({
+            filename,
+            type:     item.type || 'video',
+            duration,
+            url:      `${baseUrl}/uploads/${filename}`,
+            checksum: null,
+            codec,
+          });
         }
       }
     }
@@ -1450,31 +1803,27 @@ app.post('/api/devices/:device_id/win-restart', authenticateToken, async (req, r
 
 // POST - Reboot dispositivo via SSH
 app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res) => {
-  const { ip } = req.body;
-  if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
-  execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
-    if (error) {
-      console.warn(`⚠️ Reboot enviado a ${ip} (puede ser normal si SSH cierra):`, error.message);
-    }
-  });
-  console.log(`🔄 Reboot enviado a: ${ip}`);
-  res.json({ success: true, message: `Reboot enviado a ${ip}` });
+  const { ip, device_id } = req.body;
+  let targetId = device_id;
+  if (!targetId && ip) {
+    if (!isValidIP(ip)) return res.status(400).json({ error: 'IP inválida' });
+    const r = await pool.query('SELECT device_id FROM devices WHERE ip_address = $1 ORDER BY last_seen DESC NULLS LAST LIMIT 1', [ip]);
+    targetId = r.rows[0]?.device_id;
+  }
+  if (!targetId) return res.status(400).json({ error: 'device_id o ip requeridos' });
+  io.to(`device_${targetId}`).emit('reboot_request', { device_id: targetId });
+  console.log(`🔄 Reboot emit → ${targetId}`);
+  res.json({ success: true, message: `Reboot enviado a ${targetId}` });
 });
 
 // POST - Reboot por device_id
 app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) => {
   const { device_id } = req.params;
   try {
-    const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
+    const result = await pool.query('SELECT device_id FROM devices WHERE device_id = $1', [device_id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
-    const ip = result.rows[0].ip_address;
-    if (!ip || !isValidIP(ip)) return res.status(400).json({ error: 'IP del dispositivo inválida' });
-    execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { windowsHide: true }, (error) => {
-      if (error && !error.message.includes('closed') && !error.message.includes('exit')) {
-        console.warn(`⚠️ SSH reboot ${ip}:`, error.message);
-      }
-    });
-    console.log(`🔄 Reboot enviado a ${device_id} (${ip})`);
+    io.to(`device_${device_id}`).emit('reboot_request', { device_id });
+    console.log(`🔄 Reboot emit → ${device_id}`);
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Reboot error:', err.message);
@@ -1562,18 +1911,23 @@ app.post('/api/devices/:device_id/kill-player', authenticateToken, async (req, r
 // POST /api/devices/:device_id/tv/:action — via Socket.io (no SSH)
 app.post('/api/devices/:device_id/tv/:action', authenticateToken, async (req, res) => {
   const { device_id, action } = req.params;
-  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','mute','unmute'];
+  const target = (req.body && req.body.target) || 'all';
+  const valid = ['on','off','status','hdmi1','hdmi2','hdmi3','hdmi4','mute','unmute'];
+  const validTargets = ['tv1','tv2','all'];
   if (!valid.includes(action))
     return res.status(400).json({ success: false, error: 'Accion invalida. Usar: ' + valid.join(' | ') });
+  if (!validTargets.includes(target))
+    return res.status(400).json({ success: false, error: 'Target invalido: tv1|tv2|all' });
   try {
     const result = await pool.query(
-      'SELECT name FROM devices WHERE device_id = $1 AND user_id = $2',
-      [device_id, req.user.id]
+      `SELECT name FROM devices WHERE device_id = $1
+         AND (user_id = $2 OR $3 = 'admin')`,
+      [device_id, req.user.id, req.user.role]
     );
     if (!result.rows.length)
       return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
-    const output = await doTV(device_id, action);
-    res.json({ success: true, device_id, device_name: result.rows[0].name, action, output });
+    const output = await doTV(device_id, action, target);
+    res.json({ success: true, device_id, device_name: result.rows[0].name, action, target, output });
   } catch (err) {
     console.error('TV control error:', err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -1689,6 +2043,46 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
     else cb.resolve(output || action);
   }
   res.json({ success: true });
+});
+
+// POST /api/devices/:device_id/tv-info — RPi reporta CEC vendor/OSD + EDID por HDMI
+app.post('/api/devices/:device_id/tv-info', async (req, res) => {
+  const { device_id } = req.params;
+  const { tv_info } = req.body || {};
+  if (!tv_info || typeof tv_info !== 'object') {
+    return res.status(400).json({ success: false, error: 'tv_info requerido (object)' });
+  }
+  try {
+    const r = await pool.query(
+      'UPDATE devices SET tv_info = $1, tv_info_updated_at = NOW() WHERE device_id = $2 RETURNING id',
+      [JSON.stringify(tv_info), device_id]
+    );
+    if (!r.rowCount) return res.status(404).json({ success: false, error: 'device no existe' });
+    res.json({ success: true });
+  } catch (e) {
+    console.warn('tv-info error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/admin/rpi/logs — admin solicita logs de un RPi via socket
+app.post('/api/admin/rpi/logs', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ success: false, error: 'Solo admin' });
+  const { device_id, lines = 100 } = req.body;
+  if (!device_id) return res.status(400).json({ success: false, error: 'device_id requerido' });
+  if (!global.logsCallbacks) global.logsCallbacks = new Map();
+  if (global.logsCallbacks.has(device_id)) {
+    const old = global.logsCallbacks.get(device_id);
+    clearTimeout(old.timeout);
+    global.logsCallbacks.delete(device_id);
+  }
+  const timeout = setTimeout(() => {
+    global.logsCallbacks.delete(device_id);
+    if (!res.headersSent) res.status(504).json({ success: false, error: 'Timeout: RPi no respondio en 30s' });
+  }, 30000);
+  global.logsCallbacks.set(device_id, { res, timeout });
+  io.to(`device_${device_id}`).emit('logs_request', { device_id, lines: parseInt(lines) });
+  console.log(`📋 logs_request emitido a device_${device_id} (${lines} lineas)`);
 });
 
 // POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
@@ -1817,6 +2211,30 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
       });
     }
 
+    // ── Poka-yoke: validar orientación playlist ↔ device ─────────
+    // Si se asigna una playlist a un HDMI, su orientación debe coincidir
+    // con orientation_hdmiN. Evita reproducir vertical en pantalla horizontal.
+    const curOr = await pool.query(
+      'SELECT orientation_hdmi0, orientation_hdmi1 FROM devices WHERE device_id = $1',
+      [device_id]
+    );
+    const effOr0 = orientation_hdmi0 || curOr.rows[0]?.orientation_hdmi0 || 'horizontal';
+    const effOr1 = orientation_hdmi1 || curOr.rows[0]?.orientation_hdmi1 || 'horizontal';
+    const checkAssign = async (plId, devOr, label) => {
+      if (!plId) return null;
+      const pl = await pool.query('SELECT orientation, name FROM playlists WHERE id = $1', [plId]);
+      if (!pl.rows.length) return null;
+      const plOr = pl.rows[0].orientation || 'horizontal';
+      if (plOr !== devOr) {
+        return `No se puede asignar la playlist "${pl.rows[0].name}" (${plOr}) a ${label} configurado como ${devOr}. Cambia la orientación del dispositivo o selecciona una playlist ${devOr}.`;
+      }
+      return null;
+    };
+    const err0 = await checkAssign(hdmi0_playlist_id, effOr0, 'HDMI 1');
+    if (err0) return res.status(400).json({ error: err0 });
+    const err1 = await checkAssign(hdmi1_playlist_id, effOr1, 'HDMI 2');
+    if (err1) return res.status(400).json({ error: err1 });
+
     const ownerFilter = req.user.role === 'admin' ? '' : 'AND user_id = $12';
     const queryParams = [name, display_mode, hdmi0_playlist_id || null, hdmi1_playlist_id || null,
        orientation_hdmi0, orientation_hdmi1,
@@ -1850,6 +2268,17 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
     // Notificar al dispositivo via Socket.io
     io.emit(`device-config-update-${device_id}`, result.rows[0]);
 
+    // 📺 FIX2 — cmd_refresh_playlist: notificar al Pi si cambió playlist asignada
+    try {
+      const devRow2 = await pool.query('SELECT device_id FROM devices WHERE device_id=$1', [device_id]);
+      if (devRow2.rows[0]) {
+        io.to('device_' + devRow2.rows[0].device_id).emit('cmd_refresh_playlist');
+        console.log('📺 cmd_refresh_playlist emitido a device_' + devRow2.rows[0].device_id);
+      }
+    } catch (emitErr) {
+      console.error('⚠️ Error emitiendo cmd_refresh_playlist:', emitErr.message);
+    }
+
     res.json({ success: true, device: result.rows[0] });
     console.log(`✅ Dispositivo actualizado: ${device_id}`);
   } catch (err) {
@@ -1862,11 +2291,19 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
 app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
   try {
     const { playlistId } = req.params;
+    // // RPI5-HEVC-PATCH v1 — ?device_id opcional para aplicar gate HEVC RPi5
+    const reqDeviceId = req.query.device_id || null;
+    let isRpi5 = false;
+    if (reqDeviceId) {
+      const d = await pool.query('SELECT model FROM devices WHERE device_id=$1', [reqDeviceId]);
+      isRpi5 = d.rows[0]?.model === 'rpi5';
+    }
 
     const result = await pool.query(
       `SELECT p.id, p.name, p.description, p.shuffle_enabled, p.repeat_enabled,
               pi.id as item_id, pi.content_id, pi.display_order, pi.duration_override_ms,
-              c.title, c.type, c.file_path, c.duration_ms
+              c.title, c.type, c.file_path, c.duration_ms,
+              c.hevc_file_path, c.hevc_status
        FROM playlists p
        LEFT JOIN playlist_items pi ON p.id = pi.playlist_id
        LEFT JOIN content c ON pi.content_id = c.id
@@ -1886,15 +2323,26 @@ app.get('/api/player/playlist/:playlistId', playerLimiter, async (req, res) => {
       repeat_enabled: result.rows[0].repeat_enabled,
       items: result.rows
         .filter(row => row.item_id !== null)
-        .map(row => ({
-          item_id: row.item_id,
-          content_id: row.content_id,
-          display_order: row.display_order,
-          title: row.title,
-          type: row.type,
-          file_path: row.file_path,
-          duration_ms: row.duration_override_ms || row.duration_ms || 15000
-        }))
+        .filter(row => {
+          if (!isRpi5) return true;
+          if (row.type === 'video' || row.type === 'image')
+            return row.hevc_status === 'ready' && row.hevc_file_path;
+          return true;
+        })
+        .map(row => {
+          const useHevc = isRpi5 && (row.type === 'video' || row.type === 'image')
+                          && row.hevc_status === 'ready' && row.hevc_file_path;
+          return {
+            item_id: row.item_id,
+            content_id: row.content_id,
+            display_order: row.display_order,
+            title: row.title,
+            type: (useHevc && row.type === 'image') ? 'video' : row.type,
+            file_path: useHevc ? row.hevc_file_path : row.file_path,
+            codec:     useHevc ? 'hevc' : 'h264',
+            duration_ms: row.duration_override_ms || row.duration_ms || 15000
+          };
+        })
     };
 
     res.json(playlist);
@@ -1978,6 +2426,13 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     const part2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     const code = `SNR-${part1}-${part2}`;
 
+    // S158f: detectar si es el primer código del usuario (para email de guía)
+    const priorCount = await pool.query(
+      'SELECT COUNT(*)::int AS n FROM activation_codes WHERE user_id = $1',
+      [userId]
+    );
+    const isFirstCode = priorCount.rows[0].n === 0;
+
     const result = await pool.query(
       `INSERT INTO activation_codes (code, user_id, device_name)
        VALUES ($1, $2, $3)
@@ -1986,6 +2441,14 @@ app.post('/api/activation-codes', authenticateToken, async (req, res) => {
     );
 
     console.log(`✅ Código de activación generado: ${code} para usuario ${userId}`);
+
+    // S158f: en el primer código, enviar guía de activación por email (fire-and-forget)
+    if (isFirstCode) {
+      pool.query('SELECT email, name FROM users WHERE id = $1', [userId])
+        .then(r => r.rows[0] && emailService.sendActivationGuideEmail(r.rows[0]))
+        .catch(e => console.warn('⚠️ Guía de activación email:', e.message));
+    }
+
     res.json({ success: true, ...result.rows[0] });
   } catch (err) {
     console.error('❌ Error generando código:', err);
@@ -2025,11 +2488,15 @@ app.delete('/api/activation-codes/:id', authenticateToken, async (req, res) => {
 // ── VALIDAR CÓDIGO (sin JWT — llamado desde RPi) ─────────────
 app.post('/api/activate', activateLimiter, async (req, res) => {
   try {
-    const { code, device_id, ip_address, display_mode, platform, player_version } = req.body;
+    const { code, device_id, ip_address, display_mode, platform, player_version, model } = req.body;
 
     if (!code || !device_id) {
       return res.status(400).json({ error: 'code y device_id son requeridos' });
     }
+
+    const normalizedModel = (typeof model === 'string' && ['rpi4', 'rpi5', 'windows'].includes(model.toLowerCase()))
+      ? model.toLowerCase()
+      : null;
 
     // Buscar código válido
     const codeResult = await pool.query(
@@ -2048,8 +2515,8 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
 
     // Registrar o actualizar el dispositivo con el user_id
     const deviceResult = await pool.query(
-      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen, platform, player_version)
-       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP, $6, $7)
+      `INSERT INTO devices (device_id, name, ip_address, display_mode, user_id, status, last_seen, platform, player_version, model)
+       VALUES ($1, $2, $3, $4, $5, 'online', CURRENT_TIMESTAMP, $6, $7, COALESCE($8, 'rpi4'))
        ON CONFLICT (device_id) DO UPDATE SET
          name           = COALESCE($2, devices.name),
          ip_address     = $3,
@@ -2057,7 +2524,8 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
          status         = 'online',
          last_seen      = CURRENT_TIMESTAMP,
          platform       = COALESCE($6, devices.platform),
-         player_version = COALESCE($7, devices.player_version)
+         player_version = COALESCE($7, devices.player_version),
+         model          = COALESCE($8, devices.model)
        RETURNING *`,
       [
         device_id,
@@ -2067,6 +2535,7 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
         activation.user_id,
         platform || null,
         player_version || null,
+        normalizedModel,
       ]
     );
 
@@ -2257,28 +2726,65 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
       SELECT
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
-        u.created_at, u.features,
+        u.created_at, u.features, u.notification_emails, u.storage_limit_mb,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
-        COUNT(DISTINCT p.id) as playlist_count
+        COUNT(DISTINCT p.id) as playlist_count,
+        (SELECT COUNT(*) FROM agents a JOIN branches b ON b.id = a.branch_id WHERE b.user_id = u.id) as agent_count,
+        (
+          (SELECT COALESCE(SUM(size_bytes),0) FROM content         WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = u.id) +
+          (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = u.id)
+        ) as storage_used_bytes
       FROM users u
       LEFT JOIN devices d ON d.user_id = u.id
       LEFT JOIN content c ON c.user_id = u.id
       LEFT JOIN playlists p ON p.user_id = u.id
+      WHERE u.role NOT IN ('agent')
       GROUP BY u.id
       ORDER BY u.created_at DESC
     `);
 
     const now = new Date();
-    const users = result.rows.map(u => ({
-      ...u,
-      days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
-      is_expired: u.license_end ? new Date(u.license_end) < now : false,
-    }));
+    const users = result.rows.map(u => {
+      const usedBytes = Number(u.storage_used_bytes) || 0;
+      const limitMb = u.storage_limit_mb;
+      const unlimited = limitMb === null || limitMb === undefined;
+      const limitBytes = unlimited ? null : limitMb * 1024 * 1024;
+      const percent = unlimited ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
+      return {
+        ...u,
+        days_left: u.license_end ? Math.ceil((new Date(u.license_end) - now) / (1000 * 60 * 60 * 24)) : null,
+        is_expired: u.license_end ? new Date(u.license_end) < now : false,
+        storage_used_mb: Math.round(usedBytes / 1024 / 1024 * 10) / 10,
+        storage_percent: percent,
+        storage_unlimited: unlimited
+      };
+    });
 
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// S157: PATCH storage limit por usuario (super admin)
+app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const { storage_limit_mb } = req.body; // number o null (ilimitado)
+    const val = (storage_limit_mb === null || storage_limit_mb === undefined || storage_limit_mb === '')
+      ? null
+      : parseInt(storage_limit_mb, 10);
+    if (val !== null && (Number.isNaN(val) || val < 0)) {
+      return res.status(400).json({ error: 'storage_limit_mb inválido' });
+    }
+    await pool.query('UPDATE users SET storage_limit_mb = $1 WHERE id = $2', [val, userId]);
+    res.json({ success: true, storage_limit_mb: val });
+  } catch (err) {
+    console.error('❌ Error PATCH storage-limit:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
@@ -2374,6 +2880,28 @@ app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) =
 });
 
 // ── DELETE dispositivo ───────────────────────────────────────
+// ── ADMIN: cambiar model de un device ─────────────────────── // RPI5-MODEL-ADMIN v1
+app.patch('/api/admin/devices/:deviceId/model', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  const { model } = req.body || {};
+  const allowed = ['rpi4', 'rpi5', 'windows'];
+  if (!allowed.includes(model)) {
+    return res.status(400).json({ error: `model inválido, debe ser uno de ${allowed.join('|')}` });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE devices SET model=$1 WHERE device_id=$2 RETURNING device_id, model`,
+      [model, deviceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    console.log(`🏷️  device.model actualizado: ${deviceId} → ${model}`);
+    res.json({ success: true, ...rows[0] });
+  } catch (err) {
+    console.error('❌ PATCH device model:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
   const { deviceId } = req.params;
   try {
@@ -2383,6 +2911,191 @@ app.delete('/api/admin/devices/:deviceId', authenticateToken, requireAdmin, asyn
     res.json({ success: true, device_id: rows[0].device_id });
   } catch (err) {
     console.error('❌ Error eliminando dispositivo:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// RPI5-READINESS-CLIENT v1
+app.get('/api/rpi5-readiness/:deviceId', authenticateToken, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const dq = await pool.query(
+      `SELECT id, device_id, name, user_id, model, hdmi0_playlist_id, hdmi1_playlist_id
+         FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.user_id !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+    const totals = await pool.query(
+      `SELECT hevc_status, COUNT(*)::int AS n
+         FROM content WHERE user_id=$1 AND type='video'
+         GROUP BY hevc_status`, [device.user_id]
+    );
+    const by_status = { ready:0, pending:0, processing:0, failed:0, not_applicable:0 };
+    totals.rows.forEach(r => { by_status[r.hevc_status] = r.n; });
+    const playlistIds = [device.hdmi0_playlist_id, device.hdmi1_playlist_id].filter(Boolean);
+    let assigned = { total:0, playable:0, blocked:[] };
+    if (playlistIds.length) {
+      const items = await pool.query(
+        `SELECT DISTINCT c.id, c.title, c.filename, c.hevc_status, c.hevc_error
+           FROM playlist_items pi
+           JOIN content c ON pi.content_id = c.id
+          WHERE pi.playlist_id = ANY($1::int[]) AND c.type='video'`,
+        [playlistIds]
+      );
+      assigned.total    = items.rows.length;
+      assigned.playable = items.rows.filter(r => r.hevc_status === 'ready').length;
+      assigned.blocked  = items.rows
+        .filter(r => r.hevc_status !== 'ready')
+        .map(r => ({
+          content_id: r.id, title: r.title, filename: r.filename,
+          status: r.hevc_status, error: r.hevc_error
+        }));
+    }
+    res.json({
+      device: { device_id: device.device_id, name: device.name, user_id: device.user_id, model: device.model },
+      tenant_videos: { total: Object.values(by_status).reduce((a,b)=>a+b, 0), by_status },
+      assigned_playlists: { playlist_ids: playlistIds, ...assigned },
+      ready_to_pair: assigned.blocked.length === 0
+    });
+  } catch (err) {
+    console.error('rpi5-readiness client GET:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ADMIN: RPi5 Readiness (estado + trigger reencode) ─────── // RPI5-READINESS-ADMIN v1
+app.get('/api/admin/rpi5-readiness/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  try {
+    const dq = await pool.query(
+      `SELECT id, device_id, name, user_id, model, hdmi0_playlist_id, hdmi1_playlist_id
+         FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+
+    const totals = await pool.query(
+      `SELECT hevc_status, COUNT(*)::int AS n
+         FROM content WHERE user_id=$1 AND type='video'
+         GROUP BY hevc_status`, [device.user_id]
+    );
+    const by_status = { ready:0, pending:0, processing:0, failed:0, not_applicable:0 };
+    totals.rows.forEach(r => { by_status[r.hevc_status] = r.n; });
+
+    const playlistIds = [device.hdmi0_playlist_id, device.hdmi1_playlist_id].filter(Boolean);
+    let assigned = { total:0, playable:0, blocked:[] };
+    if (playlistIds.length) {
+      const items = await pool.query(
+        `SELECT DISTINCT c.id, c.title, c.filename, c.hevc_status, c.hevc_error
+           FROM playlist_items pi
+           JOIN content c ON pi.content_id = c.id
+          WHERE pi.playlist_id = ANY($1::int[]) AND c.type='video'`,
+        [playlistIds]
+      );
+      assigned.total    = items.rows.length;
+      assigned.playable = items.rows.filter(r => r.hevc_status === 'ready').length;
+      assigned.blocked  = items.rows
+        .filter(r => r.hevc_status !== 'ready')
+        .map(r => ({
+          content_id: r.id, title: r.title, filename: r.filename,
+          status: r.hevc_status, error: r.hevc_error
+        }));
+    }
+
+    res.json({
+      device: {
+        device_id: device.device_id, name: device.name,
+        user_id: device.user_id, model: device.model
+      },
+      tenant_videos: {
+        total: Object.values(by_status).reduce((a,b)=>a+b, 0),
+        by_status
+      },
+      assigned_playlists: {
+        playlist_ids: playlistIds,
+        ...assigned
+      },
+      ready_to_pair: assigned.blocked.length === 0
+    });
+  } catch (err) {
+    console.error('❌ rpi5-readiness GET:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/rpi5-readiness/:deviceId/enqueue', authenticateToken, requireAdmin, async (req, res) => {
+  const { deviceId } = req.params;
+  const { confirm, expected_count } = req.body || {};
+  try {
+    const dq = await pool.query(
+      `SELECT device_id, user_id, model FROM devices WHERE device_id=$1`, [deviceId]
+    );
+    if (!dq.rows.length) return res.status(404).json({ error: 'device no encontrado' });
+    const device = dq.rows[0];
+    if (device.model !== 'rpi5') {
+      return res.status(400).json({ error: `device.model='${device.model}', no es rpi5` });
+    }
+
+    // Candidatos: videos del tenant en not_applicable o failed (los ready ya están,
+    // los pending/processing ya están encolados — no re-encolar).
+    const cand = await pool.query(
+      `SELECT id, filename, hevc_status
+         FROM content
+        WHERE user_id=$1 AND type='video'
+          AND hevc_status IN ('not_applicable','failed')
+        ORDER BY id`,
+      [device.user_id]
+    );
+    const preview = {
+      candidate_count: cand.rows.length,
+      by_status: {
+        not_applicable: cand.rows.filter(r => r.hevc_status === 'not_applicable').length,
+        failed:         cand.rows.filter(r => r.hevc_status === 'failed').length
+      },
+      sample: cand.rows.slice(0, 10).map(r => ({ id: r.id, filename: r.filename, status: r.hevc_status }))
+    };
+
+    // dry_run OBLIGATORIO: sin confirm=true → devuelve preview y sale.
+    if (confirm !== true) {
+      return res.json({
+        dry_run: true, ...preview,
+        note: 'Para ejecutar: POST con {confirm:true, expected_count:<candidate_count>}. El expected_count debe coincidir exactamente con el preview actual.'
+      });
+    }
+
+    // Con confirm=true, exigimos expected_count exacto (anti-race).
+    if (typeof expected_count !== 'number' || expected_count !== preview.candidate_count) {
+      return res.status(409).json({
+        error: 'expected_count no coincide con el preview actual',
+        expected_count_received: expected_count,
+        candidate_count_now:     preview.candidate_count
+      });
+    }
+
+    if (preview.candidate_count === 0) {
+      return res.json({ enqueued: 0, note: 'nada que encolar' });
+    }
+
+    const ids = cand.rows.map(r => r.id);
+    const upd = await pool.query(
+      `UPDATE content
+          SET hevc_status='pending',
+              hevc_error='enqueued via admin rpi5-readiness (' || $2::text || ') @ ' || NOW()::text
+        WHERE id = ANY($1::int[])
+        RETURNING id`,
+      [ids, deviceId]
+    );
+    console.log(`📼 rpi5-readiness: encolados ${upd.rows.length} videos del user_id=${device.user_id} vía device=${deviceId}`);
+    res.json({ enqueued: upd.rows.length, ids: upd.rows.map(r => r.id) });
+  } catch (err) {
+    console.error('❌ rpi5-readiness POST:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2408,7 +3121,7 @@ app.put('/api/admin/users/:userId/features', authenticateToken, requireAdmin, as
 app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, requireAdmin, async (req, res) => {
   const { userId } = req.params;
   const { feature, enabled } = req.body;
-  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede'];
+  const allowed = ['turnos', 'analytics', 'dual_hdmi', 'onpremise', 'multisede', 'queue_v2_appointments', 'queue_v2_public_booking', 'queue_v2_bulk', 'queue_v2_agent_notes', 'queue_v2_calendars', 'events_v1'];
   if (!feature || !allowed.includes(feature)) return res.status(400).json({ error: 'feature inválido' });
   try {
     const { rows } = await pool.query('SELECT features FROM users WHERE id = $1', [userId]);
@@ -2426,6 +3139,25 @@ app.patch('/api/admin/users/:userId/features/toggle', authenticateToken, require
 });
 
 // ── ADMIN: Ver dispositivos de un usuario específico ─────────
+// ── ADMIN: Agentes de un usuario (tenant) ──────────────────
+app.get('/api/admin/users/:userId/agents', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT a.id, a.name, a.active, a.avatar_color,
+             b.id as branch_id, b.name as branch_name,
+             u.email as user_email, u.id as user_id
+      FROM agents a
+      JOIN branches b ON b.id = a.branch_id
+      JOIN users u ON u.id = a.user_id
+      WHERE b.user_id = $1
+      ORDER BY b.name, a.name
+    `, [req.params.userId]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -2446,8 +3178,19 @@ app.get('/api/admin/users/:userId/devices', authenticateToken, requireAdmin, asy
 });
 
 // ── ADMIN: Todos los dispositivos de todos los usuarios ───────
-app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, res) => {
+// S172j — acepta super admin y clients con multisede (scoping por user_id automático)
+app.get('/api/admin/all-devices', authenticateToken, async (req, res) => {
   try {
+    const uRow = await pool.query('SELECT role, features FROM users WHERE id = $1', [req.user.id]);
+    if (!uRow.rows.length) return res.status(401).json({ error: 'Usuario no encontrado' });
+    const role = uRow.rows[0].role;
+    const isAdmin = role === 'admin';
+    const isMultisede = (role === 'client' || role === 'user') && uRow.rows[0].features?.multisede === true;
+    if (!isAdmin && !isMultisede) {
+      return res.status(403).json({ error: 'Acceso restringido' });
+    }
+    const params = isAdmin ? [] : [req.user.id];
+    const where  = isAdmin ? '' : 'WHERE d.user_id = $1';
     const result = await pool.query(`
       SELECT d.*,
              u.email as user_email, u.name as user_name,
@@ -2458,11 +3201,37 @@ app.get('/api/admin/all-devices', authenticateToken, requireAdmin, async (req, r
       LEFT JOIN users u ON d.user_id = u.id
       LEFT JOIN playlists p0 ON d.hdmi0_playlist_id = p0.id
       LEFT JOIN playlists p1 ON d.hdmi1_playlist_id = p1.id
+      ${where}
       ORDER BY u.name ASC, d.created_at DESC
-    `);
+    `, params);
     res.json(result.rows);
   } catch (err) {
+    console.error('❌ /api/admin/all-devices:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/admin/devices/:device_id/tunnel-status — comprueba si el túnel SSH
+// inverso del RPi está activo (VPS localhost:PORT tiene LISTEN).
+app.get('/api/admin/devices/:device_id/tunnel-status', authenticateToken, requireAdmin, async (req, res) => {
+  const { device_id } = req.params;
+  try {
+    const r = await pool.query('SELECT tunnel_port FROM devices WHERE device_id = $1', [device_id]);
+    const port = r.rows[0]?.tunnel_port || 2222;
+    const net = require('net');
+    const active = await new Promise((resolve) => {
+      const sock = new net.Socket();
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; try { sock.destroy(); } catch(_){} resolve(v); } };
+      sock.setTimeout(1500);
+      sock.once('connect', () => finish(true));
+      sock.once('timeout', () => finish(false));
+      sock.once('error',   () => finish(false));
+      sock.connect(port, '127.0.0.1');
+    });
+    res.json({ device_id, port, active });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -2500,6 +3269,72 @@ app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
 });
 
 // ── ADMIN: Renovar licencia ──────────────────────────────────
+// ── S158e: ADMIN crea cliente (con licencia + contraseña temporal + email) ──
+app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, phone, license_type, months } = req.body;
+    if (!name || !email || !license_type || !months) {
+      return res.status(400).json({ error: 'name, email, license_type y months son requeridos' });
+    }
+    const emailNorm = String(email).trim().toLowerCase();
+
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [emailNorm]);
+    if (exists.rows.length) return res.status(409).json({ error: 'email_ya_existe' });
+
+    // Password temporal 12 chars (alfanum sin ambiguos)
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let tempPassword = '';
+    for (let i = 0; i < 12; i++) tempPassword += alphabet[Math.floor(Math.random() * alphabet.length)];
+    const hash = await bcrypt.hash(tempPassword, 10);
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + parseInt(months));
+
+    const LICENSE_FEATURES = {
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue:    { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:        { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      windows:      { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+    };
+    const feats = LICENSE_FEATURES[license_type] || {};
+
+    const ins = await pool.query(`
+      INSERT INTO users (name, email, password, role, phone, license_type, license_status, license_start, license_end, features, storage_limit_mb)
+      VALUES ($1, $2, $3, 'client', $4, $5, 'active', $6, $7, $8::jsonb, 500)
+      RETURNING id, name, email, license_type, license_end
+    `, [name, emailNorm, hash, phone || null, license_type, now, endDate, JSON.stringify(feats)]);
+
+    const newUser = ins.rows[0];
+
+    // Historial
+    try {
+      await pool.query(`
+        INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
+        VALUES ($1, 'renew', $2, $3, NULL, $4, 'Alta inicial (admin)', $5)
+      `, [newUser.id, months, license_type, endDate, req.user.id]);
+    } catch(e) { console.warn('⚠️ license_history insert:', e.message); }
+
+    // Email de bienvenida con credenciales
+    try {
+      await emailService.sendWelcomeEmail(
+        { email: emailNorm, name, license_type },
+        license_type,
+        { credentials: { email: emailNorm, tempPassword } }
+      );
+    } catch(e) { console.warn('⚠️ Email bienvenida:', e.message); }
+
+    console.log(`✅ Cliente creado por admin: ${emailNorm} (${license_type}, ${months}m)`);
+    res.json({ success: true, user: newUser });
+  } catch (err) {
+    console.error('❌ Error creando cliente:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -2537,6 +3372,13 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       RETURNING *
     `, [newEnd, license_type || null, userId]);
 
+    // S158: detectar si es la PRIMERA licencia del usuario (antes del INSERT)
+    const histCount = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM license_history WHERE user_id = $1 AND action = 'renew'`,
+      [userId]
+    );
+    const isFirstLicense = histCount.rows[0].n === 0;
+
     // Registrar en historial
     await pool.query(`
       INSERT INTO license_history (user_id, action, months, license_type, old_end, new_end, note, created_by)
@@ -2550,23 +3392,33 @@ app.post('/api/admin/users/:userId/license/renew', authenticateToken, requireAdm
       io.emit(`license-updated-${d.device_id}`, { status: 'active', license_end: newEnd });
     });
 
-    // Enviar email de confirmación
+    // Enviar email de confirmación (renovación) o de bienvenida (primera licencia)
     try {
-      await emailService.sendLicenseRenewedEmail(
-        { email: user.email, name: user.name },
-        { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
-      );
-    } catch(e) { console.warn('⚠️ Error enviando email de renovación:', e.message); }
+      if (isFirstLicense) {
+        await emailService.sendWelcomeEmail(
+          { email: user.email, name: user.name, license_type: updateResult.rows[0].license_type },
+          updateResult.rows[0].license_type
+        );
+      } else {
+        await emailService.sendLicenseRenewedEmail(
+          { email: user.email, name: user.name },
+          { months, new_end: newEnd, license_type: updateResult.rows[0].license_type }
+        );
+      }
+    } catch(e) { console.warn('⚠️ Error enviando email de licencia:', e.message); }
 
     // ── Auto-asignar features según tipo de licencia ──────────
     // El admin puede sobreescribir después con los checkboxes.
     // Se hace MERGE (||) para no borrar features que ya tenía.
     const LICENSE_FEATURES = {
-      cms:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false },
-      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false },
-      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false },
-      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true  },
+      cms:          { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_sencilla: { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_doble:    { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'mirror',      onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_pro:      { turnos: false, analytics: false, dual_hdmi: true,  dual_hdmi_mode: 'independent', onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      cms_queue: { turnos: true,  analytics: true,  dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      queue:     { turnos: true,  analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: true,  queue_v2_public_booking: true,  queue_v2_bulk: true,  queue_v2_agent_notes: true,  queue_v2_calendars: false, events_v1: false },
+      rpi:       { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
+      windows:   { turnos: true,  analytics: false, dual_hdmi: false, onpremise: true,  queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false },
     };
     const finalType = license_type || updateResult.rows[0].license_type;
     if (finalType && LICENSE_FEATURES[finalType]) {
@@ -2600,6 +3452,14 @@ app.post('/api/admin/users/:userId/license/suspend', authenticateToken, requireA
     const user = userResult.rows[0];
 
     await pool.query("UPDATE users SET license_status = 'suspended' WHERE id = $1", [userId]);
+
+    // Al suspender: apagar todos los flags Queue v2 en la BD
+    const Q2_OFF = { queue_v2_appointments: false, queue_v2_public_booking: false, queue_v2_bulk: false, queue_v2_agent_notes: false, queue_v2_calendars: false, events_v1: false };
+    await pool.query(
+      "UPDATE users SET features = COALESCE(features, '{}'::jsonb) || $1::jsonb WHERE id = $2",
+      [JSON.stringify(Q2_OFF), userId]
+    );
+    io.to(`user_${userId}`).emit('features_updated', Q2_OFF);
 
     await pool.query(`
       INSERT INTO license_history (user_id, action, note, created_by)
@@ -3340,8 +4200,16 @@ app.get('/api/queue/branches/:branchId/agents', authenticateToken, async (req, r
         (SELECT COUNT(*) FROM agent_sessions WHERE agent_id = a.id) as total_sessions,
         (SELECT COUNT(*) FROM queue_tokens WHERE agent_id = a.id AND date_key = CURRENT_DATE) as today_tokens,
         (SELECT AVG(score) FROM ratings WHERE agent_id = a.id) as avg_rating,
-        (SELECT active FROM agent_sessions WHERE agent_id = a.id AND active = true LIMIT 1) as is_online
+        (SELECT active FROM agent_sessions WHERE agent_id = a.id AND active = true LIMIT 1) as is_online,
+        ci.id AS cal_id,
+        ci.calendar_id AS cal_calendar_id,
+        (ci.id IS NOT NULL) AS has_calendar,
+        ci_o.id AS outlook_cal_id,
+        ci_o.calendar_id AS outlook_calendar_id,
+        (ci_o.id IS NOT NULL) AS has_outlook
        FROM agents a
+       LEFT JOIN calendar_integrations ci ON ci.agent_id = a.id AND ci.provider = 'google'
+       LEFT JOIN calendar_integrations ci_o ON ci_o.agent_id = a.id AND ci_o.provider = 'outlook'
        WHERE a.branch_id = $1
        ORDER BY a.name ASC`,
       [req.params.branchId]
@@ -3855,21 +4723,23 @@ app.post('/api/queue/call-next', authenticateAgentOrUser, async (req, res) => {
         return { ...ins.rows[0], service_name: candidate.service_name, service_color: candidate.service_color };
       });
     } else {
-      // Token existente: actualizar igual que antes
-      await pool.query(
-        `UPDATE queue_tokens SET
-          status = 'called', counter_id = $1, agent_id = $2,
-          agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
-          wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
-         WHERE id = $4`,
-        [counter_id, session.agent_id, session_id, candidate.token_id]
-      );
-      await pool.query(
-        `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
-         VALUES ($1, 'called', $2, $3)`,
-        [candidate.token_id, session.agent_id, counter_id]
-      );
-      token = { ...candidate, id: candidate.token_id };
+      // Token existente: envolver en transacción (A-2)
+      token = await withTransaction(pool, async (client) => {
+        await client.query(
+          `UPDATE queue_tokens SET
+            status = 'called', counter_id = $1, agent_id = $2,
+            agent_session_id = $3, called_at = CURRENT_TIMESTAMP,
+            wait_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60
+           WHERE id = $4`,
+          [counter_id, session.agent_id, session_id, candidate.token_id]
+        );
+        await client.query(
+          `INSERT INTO token_events (token_id, event_type, agent_id, to_counter_id)
+           VALUES ($1, 'called', $2, $3)`,
+          [candidate.token_id, session.agent_id, counter_id]
+        );
+        return { ...candidate, id: candidate.token_id };
+      });
     }
 
     // Obtener nombre del agente y ventanilla para mostrar en pantalla
@@ -3920,89 +4790,94 @@ app.post('/api/queue/tokens/:tokenId/attend', authenticateAgentOrUser, async (re
 app.post('/api/queue/tokens/:tokenId/finish', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id } = req.body;
-    const result = await pool.query(
-      `UPDATE queue_tokens SET
-        status = 'finished', finished_at = CURRENT_TIMESTAMP,
-        attention_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(attended_at, called_at))) / 60
-       WHERE id = $1 RETURNING *`,
-      [req.params.tokenId]
-    );
-    if (!result.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
-
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'finished', $2)`,
-      [req.params.tokenId, agent_id]
-    );
-
-    // Actualizar estadísticas de la sesión
-    await pool.query(
-      `UPDATE agent_sessions SET
-        tokens_attended = tokens_attended + 1,
-        avg_attention_min = (
-          SELECT AVG(attention_minutes) FROM queue_tokens
-          WHERE agent_session_id = $1 AND status = 'finished'
-        )
-       WHERE id = $1`,
-      [session_id]
-    );
-
-    // Si el turno tiene cita vinculada → marcarla como completed + registrar agente
-    const token = result.rows[0];
-    if (token.appointment_id) {
-      const apptUp = await pool.query(
-        `UPDATE appointments SET status = 'completed', agent_id = COALESCE($2::uuid, agent_id)
-          WHERE id = $1
-          RETURNING id, user_id, branch_id, client_name, agent_id`,
-        [token.appointment_id, agent_id || null]
+    const outcome = await withTransaction(pool, async (client) => {
+      const result = await client.query(
+        `UPDATE queue_tokens SET
+          status = 'finished', finished_at = CURRENT_TIMESTAMP,
+          attention_minutes = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(attended_at, called_at))) / 60
+         WHERE id = $1 RETURNING *`,
+        [req.params.tokenId]
       );
-      if (apptUp.rowCount) {
-        const appt = apptUp.rows[0];
-        let agentName = null;
-        if (appt.agent_id) {
-          const agRow = await pool.query(`SELECT name FROM agents WHERE id = $1`, [appt.agent_id]);
-          if (agRow.rowCount) agentName = agRow.rows[0].name;
-        }
-        const completedPayload = { id: appt.id, status: 'completed', agent_id: appt.agent_id, agent_name: agentName };
-        io.to(`user_${appt.user_id}`).emit('appointment.completed', completedPayload);
-        io.to(`branch_${appt.branch_id}`).emit('appointment.completed', completedPayload);
-        console.log(JSON.stringify({ event: 'appointment.completed', appt_id: appt.id, agent_id: appt.agent_id, agent_name: agentName }));
+      if (!result.rows.length) {
+        const e = new Error('Turno no encontrado'); e.httpStatus = 404; throw e;
       }
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'finished', $2)`,
+        [req.params.tokenId, agent_id]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET
+          tokens_attended = tokens_attended + 1,
+          avg_attention_min = (
+            SELECT AVG(attention_minutes) FROM queue_tokens
+            WHERE agent_session_id = $1 AND status = 'finished'
+          )
+         WHERE id = $1`,
+        [session_id]
+      );
+      const token = result.rows[0];
+      let apptPayload = null;
+      if (token.appointment_id) {
+        const apptUp = await client.query(
+          `UPDATE appointments SET status = 'completed', agent_id = COALESCE($2::uuid, agent_id)
+            WHERE id = $1
+            RETURNING id, user_id, branch_id, client_name, agent_id`,
+          [token.appointment_id, agent_id || null]
+        );
+        if (apptUp.rowCount) {
+          const appt = apptUp.rows[0];
+          let agentName = null;
+          if (appt.agent_id) {
+            const agRow = await client.query(`SELECT name FROM agents WHERE id = $1`, [appt.agent_id]);
+            if (agRow.rowCount) agentName = agRow.rows[0].name;
+          }
+          apptPayload = { id: appt.id, status: 'completed', agent_id: appt.agent_id, agent_name: agentName, user_id: appt.user_id, branch_id: appt.branch_id };
+        }
+      }
+      return { token, apptPayload };
+    });
+    if (outcome.apptPayload) {
+      const p = outcome.apptPayload;
+      const completedPayload = { id: p.id, status: p.status, agent_id: p.agent_id, agent_name: p.agent_name };
+      io.to(`user_${p.user_id}`).emit('appointment.completed', completedPayload);
+      io.to(`branch_${p.branch_id}`).emit('appointment.completed', completedPayload);
+      console.log(JSON.stringify({ event: 'appointment.completed', appt_id: p.id, agent_id: p.agent_id, agent_name: p.agent_name }));
     }
-
-    // Emitir para actualizar pantalla y panel
     io.to(`branch_${branch_id}`).emit('token_finished', {
       token_id: req.params.tokenId,
-      counter_id: result.rows[0].counter_id
+      counter_id: outcome.token.counter_id
     });
-
-    // Mostrar calificación si la ventanilla lo tiene habilitado
-    if (result.rows[0].rating_enabled !== false) {
-      io.to(`counter_${result.rows[0].counter_id}`).emit('show_rating', {
+    if (outcome.token.rating_enabled !== false) {
+      io.to(`counter_${outcome.token.counter_id}`).emit('show_rating', {
         token_id: req.params.tokenId,
-        token_number: result.rows[0].display_number
+        token_number: outcome.token.display_number
       });
     }
-
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // POST — Marcar como no presentado
 app.post('/api/queue/tokens/:tokenId/no-show', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id } = req.body;
-    await pool.query(
-      `UPDATE queue_tokens SET status = 'no_show', finished_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [req.params.tokenId]
-    );
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'no_show', $2)`,
-      [req.params.tokenId, agent_id]
-    );
-    await pool.query(
-      `UPDATE agent_sessions SET tokens_no_show = tokens_no_show + 1 WHERE id = $1`,
-      [session_id]
-    );
+    await withTransaction(pool, async (client) => {
+      await client.query(
+        `UPDATE queue_tokens SET status = 'no_show', finished_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [req.params.tokenId]
+      );
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id) VALUES ($1, 'no_show', $2)`,
+        [req.params.tokenId, agent_id]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET tokens_no_show = tokens_no_show + 1 WHERE id = $1`,
+        [session_id]
+      );
+    });
     io.to(`branch_${branch_id}`).emit('token_no_show', { token_id: req.params.tokenId });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
@@ -4012,34 +4887,187 @@ app.post('/api/queue/tokens/:tokenId/no-show', authenticateAgentOrUser, async (r
 app.post('/api/queue/tokens/:tokenId/transfer', authenticateAgentOrUser, async (req, res) => {
   try {
     const { agent_id, session_id, branch_id, to_counter_id, to_service_id, note } = req.body;
-    const current = await pool.query('SELECT * FROM queue_tokens WHERE id = $1', [req.params.tokenId]);
-    if (!current.rows.length) return res.status(404).json({ error: 'Turno no encontrado' });
-
-    const orig = current.rows[0];
-    await pool.query(
-      `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
-      [req.params.tokenId]
-    );
-    await pool.query(
-      `INSERT INTO queue_tokens (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
-       VALUES ($1, $2, $3, $4, $5, 'waiting', $6, 'transfer', CURRENT_DATE)`,
-      [orig.branch_id, to_service_id || orig.service_id, to_counter_id, orig.token_number, orig.display_number, orig.is_priority || false]
-    );
-    await pool.query(
-      `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
-       VALUES ($1, 'transferred', $2, $3, $4, $5)`,
-      [req.params.tokenId, agent_id, current.rows[0].counter_id, to_counter_id, note]
-    );
-    await pool.query(
-      `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
-      [session_id]
-    );
+    const outcome = await withTransaction(pool, async (client) => {
+      const current = await client.query(
+        `SELECT * FROM queue_tokens WHERE id = $1 FOR UPDATE`, [req.params.tokenId]
+      );
+      if (!current.rows.length) {
+        const e = new Error('Turno no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const orig = current.rows[0];
+      const targetServiceId = to_service_id || orig.service_id;
+      // Lock por (branch, servicio destino, día) — evita correlativo duplicado (A-4)
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [orig.branch_id, targetServiceId]
+      );
+      const svcRow = await client.query(
+        `SELECT prefix FROM services WHERE id = $1`, [targetServiceId]
+      );
+      const nextNum = await generateNextTokenNumber(client, orig.branch_id, targetServiceId);
+      const newTokenNumber = `${svcRow.rows[0]?.prefix || ''}${String(nextNum).padStart(3, '0')}`;
+      await client.query(
+        `UPDATE queue_tokens SET status = 'transferred', agent_id = NULL, agent_session_id = NULL WHERE id = $1`,
+        [req.params.tokenId]
+      );
+      const newTok = await client.query(
+        `INSERT INTO queue_tokens (branch_id, service_id, counter_id, token_number, display_number, status, is_priority, channel, date_key)
+         VALUES ($1, $2, $3, $4, $4, 'waiting', $5, 'transfer', CURRENT_DATE) RETURNING id`,
+        [orig.branch_id, targetServiceId, to_counter_id, newTokenNumber, orig.is_priority || false]
+      );
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, from_counter_id, to_counter_id, note)
+         VALUES ($1, 'transferred', $2, $3, $4, $5)`,
+        [req.params.tokenId, agent_id, orig.counter_id, to_counter_id, note]
+      );
+      await client.query(
+        `UPDATE agent_sessions SET tokens_transferred = tokens_transferred + 1 WHERE id = $1`,
+        [session_id]
+      );
+      return { newTokenId: newTok.rows[0].id, newTokenNumber };
+    });
     io.to(`branch_${branch_id}`).emit('token_transferred', {
       token_id: req.params.tokenId,
+      new_token_id: outcome.newTokenId,
+      new_token_number: outcome.newTokenNumber,
       to_counter_id, to_service_id
     });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Error interno del servidor' }); }
+  } catch (err) {
+    if (err && err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R3 — Notas del agente + Seguimiento
+// ══════════════════════════════════════════════════════════════
+
+app.post('/api/queue/tokens/:tokenId/note', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const text = (req.body && req.body.text) ? String(req.body.text).trim().slice(0, 4096) : '';
+    if (!text) return res.status(400).json({ error: 'Texto de nota requerido' });
+    const check = req.user.role === 'agent'
+      ? await pool.query('SELECT id FROM queue_tokens WHERE id = $1 AND branch_id = $2', [tokenId, req.user.branch_id])
+      : await pool.query('SELECT qt.id FROM queue_tokens qt JOIN branches b ON b.id = qt.branch_id WHERE qt.id = $1 AND b.user_id = $2', [tokenId, req.user.id]);
+    if (!check.rowCount) return res.status(404).json({ error: 'Turno no encontrado' });
+    const agentId = req.user.agent_id || null;
+    await pool.query(
+      `INSERT INTO token_events (token_id, event_type, agent_id, metadata) VALUES ($1, 'note_added', $2, $3)`,
+      [tokenId, agentId, JSON.stringify({ text })]
+    );
+    console.log(`📝 agent.note_added token=${tokenId} agent=${agentId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ POST /api/queue/tokens/:tokenId/note:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/queue/tokens/:tokenId/notes', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const result = await pool.query(
+      `SELECT te.id, te.created_at, te.metadata->>'text' AS text, a.name AS agent_name
+         FROM token_events te LEFT JOIN agents a ON a.id = te.agent_id
+        WHERE te.token_id = $1 AND te.event_type = 'note_added'
+        ORDER BY te.created_at ASC`,
+      [tokenId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/tokens/:tokenId/notes:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/queue/appointments/:id/notes', authenticateToken, requireFeatureFlag('queue_v2_appointments'), async (req, res) => {
+  try {
+    const apptId = req.params.id;
+    if (!UUID_RE.test(apptId)) return res.status(400).json({ error: 'id inválido' });
+    const apptRes = await pool.query(
+      'SELECT id FROM appointments WHERE id = $1 AND user_id = $2', [apptId, req.user.id]
+    );
+    if (!apptRes.rowCount) return res.status(404).json({ error: 'Cita no encontrada' });
+    const tokenRes = await pool.query(
+      'SELECT id FROM queue_tokens WHERE appointment_id = $1 ORDER BY created_at DESC LIMIT 1', [apptId]
+    );
+    if (!tokenRes.rowCount) return res.json([]);
+    const result = await pool.query(
+      `SELECT te.id, te.created_at, te.metadata->>'text' AS text, a.name AS agent_name
+         FROM token_events te LEFT JOIN agents a ON a.id = te.agent_id
+        WHERE te.token_id = $1 AND te.event_type = 'note_added'
+        ORDER BY te.created_at ASC`,
+      [tokenRes.rows[0].id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ GET /api/queue/appointments/:id/notes:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/queue/agent/followup', authenticateAgentOrUser, async (req, res) => {
+  try {
+    const { branch_id, service_id, client_name, client_phone, scheduled_at, parent_token_id } = req.body || {};
+    if (!branch_id || !UUID_RE.test(branch_id)) return res.status(400).json({ error: 'branch_id inválido' });
+    if (!service_id || !UUID_RE.test(service_id)) return res.status(400).json({ error: 'service_id inválido' });
+    if (!parent_token_id || !UUID_RE.test(parent_token_id)) return res.status(400).json({ error: 'parent_token_id requerido' });
+    const vName  = queueValidation.validateClientName(client_name);
+    if (!vName.ok) return res.status(400).json({ error: vName.error });
+    const vPhone = queueValidation.validateClientPhone(client_phone);
+    if (!vPhone.ok) return res.status(400).json({ error: vPhone.error });
+    const vSched = parseScheduledAt(scheduled_at);
+    if (!vSched.ok) return res.status(400).json({ error: vSched.error });
+
+    const branchRow = await pool.query(
+      `SELECT b.user_id, u.features->>'queue_v2_appointments' AS feat
+         FROM branches b JOIN users u ON u.id = b.user_id WHERE b.id = $1`,
+      [branch_id]
+    );
+    if (!branchRow.rowCount) return res.status(404).json({ error: 'Sucursal no encontrada' });
+    if (branchRow.rows[0].feat !== 'true') return res.status(403).json({ error: 'FEATURE_DISABLED', feature: 'queue_v2_appointments' });
+    const userId = branchRow.rows[0].user_id;
+
+    const created = await withTransaction(pool, async (client) => {
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtext($1::text || ':' || $2::text || ':' || $3::text))`,
+        [branch_id, service_id, vSched.value.toISOString()]
+      );
+      const svcRes = await client.query(
+        `SELECT id, price, currency FROM services WHERE id = $1 AND branch_id = $2`,
+        [service_id, branch_id]
+      );
+      if (!svcRes.rowCount) { const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e; }
+      const tkRes = await client.query(
+        'SELECT id FROM queue_tokens WHERE id = $1 AND branch_id = $2', [parent_token_id, branch_id]
+      );
+      if (!tkRes.rowCount) { const e = new Error('parent_token_id no encontrado'); e.httpStatus = 404; throw e; }
+      if (await isSlotBlocked(client, branch_id, service_id, vSched.value.toISOString())) {
+        const e = new Error('El slot está bloqueado'); e.httpStatus = 409; e.code = 'BLOCKED'; throw e;
+      }
+      const svc = svcRes.rows[0];
+      const ins = await client.query(
+        `INSERT INTO appointments
+           (user_id, branch_id, service_id, client_name, client_phone, scheduled_at,
+            status, origin, parent_token_id, created_by, price_at_booking, currency_at_booking)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending','follow_up',$7,$8,$9,$10) RETURNING *`,
+        [userId, branch_id, service_id, vName.value, vPhone.value,
+         vSched.value.toISOString(), parent_token_id, userId, svc.price ?? null, svc.currency ?? null]
+      );
+      return ins.rows[0];
+    });
+    io.to(`user_${created.user_id}`).emit('appointment.created', queueSerializers.serializeForAdmin(created));
+    io.to(`branch_${created.branch_id}`).emit('appointment.created', queueSerializers.serializeForBranch(created));
+    console.log(`📅 appointment.created(follow_up) id=${created.id} parent=${parent_token_id}`);
+    return res.status(201).json(queueSerializers.serializeForAdmin(created));
+  } catch (err) {
+    if (err && err.httpStatus) { const b = { error: err.message }; if (err.code) b.code = err.code; return res.status(err.httpStatus).json(b); }
+    if (err && err.code === '23505') return res.status(409).json({ error: 'Slot ya reservado', code: 'SLOT_TAKEN' });
+    console.error('❌ POST /api/queue/agent/followup:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -4256,9 +5284,11 @@ app.get('/api/queue/display/:branchId', async (req, res) => {
 
     // Config de la sucursal
     const branch = await pool.query(
-      `SELECT b.*, p.name as playlist_name FROM branches b
-       LEFT JOIN playlists p ON p.id = b.display_playlist_id
-       WHERE b.id = $1`,
+      `SELECT b.*, p.name as playlist_name, u.public_slug as booking_slug
+         FROM branches b
+         LEFT JOIN playlists p ON p.id = b.display_playlist_id
+         LEFT JOIN users u ON u.id = b.user_id
+        WHERE b.id = $1`,
       [branchId]
     );
 
@@ -4680,7 +5710,19 @@ app.post('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue
         return ins.rows[0];
       });
 
-      // Post-commit (§3.1): sanitización por sala (§3.4).
+      // Post-commit (§3.1): Calendar sync Google + Outlook (non-fatal).
+      if (created.agent_id) {
+        _syncAllCalendars(created.agent_id, created)
+          .then(({ gcal_event_id, outlook_event_id }) => {
+            if (gcal_event_id || outlook_event_id) {
+              pool.query(
+                'UPDATE appointments SET gcal_event_id = $1, outlook_event_id = $2 WHERE id = $3',
+                [gcal_event_id || null, outlook_event_id || null, created.id]
+              ).catch(e => console.error('⚠️ calendar event_id update:', e.message));
+            }
+          })
+          .catch(e => console.error('⚠️ _syncAllCalendars post-commit (non-fatal):', e.message));
+      }
       io.to(`user_${created.user_id}`).emit(
         'appointment.created', queueSerializers.serializeForAdmin(created)
       );
@@ -4691,6 +5733,41 @@ app.post('/api/queue/appointments', authenticateToken, requireFeatureFlag('queue
         `📅 appointment.created id=${created.id} branch=${branch_id} ` +
         `service=${service_id}` + (attempt > 0 ? ` (retry ${attempt})` : '')
       );
+
+      // Fire-and-forget: token publico + email (mismo flujo que booking publico)
+      (async () => {
+        try {
+          const tokRes = await pool.query(
+            `INSERT INTO public_appointment_tokens
+               (user_id, appointment_id, action_allowed, expires_at)
+             VALUES ($1, $2, 'both', NOW() + INTERVAL '7 days')
+             ON CONFLICT DO NOTHING
+             RETURNING token`,
+            [created.user_id, created.id]
+          );
+          const pubTok = tokRes.rows[0]?.token;
+          if (pubTok && created.client_email) {
+            const namesRes = await pool.query(
+              `SELECT b.name AS branch_name, s.name AS service_name
+                 FROM branches b LEFT JOIN services s ON s.id = $2
+                WHERE b.id = $1`,
+              [created.branch_id, created.service_id]
+            );
+            const names    = namesRes.rows[0] || {};
+            const BASE_URL = process.env.CMS_URL || 'https://cms.sonoro.com.co';
+            const citaUrl  = `${BASE_URL}/cita/${pubTok}`;
+            await emailService.sendAppointmentConfirmation(
+              created.client_email,
+              { ...created, branch_name: names.branch_name || '', service_name: names.service_name || '' },
+              citaUrl
+            );
+            console.log(`[admin] email -> ${created.client_email} (cita ${created.id})`);
+          }
+        } catch (emailErr) {
+          console.error('email/token fire-and-forget (admin):', emailErr.message);
+        }
+      })();
+
       return res.status(201).json(queueSerializers.serializeForAdmin(created));
 
     } catch (err) {
@@ -5876,6 +6953,321 @@ app.post('/api/queue/kiosk/confirm-presence', validateKioskToken, async (req, re
 });
 
 // ─────────────────────────────────────────────────────────────
+// R1 ext. — POST /api/queue/appointments/confirm-by-qr
+// Confirmación de presencia escaneando el QR del cliente
+// desde el counter del agente (lector HID externo).
+// Auth: authenticateAgentOrUser. Multi-tenancy: user_id check.
+// El token public_appointment_tokens NO se marca used_at:
+// action_allowed cubre reschedule/cancel; confirmar presencia
+// es acción del agente, no acción del cliente.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/appointments/confirm-by-qr', authenticateAgentOrUser, async (req, res) => {
+  const { token } = req.body || {};
+  const userId    = req.user.id;
+
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!token || !uuidRe.test(token)) {
+    return res.status(400).json({ error: 'Token QR inválido' });
+  }
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // 1. Lookup cita via public token (sin expiración — el agente confirma físicamente)
+      const patRes = await client.query(
+        `SELECT pat.appointment_id, a.user_id AS appt_user_id,
+                a.branch_id, a.service_id, a.status,
+                a.client_name, a.client_phone
+           FROM public_appointment_tokens pat
+           JOIN appointments a ON a.id = pat.appointment_id
+          WHERE pat.token = $1`,
+        [token]
+      );
+      if (!patRes.rowCount) {
+        const e = new Error('Cita no encontrada para este código QR');
+        e.httpStatus = 404; throw e;
+      }
+
+      const { appointment_id, appt_user_id, branch_id, service_id,
+              status, client_name, client_phone } = patRes.rows[0];
+
+      // 2. Multi-tenancy: agents.user_id es la cuenta del agente, no del tenant.
+      //    El tenant real es branches.user_id (ownerUserId).
+      let ownerUserId = userId;
+      if (req.user.branch_id) {
+        const ownerRes = await client.query(
+          'SELECT user_id AS owner_id FROM branches WHERE id = $1',
+          [req.user.branch_id]
+        );
+        if (ownerRes.rowCount) ownerUserId = ownerRes.rows[0].owner_id;
+      }
+      if (appt_user_id !== ownerUserId) {
+        const e = new Error('No autorizado'); e.httpStatus = 403; throw e;
+      }
+
+      // 3. Estado válido para confirmar
+      if (status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+      if (!['pending', 'confirmed'].includes(status)) {
+        const e = new Error(`La cita no puede confirmarse (estado: ${status})`);
+        e.httpStatus = 409; throw e;
+      }
+
+      // 4. Advisory lock anti-doble-scan
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [branch_id, service_id]
+      );
+
+      // 5. Re-check dentro del lock
+      const recheck = await client.query(
+        `SELECT status FROM appointments WHERE id = $1`, [appointment_id]
+      );
+      if (recheck.rows[0]?.status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+
+      // 6. Info del servicio
+      const svcRes = await client.query(
+        `SELECT id, prefix, avg_attention_min FROM services WHERE id = $1`, [service_id]
+      );
+      if (!svcRes.rowCount) {
+        const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const svc = svcRes.rows[0];
+
+      // 7. Número de turno
+      const nextNum     = await generateNextTokenNumber(client, branch_id, service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      // 8. INSERT queue_token (channel='agent')
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'agent',$4,$5,$6)
+         RETURNING *`,
+        [branch_id, service_id, tokenNumber, client_name, client_phone, appointment_id]
+      );
+      const queueToken = tokenRes.rows[0];
+
+      // 9. token_event
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, metadata)
+         VALUES ($1,'appointment_confirmed',$2,$3)`,
+        [queueToken.id,
+         req.user.agent_id || null,
+         JSON.stringify({ appointment_id, method: 'qr', via: 'agent_counter' })]
+      );
+
+      // 10. appointment → attended
+      await client.query(
+        `UPDATE appointments SET status = 'attended' WHERE id = $1`, [appointment_id]
+      );
+
+      // 11. Posición + espera estimada
+      const waitRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE AND status = 'waiting'`,
+        [branch_id, service_id]
+      );
+      const queuePosition        = waitRes.rows[0].n;
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return { appointment_id, branch_id, queueToken, tokenNumber,
+               client_name, queuePosition, estimatedWaitMinutes };
+    });
+
+    const payload = {
+      id: outcome.appointment_id, branch_id: outcome.branch_id,
+      token_id: outcome.queueToken.id, token_number: outcome.tokenNumber,
+      method: 'qr', via: 'agent_counter',
+    };
+    io.to(`user_${userId}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.branch_id}`).emit('appointment.confirmed', payload);
+    io.to(`branch_${outcome.branch_id}`).emit('new_token', {
+      token:          outcome.queueToken,
+      is_appointment: true,
+      waiting_count:  outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(`📅 agent.qr.confirmed id=${outcome.appointment_id} token=${outcome.tokenNumber}`);
+    return res.json({
+      confirmed:              true,
+      token_number:           outcome.tokenNumber,
+      client_name:            outcome.client_name,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position:         outcome.queuePosition,
+    });
+
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message, code: err.code });
+    console.error('❌ POST /api/queue/appointments/confirm-by-qr:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+
+// ─────────────────────────────────────────────────────────────
+// R1 ext. — POST /api/queue/kiosk/confirm-by-qr
+// Confirmacion de presencia por QR desde kiosko de autoservicio.
+// Auth: validateKioskToken. Multi-tenancy: branch check.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/queue/kiosk/confirm-by-qr', validateKioskToken, async (req, res) => {
+  const { token } = req.body || {};
+  const branchId    = req.branch.id;
+  const ownerUserId = req.branch.user_id;
+
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!token || !uuidRe.test(token)) {
+    return res.status(400).json({ error: 'Token QR invalido' });
+  }
+
+  try {
+    const outcome = await withTransaction(pool, async (client) => {
+      // 1. Lookup cita via public token
+      const patRes = await client.query(
+        `SELECT pat.appointment_id, a.user_id AS appt_user_id,
+                a.branch_id AS appt_branch_id,
+                a.service_id, a.status,
+                a.client_name, a.client_phone
+           FROM public_appointment_tokens pat
+           JOIN appointments a ON a.id = pat.appointment_id
+          WHERE pat.token = $1`,
+        [token]
+      );
+      if (!patRes.rowCount) {
+        const e = new Error('Cita no encontrada para este codigo QR');
+        e.httpStatus = 404; throw e;
+      }
+
+      const { appointment_id, appt_user_id, appt_branch_id,
+              service_id, status, client_name, client_phone } = patRes.rows[0];
+
+      // 2. Multi-tenancy: el kiosko solo confirma citas de su sucursal
+      if (appt_branch_id !== branchId || appt_user_id !== ownerUserId) {
+        const e = new Error('Esta cita no pertenece a esta sucursal');
+        e.httpStatus = 403; throw e;
+      }
+
+      // 3. Estado valido para confirmar
+      if (status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+      if (!['pending', 'confirmed'].includes(status)) {
+        const e = new Error(`La cita no puede confirmarse (estado: ${status})`);
+        e.httpStatus = 409; throw e;
+      }
+
+      // 4. Advisory lock anti-doble-scan
+      await client.query(
+        `SELECT pg_advisory_xact_lock(
+           hashtext($1::text || ':' || $2::text || ':' || CURRENT_DATE::text))`,
+        [branchId, service_id]
+      );
+
+      // 5. Re-check dentro del lock
+      const recheck = await client.query(
+        `SELECT status FROM appointments WHERE id = $1`, [appointment_id]
+      );
+      if (recheck.rows[0]?.status === 'attended') {
+        const e = new Error('La cita ya fue confirmada');
+        e.httpStatus = 409; e.code = 'ALREADY_CONFIRMED'; throw e;
+      }
+
+      // 6. Info del servicio (name y color para la pantalla de confirmacion)
+      const svcRes = await client.query(
+        `SELECT id, name, prefix, avg_attention_min, color FROM services WHERE id = $1`,
+        [service_id]
+      );
+      if (!svcRes.rowCount) {
+        const e = new Error('Servicio no encontrado'); e.httpStatus = 404; throw e;
+      }
+      const svc = svcRes.rows[0];
+
+      // 7. Numero de turno
+      const nextNum     = await generateNextTokenNumber(client, branchId, service_id);
+      const tokenNumber = `${svc.prefix}${String(nextNum).padStart(3, '0')}`;
+
+      // 8. INSERT queue_token (channel=kiosk)
+      const tokenRes = await client.query(
+        `INSERT INTO queue_tokens
+           (branch_id, service_id, token_number, display_number,
+            is_priority, is_appointment, channel,
+            client_name, client_phone, appointment_id)
+         VALUES ($1,$2,$3,$3,false,true,'kiosk',$4,$5,$6)
+         RETURNING *`,
+        [branchId, service_id, tokenNumber, client_name, client_phone, appointment_id]
+      );
+      const queueToken = tokenRes.rows[0];
+
+      // 9. token_event
+      await client.query(
+        `INSERT INTO token_events (token_id, event_type, agent_id, metadata)
+         VALUES ($1,'appointment_confirmed',NULL,$2)`,
+        [queueToken.id,
+         JSON.stringify({ appointment_id, method: 'qr', via: 'kiosk' })]
+      );
+
+      // 10. appointment -> attended
+      await client.query(
+        `UPDATE appointments SET status = 'attended' WHERE id = $1`, [appointment_id]
+      );
+
+      // 11. Posicion + espera estimada
+      const waitRes = await client.query(
+        `SELECT COUNT(*)::int AS n FROM queue_tokens
+          WHERE branch_id = $1 AND service_id = $2
+            AND date_key = CURRENT_DATE AND status = 'waiting'`,
+        [branchId, service_id]
+      );
+      const queuePosition        = waitRes.rows[0].n;
+      const estimatedWaitMinutes = Math.max(0, (queuePosition - 1) * (svc.avg_attention_min || 0));
+
+      return { appointment_id, branchId, queueToken, tokenNumber,
+               client_name, queuePosition, estimatedWaitMinutes,
+               service_name: svc.name, service_color: svc.color || '#7c3aed' };
+    });
+
+    io.to(`branch_${outcome.branchId}`).emit('appointment.confirmed', {
+      id: outcome.appointment_id, branch_id: outcome.branchId,
+      token_id: outcome.queueToken.id, token_number: outcome.tokenNumber,
+      method: 'qr', via: 'kiosk',
+    });
+    io.to(`branch_${outcome.branchId}`).emit('new_token', {
+      token:          outcome.queueToken,
+      is_appointment: true,
+      waiting_count:  outcome.queuePosition,
+      estimated_wait: outcome.estimatedWaitMinutes,
+    });
+
+    console.log(`[kiosk.qr] confirmed id=${outcome.appointment_id} token=${outcome.tokenNumber}`);
+    return res.json({
+      confirmed:              true,
+      token_number:           outcome.tokenNumber,
+      client_name:            outcome.client_name,
+      service_name:           outcome.service_name,
+      service_color:          outcome.service_color,
+      estimated_wait_minutes: outcome.estimatedWaitMinutes,
+      queue_position:         outcome.queuePosition,
+    });
+
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message, code: err.code });
+    console.error('POST /api/queue/kiosk/confirm-by-qr:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
 // R1 §2.8 — CRUD de time_blocks (POST / GET / DELETE)
 // ─────────────────────────────────────────────────────────────
 // Decisión sesión 60 (B+5.1, firmada):
@@ -6664,15 +8056,58 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // ─────────────────────────────────────────────────────────────
 // R1.5 §1 — GET /agendar/:slug  →  booking.html
 // ─────────────────────────────────────────────────────────────
+// ── Events v1 — Routers (E0) ────────────────────────────────────────────
+app.use('/api/events/public', eventsProductionPublicRouter);
+app.use('/api/events/public', eventsPublicRouter);
+app.use('/api/events/staff',  eventsStaffRouter);
+app.use('/api/events',        eventsRouter);
+
+// ── Events v1 — Rutas HTML ───────────────────────────────────────────────
+app.get('/evento/invitacion/:code', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug/mi-registro/:qr', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+});
+app.get('/evento/:slug/staff', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-staff.html'));
+});
+app.get('/evento/:slug/produccion', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-produccion.html'));
+});
+app.get('/evento/:slug/orador/:session_id', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-teleprompter.html'));
+});
+app.get('/evento/:slug/kiosko', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
+});
+app.get('/cotizacion/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
+});
+app.get('/proveedor-registro/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'proveedor-registro.html'));
+});
+
 app.get('/agendar/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
+});
+
+app.get('/politica-datos/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'politica-datos.html'));
+});
+
+app.get('/terminos/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'terminos.html'));
 });
 
 // ─────────────────────────────────────────────────────────────
 // R1.5 §2 — GET /api/queue/public/:slug
 // Devuelve tenant + sucursales activas + servicios. Sin auth.
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/public/:slug', async (req, res) => {
+app.get('/api/queue/public/:slug', publicLimiter, async (req, res) => {
   const { slug } = req.params;
   if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
     return res.status(400).json({ error: 'slug inválido' });
@@ -6728,7 +8163,7 @@ app.get('/api/queue/public/:slug', async (req, res) => {
 // R1.5 §3 — GET /api/queue/public/:slug/slots
 // ?branch_id=UUID&service_id=UUID&date=YYYY-MM-DD
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/public/:slug/slots', async (req, res) => {
+app.get('/api/queue/public/:slug/slots', publicLimiter, async (req, res) => {
   const { slug } = req.params;
   const { branch_id, service_id, date } = req.query;
 
@@ -6817,7 +8252,7 @@ app.get('/api/queue/public/:slug/slots', async (req, res) => {
 // Anti-bot: hp_field vacío + timing ≥2 s + habeas_data aceptado.
 // public_booking_mode 'auto' → confirmed, 'manual' → pending.
 // ─────────────────────────────────────────────────────────────
-app.post('/api/queue/public/:slug/appointments', async (req, res) => {
+app.post('/api/queue/public/:slug/appointments', publicBookingCreateLimiter, publicBookingDayLimiter, async (req, res) => {
   const { slug } = req.params;
   if (!slug || !/^[a-z0-9-]{2,60}$/.test(slug)) {
     return res.status(400).json({ error: 'slug inválido' });
@@ -7057,7 +8492,7 @@ app.get('/cita/:token', (req, res) => {
 // R1.5 §9 — GET /api/queue/cita/:token
 // Devuelve detalles de la cita para la página pública.
 // ─────────────────────────────────────────────────────────────
-app.get('/api/queue/cita/:token', async (req, res) => {
+app.get('/api/queue/cita/:token', publicLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   try {
@@ -7103,7 +8538,7 @@ app.get('/api/queue/cita/:token', async (req, res) => {
 // R1.5 §10 — DELETE /api/queue/cita/:token
 // Cancela la cita y marca el token como usado.
 // ─────────────────────────────────────────────────────────────
-app.delete('/api/queue/cita/:token', async (req, res) => {
+app.delete('/api/queue/cita/:token', publicTokenActionLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   try {
@@ -7143,7 +8578,7 @@ app.delete('/api/queue/cita/:token', async (req, res) => {
 // Reprograma la cita. El token NO se consume (permite re-agendar).
 // Body: { scheduled_at: ISO8601 }
 // ─────────────────────────────────────────────────────────────
-app.patch('/api/queue/cita/:token', async (req, res) => {
+app.patch('/api/queue/cita/:token', publicTokenActionLimiter, async (req, res) => {
   const { token } = req.params;
   if (!UUID_RE.test(token)) return res.status(400).json({ error: 'token inválido' });
   const vAt = parseScheduledAt(req.body?.scheduled_at);
@@ -7259,6 +8694,14 @@ io.on('connection', (socket) => {
     } catch(e) { console.warn('heartbeat error:', e.message); }
   });
 
+  socket.on('device_sysinfo', async (info) => {
+    if (socket.role !== 'device') return;
+    if (!info?.device_id || info.temp_celsius == null) return;
+    try {
+      await pool.query('UPDATE devices SET cpu_temp = $1, last_seen = NOW() WHERE device_id = $2', [info.temp_celsius, info.device_id]);
+    } catch(e) { console.warn('sysinfo persist error:', e.message); }
+  });
+
   // device-unhealthy — el watchdog del player Windows lo emite tras 5 reloads
   // consecutivos sin recuperar el renderer. Persistimos el flag; el operador
   // ve el indicador en el dashboard y decide si reinstalar o intervenir.
@@ -7287,20 +8730,11 @@ io.on('connection', (socket) => {
 
   socket.on('reboot_device', requireUser(async ({ device_id }) => {
     try {
-      const result = await pool.query('SELECT ip_address FROM devices WHERE device_id = $1', [device_id]);
+      const result = await pool.query('SELECT device_id FROM devices WHERE device_id = $1', [device_id]);
       if (!result.rows.length) return socket.emit('reboot_result', { success: false, error: 'Dispositivo no encontrado' });
-      const ip = result.rows[0].ip_address;
-      if (!ip || !isValidIP(ip)) return socket.emit('reboot_result', { success: false, error: 'IP del dispositivo inválida' });
-      console.log(`🔄 Reiniciando dispositivo ${device_id} en ${ip}`);
-      execFile('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, 'sudo reboot'], { timeout: 15000, windowsHide: true }, (error) => {
-        if (error && error.code !== null && error.signal !== 'SIGTERM') {
-          console.error('❌ Reboot error:', error.message);
-          socket.emit('reboot_result', { success: false, error: error.message });
-        } else {
-          console.log(`✅ Reboot enviado a ${ip}`);
-          socket.emit('reboot_result', { success: true });
-        }
-      });
+      console.log(`🔄 Reboot emit → ${device_id}`);
+      io.to(`device_${device_id}`).emit('reboot_request', { device_id });
+      socket.emit('reboot_result', { success: true });
     } catch (err) {
       socket.emit('reboot_result', { success: false, error: err.message });
     }
@@ -7365,6 +8799,46 @@ io.on('connection', (socket) => {
     socket.join(`counter_${counterId}`);
   });
 
+  socket.on('join_event', async ({ event_id } = {}) => {
+    if (!event_id || socket.role !== 'user') {
+      return socket.emit('auth_error', { error: 'JWT requerido para join_event' });
+    }
+    try {
+      const isAdmin = socket.user.role === 'admin';
+      const ev = await pool.query(
+        `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+        isAdmin ? [event_id] : [event_id, socket.user.id]
+      );
+      if (!ev.rowCount) return socket.emit('auth_error', { error: 'Evento no encontrado o no autorizado' });
+      socket.join(`event_${event_id}`);
+      socket.join(`event_checkin_${event_id}`);
+      socket.join(`event_screen_${event_id}`);
+      console.log(`🎪 user_id=${socket.user.id} → salas event_${event_id}`);
+    } catch (e) {
+      console.error('join_event error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
+  });
+
+  socket.on('join_event_public', async ({ token } = {}) => {
+    if (!token) return socket.emit('auth_error', { error: 'Token requerido' });
+    try {
+      const r = await pool.query(
+        `SELECT event_id FROM events.production_tokens
+         WHERE token = $1 AND revoked_at IS NULL LIMIT 1`,
+        [token]
+      );
+      if (!r.rows[0]) return socket.emit('auth_error', { error: 'Token inválido o revocado' });
+      const eventId = r.rows[0].event_id;
+      socket.join(`event_${eventId}`);
+      socket.join(`event_screen_${eventId}`);
+      socket.emit('joined_event_public', { event_id: eventId });
+    } catch (e) {
+      console.error('join_event_public error:', e.message);
+      socket.emit('auth_error', { error: 'Error interno' });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`🔴 Cliente desconectado: ${socket.id} (${socket.role})`);
   });
@@ -7377,6 +8851,1997 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 
 console.log('🎬 Servicio de conversión de videos inicializado');
+
+// ========================================
+// R4 — CALENDAR INTEGRATIONS (Agent OAuth)
+// ========================================
+
+const _calOAuthStates = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of _calOAuthStates) {
+    if (now - v.createdAt > 10 * 60 * 1000) _calOAuthStates.delete(k);
+  }
+}, 60 * 1000);
+
+async function _googleTokenExchange(code) {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: `${process.env.CMS_URL}/api/queue/calendar/google/callback`,
+      grant_type: 'authorization_code',
+    }),
+  });
+  if (!r.ok) {
+    const body = await r.text();
+    throw new Error(`Token exchange failed ${r.status}: ${body}`);
+  }
+  return r.json();
+}
+
+async function _googleRevokeToken(accessToken) {
+  try {
+    await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(accessToken)}`, {
+      method: 'POST',
+    });
+  } catch (e) {
+    console.error('⚠️ Google revoke (non-fatal):', e.message);
+  }
+}
+
+// POST /api/queue/calendar/agent/:agentId/generate-link — admin genera link de onboarding
+app.post('/api/queue/calendar/agent/:agentId/generate-link', authenticateToken, async (req, res) => {
+  const agentId = req.params.agentId;
+  if (!agentId || !/^[0-9a-f-]{36}$/i.test(agentId)) return res.status(400).json({ error: 'ID inválido' });
+  try {
+    const agentRow = await pool.query(
+      `SELECT a.id FROM agents a
+       JOIN branches b ON b.id = a.branch_id
+       WHERE a.id = $1 AND b.user_id = $2`,
+      [agentId, req.user.id]
+    );
+    if (!agentRow.rows.length) return res.status(404).json({ error: 'Agente no encontrado' });
+
+    const { randomUUID } = require('crypto');
+    const token = randomUUID();
+    const provider = (req.body && req.body.provider === 'outlook') ? 'outlook' : 'google';
+    await pool.query(
+      `INSERT INTO calendar_connect_tokens (token, agent_id, provider, expires_at)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '24 hours')`,
+      [token, agentId, provider]
+    );
+    res.json({ url: `${process.env.CMS_URL}/calendar-connect/?token=${token}` });
+  } catch (err) {
+    console.error('❌ generate-link:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/queue/calendar/connect-info/:token — info del agente para la página de conexión
+app.get('/api/queue/calendar/connect-info/:token', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT a.name AS agent_name, cct.provider
+       FROM calendar_connect_tokens cct
+       JOIN agents a ON a.id = cct.agent_id
+       WHERE cct.token = $1 AND cct.expires_at > NOW() AND cct.used_at IS NULL`,
+      [req.params.token]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Link inválido o expirado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('❌ connect-info:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/queue/calendar/connect-link/:token/auth — inicia OAuth para el agente
+app.get('/api/queue/calendar/connect-link/:token/auth', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT agent_id, provider FROM calendar_connect_tokens
+       WHERE token = $1 AND expires_at > NOW() AND used_at IS NULL`,
+      [req.params.token]
+    );
+    if (!result.rows.length) {
+      return res.redirect(`${process.env.CMS_URL}/calendar-connect-error/?error=link_invalido`);
+    }
+    const { agent_id, provider: tokenProvider } = result.rows[0];
+    const { randomUUID } = require('crypto');
+    const state = randomUUID();
+    _calOAuthStates.set(state, { agentId: agent_id, connectToken: req.params.token, provider: tokenProvider, createdAt: Date.now() });
+
+    if (tokenProvider === 'outlook') {
+      if (!process.env.AZURE_CLIENT_ID) {
+        return res.redirect(`${process.env.CMS_URL}/calendar-connect-error/?error=no_configurado`);
+      }
+      const params = new URLSearchParams({
+        client_id:     process.env.AZURE_CLIENT_ID,
+        redirect_uri:  `${process.env.CMS_URL}/api/queue/calendar/outlook/callback`,
+        response_type: 'code',
+        scope:         'Calendars.ReadWrite offline_access User.Read',
+        state,
+      });
+      return res.redirect(`https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`);
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.redirect(`${process.env.CMS_URL}/calendar-connect-error/?error=no_configurado`);
+    }
+    const params = new URLSearchParams({
+      client_id:     process.env.GOOGLE_CLIENT_ID,
+      redirect_uri:  `${process.env.CMS_URL}/api/queue/calendar/google/callback`,
+      response_type: 'code',
+      scope:         'https://www.googleapis.com/auth/calendar.events',
+      access_type:   'offline',
+      prompt:        'consent',
+      state,
+    });
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  } catch (err) {
+    console.error('❌ connect-link/auth:', err);
+    res.redirect(`${process.env.CMS_URL}/calendar-connect-error/?error=server_error`);
+  }
+});
+
+// GET /api/queue/calendar/google/callback — Google redirige aquí tras autorización
+app.get('/api/queue/calendar/google/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const SUCCESS = `${process.env.CMS_URL}/calendar-connect-success/`;
+  const ERROR_BASE = `${process.env.CMS_URL}/calendar-connect-error/`;
+
+  if (error) {
+    console.error('❌ Google OAuth error:', error);
+    return res.redirect(`${ERROR_BASE}?error=${encodeURIComponent(error)}`);
+  }
+
+  const stateData = _calOAuthStates.get(state);
+  if (!stateData) {
+    console.error('❌ OAuth state inválido:', state);
+    return res.redirect(`${ERROR_BASE}?error=invalid_state`);
+  }
+  _calOAuthStates.delete(state);
+
+  const { agentId, connectToken } = stateData;
+  try {
+    const tokens = await _googleTokenExchange(code);
+    const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+    const expiry = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      : null;
+
+    let calendarId = 'primary';
+    try {
+      const calRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (calRes.ok) { const d = await calRes.json(); calendarId = d.id || 'primary'; }
+    } catch (e) { /* non-fatal */ }
+
+    await pool.query(
+      `INSERT INTO calendar_integrations
+         (agent_id, provider, calendar_id, access_token, refresh_token, token_expiry, scope)
+       VALUES ($1, 'google', $2,
+         pgp_sym_encrypt($3, $4), pgp_sym_encrypt($5, $4), $6, $7)
+       ON CONFLICT (agent_id, provider) DO UPDATE SET
+         calendar_id = EXCLUDED.calendar_id, access_token = EXCLUDED.access_token,
+         refresh_token = EXCLUDED.refresh_token, token_expiry = EXCLUDED.token_expiry,
+         scope = EXCLUDED.scope, connected_at = NOW()`,
+      [agentId, calendarId, tokens.access_token, encKey,
+       tokens.refresh_token || '', expiry,
+       tokens.scope || 'https://www.googleapis.com/auth/calendar.events']
+    );
+
+    await pool.query(
+      'UPDATE calendar_connect_tokens SET used_at = NOW() WHERE token = $1',
+      [connectToken]
+    );
+
+    console.log(`✅ calendar.sync.ok agent=${agentId} provider=google cal=${calendarId}`);
+    // Registrar Google Watch Channel (non-fatal, igual que Outlook)
+    _registerGoogleWatchChannel(agentId, calendarId, tokens.access_token).catch(e =>
+      console.error('⚠️ google watch channel registro:', e.message)
+    );
+    res.redirect(SUCCESS);
+  } catch (err) {
+    console.error('❌ /api/queue/calendar/google/callback:', err);
+    res.redirect(`${ERROR_BASE}?error=server_error`);
+  }
+});
+
+// GET /api/queue/calendar/outlook/callback — Microsoft redirige aquí tras autorización
+app.get('/api/queue/calendar/outlook/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const SUCCESS    = `${process.env.CMS_URL}/calendar-connect-success/`;
+  const ERROR_BASE = `${process.env.CMS_URL}/calendar-connect-error/`;
+
+  if (error) {
+    console.error('❌ Outlook OAuth error:', error);
+    return res.redirect(`${ERROR_BASE}?error=${encodeURIComponent(error)}`);
+  }
+  const stateData = _calOAuthStates.get(state);
+  if (!stateData) {
+    console.error('❌ OAuth state inválido (Outlook):', state);
+    return res.redirect(`${ERROR_BASE}?error=invalid_state`);
+  }
+  _calOAuthStates.delete(state);
+
+  const { agentId, connectToken } = stateData;
+  try {
+    const tokens = await _outlookTokenExchange(code);
+    const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+    const expiry = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+      : null;
+
+    let calendarId = 'primary';
+    try {
+      const calRes = await fetch(
+        'https://graph.microsoft.com/v1.0/me/calendars?$top=1&$filter=isDefaultCalendar eq true',
+        { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+      );
+      if (calRes.ok) {
+        const d = await calRes.json();
+        if (d.value && d.value[0]) calendarId = d.value[0].id || 'primary';
+      }
+    } catch (e) { /* non-fatal */ }
+
+    await pool.query(
+      `INSERT INTO calendar_integrations
+         (agent_id, provider, calendar_id, access_token, refresh_token, token_expiry, scope)
+       VALUES ($1, 'outlook', $2,
+         pgp_sym_encrypt($3, $4), pgp_sym_encrypt($5, $4), $6, $7)
+       ON CONFLICT (agent_id, provider) DO UPDATE SET
+         calendar_id = EXCLUDED.calendar_id, access_token = EXCLUDED.access_token,
+         refresh_token = EXCLUDED.refresh_token, token_expiry = EXCLUDED.token_expiry,
+         scope = EXCLUDED.scope, connected_at = NOW()`,
+      [agentId, calendarId, tokens.access_token, encKey,
+       tokens.refresh_token || '', expiry,
+       tokens.scope || 'Calendars.ReadWrite offline_access User.Read']
+    );
+    await pool.query(
+      'UPDATE calendar_connect_tokens SET used_at = NOW() WHERE token = $1',
+      [connectToken]
+    );
+    _registerOutlookSubscription(agentId, tokens.access_token)
+      .catch(e => console.error('⚠️ outlook.subscription (non-fatal):', e.message));
+
+    console.log(`✅ calendar.sync.ok agent=${agentId} provider=outlook cal=${calendarId}`);
+    res.redirect(SUCCESS);
+  } catch (err) {
+    console.error('❌ /api/queue/calendar/outlook/callback:', err);
+    res.redirect(`${ERROR_BASE}?error=server_error`);
+  }
+});
+
+// DELETE /api/queue/calendar/:integrationId — admin desconecta calendario de un agente
+app.delete('/api/queue/calendar/:integrationId', authenticateToken, async (req, res) => {
+  const integrationId = parseInt(req.params.integrationId, 10);
+  if (!integrationId) return res.status(400).json({ error: 'ID inválido' });
+  try {
+    const row = await pool.query(
+      `SELECT ci.id, ci.provider, pgp_sym_decrypt(ci.access_token, $1) AS at
+       FROM calendar_integrations ci
+       JOIN agents a ON a.id = ci.agent_id
+       JOIN branches b ON b.id = a.branch_id
+       WHERE ci.id = $2 AND b.user_id = $3`,
+      [process.env.CALENDAR_TOKENS_ENCRYPTION_KEY, integrationId, req.user.id]
+    );
+    if (!row.rows.length) return res.status(404).json({ error: 'Integración no encontrada' });
+
+    const { provider, at } = row.rows[0];
+    if (provider === 'google') await _googleRevokeToken(at);
+    else if (provider === 'outlook') await _outlookRevokeSubscription(integrationId, at).catch(() => {});
+    await pool.query('DELETE FROM calendar_integrations WHERE id = $1', [integrationId]);
+
+    console.log(`✅ calendar.disconnect integration=${integrationId} provider=${provider}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ DELETE /api/queue/calendar:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+
+// ══════════════════════════════════════════════════════════════
+// R4.1 — GCal helpers: token refresh + event upsert/delete
+// ══════════════════════════════════════════════════════════════
+
+async function _googleRefreshToken(refreshToken) {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type:    'refresh_token',
+    }),
+  });
+  if (!r.ok) throw new Error(`Token refresh failed ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function _calGetToken(agentId) {
+  const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+  if (!encKey) return null;
+  const row = await pool.query(
+    `SELECT id, calendar_id,
+            pgp_sym_decrypt(access_token,  $2) AS access_token,
+            pgp_sym_decrypt(refresh_token, $2) AS refresh_token,
+            token_expiry
+     FROM calendar_integrations
+     WHERE agent_id = $1 AND provider = 'google'`,
+    [agentId, encKey]
+  );
+  if (!row.rowCount) return null;
+  const ci = row.rows[0];
+  // Refresh si expira en <5 min
+  if (ci.token_expiry && new Date(ci.token_expiry) < new Date(Date.now() + 5 * 60 * 1000)) {
+    try {
+      const refreshed = await _googleRefreshToken(ci.refresh_token);
+      const newExpiry  = refreshed.expires_in
+        ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+        : null;
+      await pool.query(
+        `UPDATE calendar_integrations
+           SET access_token = pgp_sym_encrypt($1, $3), token_expiry = $2
+         WHERE agent_id = $4 AND provider = 'google'`,
+        [refreshed.access_token, newExpiry, encKey, agentId]
+      );
+      ci.access_token = refreshed.access_token;
+    } catch (e) {
+      console.error(`⚠️ _calGetToken refresh agent=${agentId}:`, e.message);
+    }
+  }
+  return ci;
+}
+
+// Crea o actualiza un evento en GCal. Devuelve gcal_event_id o null si no hay calendario.
+async function _calUpsertEvent(agentId, appt) {
+  const ci = await _calGetToken(agentId);
+  if (!ci) return null;
+
+  const scheduledAt = new Date(appt.scheduled_at);
+  const endAt       = new Date(scheduledAt.getTime() + 30 * 60 * 1000); // 30 min default
+  const calId       = encodeURIComponent(ci.calendar_id || 'primary');
+
+  const eventBody = {
+    summary:     `Cita: ${appt.client_name || 'Cliente'}`,
+    description: `${appt.service_name || 'Cita SONORO'}\nTel: ${appt.client_phone || ''}`.trim(),
+    start: { dateTime: scheduledAt.toISOString(), timeZone: 'America/Bogota' },
+    end:   { dateTime: endAt.toISOString(),       timeZone: 'America/Bogota' },
+  };
+
+  let method = 'POST';
+  let url    = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`;
+  if (appt.gcal_event_id) {
+    method = 'PUT';
+    url    = `${url}/${encodeURIComponent(appt.gcal_event_id)}`;
+  }
+
+  const r = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${ci.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventBody),
+  });
+  if (!r.ok) {
+    console.error(`❌ _calUpsertEvent agent=${agentId} status=${r.status}:`, await r.text());
+    return null;
+  }
+  const ev = await r.json();
+  console.log(`✅ calendar.sync.ok agent=${agentId} event=${ev.id}`);
+  return ev.id;
+}
+
+// Elimina un evento de GCal. Non-fatal — errores solo se loguean.
+async function _calDeleteEvent(agentId, gcalEventId) {
+  if (!gcalEventId || !agentId) return;
+  try {
+    const ci = await _calGetToken(agentId);
+    if (!ci) return;
+    const calId = encodeURIComponent(ci.calendar_id || 'primary');
+    const r = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${encodeURIComponent(gcalEventId)}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${ci.access_token}` } }
+    );
+    if (!r.ok && r.status !== 404 && r.status !== 410) {
+      console.error(`⚠️ _calDeleteEvent agent=${agentId} event=${gcalEventId} status=${r.status}`);
+      return;
+    }
+    console.log(`✅ calendar.event.deleted agent=${agentId} event=${gcalEventId}`);
+  } catch (e) {
+    console.error(`⚠️ _calDeleteEvent (non-fatal) agent=${agentId}:`, e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// R4 — Outlook Calendar helpers
+// ══════════════════════════════════════════════════════════════
+
+async function _outlookTokenExchange(code) {
+  const r = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id:     process.env.AZURE_CLIENT_ID,
+      client_secret: process.env.AZURE_CLIENT_SECRET,
+      redirect_uri:  `${process.env.CMS_URL}/api/queue/calendar/outlook/callback`,
+      grant_type:    'authorization_code',
+    }),
+  });
+  if (!r.ok) throw new Error(`Outlook token exchange failed ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function _outlookRefreshToken(refreshToken) {
+  const r = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     process.env.AZURE_CLIENT_ID,
+      client_secret: process.env.AZURE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type:    'refresh_token',
+    }),
+  });
+  if (!r.ok) throw new Error(`Outlook token refresh failed ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+async function _outlookCalGetToken(agentId) {
+  const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+  if (!encKey) return null;
+  const row = await pool.query(
+    `SELECT id, calendar_id,
+            pgp_sym_decrypt(access_token,  $2) AS access_token,
+            pgp_sym_decrypt(refresh_token, $2) AS refresh_token,
+            token_expiry
+     FROM calendar_integrations
+     WHERE agent_id = $1 AND provider = 'outlook'`,
+    [agentId, encKey]
+  );
+  if (!row.rowCount) return null;
+  const ci = row.rows[0];
+  if (ci.token_expiry && new Date(ci.token_expiry) < new Date(Date.now() + 5 * 60 * 1000)) {
+    try {
+      const refreshed = await _outlookRefreshToken(ci.refresh_token);
+      const newExpiry = refreshed.expires_in
+        ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+        : null;
+      await pool.query(
+        `UPDATE calendar_integrations
+           SET access_token = pgp_sym_encrypt($1, $3), token_expiry = $2
+         WHERE agent_id = $4 AND provider = 'outlook'`,
+        [refreshed.access_token, newExpiry, encKey, agentId]
+      );
+      ci.access_token = refreshed.access_token;
+    } catch (e) {
+      console.error(`⚠️ _outlookCalGetToken refresh agent=${agentId}:`, e.message);
+    }
+  }
+  return ci;
+}
+
+async function _outlookCalUpsertEvent(agentId, appt) {
+  const ci = await _outlookCalGetToken(agentId);
+  if (!ci) return null;
+  const scheduledAt = new Date(appt.scheduled_at);
+  const endAt       = new Date(scheduledAt.getTime() + 30 * 60 * 1000);
+  const toBogotaDT  = (d) => {
+    const parts = {};
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false }).formatToParts(d).forEach(({type,value}) => { parts[type]=value; });
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+  };
+  const eventBody = {
+    subject: `Cita: ${appt.client_name || 'Cliente'}`,
+    body:    { contentType: 'text', content: `${appt.service_name || 'Cita SONORO'}\nTel: ${appt.client_phone || ''}`.trim() },
+    start:   { dateTime: toBogotaDT(scheduledAt), timeZone: 'America/Bogota' },
+    end:     { dateTime: toBogotaDT(endAt),       timeZone: 'America/Bogota' },
+  };
+  let method = 'POST';
+  let url    = 'https://graph.microsoft.com/v1.0/me/events';
+  if (appt.outlook_event_id) {
+    method = 'PATCH';
+    url    = `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(appt.outlook_event_id)}`;
+  }
+  const r = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${ci.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventBody),
+  });
+  if (!r.ok) {
+    console.error(`❌ _outlookCalUpsertEvent agent=${agentId} status=${r.status}:`, await r.text());
+    return null;
+  }
+  if (method === 'PATCH') {
+    console.log(`✅ outlook.event.updated agent=${agentId} event=${appt.outlook_event_id}`);
+    return appt.outlook_event_id;
+  }
+  const ev = await r.json();
+  console.log(`✅ outlook.sync.ok agent=${agentId} event=${ev.id}`);
+  return ev.id;
+}
+
+async function _outlookCalDeleteEvent(agentId, outlookEventId) {
+  if (!outlookEventId || !agentId) return;
+  try {
+    const ci = await _outlookCalGetToken(agentId);
+    if (!ci) return;
+    const r = await fetch(
+      `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(outlookEventId)}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${ci.access_token}` } }
+    );
+    if (!r.ok && r.status !== 404 && r.status !== 410) {
+      console.error(`⚠️ _outlookCalDeleteEvent agent=${agentId} event=${outlookEventId} status=${r.status}`);
+    }
+  } catch (e) {
+    console.error(`⚠️ _outlookCalDeleteEvent (non-fatal) agent=${agentId}:`, e.message);
+  }
+}
+
+async function _outlookRevokeSubscription(integrationId, accessToken) {
+  try {
+    const row = await pool.query(
+      `SELECT cwc.channel_id, cwc.agent_id
+       FROM calendar_integrations ci
+       LEFT JOIN calendar_watch_channels cwc ON cwc.agent_id = ci.agent_id AND cwc.provider = 'outlook'
+       WHERE ci.id = $1`,
+      [integrationId]
+    );
+    if (row.rowCount && row.rows[0].channel_id && accessToken) {
+      await fetch(
+        `https://graph.microsoft.com/v1.0/subscriptions/${encodeURIComponent(row.rows[0].channel_id)}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+      ).catch(() => {});
+      await pool.query(
+        `DELETE FROM calendar_watch_channels WHERE agent_id = $1 AND provider = 'outlook'`,
+        [row.rows[0].agent_id]
+      );
+    }
+  } catch (e) {
+    console.error('⚠️ _outlookRevokeSubscription (non-fatal):', e.message);
+  }
+}
+
+async function _registerGoogleWatchChannel(agentId, calendarId, accessToken) {
+  const { randomBytes, randomUUID } = require('crypto');
+  const channelId    = randomUUID();
+  const channelToken = randomBytes(32).toString('hex');
+  const r = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId || 'primary')}/events/watch`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: channelId, type: 'web_hook',
+        address: `${process.env.CMS_URL}/api/queue/calendar/webhooks/google`,
+        token: channelToken, params: { ttl: '604800' },
+      }),
+    }
+  );
+  if (!r.ok) throw new Error(`Google watch channel failed ${r.status}: ${await r.text()}`);
+  const data = await r.json();
+  await pool.query(
+    `INSERT INTO calendar_watch_channels
+       (agent_id, provider, channel_id, resource_id, channel_token, expires_at, calendar_id)
+     VALUES ($1, 'google', $2, $3, $4, to_timestamp($5::bigint / 1000.0), $6)
+     ON CONFLICT (agent_id, provider) DO UPDATE SET
+       channel_id = EXCLUDED.channel_id, resource_id = EXCLUDED.resource_id,
+       channel_token = EXCLUDED.channel_token, expires_at = EXCLUDED.expires_at,
+       calendar_id = EXCLUDED.calendar_id`,
+    [agentId, data.id, data.resourceId || '', channelToken, data.expiration, calendarId || 'primary']
+  );
+  console.log(`✅ google.watch_channel.registered agent=${agentId} channel=${data.id}`);
+}
+
+async function _registerOutlookSubscription(agentId, accessToken) {
+  const { randomBytes } = require('crypto');
+  const clientState = randomBytes(16).toString('hex');
+  const expiresAt   = new Date(Date.now() + 4230 * 60 * 1000).toISOString();
+  const r = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      changeType:         'created,updated,deleted',
+      notificationUrl:    `${process.env.CMS_URL}/api/queue/calendar/webhooks/outlook`,
+      resource:           'me/events',
+      expirationDateTime: expiresAt,
+      clientState,
+    }),
+  });
+  if (!r.ok) throw new Error(`Outlook subscription failed ${r.status}: ${await r.text()}`);
+  const data = await r.json();
+  await pool.query(
+    `INSERT INTO calendar_watch_channels
+       (agent_id, provider, channel_id, channel_token, expires_at)
+     VALUES ($1, 'outlook', $2, $3, $4)
+     ON CONFLICT (agent_id, provider) DO UPDATE SET
+       channel_id = EXCLUDED.channel_id, channel_token = EXCLUDED.channel_token,
+       expires_at = EXCLUDED.expires_at`,
+    [agentId, data.id, clientState, expiresAt]
+  );
+  console.log(`✅ outlook.subscription.registered agent=${agentId} sub=${data.id}`);
+}
+
+// ──────────────────────────────────────────────────────────────
+// R4 — Unified calendar sync (Google + Outlook)
+// ──────────────────────────────────────────────────────────────
+
+async function _syncAllCalendars(agentId, appt) {
+  const [gcalResult, outlookResult] = await Promise.allSettled([
+    _calUpsertEvent(agentId, appt).catch(() => null),
+    _outlookCalUpsertEvent(agentId, appt).catch(() => null),
+  ]);
+  return {
+    gcal_event_id:    gcalResult.status    === 'fulfilled' ? gcalResult.value    : null,
+    outlook_event_id: outlookResult.status === 'fulfilled' ? outlookResult.value : null,
+  };
+}
+
+async function _deleteAllCalendars(agentId, gcalEventId, outlookEventId) {
+  await Promise.allSettled([
+    gcalEventId    ? _calDeleteEvent(agentId, gcalEventId).catch(() => {})           : Promise.resolve(),
+    outlookEventId ? _outlookCalDeleteEvent(agentId, outlookEventId).catch(() => {}) : Promise.resolve(),
+  ]);
+}
+
+// ──────────────────────────────────────────────────────────────
+// R4.1 — PATCH /api/queue/appointments/:id/agent
+// Asigna o reasigna agente a una cita + sincroniza GCal.
+// ──────────────────────────────────────────────────────────────
+app.patch(
+  '/api/queue/appointments/:id/agent',
+  authenticateToken,
+  requireFeatureFlag('queue_v2_appointments'),
+  async (req, res) => {
+    const apptId     = req.params.id;
+    const newAgentId = (req.body && req.body.agent_id) ? String(req.body.agent_id) : null;
+    const UUID_RE_LOCAL = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!UUID_RE_LOCAL.test(apptId)) {
+      return res.status(400).json({ error: 'id de cita inválido' });
+    }
+    if (newAgentId && !UUID_RE_LOCAL.test(newAgentId)) {
+      return res.status(400).json({ error: 'agent_id inválido' });
+    }
+
+    try {
+      // Verificar ownership + obtener estado actual
+      const cur = await pool.query(
+        `SELECT a.id, a.agent_id AS old_agent_id, a.gcal_event_id, a.outlook_event_id,
+                a.client_name, a.client_phone, a.scheduled_at,
+                s.name AS service_name
+         FROM appointments a
+         LEFT JOIN services s ON s.id = a.service_id
+         WHERE a.id = $1 AND a.user_id = $2
+           AND a.status IN ('pending','confirmed')`,
+        [apptId, req.user.id]
+      );
+      if (!cur.rowCount) {
+        return res.status(404).json({ error: 'Cita no encontrada o no modificable' });
+      }
+      const appt = cur.rows[0];
+
+      // Verificar que el nuevo agente pertenece a una sucursal del admin
+      if (newAgentId) {
+        const ag = await pool.query(
+          `SELECT a.id FROM agents a
+           JOIN branches b ON b.id = a.branch_id
+           WHERE a.id = $1 AND b.user_id = $2`,
+          [newAgentId, req.user.id]
+        );
+        if (!ag.rowCount) {
+          return res.status(404).json({ error: 'Agente no encontrado' });
+        }
+      }
+
+      // Borrar eventos de todos los calendarios del agente anterior (non-fatal)
+      if (appt.old_agent_id && appt.old_agent_id !== newAgentId) {
+        _deleteAllCalendars(appt.old_agent_id, appt.gcal_event_id, appt.outlook_event_id).catch(() => {});
+      }
+
+      // Crear eventos en todos los calendarios del nuevo agente (non-fatal)
+      let newGcalEventId = null, newOutlookEventId = null;
+      if (newAgentId) {
+        const synced = await _syncAllCalendars(newAgentId, {
+          ...appt, gcal_event_id: null, outlook_event_id: null,
+        }).catch(() => ({ gcal_event_id: null, outlook_event_id: null }));
+        newGcalEventId    = synced.gcal_event_id;
+        newOutlookEventId = synced.outlook_event_id;
+      }
+
+      await pool.query(
+        'UPDATE appointments SET agent_id = $1, gcal_event_id = $2, outlook_event_id = $3 WHERE id = $4',
+        [newAgentId, newGcalEventId, newOutlookEventId, apptId]
+      );
+
+      console.log(JSON.stringify({
+        event:            'appointment.agent_assigned',
+        appt_id:          apptId,
+        old_agent_id:     appt.old_agent_id,
+        new_agent_id:     newAgentId,
+        gcal_event_id:    newGcalEventId,
+        outlook_event_id: newOutlookEventId,
+      }));
+
+      return res.json({ ok: true, agent_id: newAgentId, gcal_event_id: newGcalEventId, outlook_event_id: newOutlookEventId });
+    } catch (err) {
+      console.error('❌ PATCH /api/queue/appointments/:id/agent:', err);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+);
+
+// ══════════════════════════════════════════════════════════════
+// R4 — WEBHOOK ENDPOINTS (inbound calendar notifications)
+// ══════════════════════════════════════════════════════════════
+
+
+// R4 — procesa eventos de calendario y upserta time_blocks para los "busy"
+async function _calProcessBusyEvents(agentId, events, provider) {
+  if (!events || !events.length) return;
+  try {
+    const agentRow = await pool.query(
+      `SELECT a.branch_id, b.user_id
+         FROM agents a
+         JOIN branches b ON b.id = a.branch_id
+        WHERE a.id = $1`,
+      [agentId]
+    );
+    if (!agentRow.rowCount) return;
+    const { branch_id, user_id } = agentRow.rows[0];
+
+    for (const ev of events) {
+      const eventId = ev.id;
+      if (!eventId) continue;
+
+      // Evento cancelado / eliminado → borrar time_block
+      const isCancelled = ev.status === 'cancelled' || ev.isCancelled === true;
+      if (isCancelled) {
+        await pool.query(
+          `DELETE FROM time_blocks
+            WHERE calendar_event_id = $1 AND agent_id = $2 AND calendar_provider = $3`,
+          [eventId, agentId, provider]
+        );
+        console.log(JSON.stringify({ event: 'time_block.deleted', source: 'calendar', agent_id: agentId, calendar_event_id: eventId, provider }));
+        continue;
+      }
+
+      // Solo eventos "busy" (Google: transparency != 'transparent'; Outlook: showAs != 'free')
+      const isBusy = provider === 'google'
+        ? (ev.transparency !== 'transparent')
+        : (ev.showAs !== 'free' && ev.showAs !== 'oof' && ev.showAs !== 'workingElsewhere');
+      if (!isBusy) continue;
+
+      // Parsear start/end (all-day events usan ev.start.date, timed usan ev.start.dateTime)
+      const startStr = (provider === 'google')
+        ? (ev.start && (ev.start.dateTime || ev.start.date))
+        : (ev.start && ev.start.dateTime);
+      const endStr = (provider === 'google')
+        ? (ev.end && (ev.end.dateTime || ev.end.date))
+        : (ev.end && ev.end.dateTime);
+      if (!startStr || !endStr) continue;
+
+      const startsAt = new Date(startStr);
+      const endsAt   = new Date(endStr);
+      if (isNaN(startsAt) || isNaN(endsAt) || endsAt <= startsAt) continue;
+
+      // Ignorar eventos pasados
+      if (endsAt <= new Date()) continue;
+
+      const summary = ev.summary || ev.subject || 'Evento de calendario';
+      const reason  = `Ocupado: ${summary}`.slice(0, 200);
+
+      // Upsert: delete anterior (mismo event_id+agent) luego insert
+      // Uso de DELETE+INSERT en vez de ON CONFLICT porque el EXCLUDE gist
+      // no admite ON CONFLICT DO UPDATE.
+      await pool.query(
+        `DELETE FROM time_blocks
+          WHERE calendar_event_id = $1 AND agent_id = $2 AND calendar_provider = $3`,
+        [eventId, agentId, provider]
+      );
+      try {
+        await pool.query(
+          `INSERT INTO time_blocks
+             (user_id, branch_id, agent_id, starts_at, ends_at, reason,
+              calendar_event_id, calendar_provider, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL)`,
+          [user_id, branch_id, agentId, startsAt.toISOString(), endsAt.toISOString(),
+           reason, eventId, provider]
+        );
+        console.log(JSON.stringify({ event: 'time_block.created', source: 'calendar', agent_id: agentId, calendar_event_id: eventId, provider }));
+      } catch (insErr) {
+        if (insErr.code === '23P01') {
+          // Exclusion violation: otro bloque ya cubre este rango para este agente → ignorar
+        } else {
+          console.error('⚠️ _calProcessBusyEvents insert:', insErr.message);
+        }
+      }
+    }
+    console.log(JSON.stringify({ event: 'calendar.webhook.processed', provider, agent_id: agentId, events_count: events.length }));
+  } catch (err) {
+    console.error('❌ _calProcessBusyEvents:', err.message);
+  }
+}
+
+// POST /api/queue/calendar/webhooks/google
+app.post('/api/queue/calendar/webhooks/google', async (req, res) => {
+  const channelId     = req.headers['x-goog-channel-id'];
+  const channelToken  = req.headers['x-goog-channel-token'];
+  const resourceState = req.headers['x-goog-resource-state'];
+  if (!channelId || !channelToken) return res.status(400).end();
+  try {
+    const row = await pool.query(
+      `SELECT agent_id FROM calendar_watch_channels
+       WHERE channel_id = $1 AND channel_token = $2 AND provider = 'google'`,
+      [channelId, channelToken]
+    );
+    if (!row.rowCount) {
+      console.error(`⚠️ google.webhook.invalid_token channel=${channelId}`);
+      return res.status(401).end();
+    }
+    res.status(200).end();
+    if (resourceState === 'sync') return;
+    const agentId = row.rows[0].agent_id;
+    console.log(JSON.stringify({
+      event: 'calendar.webhook.received', provider: 'google',
+      channel_id: channelId, agent_id: agentId, resource_state: resourceState,
+    }));
+    // Fetch eventos recientes del agente y upsert time_blocks
+    const ci = await _calGetToken(agentId);
+    if (ci) {
+      const updatedMin = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const gEvRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(ci.calendar_id)}/events` +
+        `?updatedMin=${encodeURIComponent(updatedMin)}&showDeleted=true&singleEvents=true&maxResults=50`,
+        { headers: { Authorization: `Bearer ${ci.access_token}` } }
+      );
+      if (gEvRes.ok) {
+        const data = await gEvRes.json();
+        await _calProcessBusyEvents(agentId, data.items || [], 'google');
+      }
+    }
+  } catch (err) {
+    console.error('❌ google.webhook:', err);
+  }
+});
+
+// POST /api/queue/calendar/webhooks/outlook
+app.post('/api/queue/calendar/webhooks/outlook', async (req, res) => {
+  if (req.query.validationToken) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(req.query.validationToken);
+  }
+  const notifications = req.body && req.body.value;
+  if (!notifications) return res.status(400).end();
+  res.status(202).end();
+  for (const notification of notifications) {
+    const { subscriptionId, clientState } = notification;
+    try {
+      const row = await pool.query(
+        `SELECT agent_id FROM calendar_watch_channels
+         WHERE channel_id = $1 AND channel_token = $2 AND provider = 'outlook'`,
+        [subscriptionId, clientState]
+      );
+      if (!row.rowCount) {
+        console.error(`⚠️ outlook.webhook.invalid_state sub=${subscriptionId}`);
+        continue;
+      }
+      const agentId = row.rows[0].agent_id;
+      console.log(JSON.stringify({
+        event: 'calendar.webhook.received', provider: 'outlook',
+        subscription_id: subscriptionId, agent_id: agentId,
+        change_type: notification.changeType,
+      }));
+      // Fetch eventos recientes del agente y upsert time_blocks
+      const ciO = await _outlookCalGetToken(agentId);
+      if (ciO) {
+        const updatedMin = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const oEvRes = await fetch(
+          `https://graph.microsoft.com/v1.0/me/events` +
+          `?$filter=lastModifiedDateTime ge ${updatedMin}` +
+          `&$select=id,subject,start,end,showAs,isCancelled&$top=50`,
+          { headers: { Authorization: `Bearer ${ciO.access_token}` } }
+        );
+        if (oEvRes.ok) {
+          const data = await oEvRes.json();
+          await _calProcessBusyEvents(agentId, data.value || [], 'outlook');
+        }
+      }
+    } catch (e) {
+      console.error('⚠️ outlook.webhook.notification:', e.message);
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// R4 — CRON: renovar canales Google Watch + suscripciones Outlook (cada 6h)
+// ══════════════════════════════════════════════════════════════
+setInterval(async () => {
+  const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+  if (!encKey) return;
+  try {
+    const expiring = await pool.query(
+      `SELECT cwc.id, cwc.agent_id, cwc.provider, cwc.channel_id, cwc.calendar_id,
+              pgp_sym_decrypt(ci.access_token,  $1) AS access_token,
+              pgp_sym_decrypt(ci.refresh_token, $1) AS refresh_token,
+              ci.token_expiry
+       FROM calendar_watch_channels cwc
+       JOIN calendar_integrations ci ON ci.agent_id = cwc.agent_id AND ci.provider = cwc.provider
+       WHERE cwc.expires_at < NOW() + INTERVAL '24 hours'`,
+      [encKey]
+    );
+    for (const ch of expiring.rows) {
+      try {
+        let accessToken = ch.access_token;
+        if (ch.token_expiry && new Date(ch.token_expiry) < new Date(Date.now() + 5 * 60 * 1000)) {
+          const refreshed = ch.provider === 'google'
+            ? await _googleRefreshToken(ch.refresh_token)
+            : await _outlookRefreshToken(ch.refresh_token);
+          accessToken = refreshed.access_token;
+          const newExpiry = refreshed.expires_in
+            ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString() : null;
+          await pool.query(
+            `UPDATE calendar_integrations SET access_token = pgp_sym_encrypt($1, $3), token_expiry = $2
+             WHERE agent_id = $4 AND provider = $5`,
+            [refreshed.access_token, newExpiry, encKey, ch.agent_id, ch.provider]
+          );
+        }
+        if (ch.provider === 'google') {
+          await _registerGoogleWatchChannel(ch.agent_id, ch.calendar_id || 'primary', accessToken);
+          console.log(`✅ cron.google_watch.renewed agent=${ch.agent_id}`);
+        } else if (ch.provider === 'outlook') {
+          const newExpiry = new Date(Date.now() + 4230 * 60 * 1000).toISOString();
+          const r = await fetch(
+            `https://graph.microsoft.com/v1.0/subscriptions/${encodeURIComponent(ch.channel_id)}`,
+            {
+              method: 'PATCH',
+              headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ expirationDateTime: newExpiry }),
+            }
+          );
+          if (r.ok) {
+            await pool.query(`UPDATE calendar_watch_channels SET expires_at = $1 WHERE id = $2`, [newExpiry, ch.id]);
+            console.log(`✅ cron.outlook_subscription.renewed agent=${ch.agent_id}`);
+          } else {
+            await _registerOutlookSubscription(ch.agent_id, accessToken);
+            console.log(`✅ cron.outlook_subscription.re-registered agent=${ch.agent_id}`);
+          }
+        }
+      } catch (e) {
+        console.error(`⚠️ cron.calendar_renewal agent=${ch.agent_id} provider=${ch.provider}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('⚠️ cron.calendar_renewal:', e.message);
+  }
+}, 6 * 60 * 60 * 1000);
+
+
+
+// ══════════════════════════════════════════════════════════════
+// FIDS — Flight Information Display System (F0)
+// Proxy + Cache + Cron · Principios P1-P5 · 05/06/2026
+// ══════════════════════════════════════════════════════════════
+
+// Mock data para desarrollo (FIDS_DEV_MOCK=true) — aeropuerto AXM
+function getFidsMockData(airport, type) {
+  const now = new Date();
+  const fmt = (offsetMin) => new Date(now.getTime() + offsetMin * 60000).toISOString();
+  const departures = [
+    { flight_date: now.toISOString().slice(0,10), flight_status: 'scheduled',
+      departure: { airport: 'El Eden', iata: 'AXM', icao: 'SKAR', terminal: null, gate: null,
+                   scheduled: fmt(30), estimated: fmt(30), actual: null, delay: null },
+      arrival:   { airport: 'El Nuevo Dorado International', iata: 'BOG', icao: 'SKBO',
+                   scheduled: fmt(90), estimated: null, actual: null },
+      airline: { name: 'avianca', iata: 'AV' }, flight: { iata: 'AV9842', codeshared: null } },
+    { flight_date: now.toISOString().slice(0,10), flight_status: 'active',
+      departure: { airport: 'El Eden', iata: 'AXM', icao: 'SKAR', terminal: null, gate: null,
+                   scheduled: fmt(-20), estimated: fmt(-20), actual: fmt(-15), delay: null },
+      arrival:   { airport: 'José María Córdova', iata: 'MDE', icao: 'SKRG',
+                   scheduled: fmt(40), estimated: null, actual: null },
+      airline: { name: 'Clic', iata: 'VE' }, flight: { iata: 'VE4100', codeshared: null } },
+    { flight_date: now.toISOString().slice(0,10), flight_status: 'scheduled',
+      departure: { airport: 'El Eden', iata: 'AXM', icao: 'SKAR', terminal: null, gate: null,
+                   scheduled: fmt(120), estimated: fmt(135), actual: null, delay: 15 },
+      arrival:   { airport: 'El Nuevo Dorado International', iata: 'BOG', icao: 'SKBO',
+                   scheduled: fmt(180), estimated: null, actual: null },
+      airline: { name: 'Wingo', iata: 'P5' }, flight: { iata: 'P5310', codeshared: null } },
+    { flight_date: now.toISOString().slice(0,10), flight_status: 'landed',
+      departure: { airport: 'El Eden', iata: 'AXM', icao: 'SKAR', terminal: null, gate: null,
+                   scheduled: fmt(-120), estimated: fmt(-120), actual: fmt(-118), delay: null },
+      arrival:   { airport: 'El Nuevo Dorado International', iata: 'BOG', icao: 'SKBO',
+                   scheduled: fmt(-60), estimated: null, actual: fmt(-55) },
+      airline: { name: 'LATAM Colombia', iata: 'LA' }, flight: { iata: 'LA543', codeshared: null } },
+    { flight_date: now.toISOString().slice(0,10), flight_status: 'cancelled',
+      departure: { airport: 'El Eden', iata: 'AXM', icao: 'SKAR', terminal: null, gate: null,
+                   scheduled: fmt(200), estimated: fmt(200), actual: null, delay: null },
+      arrival:   { airport: 'Alfonso Bonilla Aragón', iata: 'CLO', icao: 'SKCL',
+                   scheduled: fmt(240), estimated: null, actual: null },
+      airline: { name: 'avianca', iata: 'AV' }, flight: { iata: 'AV211', codeshared: null } },
+  ];
+  if (type === 'arrivals') {
+    return departures.map(f => ({
+      ...f,
+      departure: { ...f.arrival, iata: f.arrival.iata, scheduled: new Date(new Date(f.departure.scheduled).getTime() - 60*60000).toISOString(), actual: null, delay: null, terminal: null, gate: null },
+      arrival:   { ...f.departure, airport: 'El Eden', iata: 'AXM', icao: 'SKAR' },
+    }));
+  }
+  return departures;
+}
+
+// GET /fids — sirve la pantalla de vuelos (F1)
+app.get('/fids', (req, res) => {
+  const path = require('path');
+  res.sendFile(path.join(__dirname, '../public/fids.html'));
+});
+
+// GET /api/fids/config/:deviceId — config del grupo para un dispositivo (sin auth, llamado por fids.html)
+app.get('/api/fids/config/:deviceId', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT d.fids_group_id, d.fids_role,
+              fg.airport, fg.type, fg.filters, fg.lower_thirds, fg.name AS group_name
+       FROM devices d
+       LEFT JOIN fids_groups fg ON fg.id = d.fids_group_id
+       WHERE d.device_id = $1`,
+      [req.params.deviceId]
+    );
+    if (!result.rowCount || !result.rows[0].fids_group_id) {
+      return res.status(404).json({ error: 'Dispositivo sin grupo FIDS asignado' });
+    }
+    const row = result.rows[0];
+    const cfgAirport = row.airport;
+    const cfgType    = row.type; // 'departures' | 'arrivals' | 'combined'
+
+    // Incluir datos iniciales desde caché (P2: sin llamar a AviationStack)
+    async function _cfgFlights(t) {
+      if (process.env.FIDS_DEV_MOCK === 'true') {
+        return { data: getFidsMockData(cfgAirport, t), fetched_at: new Date() };
+      }
+      const c = await pool.query(
+        `SELECT data, fetched_at FROM fids_cache WHERE airport = $1 AND type = $2`,
+        [cfgAirport, t]
+      );
+      return c.rowCount
+        ? { data: c.rows[0].data, fetched_at: c.rows[0].fetched_at }
+        : { data: [], fetched_at: null };
+    }
+
+    let initialData = {};
+    if (cfgType === 'combined') {
+      const [dep, arr] = await Promise.all([_cfgFlights('departures'), _cfgFlights('arrivals')]);
+      initialData = {
+        departures: dep.data,
+        arrivals:   arr.data,
+        fetched_at: dep.fetched_at || arr.fetched_at,
+      };
+    } else {
+      const d = await _cfgFlights(cfgType);
+      initialData = { flights: d.data, fetched_at: d.fetched_at };
+    }
+
+    res.json({
+      group_id:     row.fids_group_id,
+      role:         row.fids_role,
+      airport:      cfgAirport,
+      type:         cfgType,
+      filters:      row.filters || {},
+      lower_thirds: await (async () => {
+        const lt = row.lower_thirds || { mode: 'off' };
+        if ((lt.mode === 'overlay_ad' || lt.mode === 'lower_bar') && lt.playlist_id) {
+          try {
+            const plRes = await pool.query(
+              `SELECT m.file_path, m.type,
+                      COALESCE(pi.duration_override_ms, m.duration_ms, 5000) AS duration_ms,
+                      m.title
+               FROM fids_playlist_items pi
+               JOIN fids_media m ON m.id = pi.media_id
+               WHERE pi.playlist_id = $1
+               ORDER BY pi.display_order`,
+              [lt.playlist_id]
+            );
+            lt.playlist_items = plRes.rows.map(r => ({
+              file_path:   r.file_path,
+              type:        r.type,
+              duration_ms: parseInt(r.duration_ms) || 5000,
+              title:       r.title || '',
+            }));
+            console.log(`fids.config.playlist playlist=${lt.playlist_id} items=${(lt.playlist_items||[]).length}`);
+          } catch (e2) { console.error('fids.config.playlist:', e2.message); }
+        }
+        return lt;
+      })(),
+      group_name:   row.group_name,
+      ...initialData,
+    });
+  } catch (err) {
+    console.error('❌ /api/fids/config:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/fids/:airport/:type — proxy con caché (P1: API key solo en backend)
+app.get('/api/fids/:airport/:type', authenticateToken, async (req, res) => {
+  try {
+    const airport = (req.params.airport || '').toUpperCase();
+    const type    = req.params.type;
+    if (!['departures', 'arrivals'].includes(type)) {
+      return res.status(400).json({ error: 'type debe ser departures o arrivals' });
+    }
+
+    // P4: verificar que el tenant tiene un grupo para este aeropuerto/tipo
+    const authCheck = await pool.query(
+      `SELECT id FROM fids_groups WHERE user_id = $1 AND airport = $2 AND type = $3 LIMIT 1`,
+      [req.user.id, airport, type]
+    );
+    if (!authCheck.rowCount) {
+      return res.status(403).json({ error: 'Sin grupo FIDS configurado para este aeropuerto/tipo' });
+    }
+
+    const ttl = parseInt(process.env.FIDS_CACHE_TTL_SECONDS || '300');
+
+    // P2: verificar caché
+    const cached = await pool.query(
+      `SELECT data, fetched_at FROM fids_cache WHERE airport = $1 AND type = $2`,
+      [airport, type]
+    );
+    if (cached.rowCount) {
+      const age = (Date.now() - new Date(cached.rows[0].fetched_at).getTime()) / 1000;
+      if (age < ttl) {
+        console.log(`fids.cache.hit airport=${airport} type=${type} age=${Math.round(age)}s`);
+        return res.json({ stale: false, fetched_at: cached.rows[0].fetched_at, data: cached.rows[0].data });
+      }
+    }
+
+    // Mock mode
+    if (process.env.FIDS_DEV_MOCK === 'true') {
+      const mockData = getFidsMockData(airport, type);
+      await pool.query(
+        `INSERT INTO fids_cache (airport, type, data, fetched_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (airport, type) DO UPDATE SET data = $3, fetched_at = NOW()`,
+        [airport, type, JSON.stringify(mockData)]
+      );
+      console.log(`fids.cache.mock airport=${airport} type=${type}`);
+      return res.json({ stale: false, fetched_at: new Date(), data: mockData });
+    }
+
+    // P1: llamada real a AviationStack (HTTP desde Node.js — ok desde server-side)
+    const param  = type === 'departures' ? 'dep_iata' : 'arr_iata';
+    const apiUrl = `http://api.aviationstack.com/v1/flights?access_key=${process.env.AVIATIONSTACK_KEY}&${param}=${airport}&limit=50`;
+    console.log(`fids.proxy.called airport=${airport} type=${type}`);
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(8000) });
+    if (!r.ok) throw new Error(`AviationStack HTTP ${r.status}`);
+    const raw = await r.json();
+    if (raw.error) throw new Error(`AviationStack: ${raw.error.message}`);
+
+    // P3: deduplicar codeshares antes de cachear
+    const flights = (raw.data || []).filter(f => !f.flight.codeshared);
+
+    await pool.query(
+      `INSERT INTO fids_cache (airport, type, data, fetched_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (airport, type) DO UPDATE SET data = $3, fetched_at = NOW()`,
+      [airport, type, JSON.stringify(flights)]
+    );
+    res.json({ stale: false, fetched_at: new Date(), data: flights });
+
+  } catch (err) {
+    console.error(`❌ /api/fids proxy airport=${req.params.airport}:`, err.message);
+    // P5: degradación elegante — devolver caché vencida si existe
+    try {
+      const stale = await pool.query(
+        `SELECT data, fetched_at FROM fids_cache WHERE airport = $1 AND type = $2`,
+        [(req.params.airport || '').toUpperCase(), req.params.type]
+      );
+      if (stale.rowCount) {
+        console.log(`fids.cache.stale airport=${req.params.airport} type=${req.params.type}`);
+        return res.json({ stale: true, fetched_at: stale.rows[0].fetched_at, data: stale.rows[0].data });
+      }
+    } catch (_) {}
+    res.status(502).json({ error: 'Datos de vuelos no disponibles' });
+  }
+});
+
+// FIDS Cron — refresca aeropuertos activos cada 60s y emite via Socket.io
+// F1: soporta type='combined' (expande a dep+arr, emite { type, departures, arrivals })
+setInterval(async () => {
+  if (process.env.FIDS_DEV_MOCK !== 'true' && !process.env.AVIATIONSTACK_KEY) return;
+  try {
+    const allGroups = (await pool.query(`SELECT airport, type, id AS group_id FROM fids_groups`)).rows;
+    if (!allGroups.length) return;
+
+    const ttl = parseInt(process.env.FIDS_CACHE_TTL_SECONDS || '300');
+
+    // Expandir 'combined' → ['departures','arrivals'] para fetch; deduplicar pares
+    const seen = new Set();
+    const pairs = [];
+    for (const g of allGroups) {
+      const types = g.type === 'combined' ? ['departures', 'arrivals'] : [g.type];
+      for (const t of types) {
+        const k = `${g.airport}:${t}`;
+        if (!seen.has(k)) { seen.add(k); pairs.push({ airport: g.airport, type: t }); }
+      }
+    }
+
+    const fetched = {}; // { 'AXM:departures': { flights, fetchedAt }, ... }
+
+    for (const { airport, type } of pairs) {
+      try {
+        const cached = await pool.query(
+          `SELECT fetched_at FROM fids_cache WHERE airport = $1 AND type = $2`,
+          [airport, type]
+        );
+        if (cached.rowCount) {
+          const age = (Date.now() - new Date(cached.rows[0].fetched_at).getTime()) / 1000;
+          if (age < ttl) {
+            // Caché vigente — leer data para emitir
+            const d = await pool.query(
+              `SELECT data, fetched_at FROM fids_cache WHERE airport = $1 AND type = $2`,
+              [airport, type]
+            );
+            if (d.rowCount) fetched[`${airport}:${type}`] = { flights: d.rows[0].data, fetchedAt: new Date(d.rows[0].fetched_at) };
+            continue;
+          }
+        }
+
+        let flights;
+        if (process.env.FIDS_DEV_MOCK === 'true') {
+          flights = getFidsMockData(airport, type);
+        } else {
+          const param = type === 'departures' ? 'dep_iata' : 'arr_iata';
+          const r = await fetch(
+            `http://api.aviationstack.com/v1/flights?access_key=${process.env.AVIATIONSTACK_KEY}&${param}=${airport}&limit=50`,
+            { signal: AbortSignal.timeout(8000) }
+          );
+          if (!r.ok) { console.error(`fids.cron: AviationStack ${r.status} airport=${airport}`); continue; }
+          const raw = await r.json();
+          if (raw.error) { console.error(`fids.cron: API error airport=${airport}:`, raw.error.message); continue; }
+          flights = (raw.data || []).filter(f => !f.flight.codeshared); // P3: dedup codeshares
+          console.log(`fids.proxy.called airport=${airport} type=${type} (cron)`);
+        }
+
+        const fetchedAt = new Date();
+        await pool.query(
+          `INSERT INTO fids_cache (airport, type, data, fetched_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (airport, type) DO UPDATE SET data = $3, fetched_at = NOW()`,
+          [airport, type, JSON.stringify(flights)]
+        );
+        fetched[`${airport}:${type}`] = { flights, fetchedAt };
+      } catch (e) {
+        console.error(`fids.cron: error airport=${airport} type=${type}:`, e.message);
+      }
+    }
+
+    // Emitir a cada grupo con formato adecuado (single o combined)
+    for (const g of allGroups) {
+      if (g.type === 'combined') {
+        const dep = fetched[`${g.airport}:departures`];
+        const arr = fetched[`${g.airport}:arrivals`];
+        if (dep && arr) {
+          io.to(`fids_group_${g.group_id}`).emit('fids:update', {
+            type: 'combined',
+            departures: dep.flights,
+            arrivals:   arr.flights,
+            fetched_at: dep.fetchedAt,
+          });
+        }
+      } else {
+        const d = fetched[`${g.airport}:${g.type}`];
+        if (d) {
+          io.to(`fids_group_${g.group_id}`).emit('fids:update', {
+            type:      g.type,
+            flights:   d.flights,
+            fetched_at: d.fetchedAt,
+          });
+        }
+      }
+    }
+
+    if (pairs.length) {
+      console.log(`fids.cron.tick airports=[${pairs.map(p => `${p.airport}:${p.type}`).join(',')}]`);
+    }
+  } catch (e) {
+    console.error('fids.cron.tick error:', e.message);
+  }
+}, 60 * 1000);
+
+
+// FIDS Socket.io — dispositivos se unen a su sala de grupo (F1)
+io.on('connection', (socket) => {
+  socket.on('fids:join', ({ device_id, group_id } = {}) => {
+    if (!group_id) return;
+    socket.join(`fids_group_${group_id}`);
+    console.log(`fids.display.connected device=${device_id} group=${group_id} socket=${socket.id}`);
+  });
+});
+
+
+// ════════════════════════════════════════════════════════════
+// FIDS F2 — Admin endpoints (SONORO ops only)
+// ════════════════════════════════════════════════════════════
+
+// GET /api/admin/fids/groups — lista grupos con device_count
+app.get('/api/admin/fids/groups', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT g.*,
+             COUNT(d.id) FILTER (WHERE d.fids_role IS DISTINCT FROM 'slave') AS device_count,
+             COUNT(d.id) FILTER (
+               WHERE d.fids_role IS DISTINCT FROM 'slave'
+               AND d.status = 'online'
+               AND d.last_seen > NOW() - INTERVAL '90 seconds'
+             )                                                  AS online_count,
+             MIN(d.device_id) FILTER (WHERE d.fids_role = 'master') AS sample_device_id,
+             COALESCE(
+               JSON_AGG(JSON_BUILD_OBJECT('device_id', d.device_id, 'name', d.name) ORDER BY d.id)
+               FILTER (WHERE d.fids_role = 'slave'), '[]'::json
+             ) AS slaves
+      FROM fids_groups g
+      LEFT JOIN devices d ON d.fids_group_id = g.id
+      GROUP BY g.id
+      ORDER BY g.id
+    `);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('fids.admin.groups.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// POST /api/admin/fids/groups — crear grupo
+app.post('/api/admin/fids/groups', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, airport, type, filters = {}, lower_thirds = { mode: 'off' } } = req.body;
+    if (!name || !airport || !type) return res.status(400).json({ error: 'name, airport y type son obligatorios' });
+    const validTypes = ['departures', 'arrivals', 'combined'];
+    if (!validTypes.includes(type)) return res.status(400).json({ error: `type debe ser uno de: ${validTypes.join(', ')}` });
+    const result = await pool.query(
+      `INSERT INTO fids_groups (user_id, name, airport, type, filters, lower_thirds)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.user.id, name.trim(), airport.toUpperCase(), type, JSON.stringify(filters), JSON.stringify(lower_thirds)]
+    );
+    console.log(`fids.group.created group=${result.rows[0].id} airport=${airport} type=${type}`);
+    res.json(result.rows[0]);
+  } catch (e) {
+    if (e.code === '23505') return res.status(409).json({ error: 'Ya existe un grupo con ese nombre' });
+    console.error('fids.admin.groups.post:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// PUT /api/admin/fids/groups/:id — actualizar grupo
+app.put('/api/admin/fids/groups/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, airport, type, filters = {}, lower_thirds = { mode: 'off' } } = req.body;
+    if (!name || !airport || !type) return res.status(400).json({ error: 'name, airport y type son obligatorios' });
+    const result = await pool.query(
+      `UPDATE fids_groups SET name=$1, airport=$2, type=$3, filters=$4, lower_thirds=$5
+       WHERE id=$6 RETURNING *`,
+      [name.trim(), airport.toUpperCase(), type, JSON.stringify(filters), JSON.stringify(lower_thirds), id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Grupo no encontrado' });
+    console.log(`fids.group.updated group=${id}`);
+    res.json({ success: true, group: result.rows[0] });
+  } catch (e) {
+    console.error('fids.admin.groups.put:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/groups/:id — eliminar grupo
+app.delete('/api/admin/fids/groups/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Desasignar dispositivos primero
+    await pool.query(
+      `UPDATE devices SET fids_group_id = NULL, fids_role = NULL WHERE fids_group_id = $1`,
+      [id]
+    );
+    const result = await pool.query(`DELETE FROM fids_groups WHERE id = $1`, [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Grupo no encontrado' });
+    console.log(`fids.group.deleted group=${id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.admin.groups.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// POST /api/admin/fids/groups/:id/slave — generar enlace esclavo
+app.post('/api/admin/fids/groups/:id/slave', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const groupId = parseInt(req.params.id);
+    const group = await pool.query('SELECT id, name FROM fids_groups WHERE id = $1', [groupId]);
+    if (!group.rowCount) return res.status(404).json({ error: 'Grupo no encontrado' });
+    const existing = await pool.query(
+      "SELECT device_id, name FROM devices WHERE fids_group_id = $1 AND fids_role = 'slave' LIMIT 1",
+      [groupId]
+    );
+    if (existing.rowCount) {
+      return res.json({ device_id: existing.rows[0].device_id, name: existing.rows[0].name, reused: true });
+    }
+    const deviceId = 'fids_' + require('crypto').randomUUID().replace(/-/g, '');
+    const slaveName = group.rows[0].name + ' — Enlace esclavo';
+    await pool.query(
+      `INSERT INTO devices (device_id, name, user_id, fids_group_id, fids_role, status)
+       VALUES ($1, $2, $3, $4, 'slave', 'offline')`,
+      [deviceId, slaveName, req.user.id, groupId]
+    );
+    console.log(`fids.slave.created group=${groupId} device=${deviceId}`);
+    res.json({ device_id: deviceId, name: slaveName });
+  } catch (e) {
+    console.error('fids.admin.slave.post:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/slaves/:deviceId — revocar enlace esclavo
+app.delete('/api/admin/fids/slaves/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM devices WHERE device_id = $1 AND fids_role = 'slave' RETURNING id",
+      [req.params.deviceId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Esclavo no encontrado' });
+    console.log(`fids.slave.deleted device=${req.params.deviceId}`);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('fids.admin.slave.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/admin/fids/devices — todos los dispositivos con info FIDS
+app.get('/api/admin/fids/devices', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT d.device_id, d.name, d.status, d.last_seen, d.fids_group_id, d.fids_role,
+             g.name AS group_name, g.airport, g.type AS group_type
+      FROM devices d
+      LEFT JOIN fids_groups g ON g.id = d.fids_group_id
+      ORDER BY d.fids_group_id NULLS LAST, d.name
+    `);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('fids.admin.devices.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// PUT /api/admin/fids/devices/:deviceId — asignar/desasignar dispositivo
+app.put('/api/admin/fids/devices/:deviceId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const { fids_group_id, fids_role } = req.body;
+    const result = await pool.query(
+      `UPDATE devices SET fids_group_id = $1, fids_role = $2 WHERE device_id = $3 RETURNING device_id, fids_group_id, fids_role`,
+      [fids_group_id || null, fids_role || null, deviceId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    console.log(`fids.device.assigned device=${deviceId} group=${fids_group_id} role=${fids_role}`);
+    res.json({ success: true, device: result.rows[0] });
+  } catch (e) {
+    console.error('fids.admin.devices.put:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/admin/fids/cache — estado de fids_cache
+app.get('/api/admin/fids/cache', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT airport, type, fetched_at,
+             jsonb_array_length(data) AS flight_count,
+             EXTRACT(EPOCH FROM (NOW() - fetched_at))::INTEGER AS age_sec
+      FROM fids_cache
+      ORDER BY airport, type
+    `);
+    res.json({
+      mock_mode: process.env.FIDS_DEV_MOCK === 'true',
+      entries: result.rows,
+    });
+  } catch (e) {
+    console.error('fids.admin.cache.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/cache/:airport/:type — invalidar caché (forzar refresh en próximo cron)
+app.delete('/api/admin/fids/cache/:airport/:type', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { airport, type } = req.params;
+    await pool.query(`DELETE FROM fids_cache WHERE airport = $1 AND type = $2`, [airport.toUpperCase(), type]);
+    console.log(`fids.cache.invalidated airport=${airport} type=${type}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.admin.cache.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIDS MEDIA LIBRARY — F2b: librería exclusiva FIDS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/admin/fids/media
+app.get('/api/admin/fids/media', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, filename, file_path, type, size_bytes, duration_ms, width, height, uploaded_at
+       FROM fids_media WHERE user_id = $1 ORDER BY uploaded_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    console.error('fids.media.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// POST /api/admin/fids/media — upload
+app.post('/api/admin/fids/media', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    if (!req.files || !req.files.file) return res.status(400).json({ error: 'No se recibio archivo' });
+    const file = req.files.file;
+    const ext  = file.name.split('.').pop().toLowerCase();
+    const type = ['mp4','mov','avi','mkv','webm'].includes(ext) ? 'video' : 'image';
+    const safeName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const dest = require('path').join(__dirname, '../uploads', safeName);
+    await file.mv(dest);
+    const filePath = '/uploads/' + safeName;
+    const result = await pool.query(
+      `INSERT INTO fids_media (user_id, title, filename, file_path, type, size_bytes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, title, filename, file_path, type, size_bytes, duration_ms, uploaded_at`,
+      [req.user.id, file.name, safeName, filePath, type, file.size]
+    );
+    console.log(`fids.media.uploaded id=${result.rows[0].id} type=${type}`);
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('fids.media.post:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/media/:id
+app.delete('/api/admin/fids/media/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const row = await pool.query(
+      `SELECT file_path FROM fids_media WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!row.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    const filePath = require('path').join(__dirname, '..', row.rows[0].file_path);
+    require('fs').unlink(filePath, () => {});
+    await pool.query(`DELETE FROM fids_media WHERE id = $1`, [id]);
+    console.log(`fids.media.deleted id=${id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.media.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/admin/fids/playlists
+app.get('/api/admin/fids/playlists', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.created_at, p.updated_at,
+              COUNT(pi.id)::int AS item_count
+       FROM fids_playlists p
+       LEFT JOIN fids_playlist_items pi ON pi.playlist_id = p.id
+       WHERE p.user_id = $1
+       GROUP BY p.id ORDER BY p.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    console.error('fids.playlists.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// POST /api/admin/fids/playlists
+app.post('/api/admin/fids/playlists', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, items = [] } = req.body;
+    if (!name) return res.status(400).json({ error: 'name requerido' });
+    const pl = await pool.query(
+      `INSERT INTO fids_playlists (user_id, name) VALUES ($1, $2) RETURNING id, name, created_at`,
+      [req.user.id, name]
+    );
+    const plId = pl.rows[0].id;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      await pool.query(
+        `INSERT INTO fids_playlist_items (playlist_id, media_id, display_order, duration_override_ms)
+         VALUES ($1, $2, $3, $4)`,
+        [plId, it.media_id, it.display_order != null ? it.display_order : i + 1, it.duration_override_ms != null ? it.duration_override_ms : null]
+      );
+    }
+    console.log(`fids.playlist.created id=${plId} items=${items.length}`);
+    res.json({ id: plId, name, item_count: items.length });
+  } catch (e) {
+    console.error('fids.playlists.post:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// PUT /api/admin/fids/playlists/:id
+app.put('/api/admin/fids/playlists/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, items } = req.body;
+    const own = await pool.query(
+      `SELECT id FROM fids_playlists WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!own.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    if (name) {
+      await pool.query(
+        `UPDATE fids_playlists SET name = $1, updated_at = NOW() WHERE id = $2`,
+        [name, id]
+      );
+    }
+    if (items) {
+      await pool.query(`DELETE FROM fids_playlist_items WHERE playlist_id = $1`, [id]);
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        await pool.query(
+          `INSERT INTO fids_playlist_items (playlist_id, media_id, display_order, duration_override_ms)
+           VALUES ($1, $2, $3, $4)`,
+          [id, it.media_id, it.display_order != null ? it.display_order : i + 1, it.duration_override_ms != null ? it.duration_override_ms : null]
+        );
+      }
+    }
+    console.log(`fids.playlist.updated id=${id}`);
+    res.json({ success: true, id: parseInt(id) });
+  } catch (e) {
+    console.error('fids.playlists.put:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/playlists/:id
+app.delete('/api/admin/fids/playlists/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const own = await pool.query(
+      `SELECT id FROM fids_playlists WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!own.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(`DELETE FROM fids_playlists WHERE id = $1`, [id]);
+    console.log(`fids.playlist.deleted id=${id}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.playlists.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET /api/admin/fids/playlists/:id/items
+app.get('/api/admin/fids/playlists/:id/items', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const own = await pool.query(
+      `SELECT id FROM fids_playlists WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!own.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    const result = await pool.query(
+      `SELECT pi.id, pi.media_id, pi.display_order, pi.duration_override_ms,
+              m.title, m.type, m.file_path, m.size_bytes, m.duration_ms
+       FROM fids_playlist_items pi
+       JOIN fids_media m ON m.id = pi.media_id
+       WHERE pi.playlist_id = $1
+       ORDER BY pi.display_order`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (e) {
+    console.error('fids.playlist.items.get:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// PUT /api/admin/fids/playlists/:id/items — full replace
+app.put('/api/admin/fids/playlists/:id/items', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items = [] } = req.body;
+    const own = await pool.query(
+      `SELECT id FROM fids_playlists WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!own.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(`DELETE FROM fids_playlist_items WHERE playlist_id = $1`, [id]);
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      await pool.query(
+        `INSERT INTO fids_playlist_items (playlist_id, media_id, display_order, duration_override_ms)
+         VALUES ($1, $2, $3, $4)`,
+        [id, it.media_id, it.display_order != null ? it.display_order : i + 1, it.duration_override_ms != null ? it.duration_override_ms : null]
+      );
+    }
+    await pool.query(`UPDATE fids_playlists SET updated_at = NOW() WHERE id = $1`, [id]);
+    console.log(`fids.playlist.items.replaced id=${id} items=${items.length}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.playlist.items.put:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// DELETE /api/admin/fids/playlists/:id/items/:mediaId
+app.delete('/api/admin/fids/playlists/:id/items/:mediaId', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id, mediaId } = req.params;
+    const own = await pool.query(
+      `SELECT id FROM fids_playlists WHERE id = $1 AND user_id = $2`,
+      [id, req.user.id]
+    );
+    if (!own.rowCount) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(
+      `DELETE FROM fids_playlist_items WHERE playlist_id = $1 AND media_id = $2`,
+      [id, mediaId]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error('fids.playlist.items.delete:', e.message);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+const mailerRouter = require('./routes/mailer');
+app.use(mailerRouter);
+
+// ============================================================
+// 📼 HEVC AUTO-WORKER — convierte videos pendientes cada 5 min
+// ============================================================
+let hevcWorkerRunning = false;
+let hevcStartupRecoveryDone = false;
+
+async function runHevcWorker() {
+  if (hevcWorkerRunning) {
+    console.log('📼 HEVC worker: ya hay una conversion en curso, saltando ciclo');
+    return;
+  }
+  hevcWorkerRunning = true;
+  try {
+    // Recovery: una sola vez al arrancar, resetear items atascados en processing
+    if (!hevcStartupRecoveryDone) {
+      hevcStartupRecoveryDone = true;
+      try {
+        const stale = await pool.query(
+          "UPDATE content SET hevc_status='pending', hevc_error='reset after stale processing' WHERE hevc_status='processing' RETURNING id"
+        );
+        if (stale.rowCount > 0) {
+          console.log('📼 HEVC worker startup recovery: reset ' + stale.rowCount + ' item(s) atascado(s) en processing ->', stale.rows.map(r => r.id));
+        }
+      } catch (recoveryErr) {
+        console.error('📼 HEVC worker recovery error:', recoveryErr.message);
+      }
+    }
+
+    const pending = await pool.query(
+      `SELECT c.id, c.file_path, c.filename, c.type,
+              COALESCE(MAX(pi.duration_override_ms), c.duration_ms, 30000) AS duration_ms
+       FROM content c
+       LEFT JOIN playlist_items pi ON pi.content_id = c.id
+       WHERE c.hevc_status = 'pending'
+         AND c.type IN ('video', 'image')
+       GROUP BY c.id
+       LIMIT 1`
+    );
+    if (pending.rows.length === 0) {
+      hevcWorkerRunning = false;
+      return;
+    }
+    const item = pending.rows[0];
+
+    // Marcar como processing ANTES de lanzar ffmpeg para evitar reentrada tras restart
+    await pool.query("UPDATE content SET hevc_status='processing' WHERE id=$1", [item.id]);
+
+    const srcPath = '/opt/sonoro-cms/backend' + item.file_path;
+    console.log('📼 HEVC worker: procesando id=' + item.id + ' src=' + srcPath);
+
+    if (!require('fs').existsSync(srcPath)) {
+      await pool.query(
+        "UPDATE content SET hevc_status='error', hevc_error=$1 WHERE id=$2",
+        ['Archivo fuente no encontrado en disco: ' + srcPath, item.id]
+      );
+      console.error('📼 HEVC worker: archivo no existe, marcado error id=' + item.id);
+      hevcWorkerRunning = false;
+      return;
+    }
+
+    const baseName = item.filename.replace(/.[^.]+$/, '');
+    const hevcFilename = baseName + '-hevc.mp4';
+    const hevcPath = '/opt/sonoro-cms/backend/uploads/' + hevcFilename;
+    const hevcFilePath = '/uploads/' + hevcFilename;
+
+    // Detectar dimensiones del archivo fuente para determinar orientación
+    const srcDims = await new Promise((res) => {
+      const { spawn } = require('child_process');
+      const probe = spawn('ffprobe', [
+        '-v', 'error', '-select_streams', 'v:0',
+        '-show_entries', 'stream=width,height',
+        '-of', 'csv=p=0', srcPath
+      ], { stdio: 'pipe' });
+      let out = '';
+      probe.stdout.on('data', d => { out += d.toString(); });
+      probe.on('exit', () => {
+        const parts = out.trim().split(',');
+        const w = parseInt(parts[0]) || 1920;
+        const h = parseInt(parts[1]) || 1080;
+        res({ w, h });
+      });
+      probe.on('error', () => res({ w: 1920, h: 1080 }));
+    });
+    const isVertical = srcDims.h > srcDims.w;
+    const TW = 1920;
+    const TH = 1080;
+    const orientation = isVertical ? 'vertical' : 'horizontal';
+    const scaleFilter = `${isVertical?"transpose=2,":""}scale=${TW}:${TH}:force_original_aspect_ratio=decrease,pad=${TW}:${TH}:(ow-iw)/2:(oh-ih)/2,format=yuv420p,setsar=1`;
+    console.log(`📼 HEVC worker: src=${srcDims.w}x${srcDims.h} → ${TW}x${TH} (${orientation})`);
+    await pool.query("UPDATE content SET orientation=$1 WHERE id=$2", [orientation, item.id]);
+
+    await new Promise((resolve, reject) => {
+      const { spawn } = require('child_process');
+      let args;
+      if (item.type === 'image') {
+        const durSec = Math.ceil((item.duration_ms || 30000) / 1000);
+        args = [
+          '-loop', '1',
+          '-i', srcPath,
+          '-t', String(durSec),
+          '-vf', scaleFilter,
+          '-r', '25',
+          '-color_range', 'tv',
+          '-c:v', 'libx265',
+          '-preset', 'ultrafast',
+          '-crf', '28',
+          '-x265-params', 'repeat-headers=1',
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
+          '-an',
+          '-movflags', '+faststart',
+          '-y',
+          hevcPath
+        ];
+      } else {
+        args = [
+          '-y',
+          '-i', srcPath,
+          '-c:v', 'libx265',
+          '-preset', 'fast',
+          '-crf', '28',
+          '-x265-params', 'repeat-headers=1',
+          '-map', '0:v:0',
+          '-map_metadata', '-1',
+          '-map_chapters', '-1',
+          '-vf', scaleFilter,
+          '-r', '25',
+          '-an',
+          hevcPath
+        ];
+      }
+      console.log('📼 HEVC worker: ffmpeg', args.join(' '));
+      const proc = spawn('ffmpeg', args, { stdio: 'pipe' });
+      let totalSec = item.type === 'image'
+        ? Math.ceil((item.duration_ms || 30000) / 1000)
+        : Math.max(1, (item.duration_ms || 30000) / 1000);
+      let lastProgressEmit = 0;
+      proc.stderr.on('data', (chunk) => {
+        const str = chunk.toString();
+        const m = str.match(/time=(\d+):(\d+):([\d.]+)/);
+        if (m) {
+          const cur = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseFloat(m[3]);
+          const pct = Math.min(99, Math.round(cur / totalSec * 100));
+          const now = Date.now();
+          if (now - lastProgressEmit > 1000) {
+            lastProgressEmit = now;
+            io.emit('hevc_progress', { content_id: item.id, percent: pct });
+          }
+        }
+      });
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error('ffmpeg exit code ' + code));
+      });
+      proc.on('error', reject);
+    });
+
+    const hevcSize = require('fs').statSync(hevcPath).size;
+    await pool.query(
+      "UPDATE content SET hevc_status='ready', hevc_file_path=$1, hevc_size_bytes=$2, hevc_generated_at=NOW() WHERE id=$3",
+      [hevcFilePath, hevcSize, item.id]
+    );
+    console.log('📼 HEVC worker: conversion OK id=' + item.id + ' -> ' + hevcFilename + ' (' + (hevcSize / 1024 / 1024).toFixed(1) + ' MB)');
+
+    // Notificar al dashboard y refrescar dispositivos asignados
+    io.emit('hevc_complete', { content_id: item.id, filename: hevcFilename });
+
+    // S177: warning si orientación del contenido no coincide con la del dispositivo
+    try {
+      const contentOrientation = item.orientation || 'horizontal';
+      const devicesWithMismatch = await pool.query(
+        `SELECT DISTINCT d.device_id, d.name, d.orientation_hdmi0, d.orientation_hdmi1, d.user_id
+         FROM devices d
+         JOIN playlists pl ON d.hdmi0_playlist_id = pl.id OR d.hdmi1_playlist_id = pl.id
+         JOIN playlist_items pi ON pi.playlist_id = pl.id
+         WHERE pi.content_id = $1
+           AND (
+             (d.hdmi0_playlist_id IS NOT NULL AND d.orientation_hdmi0 != $2) OR
+             (d.hdmi1_playlist_id IS NOT NULL AND d.orientation_hdmi1 != $2)
+           )`,
+        [item.id, contentOrientation]
+      );
+      for (const dev of devicesWithMismatch.rows) {
+        const userSockets = io.sockets.adapter.rooms.get('user_' + dev.user_id);
+        if (userSockets) {
+          io.to('user_' + dev.user_id).emit('hevc_orientation_warning', {
+            content_id: item.id,
+            content_orientation: contentOrientation,
+            device_name: dev.name,
+            device_id: dev.device_id
+          });
+          console.log('⚠️ Orientacion mismatch: content=' + contentOrientation + ' device=' + dev.device_id);
+        }
+      }
+    } catch (e) { console.error('⚠️ Error check orientacion:', e.message); }
+    try {
+      const affectedDevices = await pool.query(
+        `SELECT DISTINCT d.device_id FROM devices d
+         JOIN playlists pl ON d.hdmi0_playlist_id = pl.id OR d.hdmi1_playlist_id = pl.id
+         JOIN playlist_items pi ON pi.playlist_id = pl.id
+         WHERE pi.content_id = $1`,
+        [item.id]
+      );
+      for (const dev of affectedDevices.rows) {
+        io.to('device_' + dev.device_id).emit('cmd_refresh_playlist');
+        console.log('📼 HEVC worker: cmd_refresh_playlist emitido a ' + dev.device_id);
+      }
+    } catch (e) { console.error('📼 HEVC worker: error emitiendo refresh:', e.message); }
+
+  } catch (workerErr) {
+    console.error('📼 HEVC worker error:', workerErr.message);
+    try {
+      const failedItem = await pool.query(
+        "SELECT id FROM content WHERE hevc_status='pending' LIMIT 1"
+      );
+      if (failedItem.rows.length > 0) {
+        await pool.query(
+          "UPDATE content SET hevc_status='error', hevc_error=$1 WHERE id=$2",
+          [workerErr.message, failedItem.rows[0].id]
+        );
+      }
+    } catch (_) {}
+  } finally {
+    hevcWorkerRunning = false;
+    // Si quedan pendientes, procesar el siguiente inmediatamente
+    try {
+      const next = await pool.query("SELECT id FROM content WHERE hevc_status='pending' LIMIT 1");
+      if (next.rows.length > 0) setImmediate(runHevcWorker);
+    } catch (_) {}
+  }
+}
+
+setInterval(runHevcWorker, 5 * 60 * 1000);
+setImmediate(runHevcWorker); // procesar pendientes al arrancar
+console.log('📼 HEVC auto-worker iniciado (cada 5 min)');
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);
