@@ -1824,8 +1824,11 @@ app.post('/api/devices/reboot', authenticateToken, requireAdmin, async (req, res
 app.post('/api/devices/:device_id/reboot', authenticateToken, async (req, res) => {
   const { device_id } = req.params;
   try {
-    const result = await pool.query('SELECT device_id FROM devices WHERE device_id = $1', [device_id]);
+    const result = await pool.query('SELECT user_id FROM devices WHERE device_id = $1', [device_id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Dispositivo no encontrado' });
+    if (req.user.role !== 'admin' && result.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ error: 'No autorizado para este dispositivo' });
+    }
     io.to(`device_${device_id}`).emit('reboot_request', { device_id });
     console.log(`🔄 Reboot emit → ${device_id}`);
     res.json({ success: true });
@@ -1874,8 +1877,11 @@ app.post('/api/admin/rpi/screenshot', authenticateToken, async (req, res) => {
 app.post('/api/devices/:device_id/screenshot', authenticateToken, async (req, res) => {
   const { device_id } = req.params;
   try {
-    const result = await pool.query('SELECT ip_address, name FROM devices WHERE device_id = $1', [device_id]);
+    const result = await pool.query('SELECT ip_address, name, user_id FROM devices WHERE device_id = $1', [device_id]);
     if (!result.rows.length) return res.status(404).json({ success: false, error: 'Dispositivo no encontrado' });
+    if (req.user.role !== 'admin' && result.rows[0].user_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'No autorizado para este dispositivo' });
+    }
     const { ip_address: ip, name } = result.rows[0];
     if (!ip) return res.status(400).json({ success: false, error: 'El dispositivo no tiene IP registrada' });
     const screenshot_url = await doScreenshot(ip, device_id);
