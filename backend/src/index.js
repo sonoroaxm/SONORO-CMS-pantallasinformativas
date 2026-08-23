@@ -200,11 +200,15 @@ console.log('✅ Uploads: http://localhost:5000/uploads/');
 // ========================================
 // DATABASE (CON POOL - CONEXIONES MÚLTIPLES)
 // ========================================
+if (!process.env.DB_PASSWORD) {
+  console.error('❌ FATAL: DB_PASSWORD no definido en .env');
+  process.exit(1);
+}
 const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'cms_signage',
-  password: process.env.DB_PASSWORD || 'postgres123',
+  password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
   max: 20,
   idleTimeoutMillis: 30000,
