@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=SONORO
+Description=SONORO boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/sonoro
+ScriptFile=/usr/share/plymouth/themes/sonoro/sonoro.script

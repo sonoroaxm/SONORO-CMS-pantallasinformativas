@@ -8,7 +8,6 @@ const os = require('os');
 
 // ── DETECCIÓN DE PLATAFORMA ──────────────────────────────────
 const IS_WINDOWS = process.platform === 'win32';
-const IS_RPI5    = process.env.SONORO_MODEL === 'rpi5';
 
 // ── RUTAS ────────────────────────────────────────────────────
 const APP_DIR    = IS_WINDOWS
@@ -23,6 +22,11 @@ const MPV_PATH   = IS_WINDOWS
 // ── CONFIG ───────────────────────────────────────────────────
 const CMS_URL        = process.env.CMS_URL    || 'https://cms.sonoro.com.co';
 const DEVICE_ID      = process.env.DEVICE_ID  || generateDeviceId();
+// RPi5 refactor: cuando SONORO_MODEL=rpi5, la reproducción la maneja
+// player-rpi5.js (ffmpeg vout_drm + concat). sync-app.js sigue haciendo
+// heartbeat, download de assets (HEVC via manifest gate), CEC y portal.
+const SONORO_MODEL   = (process.env.SONORO_MODEL || '').toLowerCase();
+const IS_RPI5        = SONORO_MODEL === 'rpi5';
 const IMAGE_DURATION = parseInt(process.env.IMAGE_DURATION) || 15000;
 const QUEUE_FILE     = process.platform === 'win32'
   ? path.join(os.tmpdir(), 'sonoro-queue.json')
@@ -662,6 +666,18 @@ function showImage(filePath, durationMs, screenTarget = null) {
 // screenTarget: objeto de puerto { port, x, y } o null (canvas completo)
 // updateState: si true actualiza currentState (solo el loop primario debe hacerlo)
 async function playbackLoop(playlist, stopFlag, screenTarget = null, updateState = true) {
+  // RPi5: la reproducción la maneja player-rpi5.js vía ffmpeg vout_drm.
+  // sync-app.js solo persiste playlist en disco (ya lo hizo syncPlaylist)
+  // y actualiza current_playlist en el estado. No spawn mpv.
+  if (IS_RPI5) {
+    if (updateState) {
+      currentState.current_playlist = { id: playlist.id, name: playlist.name };
+      currentState.status = 'playing';
+      reportState();
+    }
+    console.log(`▶️  [RPi5] Playlist "${playlist.name}" delegada a player-rpi5.js`);
+    return;
+  }
   let items = [...playlist.items];
   const label = screenTarget ? (screenTarget.port || screenTarget) : 'all';
   console.log(`▶️  Loop iniciado: ${playlist.name} (${items.length} items) [${label}]`);
@@ -758,7 +774,12 @@ async function syncPlaylist(playlistId) {
   if (!playlistId) return null;
   console.log(`\n🔄 Sincronizando playlist ${playlistId}...`);
   try {
-    const response = await axios.get(`${CMS_URL}/api/player/playlist/${playlistId}?device_id=${DEVICE_ID}`, { timeout: 8000 });
+    // ?device_id= activa el gate D5/D6: en RPi5 el manifest devuelve hevc_file_path
+    // en lugar de file_path (H.264). En RPi4 no cambia nada.
+    const response = await axios.get(
+      `${CMS_URL}/api/player/playlist/${playlistId}?device_id=${encodeURIComponent(DEVICE_ID)}`,
+      { timeout: 8000 }
+    );
     const playlist = response.data;
     if (!playlist.items || !playlist.items.length) { console.warn('⚠️ Playlist vacía'); return null; }
     const playlistDir = path.join(MEDIA_DIR, `playlist_${playlistId}`);
@@ -1061,6 +1082,26 @@ function connectSocket() {
     socket.emit('cmd_result', { command: 'refresh_playlist', success: true, device_id: DEVICE_ID });
   });
 
+  // Limpiar archivo HEVC local cuando contenido se elimina en CMS
+  socket.on('cmd_delete_hevc', ({ content_id }) => {
+    if (!content_id) return;
+    try {
+      const mediaEntries = fs.readdirSync(MEDIA_DIR);
+      for (const entry of mediaEntries) {
+        if (!entry.startsWith('playlist_')) continue;
+        const dir = path.join(MEDIA_DIR, entry);
+        const files = fs.readdirSync(dir);
+        for (const f of files) {
+          const base = path.parse(f).name;
+          if (String(base) === String(content_id)) {
+            const target = path.join(dir, f);
+            try { fs.unlinkSync(target); console.log(`🗑️ Orphan removed: ${target}`); } catch(e) {}
+          }
+        }
+      }
+    } catch(e) { console.error('cmd_delete_hevc error:', e); }
+  });
+
   // 2. Detener reproducción (mostrar splash)
   socket.on('cmd_stop', () => {
     console.log('⚡ [CMD] stop');
@@ -1124,6 +1165,36 @@ function connectSocket() {
   });
 
   // 9. Info completa del sistema RPi (CPU, RAM, temperatura)
+
+  function emitSysinfoNow(sock) {
+    const cpus = os.cpus();
+    const totalMem = os.totalmem();
+    const freeMem  = os.freemem();
+    let temp = null;
+    if (!IS_WINDOWS) {
+      try {
+        const t = require('child_process').execSync('vcgencmd measure_temp 2>/dev/null', { encoding: 'utf8', timeout: 3000 });
+        const m = t.match(/temp=([\d.]+)/);
+        if (m) temp = parseFloat(m[1]);
+      } catch(e) {}
+    }
+    sock.emit('device_sysinfo', {
+      device_id: DEVICE_ID,
+      cpu: { cores: cpus.length, model: cpus[0]?.model, speed_mhz: cpus[0]?.speed },
+      memory: {
+        total_mb: Math.round(totalMem/1048576),
+        free_mb:  Math.round(freeMem/1048576),
+        used_mb:  Math.round((totalMem-freeMem)/1048576),
+        use_pct:  ((totalMem-freeMem)/totalMem*100).toFixed(1),
+      },
+      temp_celsius: temp,
+      platform: IS_WINDOWS ? 'windows' : 'linux',
+      node_version: process.version,
+      uptime_s: Math.floor((Date.now() - currentState.started_at) / 1000),
+      os_uptime_s: Math.floor(os.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  }
   socket.on('cmd_get_sysinfo', () => {
     console.log('⚡ [CMD] get_sysinfo');
     const cpus = os.cpus();
@@ -1154,6 +1225,9 @@ function connectSocket() {
       timestamp: new Date().toISOString(),
     });
   });
+
+  // PERIODIC SYSINFO — emit every 30s so backend refreshes cpu_temp
+  setInterval(() => { try { socket.emit && socket.connected && emitSysinfoNow(socket); } catch(e) {} }, 30000);
 
   // 10. Listar archivos de media descargados en la RPi
   socket.on('cmd_list_media', () => {
@@ -1199,15 +1273,16 @@ function connectSocket() {
     });
   });
 
-  // 12. Screenshot — X11: scrot → base64 → screenshot_result socket event
+  // 12. Screenshot — RPi5 usa sonoro-screenshot.sh (frame del video actual);
+  //     RPi4/X11 usa scrot; Windows lo omite.
   socket.on('screenshot_request', ({ device_id }) => {
     if (IS_WINDOWS) return;
     const tmpPath = `/tmp/screenshot-${DEVICE_ID}-${Date.now()}.png`;
     console.log(`📸 Screenshot solicitado → ${tmpPath}`);
-    const screenshotCmd = IS_RPI5
+    const cmd = IS_RPI5
       ? `/usr/local/bin/sonoro-screenshot.sh > ${tmpPath}`
       : `${DISPLAY_ENV} scrot ${tmpPath}`;
-    exec(screenshotCmd, (err) => {
+    exec(cmd, (err) => {
       if (err) {
         console.error('❌ Screenshot error:', err.message);
         socket.emit('screenshot_result', { device_id, success: false, error: err.message });
@@ -1223,6 +1298,14 @@ function connectSocket() {
         try { fs.unlinkSync(tmpPath); } catch(e) {}
       }
     });
+  });
+
+  // 13. Reboot — sin SSH, via socket.io (funciona detrás de NAT y sin key).
+  socket.on('reboot_request', ({ device_id } = {}) => {
+    if (device_id && device_id !== DEVICE_ID) return;
+    console.log('🔄 Reboot solicitado via socket');
+    try { socket.emit('reboot_result', { device_id: DEVICE_ID, success: true }); } catch(e) {}
+    setTimeout(() => { try { exec('sudo /sbin/reboot'); } catch(e) { console.error(e); } }, 500);
   });
 
   return socket;
@@ -1346,15 +1429,6 @@ async function startPlayer(config) {
   if (playerBusy) { console.log('⏭️  startPlayer ignorado — ya en ejecución'); return; }
   playerBusy = true;
   try {
-    if (IS_RPI5) {
-      // RPi5: solo sincronizar media; player-rpi5.js maneja reproduccion via ffmpeg+vout_drm
-      const pid = config.hdmi0_playlist_id || config.hdmi1_playlist_id;
-      if (pid) {
-        await syncPlaylist(pid);
-        console.log('RPi5: sync completado — player-rpi5.js detectara cambios en playlist.json');
-      }
-      return;
-    }
     killPlayers();
     await new Promise(r => setTimeout(r, 500));
 

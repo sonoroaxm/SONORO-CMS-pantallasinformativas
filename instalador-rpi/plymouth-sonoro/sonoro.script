@@ -1,0 +1,22 @@
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
+
+if (screen_w >= screen_h) {
+    splash = Image("splashhorizontalcms.png");
+} else {
+    splash = Image("splashverticalcms.png");
+}
+
+img_w = splash.GetWidth();
+img_h = splash.GetHeight();
+
+scale = screen_w / img_w;
+if (img_h * scale > screen_h) {
+    scale = screen_h / img_h;
+}
+
+scaled = splash.Scale(img_w * scale, img_h * scale);
+sprite = Sprite(scaled);
+sprite.SetX((screen_w - scaled.GetWidth()) / 2);
+sprite.SetY((screen_h - scaled.GetHeight()) / 2);
+sprite.SetZ(0);

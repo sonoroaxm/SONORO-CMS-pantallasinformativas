@@ -1,5 +1,5 @@
 [Unit]
-Description=SONORO WiFi recover from Hotspot fallback
+Description=SONORO WiFi Recover (sale de Hotspot fallback si aparece AP guardado)
 After=NetworkManager.service
 Wants=NetworkManager.service
 

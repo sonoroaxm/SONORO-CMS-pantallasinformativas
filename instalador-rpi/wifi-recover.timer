@@ -1,9 +1,9 @@
 [Unit]
-Description=Run wifi-recover every 5 minutes
+Description=SONORO WiFi Recover — cada 2 min
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=5min
+OnUnitActiveSec=2min
 Unit=wifi-recover.service
 
 [Install]
