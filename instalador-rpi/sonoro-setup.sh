@@ -474,6 +474,18 @@ ${SONORO_USER} ALL=(root) NOPASSWD: /bin/systemctl restart sonoro-tunnel
 SUDO
 chmod 440 /etc/sudoers.d/sonoro-tunnel-port
 
+# Sudoers: permite al portal persistir device_secret HMAC (VULN-003/006 P5)
+# tee escribe el archivo, chmod/chown restringen a sonoro:sonoro 400,
+# restart sync-app fuerza recarga del interceptor axios.
+cat > /etc/sudoers.d/sonoro-device-secret << SUDO
+${SONORO_USER} ALL=(root) NOPASSWD: /usr/bin/tee /etc/sonoro/device-secret
+${SONORO_USER} ALL=(root) NOPASSWD: /bin/chmod 400 /etc/sonoro/device-secret
+${SONORO_USER} ALL=(root) NOPASSWD: /bin/chown ${SONORO_USER}\:${SONORO_USER} /etc/sonoro/device-secret
+${SONORO_USER} ALL=(root) NOPASSWD: /bin/systemctl restart sonoro-sync-rpi5
+${SONORO_USER} ALL=(root) NOPASSWD: /bin/systemctl restart sonoro-sync
+SUDO
+chmod 440 /etc/sudoers.d/sonoro-device-secret
+
 systemctl daemon-reload && systemctl enable sonoro-tunnel
 log "Tunnel SSH configurado (TUNNEL_PORT por-device, fallback 2222)"
 

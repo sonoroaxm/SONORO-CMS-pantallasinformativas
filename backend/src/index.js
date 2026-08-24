@@ -2600,6 +2600,26 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
       }
     }
 
+    // VULN-003/006 P5: autoasignar device_secret si NULL. Idempotente.
+    // Backend es fuente de verdad — cliente no puede escoger su secret.
+    // Response incluye device_secret una sola vez (activación); jamás se
+    // vuelve a devolver por ningún endpoint público.
+    if (device && !device.device_secret) {
+      try {
+        const secret = crypto.randomBytes(32).toString('hex');
+        const upd = await pool.query(
+          `UPDATE devices SET device_secret = $1 WHERE device_id = $2 AND device_secret IS NULL RETURNING device_secret`,
+          [secret, device_id]
+        );
+        if (upd.rows.length) {
+          device.device_secret = upd.rows[0].device_secret;
+          console.log(`🔐 device_secret asignado a ${device_id} (prefix ${secret.slice(0,8)})`);
+        }
+      } catch (secErr) {
+        console.warn(`⚠️  Autoasign device_secret falló para ${device_id}: ${secErr.code || secErr.message}`);
+      }
+    }
+
     console.log(`✅ RPi activada: ${device_id} → usuario ${activation.user_id}`);
 
     res.json({

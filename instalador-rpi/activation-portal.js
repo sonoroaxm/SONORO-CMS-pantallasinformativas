@@ -296,6 +296,31 @@ function applyTunnelPort(port) {
   }
 }
 
+// ── PERSISTIR DEVICE_SECRET HMAC DEL RESPONSE (VULN-003/006 P5) ─
+// Backend genera el secret en /api/activate si device.device_secret IS NULL.
+// Aquí lo escribimos a /etc/sonoro/device-secret (0400 sonoro:sonoro) y
+// reiniciamos sync-app para que el interceptor axios lo levante.
+// Requiere sudoers rules (setup en sonoro-setup.sh).
+function applySecret(secret) {
+  if (!secret || typeof secret !== 'string' || !/^[a-f0-9]{64}$/.test(secret)) return;
+  const { execSync } = require('child_process');
+  const fs = require('fs');
+  try {
+    let current = '';
+    try { current = fs.readFileSync('/etc/sonoro/device-secret', 'utf8').trim(); } catch(_) {}
+    if (current === secret) { log('device_secret ya persistido'); return; }
+    execSync(`printf '%s' '${secret}' | sudo tee /etc/sonoro/device-secret >/dev/null`);
+    execSync('sudo chown sonoro:sonoro /etc/sonoro/device-secret');
+    execSync('sudo chmod 400 /etc/sonoro/device-secret');
+    // Restart sync-app para recargar interceptor. Safe con Wants= (no cascadea player).
+    try { execSync('sudo systemctl restart sonoro-sync-rpi5'); }
+    catch(_) { try { execSync('sudo systemctl restart sonoro-sync'); } catch(__) {} }
+    log(`device_secret aplicado (prefix ${secret.slice(0,8)}, sync reiniciado)`);
+  } catch(e) {
+    log(`WARN applySecret: ${e.message}`);
+  }
+}
+
 // ── QR EN TV ─────────────────────────────────────────────────
 function getLocalIP() {
   try {
@@ -587,6 +612,7 @@ async function startServer() {
           const result = await activateDevice(code);
           if (result.success) {
             applyTunnelPort(result.device?.tunnel_port);
+            applySecret(result.device?.device_secret);
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(getPortalHTML([], 2, 'Dispositivo activado correctamente', ''));
             log('Activacion exitosa — cerrando portal en 5s');
@@ -644,6 +670,7 @@ async function startServerOnNewIP() {
           const result = await activateDevice(code);
           if (result.success) {
             applyTunnelPort(result.device?.tunnel_port);
+            applySecret(result.device?.device_secret);
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(getPortalHTML([], 2, '', ''));
             setTimeout(() => { if(server) server.close(); process.exit(0); }, 5000);
