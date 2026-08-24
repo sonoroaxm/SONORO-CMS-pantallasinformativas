@@ -94,7 +94,10 @@ async function doTV(deviceId, action, target = 'all') {
 // MIDDLEWARE
 // ========================================
 app.use(cors({ origin: corsOrigin }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); }
+}));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(fileUpload({
   limits: { fileSize: 500 * 1024 * 1024 },
@@ -227,6 +230,9 @@ const pool = new Pool({
 pool.on('connect', () => {
   console.log('🟢 Nueva conexión a PostgreSQL');
 });
+
+// VULN-003/006: HMAC device auth middleware (log-only por default)
+const deviceHmac = require('./middleware/deviceHmac')(pool);
 
 pool.on('error', (err) => {
   console.error('❌ Error en Pool:', err);
@@ -1603,7 +1609,7 @@ app.post('/api/devices/register', registerDeviceLimiter, async (req, res) => {
 });
 
 // GET - Obtener configuración de un dispositivo (sin JWT - llamado desde RPi4)
-app.get('/api/devices/:device_id/config', playerLimiter, async (req, res) => {
+app.get('/api/devices/:device_id/config', playerLimiter, deviceHmac, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -1643,7 +1649,7 @@ app.get('/api/devices/:device_id/config', playerLimiter, async (req, res) => {
 // ============================================================
 
 // GET - Manifiesto de contenido para el Windows Player (caché + sync)
-app.get('/api/devices/:device_id/manifest', playerLimiter, async (req, res) => {
+app.get('/api/devices/:device_id/manifest', playerLimiter, deviceHmac, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -2037,7 +2043,7 @@ app.post('/api/devices/:device_id/tv-schedule', authenticateToken, async (req, r
 });
 
 // POST /api/devices/:device_id/tv-result — RPi envia resultado de TV control
-app.post('/api/devices/:device_id/tv-result', async (req, res) => {
+app.post('/api/devices/:device_id/tv-result', deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   const { action, output, error } = req.body;
   if (!tvCallbacks.has(device_id)) {
@@ -2065,7 +2071,7 @@ app.post('/api/devices/:device_id/tv-result', async (req, res) => {
 });
 
 // POST /api/devices/:device_id/tv-info — RPi reporta CEC vendor/OSD + EDID por HDMI
-app.post('/api/devices/:device_id/tv-info', publicLimiter, async (req, res) => {
+app.post('/api/devices/:device_id/tv-info', publicLimiter, deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   const { tv_info } = req.body || {};
   if (!tv_info || typeof tv_info !== 'object') {
@@ -2105,7 +2111,7 @@ app.post('/api/admin/rpi/logs', authenticateToken, async (req, res) => {
 });
 
 // POST /api/devices/:device_id/logs-result — RPi envia logs via HTTP
-app.post('/api/devices/:device_id/logs-result', async (req, res) => {
+app.post('/api/devices/:device_id/logs-result', deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   const { logs, error } = req.body;
   const cb = global.logsCallbacks && global.logsCallbacks.get(device_id);
@@ -2120,7 +2126,7 @@ app.post('/api/devices/:device_id/logs-result', async (req, res) => {
 });
 
 // POST /api/devices/:device_id/stats-result — RPi envia stats via HTTP
-app.post('/api/devices/:device_id/stats-result', async (req, res) => {
+app.post('/api/devices/:device_id/stats-result', deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   const { temp, fan_state, fan_label, temp_status, error } = req.body;
   const cb = global.statsCallbacks && global.statsCallbacks.get(device_id);
@@ -2135,7 +2141,7 @@ app.post('/api/devices/:device_id/stats-result', async (req, res) => {
 });
 
 // POST /api/devices/:device_id/update-result — RPi confirma actualizacion
-app.post('/api/devices/:device_id/update-result', async (req, res) => {
+app.post('/api/devices/:device_id/update-result', deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   const { success: ok, message, error } = req.body;
   const cb = global.updateCallbacks && global.updateCallbacks.get(device_id);
@@ -2150,7 +2156,7 @@ app.post('/api/devices/:device_id/update-result', async (req, res) => {
 });
 
 // POST /api/devices/:device_id/screenshot-upload — RPi sube screenshot via HTTP
-app.post('/api/devices/:device_id/screenshot-upload', async (req, res) => {
+app.post('/api/devices/:device_id/screenshot-upload', deviceHmac, async (req, res) => {
   const { device_id } = req.params;
   if (!screenshotCallbacks.has(device_id)) {
     return res.status(403).json({ success: false, error: 'No hay solicitud de screenshot pendiente' });
@@ -2610,7 +2616,7 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
 // ── OBTENER CONFIG (proteger por user_id) ────────────────────
 // Reemplaza el GET /api/devices/:device_id/config existente
 // para que solo devuelva config si el dispositivo está activado
-app.get('/api/devices/:device_id/config/v2', playerLimiter, async (req, res) => {
+app.get('/api/devices/:device_id/config/v2', playerLimiter, deviceHmac, async (req, res) => {
   try {
     const { device_id } = req.params;
 
@@ -3636,7 +3642,7 @@ app.post('/api/user/logo', authenticateToken, async (req, res) => {
 
 // ── RPi: Verificar licencia del dispositivo ──────────────────
 // Llamado desde sync-app.js al arrancar
-app.get('/api/devices/:device_id/license', async (req, res) => {
+app.get('/api/devices/:device_id/license', deviceHmac, async (req, res) => {
   try {
     const { device_id } = req.params;
     const result = await pool.query(`
