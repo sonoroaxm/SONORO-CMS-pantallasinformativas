@@ -2701,6 +2701,22 @@ async function rebootRpi(deviceId) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
+async function assignTunnelPort(deviceId) {
+  if (!confirm(`¿Asignar puerto SSH inverso a ${deviceId}?\n\nEl backend elegirá el primer puerto libre del rango 22200-22299.\nEl device tomará el valor en su próxima activación o al recibir cmd_refresh.`)) return;
+  toast('Asignando puerto...', 'warn');
+  try {
+    const r = await api(`/api/admin/devices/${encodeURIComponent(deviceId)}/tunnel-port/assign`, { method: 'POST' });
+    if (r?.success && r.tunnel_port) {
+      toast(`Puerto ${r.tunnel_port} asignado${r.reused ? ' (ya existía)' : ''}`, 'success');
+      const el = document.getElementById('tunnelport_txt_' + deviceId);
+      if (el) el.textContent = r.tunnel_port;
+      setTimeout(loadRPis, 1500);
+    } else {
+      toast('Sin puertos libres en el rango 22200-22299', 'error');
+    }
+  } catch(e) { toast('Error asignando puerto: ' + e.message, 'error'); }
+}
+
 async function killWinPlayerAdmin(deviceId, deviceName) {
   const msg = `¿Detener el player de "${deviceName}"?\n\n`
     + `El proceso de Electron se cerrará inmediatamente.\n`
@@ -3433,12 +3449,18 @@ function renderAllDevices(devices) {
               ${isSuperAdmin() ? `<span style="display:inline-flex;align-items:center;gap:5px;">
                 <span id="alltunnel_dot_${d.device_id}" style="width:7px;height:7px;border-radius:50%;background:#666;display:inline-block;"></span>
                 Túnel: <span id="alltunnel_txt_${d.device_id}">--</span>
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:5px;" title="Puerto SSH inverso asignado en VPS (rango 22200-22299)">
+                Puerto: <span id="tunnelport_txt_${d.device_id}" style="font-family:'JetBrains Mono',monospace;color:var(--text);">${d.tunnel_port || '<span style=\'color:var(--warning);\'>sin asignar</span>'}</span>
               </span>` : ''}
               <span style="display:inline-flex;align-items:center;gap:5px;">TV: <span id="alltv_txt_${d.device_id}">${renderTvInfoCompact(d)}</span></span>
             </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0;">
             <button class="btn btn-outline btn-sm" onclick="openRpiLogs('${d.device_id}','${d.ip_address}')">Logs</button>
+            ${!isWin && isSuperAdmin() && !d.tunnel_port
+              ? `<button class="btn btn-outline btn-sm" onclick="assignTunnelPort('${d.device_id}')" title="Asignar puerto SSH inverso del rango 22200-22299">Asignar puerto</button>`
+              : ''}
             ${!isWin
               ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
               : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
