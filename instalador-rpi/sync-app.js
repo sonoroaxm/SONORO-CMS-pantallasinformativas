@@ -937,10 +937,30 @@ async function registerDevice() {
   } catch(err) { console.error('❌ Error registrando:', err.message); }
 }
 
+// Sincroniza tunnel_port del backend con /etc/sonoro/tunnel-port. Backfill para
+// devices ya activados que aún no tienen el file. Idempotente: solo restart si cambia.
+function syncTunnelPort(port) {
+  if (!port || !Number.isInteger(port)) return;
+  const fs = require('fs');
+  const { execSync } = require('child_process');
+  const line = `TUNNEL_PORT=${port}\n`;
+  try {
+    let current = '';
+    try { current = fs.readFileSync('/etc/sonoro/tunnel-port', 'utf8'); } catch(_) {}
+    if (current === line) return;
+    execSync(`echo '${line.trim()}' | sudo tee /etc/sonoro/tunnel-port >/dev/null`);
+    execSync('sudo systemctl restart sonoro-tunnel');
+    console.log(`🔌 tunnel_port sincronizado: ${port} (unit reiniciado)`);
+  } catch(e) {
+    console.warn(`⚠️  syncTunnelPort ${port}: ${e.message}`);
+  }
+}
+
 async function getDeviceConfig() {
   try {
     const response = await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 });
     saveConfigCache(response.data);
+    syncTunnelPort(response.data?.tunnel_port);
     return response.data;
   } catch(err) { return null; }
 }

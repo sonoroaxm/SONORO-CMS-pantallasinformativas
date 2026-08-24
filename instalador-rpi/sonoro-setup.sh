@@ -429,27 +429,35 @@ if [ ! -f "${TUNNEL_KEY}" ]; then
 fi
 # v5.3 (S172f): endurecido contra race boot + zombie forward
 # - After/Wants network-online.target: no arranca sin default route
-# - ExitOnForwardFailure=yes: ssh sale si -R 2222 falla (autossh reintenta con conexion limpia)
+# - ExitOnForwardFailure=yes: ssh sale si -R falla (autossh reintenta con conexion limpia)
 # - ServerAliveInterval/CountMax: detecta cuelgues VPS en <=90s
 # - RestartSec=30: da tiempo al VPS a liberar TIME_WAIT del socket anterior
 # - StartLimitBurst=0: systemd nunca deja de reintentar
 # - AUTOSSH_GATETIME=30: umbral antes de considerar la sesion estable
-cat > /etc/systemd/system/sonoro-tunnel.service << TUN
+# v5.4 (S185g): TUNNEL_PORT desde EnvironmentFile (rango 22200-22299 por-device
+# asignado por backend en /api/activate; fallback 2222 si el file no existe)
+mkdir -p /etc/sonoro
+if [ ! -f /etc/sonoro/tunnel-port ]; then
+  echo "TUNNEL_PORT=2222" > /etc/sonoro/tunnel-port
+fi
+chmod 644 /etc/sonoro/tunnel-port
+cat > /etc/systemd/system/sonoro-tunnel.service << 'TUN'
 [Unit]
 Description=SONORO SSH Tunnel
 After=network-online.target sonoro-player.service
 Wants=network-online.target
 [Service]
-User=${SONORO_USER}
+User=__SONORO_USER__
 Environment="AUTOSSH_GATETIME=30"
-ExecStart=/usr/bin/autossh -M 0 -N \\
-  -o "ExitOnForwardFailure=yes" \\
-  -o "ServerAliveInterval=30" \\
-  -o "ServerAliveCountMax=3" \\
-  -o "StrictHostKeyChecking=no" \\
-  -o "UserKnownHostsFile=/dev/null" \\
-  -R 2222:localhost:22 \\
-  -i ${TUNNEL_KEY} \\
+EnvironmentFile=-/etc/sonoro/tunnel-port
+ExecStart=/usr/bin/autossh -M 0 -N \
+  -o "ExitOnForwardFailure=yes" \
+  -o "ServerAliveInterval=30" \
+  -o "ServerAliveCountMax=3" \
+  -o "StrictHostKeyChecking=no" \
+  -o "UserKnownHostsFile=/dev/null" \
+  -R ${TUNNEL_PORT}:localhost:22 \
+  -i __TUNNEL_KEY__ \
   debian@45.181.156.171
 Restart=always
 RestartSec=30
@@ -457,8 +465,17 @@ StartLimitBurst=0
 [Install]
 WantedBy=multi-user.target
 TUN
+sed -i "s|__SONORO_USER__|${SONORO_USER}|g; s|__TUNNEL_KEY__|${TUNNEL_KEY}|g" /etc/systemd/system/sonoro-tunnel.service
+
+# Sudoers: permite al user aplicar tunnel_port sin password (portal + sync-app)
+cat > /etc/sudoers.d/sonoro-tunnel-port << SUDO
+${SONORO_USER} ALL=(root) NOPASSWD: /usr/bin/tee /etc/sonoro/tunnel-port
+${SONORO_USER} ALL=(root) NOPASSWD: /bin/systemctl restart sonoro-tunnel
+SUDO
+chmod 440 /etc/sudoers.d/sonoro-tunnel-port
+
 systemctl daemon-reload && systemctl enable sonoro-tunnel
-log "Tunnel SSH configurado"
+log "Tunnel SSH configurado (TUNNEL_PORT por-device, fallback 2222)"
 
 step "8/9 Post-setup checklist"
 if [ "$IS_RPI5" = "1" ]; then

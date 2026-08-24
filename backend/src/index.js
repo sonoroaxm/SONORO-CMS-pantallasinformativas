@@ -2566,11 +2566,39 @@ app.post('/api/activate', activateLimiter, async (req, res) => {
       [device_id, activation.id]
     );
 
+    // Autoasignar tunnel_port (rango 22200-22299) para RPi. Idempotente: no toca si ya asignado.
+    // Windows/FIDS no usan túnel SSH → skip.
+    const device = deviceResult.rows[0];
+    if (device && ['rpi4', 'rpi5'].includes(device.model) && device.tunnel_port == null) {
+      try {
+        const free = await pool.query(
+          `SELECT p FROM generate_series(22200::int, 22299::int) AS p
+           WHERE p NOT IN (SELECT tunnel_port FROM devices WHERE tunnel_port IS NOT NULL)
+           ORDER BY p LIMIT 1`
+        );
+        if (free.rows.length) {
+          const assigned = await pool.query(
+            `UPDATE devices SET tunnel_port = $1 WHERE device_id = $2 AND tunnel_port IS NULL RETURNING tunnel_port`,
+            [free.rows[0].p, device_id]
+          );
+          if (assigned.rows.length) {
+            device.tunnel_port = assigned.rows[0].tunnel_port;
+            console.log(`🔌 tunnel_port ${device.tunnel_port} asignado a ${device_id}`);
+          }
+        } else {
+          console.warn(`⚠️  Rango tunnel_port agotado al activar ${device_id}`);
+        }
+      } catch (portErr) {
+        // Race UNIQUE (23505) o error transitorio: log y continuar. Puerto puede asignarse después vía admin.
+        console.warn(`⚠️  Autoasign tunnel_port falló para ${device_id}: ${portErr.code || portErr.message}`);
+      }
+    }
+
     console.log(`✅ RPi activada: ${device_id} → usuario ${activation.user_id}`);
 
     res.json({
       success: true,
-      device: deviceResult.rows[0],
+      device,
       message: 'Dispositivo activado correctamente'
     });
   } catch (err) {

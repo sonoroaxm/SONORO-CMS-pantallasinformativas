@@ -276,6 +276,26 @@ async function activateDevice(code) {
   });
 }
 
+// ── PERSISTIR TUNNEL_PORT DEL RESPONSE ──────────────────────
+// Escribe /etc/sonoro/tunnel-port + reinicia sonoro-tunnel si cambia.
+// Requiere sudoers rule para tee y systemctl restart (setup en sonoro-setup.sh).
+function applyTunnelPort(port) {
+  if (!port || !Number.isInteger(port)) return;
+  const { execSync } = require('child_process');
+  const fs = require('fs');
+  const line = `TUNNEL_PORT=${port}\n`;
+  try {
+    let current = '';
+    try { current = fs.readFileSync('/etc/sonoro/tunnel-port', 'utf8'); } catch(_) {}
+    if (current === line) { log(`tunnel_port ${port} ya persistido`); return; }
+    execSync(`echo '${line.trim()}' | sudo tee /etc/sonoro/tunnel-port >/dev/null`);
+    execSync('sudo systemctl restart sonoro-tunnel');
+    log(`tunnel_port aplicado: ${port} (unit reiniciado)`);
+  } catch(e) {
+    log(`WARN applyTunnelPort ${port}: ${e.message}`);
+  }
+}
+
 // ── QR EN TV ─────────────────────────────────────────────────
 function getLocalIP() {
   try {
@@ -566,6 +586,7 @@ async function startServer() {
         try {
           const result = await activateDevice(code);
           if (result.success) {
+            applyTunnelPort(result.device?.tunnel_port);
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(getPortalHTML([], 2, 'Dispositivo activado correctamente', ''));
             log('Activacion exitosa — cerrando portal en 5s');
@@ -622,6 +643,7 @@ async function startServerOnNewIP() {
         try {
           const result = await activateDevice(code);
           if (result.success) {
+            applyTunnelPort(result.device?.tunnel_port);
             res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
             res.end(getPortalHTML([], 2, '', ''));
             setTimeout(() => { if(server) server.close(); process.exit(0); }, 5000);
