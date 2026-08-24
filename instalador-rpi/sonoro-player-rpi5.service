@@ -3,7 +3,12 @@ Description=SONORO Player RPi5 (ffmpeg vout_drm + concat demuxer, gap 0)
 Documentation=file:///home/sonoro/sonoro-player/README.txt
 After=network-online.target sonoro-sync-rpi5.service
 Wants=network-online.target
-Requires=sonoro-sync-rpi5.service
+# S185h: Wants= en vez de Requires= — restart de sync no debe cascadear
+# al player (procesos independientes que comparten SD y BD, no IPC directo).
+# Requires= arrastraba player en cada restart sync, causando ~5-15s de
+# pantalla negra visible por operación. Root cause detectado durante rollout
+# VULN-003/006 P4 (24/08).
+Wants=sonoro-sync-rpi5.service
 # Se enmascara sonoro-x11.service en RPi5: vout_drm reclama DRM master exclusivo.
 Conflicts=sonoro-x11.service
 
