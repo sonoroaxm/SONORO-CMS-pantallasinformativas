@@ -5,6 +5,41 @@ const { exec, execSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
+
+// ── HMAC device auth (VULN-003/006 P3) ───────────────────────
+// Firma requests al VPS con HMAC-SHA256 si existe /etc/sonoro/device-secret.
+// Sin archivo: modo legacy (backward compat total con backend log-only).
+const DEVICE_SECRET = (() => {
+  try { return fs.readFileSync('/etc/sonoro/device-secret', 'utf8').trim() || null; }
+  catch { return null; }
+})();
+
+if (DEVICE_SECRET) {
+  axios.interceptors.request.use((config) => {
+    try {
+      const raw = config.url || '';
+      const full = /^https?:\/\//i.test(raw) ? raw : ((config.baseURL || '') + raw);
+      const u = new URL(full);
+      if (!u.pathname.startsWith('/api/')) return config;
+      const ts = Math.floor(Date.now() / 1000).toString();
+      const method = (config.method || 'get').toUpperCase();
+      let body = '';
+      if (config.data != null) {
+        body = typeof config.data === 'string' ? config.data : JSON.stringify(config.data);
+      }
+      const payload = `${method}\n${u.pathname}\n${ts}\n${body}`;
+      const sig = crypto.createHmac('sha256', DEVICE_SECRET).update(payload).digest('hex');
+      config.headers = { ...(config.headers || {}), 'X-Device-Timestamp': ts, 'X-Device-Signature': sig };
+    } catch (e) {
+      console.warn('[HMAC] intercept error:', e.message);
+    }
+    return config;
+  });
+  console.log('🔐 HMAC device auth ENABLED');
+} else {
+  console.log('🔓 HMAC device auth DISABLED (no /etc/sonoro/device-secret) — legacy mode');
+}
 
 // ── DETECCIÓN DE PLATAFORMA ──────────────────────────────────
 const IS_WINDOWS = process.platform === 'win32';
