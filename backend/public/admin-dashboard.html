@@ -3144,6 +3144,7 @@ async function loadUsers() {
           </div>
           ${renderBaseFeatures(u)}
           ${renderQ2Features(u)}
+          ${renderAddOns(u)}
           <div style="padding:10px 14px;border-top:0.5px solid var(--border);">
             <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Correos de notificación (máx. 2)</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -3264,6 +3265,52 @@ function renderQ2Features(u) {
     ${renderFeatureRows(Q2_FEATURE_DEFS, u)}
     <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Requiere licencia activa. Se desactivan automáticamente al suspender la licencia.</div>
   </div>`;
+}
+
+// Smart TV Browser Player — add-on multi (framework v1.2, D1/D3/D5).
+// smarttv_enabled es columna en users (no en features JSONB): flag independiente
+// del license_type. Suspender = flip false → servicio smarttvsignage devuelve 403.
+function renderAddOns(u) {
+  const on = !!u.smarttv_enabled;
+  const enabledAt = u.smarttv_enabled_at ? new Date(u.smarttv_enabled_at).toLocaleDateString('es-CO') : null;
+  const safeUser = escOnclick(u.name || u.email || '');
+  const desc = on && enabledAt
+    ? `Habilitado desde ${enabledAt}. Suspender = flip a Inactivo, sin re-pair al reactivar.`
+    : 'Cliente puede parear TVs en cms.sonoro.com.co/pair y reproducir playlists en el navegador del TV. Sin apps.';
+  return `<div style="padding:10px 14px;border-top:0.5px solid var(--border);">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Add-ons</div>
+    <div class="q2-feat-row">
+      <div class="q2-feat-info">
+        <div class="q2-feat-name">Smart TV Browser Player</div>
+        <div class="q2-feat-desc">${desc}</div>
+      </div>
+      <span class="q2-badge ${on ? 'on' : 'off'}">${on ? 'Activo' : 'Inactivo'}</span>
+      <button class="q2-act-btn ${on ? 'deactivate' : 'activate'}"
+        onclick="event.stopPropagation();toggleSmartTvAddOn(${u.id}, ${!on}, '${safeUser}')">
+        ${on ? 'Desactivar' : 'Activar'}
+      </button>
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:var(--muted);opacity:0.7;">Add-on independiente de la licencia. No cobra ni trackea uso — acuerdo comercial fuera del CMS.</div>
+  </div>`;
+}
+
+async function toggleSmartTvAddOn(userId, enabled, userLabel) {
+  const action = enabled ? 'Activar' : 'Desactivar';
+  if (!confirm(`${action} Smart TV Browser Player para ${userLabel}?`)) return;
+  try {
+    const data = await api(`/api/admin/users/${userId}/smarttv-enabled`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled })
+    });
+    if (data.success) {
+      toast(`Smart TV ${enabled ? 'activado' : 'desactivado'} para ${userLabel}`, 'success');
+      if (typeof loadUsers === 'function') loadUsers();
+    } else {
+      toast('Error: ' + (data.error || 'Sin respuesta'), 'error');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 async function toggleFeature(userId, feature, enabled) {

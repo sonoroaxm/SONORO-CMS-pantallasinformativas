@@ -2800,6 +2800,7 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
         u.id, u.email, u.name, u.role,
         u.license_type, u.license_status, u.license_start, u.license_end,
         u.created_at, u.features, u.notification_emails, u.storage_limit_mb,
+        u.smarttv_enabled, u.smarttv_enabled_at,
         COUNT(DISTINCT d.id) as device_count,
         COUNT(DISTINCT c.id) as content_count,
         COUNT(DISTINCT p.id) as playlist_count,

@@ -417,6 +417,53 @@ router.get('/redis/queue', auth, (req, res) => {
   res.json({ queue: { total_items: 0, items: [] } });
 });
 
+// ── SMART TV ADD-ON (framework v1.2, D3/D5) ──────────────────
+// Flip on/off del add-on Smart TV por usuario. Sin billing, sin metering:
+// suspender = flip a false; próximo /api/player/config del servicio smarttvsignage
+// retorna 403 {suspended:true} y el player muestra splash + overlay err.
+router.put('/users/:id/smarttv-enabled', auth, async (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  const { id } = req.params;
+  const enabled = req.body?.enabled === true;
+  try {
+    const db = req.app.get('db');
+    const result = await db.query(
+      `UPDATE users
+         SET smarttv_enabled = $1,
+             smarttv_enabled_at = CASE WHEN $1 = true THEN COALESCE(smarttv_enabled_at, NOW()) ELSE smarttv_enabled_at END
+       WHERE id = $2
+       RETURNING id, email, name, smarttv_enabled, smarttv_enabled_at`,
+      [enabled, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ success: true, user: result.rows[0] });
+  } catch (e) {
+    console.error('smarttv-enabled PUT error:', e);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Observabilidad operativa (sin billing, sin usage tracking). Cuenta devices
+// smart TV con actividad reciente (last_seen < 5 min). Filtro opcional user_id.
+router.get('/smarttv/devices-online-count', auth, async (req, res) => {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  const userId = req.query.user_id ? parseInt(req.query.user_id, 10) : null;
+  try {
+    const db = req.app.get('db');
+    const params = [];
+    let where = `WHERE d.model = 'smarttv' AND d.last_seen > NOW() - INTERVAL '5 minutes'`;
+    if (userId) { params.push(userId); where += ` AND d.user_id = $${params.length}`; }
+    const result = await db.query(
+      `SELECT COUNT(*)::int AS online FROM devices d ${where}`,
+      params
+    );
+    res.json({ success: true, online: result.rows[0].online });
+  } catch (e) {
+    console.error('smarttv devices-online-count error:', e);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;
 // ── FEATURES POR USUARIO ─────────────────────────────────────
 function requireAdminRole(req, res, next) {
