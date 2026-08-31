@@ -877,6 +877,27 @@
       letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
     }
 
+    .smarttv-pill {
+      display: inline-block; padding: 2px 7px;
+      background: #2a1543; border: 1px solid #4c2680; border-radius: 4px;
+      font-size: 9px; font-weight: 700; color: #c9a4ff;
+      letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
+    }
+
+    /* Smart TV pair-code modal */
+    #smarttvPairModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    #smarttvPairModal.show { display: flex; }
+    .stv-pair-card { background: #151515; border: 1px solid #2a2a2a; border-radius: 8px; padding: 28px 32px; max-width: 440px; width: 92%; text-align: center; }
+    .stv-pair-card h3 { margin: 0 0 6px; font-size: 16px; color: #fff; }
+    .stv-pair-card .stv-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+    .stv-pair-code { font-family: 'SF Mono', Menlo, monospace; font-size: 44px; font-weight: 700; letter-spacing: 8px; color: #c9a4ff; background: #0f0616; border: 1px solid #4c2680; border-radius: 6px; padding: 18px 8px; margin: 8px 0 14px; user-select: all; }
+    .stv-pair-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--text-muted); margin-bottom: 18px; }
+    .stv-pair-meta strong { color: #eee; }
+    .stv-pair-hint { font-size: 12px; color: var(--text-muted); background: #0d0d0d; border: 1px dashed #2a2a2a; border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; }
+    .stv-pair-hint code { color: #c9a4ff; font-family: 'SF Mono', Menlo, monospace; }
+    .stv-pair-actions { display: flex; gap: 8px; }
+    .stv-pair-actions button { flex: 1; }
+
     .dc-field-grid { display: grid; gap: 12px; }
     .dc-fg-2 { grid-template-columns: 1fr 1fr; }
     .dc-field-label {
@@ -3569,6 +3590,7 @@ async function loadDevices(silent = false) {
       const isDual      = mode === 'dual' || mode === 'videowall';
       const isVideowall = mode === 'videowall';
       const isWin       = d.platform === 'windows';
+      const isSmartTv   = d.model === 'smarttv';
       const pl0         = d.hdmi0_playlist_id || '';
       const pl1         = d.hdmi1_playlist_id || '';
       const or0         = d.orientation_hdmi0 || 'horizontal';
@@ -3801,6 +3823,7 @@ async function loadDevices(silent = false) {
               <div class="dc-name-row">
                 <div class="dc-name" id="dname_${d.device_id}">${d.name}</div>
                 ${isWin ? '<span class="win-pill">Windows</span>' : ''}
+                ${isSmartTv ? '<span class="smarttv-pill">Smart TV</span>' : ''}
                 ${d.unhealthy_at ? `<span class="unhealthy-pill" title="Watchdog reportó ${d.unhealthy_reload_count || '?'} reloads consecutivos sin recuperar el renderer">Unhealthy</span>` : ''}
               </div>
               <div class="dc-sub">
@@ -3855,9 +3878,11 @@ async function loadDevices(silent = false) {
               <div class="dc-footer-actions">
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
                 <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>
-                ${isWin
-                  ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${escOnclick(d.name)}')">Detener player</button>`
-                  : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`}
+                ${isSmartTv
+                  ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="generateSmartTvCode(${d.id}, '${escOnclick(d.name)}')">Generar código de pareo</button>`
+                  : (isWin
+                    ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${escOnclick(d.name)}')">Detener player</button>`
+                    : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`)}
                 <button class="save-btn" onclick="saveDevice('${d.device_id}')">Guardar y Aplicar</button>
               </div>
             </div>
@@ -9085,6 +9110,91 @@ function evExportPDF() {
   }).catch(() => showStatus('Error al generar PDF', 'error'));
 }
 
+// ── SMART TV — GENERAR CÓDIGO DE PAREO (framework v1.2 D2) ─────
+// Llama al servicio smarttvsignage (`POST /api/pair/generate`, auth Bearer
+// con JWT_SECRET compartido). Nginx en el VPS rutea /api/pair/* → puerto
+// dedicado; en dev local, override con window.SMARTTV_API_BASE.
+let _stvCountdownTimer = null;
+
+async function generateSmartTvCode(deviceDbId, deviceName) {
+  try {
+    const base = window.SMARTTV_API_BASE || '';
+    const r = await fetch(`${base}/api/pair/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ device_id: deviceDbId })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showStatus(err.error === 'device_not_smarttv'
+        ? 'Este dispositivo no es Smart TV.'
+        : `Error generando código: ${err.error || r.status}`, 'error');
+      return;
+    }
+    const data = await r.json();
+    showSmartTvPairModal(data, deviceName);
+  } catch (e) {
+    showStatus('Error de red: ' + e.message, 'error');
+  }
+}
+
+function showSmartTvPairModal(data, deviceName) {
+  const modal = document.getElementById('smarttvPairModal');
+  document.getElementById('stvPairCode').textContent = data.code;
+  document.getElementById('stvPairDevice').textContent = deviceName || `Device #${data.device_id}`;
+  const expires = new Date(data.expires_at);
+  document.getElementById('stvPairExpires').textContent = expires.toLocaleTimeString('es-CO', { hour12: true, timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
+  modal.classList.add('show');
+  if (_stvCountdownTimer) clearInterval(_stvCountdownTimer);
+  const tick = () => {
+    const secs = Math.max(0, Math.floor((expires - new Date()) / 1000));
+    const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+    const ss = String(secs % 60).padStart(2, '0');
+    document.getElementById('stvPairCountdown').textContent = `${mm}:${ss}`;
+    if (secs <= 0) {
+      clearInterval(_stvCountdownTimer);
+      document.getElementById('stvPairCode').style.opacity = '0.35';
+      document.getElementById('stvPairCountdown').textContent = 'expirado';
+    }
+  };
+  tick();
+  _stvCountdownTimer = setInterval(tick, 1000);
+}
+
+function closeSmartTvPairModal() {
+  document.getElementById('smarttvPairModal').classList.remove('show');
+  if (_stvCountdownTimer) clearInterval(_stvCountdownTimer);
+  document.getElementById('stvPairCode').style.opacity = '1';
+}
+
+async function copySmartTvCode() {
+  const code = document.getElementById('stvPairCode').textContent;
+  try {
+    await navigator.clipboard.writeText(code);
+    showStatus('Código copiado', 'success');
+  } catch { showStatus('No se pudo copiar', 'error'); }
+}
+
 </script>
+
+<!-- Smart TV pair-code modal (framework v1.2 D2) -->
+<div id="smarttvPairModal" onclick="if(event.target===this)closeSmartTvPairModal()">
+  <div class="stv-pair-card">
+    <h3>Código de pareo Smart TV</h3>
+    <div class="stv-sub" id="stvPairDevice">—</div>
+    <div class="stv-pair-code" id="stvPairCode">------</div>
+    <div class="stv-pair-meta">
+      <div>Expira: <strong id="stvPairExpires">—</strong></div>
+      <div>Restante: <strong id="stvPairCountdown">—</strong></div>
+    </div>
+    <div class="stv-pair-hint">
+      En el navegador del Smart TV abre <code>cms.sonoro.com.co/pair</code> y digita este código. Una vez pareado, la playlist asignada reproduce en el TV.
+    </div>
+    <div class="stv-pair-actions">
+      <button class="btn btn-outline btn-sm" onclick="copySmartTvCode()">Copiar</button>
+      <button class="btn btn-primary btn-sm" onclick="closeSmartTvPairModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
