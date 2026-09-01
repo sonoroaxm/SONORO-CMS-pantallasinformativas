@@ -2866,7 +2866,7 @@ app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAd
 app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, features FROM users WHERE id = $1',
+      'SELECT id, email, name, role, features, smarttv_enabled FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -2883,6 +2883,35 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
     res.json({ success: true, token, user: { ...user, features } });
   } catch(e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Smart TV: crear device desde dashboard usuario (framework v1.2 D2)
+// Gate: users.smarttv_enabled=true (super admin flip). Alta manual sin
+// activation-code porque el flujo es pair-only vía browser del TV.
+app.post('/api/devices/smarttv', authenticateToken, async (req, res) => {
+  try {
+    const name = (req.body?.name || '').trim();
+    const orientation = req.body?.orientation;
+    if (!name || !['H', 'V'].includes(orientation)) {
+      return res.status(400).json({ error: 'name y orientation (H|V) requeridos' });
+    }
+    const u = await pool.query('SELECT smarttv_enabled FROM users WHERE id=$1', [req.user.id]);
+    if (!u.rows[0]?.smarttv_enabled) {
+      return res.status(403).json({ error: 'Smart TV no habilitado en tu cuenta. Contacta al administrador.' });
+    }
+    const deviceId = `smarttv-${req.user.id}-${Date.now().toString(36)}`;
+    const { rows } = await pool.query(
+      `INSERT INTO devices (name, user_id, model, platform, device_id, orientation_hdmi0, orientation)
+       VALUES ($1, $2, 'smarttv', 'browser', $3, $4, $5)
+       RETURNING id, device_id, name, model, orientation_hdmi0`,
+      [name, req.user.id, deviceId, orientation, orientation === 'V' ? 'portrait' : 'landscape']
+    );
+    console.log(`📺 Smart TV device creado: ${rows[0].name} (id=${rows[0].id}) user=${req.user.id}`);
+    res.json({ success: true, device: rows[0] });
+  } catch (err) {
+    console.error('❌ POST /api/devices/smarttv:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
