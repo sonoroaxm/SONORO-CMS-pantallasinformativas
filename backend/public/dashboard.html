@@ -3878,7 +3878,7 @@ async function loadDevices(silent = false) {
               <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
               <div class="dc-footer-actions">
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
-                <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>
+                ${!isSmartTv ? `<button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>` : ''}
                 ${isSmartTv
                   ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="generateSmartTvCode(${d.id}, '${escOnclick(d.name)}')">Generar código de pareo</button>`
                   : (isWin
