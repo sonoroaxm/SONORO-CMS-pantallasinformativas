@@ -1302,7 +1302,10 @@
       <div id="devices-tab" class="container hidden">
         <div class="section-header">
           <div class="section-title">Gestión de Dispositivos</div>
-          <button class="btn btn-grad" onclick="openActivationModal()">+ Generar Código</button>
+          <div style="display:flex;gap:8px;">
+            <button id="btn-add-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openAddSmartTvModal()">+ Agregar Smart TV</button>
+            <button class="btn btn-grad" onclick="openActivationModal()">+ Generar Código</button>
+          </div>
         </div>
         <div id="devices-list"></div>
       </div>
@@ -3563,6 +3566,8 @@ function toggleDeviceSection(sectionId) {
 
 async function loadDevices(silent = false) {
   const container = document.getElementById('devices-list');
+  const addStvBtn = document.getElementById('btn-add-smarttv');
+  if (addStvBtn) addStvBtn.style.display = currentUser?.smarttv_enabled ? '' : 'none';
   if (!container.innerHTML || container.innerHTML.includes('Cargando') || container.innerHTML.includes('No hay')) {
     container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Cargando...</p>';
   }
@@ -9176,6 +9181,37 @@ async function copySmartTvCode() {
   } catch { showStatus('No se pudo copiar', 'error'); }
 }
 
+// Add Smart TV device — visible sólo si currentUser.smarttv_enabled.
+function openAddSmartTvModal() {
+  document.getElementById('addStvName').value = '';
+  document.getElementById('addStvOrientation').value = 'H';
+  document.getElementById('addSmartTvModal').classList.add('show');
+}
+function closeAddSmartTvModal() {
+  document.getElementById('addSmartTvModal').classList.remove('show');
+}
+async function submitAddSmartTv() {
+  const name = document.getElementById('addStvName').value.trim();
+  const orientation = document.getElementById('addStvOrientation').value;
+  if (!name) return showStatus('Ingresa un nombre', 'error');
+  try {
+    const r = await fetch(`${API_URL}/api/devices/smarttv`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, orientation })
+    });
+    const data = await r.json();
+    if (!r.ok) return showStatus(data.error || 'Error creando Smart TV', 'error');
+    closeAddSmartTvModal();
+    showStatus('Smart TV creado', 'success');
+    await loadDevices();
+    // Auto-genera pair-code inmediato — flujo D2 pair-only.
+    generateSmartTvCode(data.device.id, data.device.name);
+  } catch (e) {
+    showStatus('Error de red: ' + e.message, 'error');
+  }
+}
+
 </script>
 
 <!-- Smart TV pair-code modal (framework v1.2 D2) -->
@@ -9194,6 +9230,33 @@ async function copySmartTvCode() {
     <div class="stv-pair-actions">
       <button class="btn btn-outline btn-sm" onclick="copySmartTvCode()">Copiar</button>
       <button class="btn btn-primary btn-sm" onclick="closeSmartTvPairModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Smart TV device modal -->
+<div id="addSmartTvModal" class="modal-overlay" onclick="if(event.target===this)closeAddSmartTvModal()">
+  <div class="modal-content" style="max-width:420px;">
+    <h3 style="margin:0 0 4px 0;">Agregar Smart TV</h3>
+    <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);">Se creará el dispositivo y se generará un código de pareo para el TV.</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Nombre</label>
+        <input id="addStvName" type="text" placeholder="Ej. TV Recepción" maxlength="60"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Orientación</label>
+        <select id="addStvOrientation"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+          <option value="H">Horizontal</option>
+          <option value="V">Vertical</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-outline btn-sm" onclick="closeAddSmartTvModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" style="background:#4c2680;border-color:#4c2680;color:#fff;" onclick="submitAddSmartTv()">Crear y generar código</button>
     </div>
   </div>
 </div>
