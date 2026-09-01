@@ -885,8 +885,9 @@
     }
 
     /* Smart TV pair-code modal */
-    #smarttvPairModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
-    #smarttvPairModal.show { display: flex; }
+    #smarttvPairModal, #addSmartTvModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    #smarttvPairModal.show, #addSmartTvModal.show { display: flex; }
+    #addSmartTvModal .modal-content { background: #151515; border: 1px solid #2a2a2a; border-radius: 8px; padding: 24px; }
     .stv-pair-card { background: #151515; border: 1px solid #2a2a2a; border-radius: 8px; padding: 28px 32px; max-width: 440px; width: 92%; text-align: center; }
     .stv-pair-card h3 { margin: 0 0 6px; font-size: 16px; color: #fff; }
     .stv-pair-card .stv-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
