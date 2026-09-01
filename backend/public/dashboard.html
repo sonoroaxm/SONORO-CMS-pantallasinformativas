@@ -3865,19 +3865,20 @@ async function loadDevices(silent = false) {
               <div class="dc-section-body">${secCfg}</div>
             </div>
 
+            ${!isSmartTv ? `
             <div class="dc-section" id="dcsec_ctrl_${d.device_id}">
               <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_ctrl_${d.device_id}')">
                 <span class="dc-section-label">${secCtrlLabel}</span>
                 <span class="dc-section-arrow">&#9658;</span>
               </div>
               <div class="dc-section-body">${secCtrl}</div>
-            </div>
+            </div>` : ''}
 
             <div class="dc-footer">
               <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
               <div class="dc-footer-actions">
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
-                <button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>
+                ${!isSmartTv ? `<button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>` : ''}
                 ${isSmartTv
                   ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="generateSmartTvCode(${d.id}, '${escOnclick(d.name)}')">Generar código de pareo</button>`
                   : (isWin
