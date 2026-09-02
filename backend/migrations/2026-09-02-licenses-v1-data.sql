@@ -6,10 +6,11 @@
 -- Estrategia CONSERVADORA:
 --   - Migra solo usuarios con licencia legacy activa y no expirada.
 --   - Mapeo legacy license_type → product nuevo:
---       'rpi'                        → 'player'
---       'windows'                    → 'windows'
---       'cms','cms_queue','queue'    → 'player'  (legacy CMS = usuario RPi por defecto)
---       otros                        → SKIP (revisión manual admin)
+--       'rpi'                                              → 'player'
+--       'windows'                                          → 'windows'
+--       'cms','cms_queue','queue'                          → 'player'  (legacy CMS = usuario RPi por defecto)
+--       'cms_sencilla','cms_doble','cms_pro'               → 'player'  (tiers Producto 1 = RPi)
+--       otros                                              → SKIP (revisión manual admin)
 --   - Marca como is_free_grant=true, amount=0, note='migrated_from_legacy'.
 --   - Preserva start/end originales. months = round(diff en meses).
 --   - No borra ni modifica users.license_type/license_status/license_start/license_end.
@@ -39,6 +40,9 @@ SELECT
     WHEN 'cms'       THEN 'player'
     WHEN 'cms_queue' THEN 'player'
     WHEN 'queue'     THEN 'player'
+    WHEN 'cms_sencilla' THEN 'player'
+    WHEN 'cms_doble'    THEN 'player'
+    WHEN 'cms_pro'      THEN 'player'
   END AS product,
   GREATEST(
     1,
@@ -64,7 +68,7 @@ WHERE u.role = 'client'
   AND u.license_status = 'active'
   AND u.license_end IS NOT NULL
   AND u.license_end > NOW()
-  AND u.license_type IN ('rpi','windows','cms','cms_queue','queue')
+  AND u.license_type IN ('rpi','windows','cms','cms_queue','queue','cms_sencilla','cms_doble','cms_pro')
   AND NOT EXISTS (
     -- Idempotencia: no duplicar si ya se migró este user
     SELECT 1 FROM licenses l
@@ -96,7 +100,7 @@ BEGIN
     WHERE role = 'client'
       AND license_status = 'active'
       AND license_end > NOW()
-      AND license_type NOT IN ('rpi','windows','cms','cms_queue','queue');
+      AND license_type NOT IN ('rpi','windows','cms','cms_queue','queue','cms_sencilla','cms_doble','cms_pro');
 
   RAISE NOTICE '─────────────────────────────────────────';
   RAISE NOTICE 'LICENSES-V1 data migration report:';
