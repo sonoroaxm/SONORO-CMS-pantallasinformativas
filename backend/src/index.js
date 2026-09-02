@@ -18,6 +18,8 @@ const eventsPublicRouter = require('./routes/events-public');
 const eventsProductionPublicRouter = require('./routes/events-production-public');
 const eventsStaffRouter  = require('./routes/events-staff');
 const licensesRouter     = require('./routes/licenses');
+const licensesAdminRouter = require('./routes/licenses-admin');
+const licensingCron      = require('./services/licensing-cron');
 const { resolveLicense, LEGACY_TYPE_TO_PRODUCT } = require('./services/licensing');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
@@ -8046,6 +8048,8 @@ app.use('/api/events',        eventsRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
 app.use('/api', licensesRouter);
+// LICENSES-V1 admin — /api/admin/licenses|orders|metrics + suspend/reactivate
+app.use('/api', licensesAdminRouter);
 
 // ── Events v1 — Rutas HTML ───────────────────────────────────────────────
 app.get('/evento/invitacion/:code', (req, res) => {
@@ -10827,6 +10831,9 @@ async function runHevcWorker() {
 setInterval(runHevcWorker, 5 * 60 * 1000);
 setImmediate(runHevcWorker); // procesar pendientes al arrancar
 console.log('📼 HEVC auto-worker iniciado (cada 5 min)');
+
+// LICENSES-V1 cron (§6.5): expire + notify + auto-cancel
+licensingCron.start(pool);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);
