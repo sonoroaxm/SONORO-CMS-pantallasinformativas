@@ -1051,6 +1051,7 @@
 
     @media (max-width: 1100px) { .lic-kpi-grid { grid-template-columns:repeat(2,1fr); } .lic-grid2 { grid-template-columns:1fr; } }
   </style>
+  <script src="/js/i18n.js"></script>
 </head>
 <body>
 <div class="grad-bar"></div>
@@ -1065,8 +1066,13 @@
   <span class="topbar-badge client-only" id="topbar-client-badge" style="background:rgba(255,140,0,0.12);border-color:rgba(255,140,0,0.3);color:#ff8c00;"></span>
   <div class="topbar-right">
     <span class="topbar-user" id="topbar-user"></span>
+    <select id="langSelectDash" onchange="window.SonoroI18n&&window.SonoroI18n.setLocale(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.3px;">
+      <option value="es">ES</option>
+      <option value="en">EN</option>
+      <option value="pt-BR">PT</option>
+    </select>
     <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
-    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+    <button class="logout-btn" onclick="logout()" data-i18n="topbar.logout">Cerrar Sesión</button>
   </div>
 </div>
 
@@ -1079,7 +1085,7 @@
     <!-- CLIENT ADMIN sidebar (hidden for super admin) -->
     <div class="sidebar-group mi-cuenta open client-only" id="sg-mi-cuenta">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-mi-cuenta')">
-        <div class="sidebar-group-label">Mi Cuenta</div>
+        <div class="sidebar-group-label" data-i18n="mc.title">Mi Cuenta</div>
         <div class="sidebar-group-arrow">▶</div>
       </div>
       <div class="sidebar-children">
