@@ -9453,12 +9453,13 @@ function renderLicOrders(orders) {
     const prod = LIC_PRODUCT_LABELS[o.product] || o.product;
     const st = o.status || 'pending';
     const badge = st === 'paid' ? '<span class="lic-badge active">Pagada</span>'
-      : st === 'pending_proof' ? '<span class="lic-badge pending">Comprobante</span>'
+      : st === 'proof_uploaded' ? '<span class="lic-badge pending">Comprobante enviado</span>'
       : st === 'cancelled' ? '<span class="lic-badge expired">Cancelada</span>'
-      : '<span class="lic-badge pending">Pendiente</span>';
+      : '<span class="lic-badge pending">Pendiente pago</span>';
     let action = '—';
-    if (st === 'pending' || st === 'pending_proof') {
-      action = `<label class="lic-btn-outline" style="cursor:pointer;">Subir comprobante<input type="file" style="display:none;" accept="image/*,.pdf" onchange="licUploadProof(${o.id}, this.files[0])"></label>`;
+    if (st === 'pending_payment' || st === 'proof_uploaded') {
+      const label = st === 'proof_uploaded' ? 'Reemplazar comprobante' : 'Subir comprobante';
+      action = `<label class="lic-btn-outline" style="cursor:pointer;">${label}<input type="file" style="display:none;" accept="image/*,.pdf" onchange="licUploadProof(${o.id}, this.files[0])"></label>`;
     }
     return `<tr>
       <td>#${licEsc(o.id)}</td>
@@ -9704,7 +9705,7 @@ async function licSubmitUsdOrder() {
         <option value="smart_tv">Licencia SONORO Smart TV — mensual</option>
         <option value="windows">Licencia SONORO Windows — mensual</option>
         <option value="player_monthly">Licencia SONORO Player — mensual</option>
-        <option value="player_buy12">Equipo SONORO Player + 12 meses licencia</option>
+        <option value="player_buy12">Equipo SONORO Player, 12 meses de licencia incluida</option>
       </select>
     </div>
 
