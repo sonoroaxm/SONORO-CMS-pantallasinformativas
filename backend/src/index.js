@@ -663,7 +663,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     // Buscar usuario
-    const result = await pool.query('SELECT id, email, password, name, role, features FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT id, email, password, name, role, features, country_code, currency, smarttv_enabled FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
@@ -690,7 +690,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures, country_code: user.country_code, currency: user.currency, smarttv_enabled: user.smarttv_enabled }
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -2870,7 +2870,7 @@ app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAd
 app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, features, smarttv_enabled FROM users WHERE id = $1',
+      'SELECT id, email, name, role, features, smarttv_enabled, country_code, currency FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -2887,6 +2887,28 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
     res.json({ success: true, token, user: { ...user, features } });
   } catch(e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// ── PATCH /api/user/country — cliente actualiza su país (Fase 4 LICENSES-V1)
+// Currency se deriva del país: CO→COP, resto→USD.
+app.patch('/api/user/country', authenticateToken, async (req, res) => {
+  try {
+    const { country_code } = req.body || {};
+    if (!country_code || typeof country_code !== 'string' || country_code.length !== 2) {
+      return res.status(400).json({ error: 'country_code (ISO-2) requerido' });
+    }
+    const cc = country_code.toUpperCase();
+    const currency = cc === 'CO' ? 'COP' : 'USD';
+    const r = await pool.query(
+      `UPDATE users SET country_code = $1, currency = $2 WHERE id = $3
+       RETURNING id, country_code, currency`,
+      [cc, currency, req.user.id]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/user/country', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
@@ -3379,11 +3401,13 @@ app.get('/api/admin/cec-monitor', authenticateToken, async (req, res) => {
 // ── S158e: ADMIN crea cliente (con licencia + contraseña temporal + email) ──
 app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { name, email, phone, license_type, months } = req.body;
+    const { name, email, phone, license_type, months, country_code } = req.body;
     if (!name || !email || !license_type || !months) {
       return res.status(400).json({ error: 'name, email, license_type y months son requeridos' });
     }
     const emailNorm = String(email).trim().toLowerCase();
+    const countryNorm = (country_code || 'CO').toUpperCase().slice(0, 2);
+    const currencyByCountry = countryNorm === 'CO' ? 'COP' : 'USD';
 
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [emailNorm]);
     if (exists.rows.length) return res.status(409).json({ error: 'email_ya_existe' });
@@ -3410,10 +3434,10 @@ app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =
     const feats = LICENSE_FEATURES[license_type] || {};
 
     const ins = await pool.query(`
-      INSERT INTO users (name, email, password, role, phone, license_type, license_status, license_start, license_end, features, storage_limit_mb)
-      VALUES ($1, $2, $3, 'client', $4, $5, 'active', $6, $7, $8::jsonb, 500)
-      RETURNING id, name, email, license_type, license_end
-    `, [name, emailNorm, hash, phone || null, license_type, now, endDate, JSON.stringify(feats)]);
+      INSERT INTO users (name, email, password, role, phone, license_type, license_status, license_start, license_end, features, storage_limit_mb, country_code, currency)
+      VALUES ($1, $2, $3, 'client', $4, $5, 'active', $6, $7, $8::jsonb, 500, $9, $10)
+      RETURNING id, name, email, license_type, license_end, country_code, currency
+    `, [name, emailNorm, hash, phone || null, license_type, now, endDate, JSON.stringify(feats), countryNorm, currencyByCountry]);
 
     const newUser = ins.rows[0];
 

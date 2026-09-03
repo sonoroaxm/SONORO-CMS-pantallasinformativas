@@ -142,11 +142,11 @@ async function computePrice(pool, { product, currency, months, annual = false, i
   };
 }
 
-// ¿El usuario ya usó su trial para este producto? (anti-abuso §1.6)
-async function hasUsedTrial(pool, userId, product) {
+// ¿El usuario ya usó su trial? (anti-abuso §1.6) — Fase 4: 1 trial por usuario total
+async function hasUsedTrial(pool, userId /* , product */) {
   const r = await pool.query(
-    `SELECT 1 FROM licenses WHERE user_id = $1 AND product = $2 AND is_trial = TRUE LIMIT 1`,
-    [userId, product]
+    `SELECT 1 FROM licenses WHERE user_id = $1 AND is_trial = TRUE LIMIT 1`,
+    [userId]
   );
   return r.rows.length > 0;
 }

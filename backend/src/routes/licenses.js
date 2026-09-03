@@ -67,14 +67,14 @@ router.get('/licenses/mine', auth, async (req, res) => {
 router.post('/licenses/trial', auth, async (req, res) => {
   const pool = global.pool;
   const { product } = req.body || {};
-  if (!product || !['smart_tv', 'windows'].includes(product)) {
-    // Player NO tiene trial (12m grant al activar RPi ≠ trial)
-    return res.status(400).json({ error: 'Producto inválido para trial (smart_tv | windows)' });
+  if (product !== 'smart_tv') {
+    // Fase 4: trial solo aplica a Smart TV, 1 vez por usuario
+    return res.status(400).json({ error: 'Trial solo disponible para Smart TV' });
   }
   try {
-    const already = await hasUsedTrial(pool, req.user.id, product);
+    const already = await hasUsedTrial(pool, req.user.id);
     if (already) {
-      return res.status(409).json({ error: 'Ya usaste el trial de este producto', product });
+      return res.status(409).json({ error: 'Ya usaste tu trial (1 por cuenta)' });
     }
     // Currency del usuario (default COP)
     const u = await pool.query(`SELECT currency FROM users WHERE id = $1`, [req.user.id]);
@@ -99,7 +99,7 @@ router.post('/licenses/trial', auth, async (req, res) => {
   } catch (err) {
     if (err.code === '23505') {
       // Colisión con unique partial index (double-submit)
-      return res.status(409).json({ error: 'Ya usaste el trial de este producto', product });
+      return res.status(409).json({ error: 'Ya usaste tu trial (1 por cuenta)' });
     }
     console.error('POST /licenses/trial', err);
     res.status(500).json({ error: 'Error interno' });
