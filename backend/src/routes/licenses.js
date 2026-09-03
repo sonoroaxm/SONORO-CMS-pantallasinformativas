@@ -14,6 +14,10 @@ const {
   hasUsedTrial,
   isSecondPlusForProduct,
 } = require('../services/licensing');
+const mailer   = require('../services/licensing-mailer');
+const approval = require('../services/licensing-approval');
+
+const APP_URL = process.env.CMS_URL || 'https://cms.sonoro.com.co';
 
 // JWT auth (idéntico al de events.js — patrón local por-router)
 function auth(req, res, next) {
@@ -86,6 +90,11 @@ router.post('/licenses/trial', auth, async (req, res) => {
        RETURNING id, product, start_date, end_date, is_trial, trial_days`,
       [req.user.id, product, currency]
     );
+    // Notificar cliente trial iniciado (fire-and-forget)
+    try {
+      const uu = await pool.query(`SELECT id, email, name FROM users WHERE id = $1`, [req.user.id]);
+      if (uu.rows[0]) mailer.notifyClientTrialStarted({ license: ins.rows[0], user: uu.rows[0] });
+    } catch (e) { console.error('[trial mail]', e.message); }
     res.status(201).json(ins.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
@@ -222,6 +231,28 @@ router.post('/orders/:id/proof', auth, async (req, res) => {
       [orderId, req.user.email || null,
        JSON.stringify({ filename: file.name, size: file.size })]
     );
+
+    // Emitir JWT one-shot approve + reject y enviar mail al admin (fire-and-forget)
+    try {
+      const [tApprove, tReject] = await Promise.all([
+        approval.issueApprovalToken(pool, orderId, 'approve'),
+        approval.issueApprovalToken(pool, orderId, 'reject'),
+      ]);
+      const approveUrl = `${APP_URL}/api/orders/${orderId}/approve?token=${encodeURIComponent(tApprove)}`;
+      const rejectUrl  = `${APP_URL}/api/orders/${orderId}/reject?token=${encodeURIComponent(tReject)}`;
+      const full = await pool.query(
+        `SELECT o.id, o.product, o.months, o.currency, o.amount, o.country_code,
+                o.payment_proof_url,
+                u.email, u.name
+           FROM license_orders o JOIN users u ON u.id = o.user_id
+          WHERE o.id = $1`, [orderId]);
+      const row = full.rows[0];
+      if (row) mailer.notifyAdminNewOrder({
+        order: row,
+        user: { email: row.email, name: row.name },
+        approveUrl, rejectUrl,
+      });
+    } catch (e) { console.error('[proof mail]', e.message); }
 
     res.json({ id: orderId, status: 'proof_uploaded', payment_proof_url: publicUrl });
   } catch (err) {

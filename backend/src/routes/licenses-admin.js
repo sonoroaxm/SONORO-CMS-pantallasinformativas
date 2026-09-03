@@ -8,6 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const { withTransaction } = require('../db/withTransaction');
 const { PRODUCTS, computePrice, isSecondPlusForProduct } = require('../services/licensing');
+const mailer = require('../services/licensing-mailer');
 
 // JWT auth + require admin role
 function adminAuth(req, res, next) {
@@ -152,8 +153,14 @@ router.post('/admin/orders/:id/approve', async (req, res) => {
          VALUES ($1, 'approved', $2, $3)`,
         [orderId, req.user.email || null, JSON.stringify({ license_id: licenseId, device_id })]
       );
-      return { order_id: orderId, license_id: licenseId, license: lic.rows[0] };
+      return { order_id: orderId, license_id: licenseId, license: lic.rows[0], user_id: order.user_id };
     });
+    try {
+      const u = await pool.query(`SELECT id, email, name FROM users WHERE id = $1`, [result.user_id]);
+      if (u.rows[0]) mailer.notifyClientOrderApproved({
+        order: { id: orderId }, license: result.license, user: u.rows[0],
+      });
+    } catch (e) { console.error('[admin approve mail]', e.message); }
     res.json(result);
   } catch (err) {
     if (err.code === 'NOT_FOUND') return res.status(404).json({ error: err.message });
@@ -172,7 +179,7 @@ router.post('/admin/orders/:id/reject', async (req, res) => {
   if (!reason || !String(reason).trim()) return res.status(400).json({ error: 'reason requerido' });
   try {
     const own = await pool.query(
-      `SELECT status FROM license_orders WHERE id = $1`, [orderId]
+      `SELECT status, user_id, product FROM license_orders WHERE id = $1`, [orderId]
     );
     if (!own.rows.length) return res.status(404).json({ error: 'Orden no existe' });
     if (!['pending_payment','proof_uploaded'].includes(own.rows[0].status)) {
@@ -189,6 +196,12 @@ router.post('/admin/orders/:id/reject', async (req, res) => {
        VALUES ($1, 'rejected', $2, $3)`,
       [orderId, req.user.email || null, JSON.stringify({ reason })]
     );
+    try {
+      const u = await pool.query(`SELECT id, email, name FROM users WHERE id = $1`, [own.rows[0].user_id]);
+      if (u.rows[0]) mailer.notifyClientOrderRejected({
+        order: { id: orderId, product: own.rows[0].product }, reason, user: u.rows[0],
+      });
+    } catch (e) { console.error('[admin reject mail]', e.message); }
     res.json({ id: orderId, status: 'rejected', rejected_reason: reason });
   } catch (err) {
     console.error('POST /admin/orders/:id/reject', err);

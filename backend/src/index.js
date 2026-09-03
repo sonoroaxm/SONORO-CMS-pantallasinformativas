@@ -19,6 +19,7 @@ const eventsProductionPublicRouter = require('./routes/events-production-public'
 const eventsStaffRouter  = require('./routes/events-staff');
 const licensesRouter     = require('./routes/licenses');
 const licensesAdminRouter = require('./routes/licenses-admin');
+const licensesApprovalRouter = require('./routes/licenses-approval');
 const licensingCron      = require('./services/licensing-cron');
 const { resolveLicense, LEGACY_TYPE_TO_PRODUCT } = require('./services/licensing');
 const { exec, execFile } = require('child_process');
@@ -8048,6 +8049,8 @@ app.use('/api/events',        eventsRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
 app.use('/api', licensesRouter);
+// LICENSES-V1 aprobación email — rutas públicas, montar ANTES del admin (que tiene router.use(adminAuth) global)
+app.use('/api', licensesApprovalRouter);
 // LICENSES-V1 admin — /api/admin/licenses|orders|metrics + suspend/reactivate
 app.use('/api', licensesAdminRouter);
 

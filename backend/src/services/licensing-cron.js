@@ -12,6 +12,7 @@
 // Tolerante a arranques múltiples (marca de última corrida en tabla o memoria).
 
 'use strict';
+const mailer = require('./licensing-mailer');
 
 const TICK_MS = 5 * 60 * 1000; // Chequeo cada 5 minutos qué toca ejecutar
 
@@ -36,17 +37,26 @@ async function markExpiringNotifications(pool) {
   const q = await pool.query(`
     WITH expiring AS (
       SELECT l.id, l.user_id, l.product, l.end_date,
-             CEIL(EXTRACT(EPOCH FROM (l.end_date - NOW()))/86400)::int AS days_left
+             CEIL(EXTRACT(EPOCH FROM (l.end_date - NOW()))/86400)::int AS days_left,
+             u.email, u.name
         FROM licenses l
+        JOIN users u ON u.id = l.user_id
        WHERE l.status = 'active'
          AND l.end_date BETWEEN NOW() AND NOW() + INTERVAL '30 days'
     )
-    SELECT id, user_id, product, end_date, days_left
+    SELECT id, user_id, product, end_date, days_left, email, name
       FROM expiring
      WHERE days_left IN (30, 7)`
   );
+  for (const row of q.rows) {
+    mailer.notifyClientLicenseExpiring({
+      license: { id: row.id, product: row.product, end_date: row.end_date },
+      user: { id: row.user_id, email: row.email, name: row.name },
+      daysLeft: row.days_left,
+    });
+  }
   if (q.rows.length) {
-    console.log(`[licenses-cron] ${q.rows.length} licencias en ventana notificación 30d/7d (email hook pendiente Fase 2)`);
+    console.log(`[licenses-cron] notificadas ${q.rows.length} licencias ventana 30d/7d`);
   }
   return q.rows.length;
 }
