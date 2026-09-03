@@ -9328,9 +9328,14 @@ async function submitAddSmartTv() {
 
 /* ═══════════════ LICENSES-V1 Fase 4 — UI cliente ═══════════════ */
 const LIC_PRODUCT_LABELS = {
-  smart_tv: 'SONORO Smart TV Player',
-  player:   'SONORO Player',
-  windows:  'SONORO Windows Player'
+  smart_tv: 'Licencia SONORO Smart TV',
+  player:   'Licencia SONORO Player',
+  windows:  'Licencia SONORO Windows'
+};
+// Precios desde pricing_catalog (sync manual — cambia en BD requiere update aquí)
+const LIC_PRICING = {
+  COP: { smart_tv: 25000, windows: 85000, player_monthly: 55000, player_buy12: 800000 },
+  USD: { smart_tv: 15,    windows: 25,    player_monthly: 20,    player_buy12: 350    }
 };
 const LIC_MP_LINKS = {
   smart_tv:       'https://mpago.la/1RMUcqm',
@@ -9518,19 +9523,35 @@ function licUpdateCoPayLink() {
   const modeEl = document.getElementById('licOrderPlayerMode');
   const mode = modeEl ? modeEl.value : 'monthly';
   let link = LIC_MP_LINKS.smart_tv;
-  if (prod === 'smart_tv') link = LIC_MP_LINKS.smart_tv;
-  else if (prod === 'windows') link = LIC_MP_LINKS.windows;
-  else if (prod === 'player') link = mode === 'buy12' ? LIC_MP_LINKS.player_buy12 : LIC_MP_LINKS.player_monthly;
+  let key = prod;
+  let note = '';
+  if (prod === 'smart_tv') { link = LIC_MP_LINKS.smart_tv; note = 'Suscripción mensual, cancela cuando quieras.'; }
+  else if (prod === 'windows') { link = LIC_MP_LINKS.windows; note = 'Suscripción mensual, cancela cuando quieras.'; }
+  else if (prod === 'player') {
+    if (mode === 'buy12') { link = LIC_MP_LINKS.player_buy12; key = 'player_buy12'; note = 'Incluye el equipo + 12 meses de licencia sin costo adicional.'; }
+    else { link = LIC_MP_LINKS.player_monthly; key = 'player_monthly'; note = 'Renta mensual del equipo + licencia. Cancela cuando quieras.'; }
+  }
   const a = document.getElementById('licMpLink');
   if (a) a.href = link;
   const wrap = document.getElementById('licPlayerModeWrap');
   if (wrap) wrap.style.display = prod === 'player' ? 'block' : 'none';
+  const amount = LIC_PRICING.COP[key] || 0;
+  const fmt = licMoney(amount, 'COP');
+  const amtEl = document.getElementById('licAmountCo');
+  if (amtEl) amtEl.textContent = fmt + (key === 'player_buy12' ? '' : ' / mes');
+  const noteEl = document.getElementById('licAmountCoNote');
+  if (noteEl) noteEl.textContent = note;
+  const brebEl = document.getElementById('licBrebAmount');
+  if (brebEl) brebEl.textContent = fmt;
 }
 function licUpdateUsdPayLink() {
   const prod = document.getElementById('licOrderProductUsd').value;
   const planId = LIC_PAYPAL_PLANS[prod] || LIC_PAYPAL_PLANS.smart_tv;
   const a = document.getElementById('licPaypalLink');
   if (a) a.href = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${planId}`;
+  const amount = LIC_PRICING.USD[prod] || 0;
+  const amtEl = document.getElementById('licAmountUsd');
+  if (amtEl) amtEl.textContent = licMoney(amount, 'USD') + ' / month';
 }
 
 function licCopyBreb() {
@@ -9685,18 +9706,24 @@ async function licSubmitUsdOrder() {
     <div class="lic-form-group">
       <label class="lic-form-label">Producto</label>
       <select id="licOrderProductCo" class="lic-select" onchange="licUpdateCoPayLink()">
-        <option value="smart_tv">SONORO Smart TV Player — suscripción mensual</option>
-        <option value="player">SONORO Player</option>
-        <option value="windows">SONORO Windows Player — suscripción mensual</option>
+        <option value="smart_tv">Licencia SONORO Smart TV — mensual</option>
+        <option value="windows">Licencia SONORO Windows — mensual</option>
+        <option value="player">Licencia / Equipo SONORO Player</option>
       </select>
     </div>
 
     <div class="lic-form-group" id="licPlayerModeWrap" style="display:none;">
       <label class="lic-form-label">Modalidad Player</label>
       <select id="licOrderPlayerMode" class="lic-select" onchange="licUpdateCoPayLink()">
-        <option value="monthly">Renovación mensual</option>
-        <option value="buy12">Compra + 12 meses</option>
+        <option value="monthly">Licencia mensual (renta)</option>
+        <option value="buy12">Equipo + 12 meses licencia incluidos</option>
       </select>
+    </div>
+
+    <div class="lic-pay-block" style="background:var(--surface2);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Monto a pagar</div>
+      <div id="licAmountCo" style="font-size:22px;font-weight:800;color:var(--text);margin-top:4px;">—</div>
+      <div id="licAmountCoNote" style="font-size:11px;color:var(--text-muted);margin-top:2px;"></div>
     </div>
 
     <div class="lic-pay-block">
@@ -9706,6 +9733,7 @@ async function licSubmitUsdOrder() {
 
     <div class="lic-pay-block">
       <div class="lic-pay-label">Pago con BRE-B (transferencia)</div>
+      <div style="font-size:12px;color:var(--text);margin-bottom:6px;">Transfiere <strong id="licBrebAmount">—</strong> a la llave:</div>
       <div class="lic-pay-key">
         <span>Llave: <strong>9739871</strong></span>
         <button onclick="licCopyBreb()">Copiar</button>
@@ -9734,10 +9762,15 @@ async function licSubmitUsdOrder() {
     <div class="lic-form-group">
       <label class="lic-form-label">Product</label>
       <select id="licOrderProductUsd" class="lic-select" onchange="licUpdateUsdPayLink()">
-        <option value="smart_tv">SONORO Smart TV Player — monthly</option>
-        <option value="player">SONORO Player — monthly</option>
-        <option value="windows">SONORO Windows Player — monthly</option>
+        <option value="smart_tv">SONORO Smart TV — monthly subscription</option>
+        <option value="windows">SONORO Windows — monthly subscription</option>
+        <option value="player">SONORO Player — monthly subscription</option>
       </select>
+    </div>
+
+    <div class="lic-pay-block" style="background:var(--surface2);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Amount</div>
+      <div id="licAmountUsd" style="font-size:22px;font-weight:800;color:var(--text);margin-top:4px;">—</div>
     </div>
 
     <div class="lic-pay-block">
