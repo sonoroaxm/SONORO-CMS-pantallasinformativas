@@ -1152,6 +1152,7 @@
     .lic-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 </style>
   <script src="/auto-token-refresh.js"></script>
+  <script src="/js/i18n.js"></script>
 </head>
 <body>
 
@@ -1226,6 +1227,11 @@
       <div class="topbar-divider"></div>
       <div class="topbar-version">CMS v2.4</div>
       <div class="topbar-right">
+        <select id="langSelectDash" onchange="window.SonoroI18n&&window.SonoroI18n.setLocale(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 8px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.3px;">
+          <option value="es">ES</option>
+          <option value="en">EN</option>
+          <option value="pt-BR">PT</option>
+        </select>
         <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
         <div class="topbar-user">Sesión: <span id="userName"></span></div>
         <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
