@@ -980,6 +980,76 @@
       .sidebar { display: none; }
       .main { padding: 20px 16px; }
     }
+
+    /* ═════════ LICENSES-V1 Fase 3 ═════════ */
+    .sidebar-group.licencias .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.licencias .sidebar-group-header:hover { background: rgba(0,245,212,0.06); }
+    .sidebar-group.licencias .sidebar-children-inner { border-color: rgba(0,245,212,0.25); }
+    .sidebar-group.licencias .sidebar-btn.active { background: rgba(0,245,212,0.10); color: var(--magenta); border-left-color: var(--magenta); }
+    .sidebar-group.licencias .sidebar-btn:hover { color: var(--magenta); }
+    .lic-badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:var(--warning); color:#fff; min-width:18px; text-align:center; margin-left:6px; }
+    .lic-badge.mag { background:var(--magenta); color:#0a0a0f; }
+
+    .lic-callout { background:rgba(255,140,0,0.08); border:1px solid rgba(255,140,0,0.3); border-left:3px solid var(--warning); border-radius:6px; padding:12px 16px; margin-bottom:16px; font-size:12px; color:var(--text); display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .lic-kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+    .lic-kpi { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 18px; position:relative; overflow:hidden; }
+    .lic-kpi::before { content:""; position:absolute; top:0; left:0; right:0; height:2px; background:var(--grad); opacity:.6; }
+    .lic-kpi-label { color:var(--muted); font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; }
+    .lic-kpi-value { font-size:26px; font-weight:800; margin-top:6px; letter-spacing:-.5px; color:var(--text); }
+    .lic-kpi-sub { color:var(--muted); font-size:11px; margin-top:4px; }
+
+    .lic-goal { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:18px 22px; margin-bottom:20px; }
+    .lic-goal-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+    .lic-goal-bar { height:10px; background:var(--surface3); border-radius:6px; overflow:hidden; }
+    .lic-goal-fill { height:100%; background:var(--grad); border-radius:6px; transition:width .5s; }
+    .lic-goal-mile { display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:var(--muted); letter-spacing:1px; }
+
+    .lic-grid2 { display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-bottom:20px; }
+    .lic-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .lic-card-head { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .lic-card-title { font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--text); }
+    .lic-card-foot { padding:10px 18px; border-top:1px solid var(--border); text-align:right; }
+    table.lic-data { width:100%; border-collapse:collapse; font-size:12px; }
+    table.lic-data thead th { padding:10px 16px; text-align:left; background:var(--surface2); color:var(--muted); font-size:10px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; border-bottom:1px solid var(--border); }
+    table.lic-data td { padding:11px 16px; border-bottom:1px solid var(--border); color:var(--text); }
+    table.lic-data tr:last-child td { border-bottom:none; }
+    table.lic-data tr:hover { background:var(--surface2); }
+
+    .lic-chip { display:inline-block; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; }
+    .lic-chip.active { background:rgba(0,230,118,.14); color:var(--online); }
+    .lic-chip.trial { background:rgba(167,139,250,.16); color:var(--yellow); }
+    .lic-chip.pending { background:rgba(255,140,0,.16); color:var(--warning); }
+    .lic-chip.proof { background:rgba(0,200,255,.16); color:#00c8ff; }
+    .lic-chip.expired { background:rgba(255,23,68,.16); color:var(--offline); }
+    .lic-chip.approved { background:rgba(0,230,118,.14); color:var(--online); }
+    .lic-chip.rejected { background:rgba(255,23,68,.16); color:var(--offline); }
+    .lic-chip.suspended { background:rgba(136,136,136,.20); color:var(--muted); }
+    .lic-chip.grand { background:rgba(123,97,255,.16); color:var(--orange); }
+    .lic-pill { display:inline-block; padding:2px 8px; border:1px solid var(--border); border-radius:4px; font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+
+    .lic-prod-row { display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid var(--border); }
+    .lic-prod-row:last-child { border-bottom:none; }
+    .lic-prod-name { width:100px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .lic-prod-bar { flex:1; height:8px; background:var(--surface3); border-radius:4px; overflow:hidden; }
+    .lic-prod-fill { height:100%; background:var(--grad); }
+    .lic-prod-count { width:40px; text-align:right; font-size:13px; font-weight:700; color:var(--text); }
+
+    .lic-subtabs { display:flex; gap:2px; margin-bottom:18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .lic-subtab { padding:10px 18px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; background:transparent; border-left:none; border-right:none; border-top:none; font-family:'Montserrat',sans-serif; }
+    .lic-subtab:hover { color:var(--text); }
+    .lic-subtab.active { color:var(--magenta); border-bottom-color:var(--magenta); }
+    .lic-subtab .cnt { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:10px; background:var(--surface3); color:var(--muted); }
+    .lic-subtab.active .cnt { background:rgba(0,245,212,.15); color:var(--magenta); }
+
+    .lic-input { padding:6px 10px; border:1px solid var(--border); background:var(--surface2); border-radius:4px; color:var(--text); font-family:'Montserrat',sans-serif; font-size:11px; }
+    .lic-btn { padding:5px 10px; font-size:11px; font-weight:600; border-radius:4px; cursor:pointer; font-family:'Montserrat',sans-serif; border:1px solid var(--border); background:transparent; color:var(--text); transition:.2s; }
+    .lic-btn:hover { border-color:var(--magenta); color:var(--magenta); }
+    .lic-btn.primary { background:var(--grad); border:none; color:#fff; }
+    .lic-btn.primary:hover { opacity:.9; color:#fff; }
+    .lic-btn.danger:hover { border-color:var(--offline); color:var(--offline); }
+    .lic-btn.warn { border-color:var(--warning); color:var(--warning); }
+
+    @media (max-width: 1100px) { .lic-kpi-grid { grid-template-columns:repeat(2,1fr); } .lic-grid2 { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -1060,6 +1130,25 @@
           <button class="sidebar-btn" onclick="showTab('users', this)">Usuarios y Licencias</button>
           <button class="sidebar-btn" onclick="showTab('alldevices', this)">Todos los Dispositivos</button>
           <button class="sidebar-btn" onclick="showTab('rpis', this)">Gestión RPis</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- LICENCIAS (Fase 3) -->
+    <div class="sidebar-group licencias open admin-only" id="sg-licencias">
+      <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-licencias')">
+        <div class="sidebar-group-label">Licencias <span id="sb-lic-pending-badge" class="lic-badge" style="display:none;"></span></div>
+        <div class="sidebar-group-arrow">▶</div>
+      </div>
+      <div class="sidebar-children">
+        <div class="sidebar-children-inner">
+          <button class="sidebar-btn" onclick="showTab('lic-resumen', this)">Resumen</button>
+          <button class="sidebar-btn" onclick="showTab('lic-orders', this)">Órdenes <span id="sb-lic-orders-badge" class="lic-badge" style="display:none;"></span></button>
+          <button class="sidebar-btn" onclick="showTab('lic-licenses', this)">Licencias activas <span id="sb-lic-active-badge" class="lic-badge mag" style="display:none;"></span></button>
+          <button class="sidebar-btn" onclick="showTab('lic-expiring', this)">Por vencer <span id="sb-lic-exp-badge" class="lic-badge" style="display:none;"></span></button>
+          <button class="sidebar-btn" onclick="showTab('lic-pricing', this)">Pricing</button>
         </div>
       </div>
     </div>
@@ -1589,6 +1678,169 @@
       </div>
     </div>
 
+    <!-- ═══════════════ LICENCIAS · RESUMEN (Fase 3) ═══════════════ -->
+    <div id="tab-lic-resumen" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Licencias · Resumen</div>
+          <div class="section-sub" id="lic-resumen-updated">Cargando...</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="loadLicResumen()">↻ Actualizar</button>
+          <button class="btn btn-outline btn-sm" onclick="licExportPdf()">Exportar PDF</button>
+          <button class="btn btn-sm" style="background:var(--grad);color:#fff;border:none;" onclick="licOpenNewManualModal()">Nueva licencia manual</button>
+        </div>
+      </div>
+      <div id="lic-callout-pending"></div>
+      <div class="lic-kpi-grid" id="lic-kpi-grid"><div class="loading" style="padding:20px;grid-column:1/-1;">Cargando KPIs...</div></div>
+      <div class="lic-goal" id="lic-goal-card" style="display:none;">
+        <div class="lic-goal-head">
+          <div>
+            <div style="font-size:13px;font-weight:700;letter-spacing:.3px;">Meta Fase Validación · 25 clientes pagos</div>
+            <div style="color:var(--muted);font-size:11px;">Founding Member Dashboard Admin activo hasta llegar a 25</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:800;color:var(--text);"><span id="lic-goal-n">0</span> <span style="color:var(--muted);font-size:13px;font-weight:600;">/ 25</span></div>
+            <div style="color:var(--muted);font-size:11px;"><span id="lic-goal-pct">0</span>% completado</div>
+          </div>
+        </div>
+        <div class="lic-goal-bar"><div class="lic-goal-fill" id="lic-goal-fill" style="width:0%;"></div></div>
+        <div class="lic-goal-mile"><span>0</span><span>5</span><span>10 · Jugada 2</span><span>15</span><span>20</span><span style="color:var(--magenta);">25 · Jugada 3</span></div>
+      </div>
+      <div class="lic-grid2">
+        <div class="lic-card">
+          <div class="lic-card-head"><div class="lic-card-title">Distribución por producto</div><span style="color:var(--muted);font-size:11px;">activas</span></div>
+          <div id="lic-by-product"><div class="loading" style="padding:20px;">Cargando...</div></div>
+          <div class="lic-card-head" style="border-top:1px solid var(--border);border-bottom:none;"><div class="lic-card-title" style="font-size:11px;">Por país</div></div>
+          <div id="lic-by-country"></div>
+        </div>
+        <div class="lic-card">
+          <div class="lic-card-head"><div class="lic-card-title">Vencen en ≤30 días</div><a href="#" onclick="event.preventDefault();document.querySelector('[onclick*=\"lic-expiring\"]').click();" style="color:var(--magenta);font-size:11px;text-decoration:none;">Ver todas</a></div>
+          <div id="lic-expiring-preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ LICENCIAS · ÓRDENES ═══════════════ -->
+    <div id="tab-lic-orders" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Órdenes de licencia</div>
+          <div class="section-sub"><span id="lic-orders-count">—</span></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadLicOrders()">↻ Actualizar</button>
+      </div>
+      <div class="lic-card">
+        <div class="lic-card-head">
+          <div style="display:flex;gap:6px;">
+            <button class="lic-btn" data-lic-orders-filter="all" onclick="licFilterOrders('all')">Todas</button>
+            <button class="lic-btn warn" data-lic-orders-filter="pending" onclick="licFilterOrders('pending')">Pendientes</button>
+            <button class="lic-btn" data-lic-orders-filter="approved" onclick="licFilterOrders('approved')">Aprobadas</button>
+            <button class="lic-btn" data-lic-orders-filter="rejected" onclick="licFilterOrders('rejected')">Rechazadas</button>
+          </div>
+          <input class="lic-input" id="lic-orders-search" placeholder="Buscar email o cliente..." style="width:240px;" oninput="licRenderOrdersTable()">
+        </div>
+        <div id="lic-orders-table"><div class="loading" style="padding:20px;">Cargando órdenes...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ LICENCIAS · ACTIVAS ═══════════════ -->
+    <div id="tab-lic-licenses" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Licencias activas</div>
+          <div class="section-sub"><span id="lic-licenses-count">—</span></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="loadLicLicenses()">↻ Actualizar</button>
+          <button class="btn btn-sm" style="background:var(--grad);color:#fff;border:none;" onclick="licOpenNewManualModal()">Nueva licencia manual</button>
+        </div>
+      </div>
+      <div class="lic-card">
+        <div class="lic-card-head">
+          <div style="display:flex;gap:6px;">
+            <button class="lic-btn" data-lic-lic-filter="all" onclick="licFilterLicenses('all')">Todas</button>
+            <button class="lic-btn" data-lic-lic-filter="active" onclick="licFilterLicenses('active')">Activas</button>
+            <button class="lic-btn" data-lic-lic-filter="trial" onclick="licFilterLicenses('trial')">Trials</button>
+            <button class="lic-btn" data-lic-lic-filter="grand" onclick="licFilterLicenses('grand')">Grandfathered</button>
+            <button class="lic-btn" data-lic-lic-filter="suspended" onclick="licFilterLicenses('suspended')">Suspendidas</button>
+          </div>
+          <input class="lic-input" id="lic-licenses-search" placeholder="Buscar email o cliente..." style="width:240px;" oninput="licRenderLicensesTable()">
+        </div>
+        <div id="lic-licenses-table"><div class="loading" style="padding:20px;">Cargando licencias...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ LICENCIAS · POR VENCER ═══════════════ -->
+    <div id="tab-lic-expiring" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Licencias por vencer</div>
+          <div class="section-sub">Activas con vencimiento ≤30 días</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadLicResumen()">↻ Actualizar</button>
+      </div>
+      <div class="lic-card">
+        <div id="lic-expiring-table"><div class="loading" style="padding:20px;">Cargando...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ LICENCIAS · PRICING ═══════════════ -->
+    <div id="tab-lic-pricing" class="tab-content">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Pricing catalog</div>
+          <div class="section-sub">Fuente: <code style="color:var(--magenta);">pricing_catalog</code> · edición vía SQL en esta fase</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadLicPricing()">↻ Actualizar</button>
+      </div>
+      <div class="lic-card">
+        <div id="lic-pricing-table"><div class="loading" style="padding:20px;">Cargando...</div></div>
+        <div class="lic-card-foot" style="text-align:left;color:var(--muted);font-size:11px;">
+          Descuentos automáticos: 2ª+ licencia mismo producto <b style="color:var(--text);">−20%</b> · anual <b style="color:var(--text);">−15%</b>. Ver <code style="color:var(--magenta);">docs/PRICING-MODEL-v1.md</code>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nueva licencia manual (free_grant) -->
+    <div id="lic-manual-modal" class="modal-overlay" style="display:none;">
+      <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+          <div style="font-size:14px;font-weight:700;">Nueva licencia manual (free_grant)</div>
+          <button class="modal-close" onclick="licCloseNewManualModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">Otorga una licencia de cortesía sin orden ni pago. NO consume el cupo de trial 30d del usuario.</div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Usuario</label>
+            <select class="lic-input" id="lic-manual-user" style="width:100%;padding:8px 10px;font-size:12px;"></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Producto</label>
+              <select class="lic-input" id="lic-manual-product" style="width:100%;padding:8px 10px;font-size:12px;">
+                <option value="smart_tv">smart_tv</option>
+                <option value="windows">windows</option>
+                <option value="player">player</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Meses</label>
+              <input class="lic-input" id="lic-manual-months" type="number" min="1" max="36" value="12" style="width:100%;padding:8px 10px;font-size:12px;">
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Nota (opcional)</label>
+            <input class="lic-input" id="lic-manual-note" type="text" placeholder="Cortesía comercial, canje, piloto..." style="width:100%;padding:8px 10px;font-size:12px;">
+          </div>
+        </div>
+        <div class="modal-footer" style="padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+          <button class="lic-btn" onclick="licCloseNewManualModal()">Cancelar</button>
+          <button class="lic-btn primary" onclick="licCreateManualLicense()">Crear licencia</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -1974,6 +2226,11 @@ function showTab(name, btn) {
     case 'fids-cache':   loadFidsCache(); break;
     case 'fids-media':  loadFidsMedia(); break;
     case 'fids-listas': loadFidsPlaylists(); break;
+    case 'lic-resumen':  loadLicResumen(); autoRefreshInterval = setInterval(loadLicResumen, 60000); break;
+    case 'lic-orders':   loadLicOrders(); break;
+    case 'lic-licenses': loadLicLicenses(); break;
+    case 'lic-expiring': loadLicResumen(); break;
+    case 'lic-pricing':  loadLicPricing(); break;
   }
 }
 
@@ -4454,6 +4711,318 @@ async function execFeatureChange() {
   await toggleFeature(userId, feature, enable);
   loadUsers();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LICENSES-V1 Fase 3 — UI admin
+// ═══════════════════════════════════════════════════════════════════════════
+let _licMetrics = null;
+let _licOrdersAll = [];
+let _licOrdersFilter = 'all';
+let _licLicensesAll = [];
+let _licLicensesFilter = 'all';
+
+const licMoney = (n, cur) => cur === 'USD'
+  ? `USD $${Number(n||0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+  : `$${Number(n||0).toLocaleString('es-CO')} COP`;
+const licEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const licDate = d => d ? new Date(d).toLocaleDateString('es-CO') : '—';
+const licAgo = d => {
+  if (!d) return '—';
+  const ms = Date.now() - new Date(d).getTime();
+  const m = Math.floor(ms/60000);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m/60);
+  if (h < 24) return `hace ${h}h ${m%60}m`;
+  return `hace ${Math.floor(h/24)}d`;
+};
+
+async function licRefreshBadges() {
+  try {
+    const m = await api('/api/admin/metrics/licenses');
+    if (!m || !m.kpis) return;
+    const setBadge = (id, n, hide0=true) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (hide0 && !n) { el.style.display='none'; return; }
+      el.style.display='inline-block'; el.textContent = n;
+    };
+    setBadge('sb-lic-pending-badge', m.kpis.orders_pending);
+    setBadge('sb-lic-orders-badge',  m.kpis.orders_pending);
+    setBadge('sb-lic-active-badge',  m.kpis.active_total, false);
+    setBadge('sb-lic-exp-badge',     m.kpis.expiring_30d);
+  } catch (e) { /* silencioso */ }
+}
+
+async function loadLicResumen() {
+  const m = await api('/api/admin/metrics/licenses');
+  if (!m) return;
+  _licMetrics = m;
+  const k = m.kpis;
+  document.getElementById('lic-resumen-updated').textContent = 'Actualizado ' + licAgo(m.generated_at);
+
+  // KPIs
+  const kpiHtml = `
+    <div class="lic-kpi"><div class="lic-kpi-label">Activas</div><div class="lic-kpi-value">${k.active_total}</div><div class="lic-kpi-sub">de las cuales <b style="color:var(--yellow);">${k.active_trials} trials</b></div></div>
+    <div class="lic-kpi"><div class="lic-kpi-label">Clientes pagos</div><div class="lic-kpi-value">${k.paying_users}</div><div class="lic-kpi-sub">meta 25 · ${Math.round(k.goal_25_progress*100)}%</div></div>
+    <div class="lic-kpi"><div class="lic-kpi-label">MRR mes actual</div><div class="lic-kpi-value">${licMoney(k.mrr_cop_month,'COP')}</div><div class="lic-kpi-sub">+ ${licMoney(k.mrr_usd_month,'USD')}</div></div>
+    <div class="lic-kpi"><div class="lic-kpi-label">Vencen ≤30d</div><div class="lic-kpi-value" style="color:${k.expiring_30d?'var(--warning)':'var(--text)'};">${k.expiring_30d}</div><div class="lic-kpi-sub">${k.orders_pending} órdenes pendientes</div></div>
+  `;
+  document.getElementById('lic-kpi-grid').innerHTML = kpiHtml;
+
+  // Goal
+  const goalPct = Math.round(k.goal_25_progress * 100);
+  document.getElementById('lic-goal-card').style.display = 'block';
+  document.getElementById('lic-goal-n').textContent = k.paying_users;
+  document.getElementById('lic-goal-pct').textContent = goalPct;
+  document.getElementById('lic-goal-fill').style.width = goalPct + '%';
+
+  // Callout pending
+  const callout = document.getElementById('lic-callout-pending');
+  if (k.orders_pending > 0) {
+    callout.innerHTML = `<div class="lic-callout"><div><strong>${k.orders_pending} orden${k.orders_pending>1?'es':''}</strong> esperan tu aprobación.</div><button class="lic-btn warn" onclick="document.querySelector('[onclick*=\\'lic-orders\\']').click()">Ver órdenes →</button></div>`;
+  } else {
+    callout.innerHTML = '';
+  }
+
+  // Distribución producto
+  const prodTotal = (m.by_product || []).reduce((a,r)=>a+r.n,0) || 1;
+  document.getElementById('lic-by-product').innerHTML = (m.by_product || []).map(r =>
+    `<div class="lic-prod-row"><span class="lic-prod-name">${licEsc(r.product)}</span><div class="lic-prod-bar"><div class="lic-prod-fill" style="width:${(r.n*100/prodTotal).toFixed(0)}%;"></div></div><span class="lic-prod-count">${r.n}</span></div>`
+  ).join('') || '<div style="padding:16px;color:var(--muted);font-size:11px;">Sin datos</div>';
+
+  const cTotal = (m.by_country || []).reduce((a,r)=>a+r.n,0) || 1;
+  document.getElementById('lic-by-country').innerHTML = (m.by_country || []).map(r =>
+    `<div class="lic-prod-row"><span class="lic-prod-name">${licEsc(r.country_code || '—')}</span><div class="lic-prod-bar"><div class="lic-prod-fill" style="width:${(r.n*100/cTotal).toFixed(0)}%;"></div></div><span class="lic-prod-count">${r.n}</span></div>`
+  ).join('') || '<div style="padding:16px;color:var(--muted);font-size:11px;">Sin datos</div>';
+
+  // Expiring preview + tab
+  const expRows = (m.expiring || []).slice(0,5);
+  document.getElementById('lic-expiring-preview').innerHTML = expRows.length
+    ? `<table class="lic-data"><thead><tr><th>Cliente</th><th>Producto</th><th style="text-align:right;">Días</th></tr></thead><tbody>${expRows.map(r => {
+        const cls = r.days_left <= 7 ? 'var(--offline)' : 'var(--warning)';
+        return `<tr><td><div style="font-weight:600;">${licEsc(r.name||r.email)}</div><div style="color:var(--muted);font-size:10px;">${licEsc(r.email)}</div></td><td><span class="lic-pill">${licEsc(r.product)}</span></td><td style="text-align:right;"><span style="color:${cls};font-weight:700;">${r.days_left}</span></td></tr>`;
+      }).join('')}</tbody></table>`
+    : '<div style="padding:16px;color:var(--muted);font-size:11px;">Ninguna próxima a vencer</div>';
+
+  // Tab por vencer (misma data)
+  const expTable = document.getElementById('lic-expiring-table');
+  if (expTable) {
+    expTable.innerHTML = (m.expiring || []).length
+      ? `<table class="lic-data"><thead><tr><th>ID</th><th>Cliente</th><th>Producto</th><th>Vence</th><th style="text-align:right;">Días restantes</th></tr></thead><tbody>${m.expiring.map(r => {
+          const cls = r.days_left <= 7 ? 'var(--offline)' : 'var(--warning)';
+          return `<tr><td>#${r.id}</td><td><div style="font-weight:600;">${licEsc(r.name||r.email)}</div><div style="color:var(--muted);font-size:10px;">${licEsc(r.email)}</div></td><td><span class="lic-pill">${licEsc(r.product)}</span></td><td>${licDate(r.end_date)}</td><td style="text-align:right;"><span style="color:${cls};font-weight:700;">${r.days_left}</span></td></tr>`;
+        }).join('')}</tbody></table>`
+      : '<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center;">Ninguna licencia próxima a vencer</div>';
+  }
+
+  licRefreshBadges();
+}
+
+async function loadLicOrders() {
+  const r = await api('/api/admin/orders');
+  if (!r) return;
+  _licOrdersAll = Array.isArray(r) ? r : (r.orders || []);
+  document.getElementById('lic-orders-count').textContent = `${_licOrdersAll.length} órdenes en total`;
+  licRenderOrdersTable();
+  licRefreshBadges();
+}
+
+function licFilterOrders(f) {
+  _licOrdersFilter = f;
+  document.querySelectorAll('[data-lic-orders-filter]').forEach(b => b.classList.toggle('primary', b.dataset.licOrdersFilter === f));
+  licRenderOrdersTable();
+}
+
+function licRenderOrdersTable() {
+  const q = (document.getElementById('lic-orders-search').value || '').toLowerCase();
+  let rows = _licOrdersAll;
+  if (_licOrdersFilter === 'pending')  rows = rows.filter(o => ['pending_payment','proof_uploaded'].includes(o.status));
+  if (_licOrdersFilter === 'approved') rows = rows.filter(o => o.status === 'approved');
+  if (_licOrdersFilter === 'rejected') rows = rows.filter(o => o.status === 'rejected');
+  if (q) rows = rows.filter(o => (o.email||'').toLowerCase().includes(q) || (o.name||'').toLowerCase().includes(q));
+
+  if (!rows.length) {
+    document.getElementById('lic-orders-table').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center;">Sin órdenes en este filtro</div>';
+    return;
+  }
+
+  const html = `<table class="lic-data"><thead><tr><th>#</th><th>Cliente</th><th>Producto</th><th>Meses</th><th>Total</th><th>Estado</th><th>Creada</th><th style="text-align:right;">Acciones</th></tr></thead><tbody>${rows.map(o => {
+    const statusChip = {
+      pending_payment: '<span class="lic-chip pending">Pending payment</span>',
+      proof_uploaded:  '<span class="lic-chip proof">Proof subida</span>',
+      approved:        '<span class="lic-chip approved">Aprobada</span>',
+      rejected:        '<span class="lic-chip rejected">Rechazada</span>',
+      cancelled:       '<span class="lic-chip suspended">Cancelada</span>',
+    }[o.status] || `<span class="lic-chip">${licEsc(o.status)}</span>`;
+    const canAct = ['pending_payment','proof_uploaded'].includes(o.status);
+    const proofBtn = o.payment_proof_url ? `<a class="lic-btn" href="${licEsc(o.payment_proof_url)}" target="_blank">Ver proof</a>` : '';
+    const actBtns = canAct
+      ? `${proofBtn} <button class="lic-btn primary" onclick="licApproveOrder(${o.id})">Aprobar</button> <button class="lic-btn danger" onclick="licRejectOrder(${o.id})">Rechazar</button>`
+      : (proofBtn || '<span style="color:var(--muted);font-size:11px;">—</span>');
+    return `<tr>
+      <td><b>#${o.id}</b></td>
+      <td><div style="font-weight:600;">${licEsc(o.name||o.email||'—')}</div><div style="color:var(--muted);font-size:10px;">${licEsc(o.email||'')}</div></td>
+      <td><span class="lic-pill">${licEsc(o.product)}</span></td>
+      <td>${o.months}</td>
+      <td><b>${licMoney(o.amount, o.currency)}</b></td>
+      <td>${statusChip}</td>
+      <td style="color:var(--muted);font-size:11px;">${licAgo(o.created_at)}</td>
+      <td style="text-align:right;white-space:nowrap;">${actBtns}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+  document.getElementById('lic-orders-table').innerHTML = html;
+}
+
+async function licApproveOrder(id) {
+  if (!confirm(`¿Aprobar orden #${id}?\n\nCreará la licencia activa y notificará al cliente por email.`)) return;
+  const r = await api(`/api/admin/orders/${id}/approve`, { method:'POST', body: JSON.stringify({}) });
+  if (r && (r.license || r.ok || r.id)) {
+    toast(`Orden #${id} aprobada`, 'success');
+    loadLicOrders();
+  } else {
+    toast(`Error: ${(r && r.error) || 'desconocido'}`, 'error');
+  }
+}
+
+async function licRejectOrder(id) {
+  const reason = prompt(`Motivo del rechazo (visible al cliente):`, 'Comprobante no válido');
+  if (reason === null) return;
+  const r = await api(`/api/admin/orders/${id}/reject`, { method:'POST', body: JSON.stringify({ reason }) });
+  if (r && (r.ok || r.id || r.status === 'rejected')) {
+    toast(`Orden #${id} rechazada`, 'success');
+    loadLicOrders();
+  } else {
+    toast(`Error: ${(r && r.error) || 'desconocido'}`, 'error');
+  }
+}
+
+async function loadLicLicenses() {
+  const r = await api('/api/admin/licenses');
+  if (!r) return;
+  _licLicensesAll = Array.isArray(r) ? r : (r.licenses || []);
+  document.getElementById('lic-licenses-count').textContent = `${_licLicensesAll.length} licencias`;
+  licRenderLicensesTable();
+  licRefreshBadges();
+}
+
+function licFilterLicenses(f) {
+  _licLicensesFilter = f;
+  document.querySelectorAll('[data-lic-lic-filter]').forEach(b => b.classList.toggle('primary', b.dataset.licLicFilter === f));
+  licRenderLicensesTable();
+}
+
+function licRenderLicensesTable() {
+  const q = (document.getElementById('lic-licenses-search').value || '').toLowerCase();
+  let rows = _licLicensesAll;
+  if (_licLicensesFilter === 'active')    rows = rows.filter(l => l.status === 'active' && !l.is_trial && !l.is_free_grant);
+  if (_licLicensesFilter === 'trial')     rows = rows.filter(l => l.is_trial);
+  if (_licLicensesFilter === 'grand')     rows = rows.filter(l => l.is_free_grant);
+  if (_licLicensesFilter === 'suspended') rows = rows.filter(l => l.status === 'suspended');
+  if (q) rows = rows.filter(l => (l.email||'').toLowerCase().includes(q) || (l.name||'').toLowerCase().includes(q));
+
+  if (!rows.length) {
+    document.getElementById('lic-licenses-table').innerHTML = '<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center;">Sin licencias en este filtro</div>';
+    return;
+  }
+
+  const html = `<table class="lic-data"><thead><tr><th>ID</th><th>Cliente</th><th>Producto</th><th>Estado</th><th>Inicio</th><th>Vence</th><th>Total</th><th style="text-align:right;">Acciones</th></tr></thead><tbody>${rows.map(l => {
+    let chip;
+    if (l.is_free_grant) chip = '<span class="lic-chip grand">Grandfathered</span>';
+    else if (l.is_trial) chip = '<span class="lic-chip trial">Trial 30d</span>';
+    else if (l.status === 'suspended') chip = '<span class="lic-chip suspended">Suspendida</span>';
+    else if (l.status === 'expired') chip = '<span class="lic-chip expired">Expirada</span>';
+    else chip = '<span class="lic-chip active">Activa</span>';
+
+    const daysLeft = l.end_date ? Math.ceil((new Date(l.end_date) - Date.now()) / 86400000) : null;
+    const dueColor = daysLeft !== null && daysLeft <= 30 && daysLeft > 0 ? (daysLeft <= 7 ? 'var(--offline)' : 'var(--warning)') : 'var(--muted)';
+    const dueTag = daysLeft !== null && daysLeft <= 30 && daysLeft > 0 ? ` <span style="color:${dueColor};font-size:10px;font-weight:700;">(${daysLeft}d)</span>` : '';
+
+    let actions = '';
+    if (l.status === 'active')    actions = `<button class="lic-btn danger" onclick="licSuspend(${l.id})">Suspender</button>`;
+    if (l.status === 'suspended') actions = `<button class="lic-btn primary" onclick="licReactivate(${l.id})">Reactivar</button>`;
+
+    return `<tr>
+      <td>#${l.id}</td>
+      <td><div style="font-weight:600;">${licEsc(l.name||l.email||'—')}</div><div style="color:var(--muted);font-size:10px;">${licEsc(l.email||'')}</div></td>
+      <td><span class="lic-pill">${licEsc(l.product)}</span></td>
+      <td>${chip}</td>
+      <td>${licDate(l.start_date)}</td>
+      <td>${licDate(l.end_date)}${dueTag}</td>
+      <td>${l.is_free_grant ? '<span style="color:var(--muted);">free_grant</span>' : (l.amount ? licMoney(l.amount, l.currency) : '—')}</td>
+      <td style="text-align:right;white-space:nowrap;">${actions || '<span style="color:var(--muted);font-size:11px;">—</span>'}</td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+  document.getElementById('lic-licenses-table').innerHTML = html;
+}
+
+async function licSuspend(id) {
+  if (!confirm(`¿Suspender licencia #${id}?\n\nEl device asociado perderá acceso al servicio.`)) return;
+  const r = await api(`/api/admin/licenses/${id}/suspend`, { method:'POST', body: JSON.stringify({}) });
+  if (r && (r.ok || r.status === 'suspended' || r.id)) { toast(`Licencia #${id} suspendida`, 'success'); loadLicLicenses(); }
+  else toast(`Error: ${(r && r.error) || 'desconocido'}`, 'error');
+}
+async function licReactivate(id) {
+  if (!confirm(`¿Reactivar licencia #${id}?`)) return;
+  const r = await api(`/api/admin/licenses/${id}/reactivate`, { method:'POST', body: JSON.stringify({}) });
+  if (r && (r.ok || r.status === 'active' || r.id)) { toast(`Licencia #${id} reactivada`, 'success'); loadLicLicenses(); }
+  else toast(`Error: ${(r && r.error) || 'desconocido'}`, 'error');
+}
+
+// Nueva licencia manual (free_grant)
+async function licOpenNewManualModal() {
+  const users = await api('/api/admin/users');
+  if (!users) return;
+  const list = Array.isArray(users) ? users : (users.users || []);
+  const sel = document.getElementById('lic-manual-user');
+  sel.innerHTML = list.map(u => `<option value="${u.id}">${licEsc(u.email)}${u.name ? ' — '+licEsc(u.name) : ''}</option>`).join('');
+  document.getElementById('lic-manual-modal').style.display = 'flex';
+}
+function licCloseNewManualModal() { document.getElementById('lic-manual-modal').style.display = 'none'; }
+
+async function licCreateManualLicense() {
+  const userId = parseInt(document.getElementById('lic-manual-user').value, 10);
+  const product = document.getElementById('lic-manual-product').value;
+  const months = parseInt(document.getElementById('lic-manual-months').value, 10);
+  const note = document.getElementById('lic-manual-note').value || 'Cortesía admin';
+  if (!userId || !product || !months) { toast('Faltan datos', 'error'); return; }
+  const r = await api(`/api/admin/users/${userId}/licenses`, {
+    method: 'POST',
+    body: JSON.stringify({ product, months, is_free_grant: true, note })
+  });
+  if (r && (r.id || r.license)) {
+    toast('Licencia manual creada', 'success');
+    licCloseNewManualModal();
+    loadLicLicenses();
+    licRefreshBadges();
+  } else {
+    toast(`Error: ${(r && r.error) || 'desconocido'}`, 'error');
+  }
+}
+
+// Pricing (readonly de pricing_catalog vía consulta simple — no hay endpoint dedicado)
+async function loadLicPricing() {
+  // No hay endpoint /admin/pricing en Fase 3 — mostramos seed conocido del framework.
+  const seed = [
+    { product:'smart_tv', currency:'COP', unit_price:25000  },
+    { product:'smart_tv', currency:'USD', unit_price:8      },
+    { product:'windows',  currency:'COP', unit_price:85000  },
+    { product:'windows',  currency:'USD', unit_price:25     },
+    { product:'player',   currency:'COP', unit_price:800000 },
+    { product:'player',   currency:'USD', unit_price:220    },
+  ];
+  const html = `<table class="lic-data"><thead><tr><th>Producto</th><th>Moneda</th><th style="text-align:right;">Precio unitario / mes</th></tr></thead><tbody>${seed.map(r =>
+    `<tr><td><span class="lic-pill">${licEsc(r.product)}</span></td><td>${r.currency}</td><td style="text-align:right;"><b>${licMoney(r.unit_price, r.currency)}</b></td></tr>`
+  ).join('')}</tbody></table>`;
+  document.getElementById('lic-pricing-table').innerHTML = html;
+}
+
+function licExportPdf() {
+  if (!_licMetrics) { toast('Cargá el resumen primero', 'error'); return; }
+  window.print();
+}
+
+// Refrescar badges al cargar dashboard (una vez al arranque)
+setTimeout(() => { if (authToken) licRefreshBadges(); }, 2000);
 </script>
 
 <!-- Modal: confirmación de cambio de módulo Queue v2 -->
