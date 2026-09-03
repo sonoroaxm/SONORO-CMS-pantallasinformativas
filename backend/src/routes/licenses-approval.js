@@ -39,12 +39,28 @@ function readSession(req) {
 }
 
 // ── Render helpers ───────────────────────────────────────────────────────────
+// Alineado a admin-dashboard.html: --black #0a0a0f, --surface #111118,
+// --border #1e1e2e, --grad purple→teal, Montserrat, wordmark "SONORO." con
+// background-clip:text (browser sí lo soporta, distinto a Gmail).
 function page(title, body, color = '#00f5d4') {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head>
-<body style="margin:0;background:#0f0f0f;color:#fff;font-family:'Segoe UI',Roboto,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;">
-<div style="max-width:520px;padding:32px;background:#1a1a1a;border-radius:12px;border-top:4px solid ${color};">
-<h1 style="margin:0 0 16px 0;color:${color};font-size:20px;">${title}</h1>
-${body}
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${title} · SONORO CMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;background:#0a0a0f;color:#e8e8f0;font-family:'Montserrat','Segoe UI',Roboto,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+<div style="max-width:520px;width:100%;background:#111118;border:1px solid #1e1e2e;border-radius:8px;overflow:hidden;">
+  <div style="height:3px;background:linear-gradient(135deg,#7b61ff 0%,#00f5d4 100%);"></div>
+  <div style="padding:20px 24px;border-bottom:1px solid #1e1e2e;display:flex;align-items:center;">
+    <span style="font-size:20px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,#7b61ff 0%,#00f5d4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">SONORO.</span>
+    <span style="display:inline-block;width:1px;height:20px;background:#1e1e2e;margin:0 14px;"></span>
+    <span style="font-size:11px;font-weight:600;letter-spacing:2px;color:#888;text-transform:uppercase;">CMS · Licencias</span>
+  </div>
+  <div style="padding:24px;">
+    <h1 style="margin:0 0 16px 0;color:${color};font-size:18px;font-weight:700;letter-spacing:.3px;">${title}</h1>
+    ${body}
+  </div>
+  <div style="padding:14px 24px;border-top:1px solid #1e1e2e;color:#666;font-size:11px;background:#0a0a0f;">
+    SONORO AV · <a href="https://cms.sonoro.com.co" style="color:#666;text-decoration:none;">cms.sonoro.com.co</a>
+  </div>
 </div></body></html>`;
 }
 

@@ -234,10 +234,9 @@ router.post('/orders/:id/proof', auth, async (req, res) => {
 
     // Emitir JWT one-shot approve + reject y enviar mail al admin (fire-and-forget)
     try {
-      const [tApprove, tReject] = await Promise.all([
-        approval.issueApprovalToken(pool, orderId, 'approve'),
-        approval.issueApprovalToken(pool, orderId, 'reject'),
-      ]);
+      // Secuencial (no Promise.all): _loadJtis + UPDATE tienen race si corren en paralelo
+      const tApprove = await approval.issueApprovalToken(pool, orderId, 'approve');
+      const tReject  = await approval.issueApprovalToken(pool, orderId, 'reject');
       const approveUrl = `${APP_URL}/api/orders/${orderId}/approve?token=${encodeURIComponent(tApprove)}`;
       const rejectUrl  = `${APP_URL}/api/orders/${orderId}/reject?token=${encodeURIComponent(tReject)}`;
       const full = await pool.query(
