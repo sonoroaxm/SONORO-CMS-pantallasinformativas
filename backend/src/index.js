@@ -17,6 +17,11 @@ const eventsRouter       = require('./routes/events');
 const eventsPublicRouter = require('./routes/events-public');
 const eventsProductionPublicRouter = require('./routes/events-production-public');
 const eventsStaffRouter  = require('./routes/events-staff');
+const licensesRouter     = require('./routes/licenses');
+const licensesAdminRouter = require('./routes/licenses-admin');
+const licensesApprovalRouter = require('./routes/licenses-approval');
+const licensingCron      = require('./services/licensing-cron');
+const { resolveLicense, LEGACY_TYPE_TO_PRODUCT } = require('./services/licensing');
 const { exec, execFile } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
@@ -2700,42 +2705,41 @@ app.get('/api/my-devices', authenticateToken, async (req, res) => {
 // ============================================================
 
 // ── MIDDLEWARE DE LICENCIA ───────────────────────────────────
-// Verifica que el usuario tiene licencia activa
+// LICENSES-V1 §6.4: dual-read → tabla `licenses` primero, fallback legacy `users.license_*`.
+// Admin bypass total (§2.1). Aún no está mounted en endpoints existentes; queda listo para
+// migración progresiva.
 async function checkLicense(req, res, next) {
   try {
-    const result = await pool.query(
-      'SELECT license_status, license_end, role FROM users WHERE id = $1',
-      [req.user.id]
-    );
-    if (!result.rows.length) return res.status(401).json({ error: 'Usuario no encontrado' });
+    const info = await resolveLicense(pool, { userId: req.user.id });
+    if (!info) return res.status(401).json({ error: 'Usuario no encontrado' });
 
-    const user = result.rows[0];
+    if (info.source === 'admin_bypass') return next();
 
-    // Admins siempre tienen acceso
-    if (user.role === 'admin') return next();
-
-    // Verificar si la licencia venció
-    if (user.license_end && new Date(user.license_end) < new Date()) {
+    // Fallback legacy: marca expired en users para preservar comportamiento previo
+    if (info.source === 'legacy_users' && info.status === 'expired') {
       await pool.query(
         "UPDATE users SET license_status = 'expired' WHERE id = $1 AND license_status != 'expired'",
         [req.user.id]
       );
+    }
+
+    if (info.status === 'expired') {
       return res.status(403).json({
         error: 'Licencia vencida',
         license_expired: true,
-        license_end: user.license_end
+        license_end: info.end_date,
       });
     }
-
-    if (user.license_status === 'suspended') {
+    if (info.status === 'suspended') {
       return res.status(403).json({
         error: 'Licencia suspendida',
-        license_suspended: true
+        license_suspended: true,
       });
     }
 
     next();
   } catch (err) {
+    console.error('checkLicense', err);
     res.status(503).json({ error: 'No se pudo verificar la licencia' });
   }
 }
@@ -3695,36 +3699,45 @@ app.post('/api/user/logo', authenticateToken, async (req, res) => {
 app.get('/api/devices/:device_id/license', deviceHmac, async (req, res) => {
   try {
     const { device_id } = req.params;
-    const result = await pool.query(`
-      SELECT u.license_status, u.license_end, u.license_type, u.features, u.role
-      FROM devices d
-      JOIN users u ON d.user_id = u.id
-      WHERE d.device_id = $1
+    // Necesitamos user_id (para resolveLicense) + features/role (contrato JSON estable
+    // que consume RPi sync-app.js — no romper)
+    const d = await pool.query(`
+      SELECT d.user_id, u.features, u.role, u.license_type AS legacy_license_type
+        FROM devices d
+        JOIN users u ON d.user_id = u.id
+       WHERE d.device_id = $1
     `, [device_id]);
 
-    if (!result.rows.length) {
+    if (!d.rows.length) {
       return res.json({ status: 'unknown', needs_activation: true });
     }
+    const { user_id, features, role, legacy_license_type } = d.rows[0];
 
-    const { license_status, license_end, license_type, features, role } = result.rows[0];
-    const now = new Date();
-    const isExpired = license_end && new Date(license_end) < now;
-    const daysLeft = license_end ? Math.ceil((new Date(license_end) - now) / (1000 * 60 * 60 * 24)) : null;
+    const info = await resolveLicense(pool, { userId: user_id, deviceId: device_id });
 
-    // Admin siempre tiene todos los features activos
+    // Admin siempre tiene todos los features activos (compat)
     const resolvedFeatures = role === 'admin'
       ? { turnos: true, analytics: true, dual_hdmi: true, onpremise: true }
       : (features || { turnos: false, analytics: false, dual_hdmi: false, onpremise: false });
 
+    // Contrato JSON preservado. `license_type` = legacy string por compat sync-app.js
+    // (line 826-830 usa data.license_type === 'cms_queue' | 'queue' | 'windows').
+    // Si viene de la nueva tabla, derivamos legacy_type por reverse-map (o dejamos legacy_license_type).
     res.json({
-      status: isExpired ? 'expired' : license_status,
-      license_end,
-      license_type,
-      days_left: daysLeft,
-      active: !isExpired && license_status === 'active',
-      features: resolvedFeatures
+      status: info.status,
+      license_end: info.end_date,
+      license_type: info.legacy_license_type || legacy_license_type,
+      days_left: info.days_left,
+      active: info.active,
+      features: resolvedFeatures,
+      // Nuevos campos (aditivos, ignorados por sync-app antiguo):
+      product: info.product,
+      is_trial: info.is_trial,
+      trial_days: info.trial_days,
+      source: info.source,
     });
   } catch (err) {
+    console.error('GET /api/devices/:device_id/license', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -8034,6 +8047,13 @@ app.use('/api/events/public', eventsPublicRouter);
 app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events',        eventsRouter);
 
+// LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
+app.use('/api', licensesRouter);
+// LICENSES-V1 aprobación email — rutas públicas, montar ANTES del admin (que tiene router.use(adminAuth) global)
+app.use('/api', licensesApprovalRouter);
+// LICENSES-V1 admin — /api/admin/licenses|orders|metrics + suspend/reactivate
+app.use('/api', licensesAdminRouter);
+
 // ── Events v1 — Rutas HTML ───────────────────────────────────────────────
 app.get('/evento/invitacion/:code', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
@@ -10814,6 +10834,9 @@ async function runHevcWorker() {
 setInterval(runHevcWorker, 5 * 60 * 1000);
 setImmediate(runHevcWorker); // procesar pendientes al arrancar
 console.log('📼 HEVC auto-worker iniciado (cada 5 min)');
+
+// LICENSES-V1 cron (§6.5): expire + notify + auto-cancel
+licensingCron.start(pool);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);
