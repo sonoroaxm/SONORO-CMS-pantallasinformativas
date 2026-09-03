@@ -9519,22 +9519,14 @@ function closeLicNewOrderModal() {
 }
 
 function licUpdateCoPayLink() {
-  const prod = document.getElementById('licOrderProductCo').value;
-  const modeEl = document.getElementById('licOrderPlayerMode');
-  const mode = modeEl ? modeEl.value : 'monthly';
-  let link = LIC_MP_LINKS.smart_tv;
-  let key = prod;
-  let note = '';
-  if (prod === 'smart_tv') { link = LIC_MP_LINKS.smart_tv; note = 'Suscripción mensual, cancela cuando quieras.'; }
-  else if (prod === 'windows') { link = LIC_MP_LINKS.windows; note = 'Suscripción mensual, cancela cuando quieras.'; }
-  else if (prod === 'player') {
-    if (mode === 'buy12') { link = LIC_MP_LINKS.player_buy12; key = 'player_buy12'; note = 'Incluye equipo + 12 meses de licencia. A partir del mes 13: renovación $55.000 / mes.'; }
-    else { link = LIC_MP_LINKS.player_monthly; key = 'player_monthly'; note = 'Licencia mensual del equipo. Cancela cuando quieras.'; }
-  }
+  const key = document.getElementById('licOrderProductCo').value;
+  let link = LIC_MP_LINKS.smart_tv, note = '';
+  if (key === 'smart_tv') { link = LIC_MP_LINKS.smart_tv; note = 'Suscripción mensual, cancela cuando quieras.'; }
+  else if (key === 'windows') { link = LIC_MP_LINKS.windows; note = 'Suscripción mensual, cancela cuando quieras.'; }
+  else if (key === 'player_monthly') { link = LIC_MP_LINKS.player_monthly; note = 'Licencia mensual del equipo. Cancela cuando quieras.'; }
+  else if (key === 'player_buy12') { link = LIC_MP_LINKS.player_buy12; note = 'Incluye equipo + 12 meses de licencia. A partir del mes 13: renovación $55.000 / mes.'; }
   const a = document.getElementById('licMpLink');
   if (a) a.href = link;
-  const wrap = document.getElementById('licPlayerModeWrap');
-  if (wrap) wrap.style.display = prod === 'player' ? 'block' : 'none';
   const amount = LIC_PRICING.COP[key] || 0;
   const fmt = licMoney(amount, 'COP');
   const amtEl = document.getElementById('licAmountCo');
@@ -9634,9 +9626,7 @@ function licCheckFirstTimeCountry() {
 }
 
 async function licSubmitCoOrder() {
-  const prod = document.getElementById('licOrderProductCo').value;
-  const modeEl = document.getElementById('licOrderPlayerMode');
-  const productKey = (prod === 'player' && modeEl && modeEl.value === 'buy12') ? 'player_buy12' : prod;
+  const productKey = document.getElementById('licOrderProductCo').value;
   await licCreateOrder(productKey, 'COP');
   closeLicNewOrderModal();
 }
@@ -9708,15 +9698,8 @@ async function licSubmitUsdOrder() {
       <select id="licOrderProductCo" class="lic-select" onchange="licUpdateCoPayLink()">
         <option value="smart_tv">Licencia SONORO Smart TV — mensual</option>
         <option value="windows">Licencia SONORO Windows — mensual</option>
-        <option value="player">Licencia SONORO Player</option>
-      </select>
-    </div>
-
-    <div class="lic-form-group" id="licPlayerModeWrap" style="display:none;">
-      <label class="lic-form-label">Modalidad Player</label>
-      <select id="licOrderPlayerMode" class="lic-select" onchange="licUpdateCoPayLink()">
-        <option value="monthly">Licencia mensual</option>
-        <option value="buy12">Equipo SONORO Player + 12 meses licencia incluidos</option>
+        <option value="player_monthly">Licencia SONORO Player — mensual</option>
+        <option value="player_buy12">Equipo SONORO Player + 12 meses licencia</option>
       </select>
     </div>
 
