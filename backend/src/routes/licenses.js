@@ -107,7 +107,7 @@ router.post('/licenses/trial', auth, async (req, res) => {
 });
 
 // ── GET /api/orders/mine ──────────────────────────────────────────────────────
-router.get('/orders/mine', auth, async (req, res) => {
+router.get('/licenses/orders/mine', auth, async (req, res) => {
   const pool = global.pool;
   try {
     const r = await pool.query(
@@ -129,7 +129,7 @@ router.get('/orders/mine', auth, async (req, res) => {
 
 // ── POST /api/orders ──────────────────────────────────────────────────────────
 // Crea una orden (pending_payment). El cliente sube comprobante después.
-router.post('/orders', auth, async (req, res) => {
+router.post('/licenses/orders', auth, async (req, res) => {
   const pool = global.pool;
   const { product, months, annual = false } = req.body || {};
   if (!PRODUCTS.includes(product)) {
@@ -185,7 +185,7 @@ router.post('/orders', auth, async (req, res) => {
 
 // ── POST /api/orders/:id/proof ────────────────────────────────────────────────
 // Sube comprobante de pago (multipart). Cambia status a 'proof_uploaded'.
-router.post('/orders/:id/proof', auth, async (req, res) => {
+router.post('/licenses/orders/:id/proof', auth, async (req, res) => {
   const pool = global.pool;
   const orderId = parseInt(req.params.id, 10);
   if (!Number.isInteger(orderId)) return res.status(400).json({ error: 'id inválido' });
@@ -262,7 +262,7 @@ router.post('/orders/:id/proof', auth, async (req, res) => {
 
 // ── POST /api/orders/:id/cancel ───────────────────────────────────────────────
 // Cancelar orden propia solo si está pending_payment o proof_uploaded.
-router.post('/orders/:id/cancel', auth, async (req, res) => {
+router.post('/licenses/orders/:id/cancel', auth, async (req, res) => {
   const pool = global.pool;
   const orderId = parseInt(req.params.id, 10);
   if (!Number.isInteger(orderId)) return res.status(400).json({ error: 'id inválido' });
