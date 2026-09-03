@@ -9528,8 +9528,8 @@ function licUpdateCoPayLink() {
   if (prod === 'smart_tv') { link = LIC_MP_LINKS.smart_tv; note = 'Suscripción mensual, cancela cuando quieras.'; }
   else if (prod === 'windows') { link = LIC_MP_LINKS.windows; note = 'Suscripción mensual, cancela cuando quieras.'; }
   else if (prod === 'player') {
-    if (mode === 'buy12') { link = LIC_MP_LINKS.player_buy12; key = 'player_buy12'; note = 'Incluye el equipo + 12 meses de licencia sin costo adicional.'; }
-    else { link = LIC_MP_LINKS.player_monthly; key = 'player_monthly'; note = 'Renta mensual del equipo + licencia. Cancela cuando quieras.'; }
+    if (mode === 'buy12') { link = LIC_MP_LINKS.player_buy12; key = 'player_buy12'; note = 'Incluye equipo + 12 meses de licencia. A partir del mes 13: renovación $55.000 / mes.'; }
+    else { link = LIC_MP_LINKS.player_monthly; key = 'player_monthly'; note = 'Licencia mensual del equipo. Cancela cuando quieras.'; }
   }
   const a = document.getElementById('licMpLink');
   if (a) a.href = link;
@@ -9708,15 +9708,15 @@ async function licSubmitUsdOrder() {
       <select id="licOrderProductCo" class="lic-select" onchange="licUpdateCoPayLink()">
         <option value="smart_tv">Licencia SONORO Smart TV — mensual</option>
         <option value="windows">Licencia SONORO Windows — mensual</option>
-        <option value="player">Licencia / Equipo SONORO Player</option>
+        <option value="player">Licencia SONORO Player</option>
       </select>
     </div>
 
     <div class="lic-form-group" id="licPlayerModeWrap" style="display:none;">
       <label class="lic-form-label">Modalidad Player</label>
       <select id="licOrderPlayerMode" class="lic-select" onchange="licUpdateCoPayLink()">
-        <option value="monthly">Licencia mensual (renta)</option>
-        <option value="buy12">Equipo + 12 meses licencia incluidos</option>
+        <option value="monthly">Licencia mensual</option>
+        <option value="buy12">Equipo SONORO Player + 12 meses licencia incluidos</option>
       </select>
     </div>
 
