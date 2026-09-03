@@ -1380,6 +1380,18 @@
                 <option value="36">3 años</option>
               </select>
             </label>
+            <label style="font-size:12px;color:#666;">País
+              <select id="cuCountry" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-top:4px;">
+                <option value="CO" selected>Colombia (COP)</option>
+                <option value="MX">México (USD)</option>
+                <option value="US">Estados Unidos (USD)</option>
+                <option value="ES">España (USD)</option>
+                <option value="PE">Perú (USD)</option>
+                <option value="CL">Chile (USD)</option>
+                <option value="AR">Argentina (USD)</option>
+                <option value="OTHER">Otro (USD)</option>
+              </select>
+            </label>
             <div style="font-size:12px;color:#888;background:#f9f9f9;padding:10px;border-radius:6px;">
               Se generará una contraseña temporal y se enviará al correo del cliente junto con la guía de activación.
             </div>
@@ -3595,6 +3607,7 @@ function openCreateUserModal() {
   ['cuName','cuEmail','cuPhone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('cuTier').value = 'cms_sencilla';
   document.getElementById('cuMonths').value = '12';
+  const cc = document.getElementById('cuCountry'); if (cc) cc.value = 'CO';
   document.getElementById('createUserModal').style.display = 'flex';
 }
 function closeCreateUserModal() {
@@ -3606,13 +3619,15 @@ async function submitCreateUser() {
   const phone = document.getElementById('cuPhone').value.trim();
   const license_type = document.getElementById('cuTier').value;
   const months = parseInt(document.getElementById('cuMonths').value);
+  const country_code = (document.getElementById('cuCountry')?.value || 'CO').toUpperCase();
+  const currency = country_code === 'CO' ? 'COP' : 'USD';
   if (!name || !email) { alert('Nombre y email son requeridos'); return; }
   const btn = document.getElementById('cuSubmit');
   btn.disabled = true; btn.textContent = 'Creando...';
   try {
     await api('/api/admin/users', {
       method: 'POST',
-      body: JSON.stringify({ name, email, phone, license_type, months })
+      body: JSON.stringify({ name, email, phone, license_type, months, country_code, currency })
     });
     closeCreateUserModal();
     alert('Cliente creado. Se envió email con credenciales.');

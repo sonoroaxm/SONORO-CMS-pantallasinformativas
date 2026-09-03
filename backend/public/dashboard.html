@@ -1104,7 +1104,53 @@
     .hevc-progress-label { margin-bottom: 3px; }
     .hevc-progress-track { width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
     .hevc-progress-fill { height: 100%; background: var(--magenta, #b829e8); width: 0%; transition: width 0.4s ease; }
-  </style>
+
+    /* ── LICENSES-V1 Fase 4 ── */
+    .sidebar-group.licencias .sidebar-group-label { color: var(--magenta); }
+    .sidebar-group.licencias .tab-btn.active { color: var(--magenta); border-color: var(--magenta); }
+    .sidebar-group.licencias .tab-btn:hover { color: var(--magenta); }
+    .lic-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .lic-kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .lic-kpi-card .lic-kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 6px; }
+    .lic-kpi-card .lic-kpi-val { font-size: 26px; font-weight: 800; color: var(--text); font-family: 'Montserrat', sans-serif; }
+    .lic-kpi-card .lic-kpi-val.accent { color: var(--magenta); }
+    .lic-kpi-card .lic-kpi-val.warn { color: var(--orange); }
+    .lic-trial-cta { background: linear-gradient(135deg, rgba(255,27,141,.10), rgba(255,140,0,.06), rgba(255,229,102,.06)); border: 1px solid rgba(255,27,141,.35); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .lic-trial-cta .lic-trial-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 4px; letter-spacing: .3px; }
+    .lic-trial-cta .lic-trial-sub { font-size: 12px; color: var(--text-muted); }
+    .lic-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .lic-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .lic-card .lic-prod { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .lic-card .lic-device { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+    .lic-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .lic-badge.active { background: rgba(255,27,141,.15); color: var(--magenta); }
+    .lic-badge.trial { background: rgba(255,229,102,.15); color: var(--orange); }
+    .lic-badge.expired { background: rgba(180,180,180,.15); color: var(--text-muted); }
+    .lic-badge.pending { background: rgba(255,140,0,.15); color: var(--orange); }
+    .lic-days { font-size: 12px; color: var(--text-muted); margin: 10px 0; }
+    .lic-days strong { color: var(--text); }
+    .lic-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .lic-table th, .lic-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); text-align: left; color: var(--text); }
+    .lic-table th { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); font-weight: 700; background: var(--surface2); }
+    .lic-table td.right, .lic-table th.right { text-align: right; }
+    .lic-pay-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+    .lic-pay-block .lic-pay-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 8px; letter-spacing: .5px; }
+    .lic-pay-key { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px dashed var(--border); border-radius: 6px; padding: 8px 10px; font-family: monospace; font-size: 13px; color: var(--magenta); }
+    .lic-pay-key button { background: var(--magenta); color: #fff; border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .lic-btn-grad { background: var(--grad); color: #000; border: none; border-radius: 6px; padding: 10px 18px; font-family: 'Montserrat', sans-serif; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; cursor: pointer; }
+    .lic-btn-grad:disabled { opacity: .5; cursor: not-allowed; }
+    .lic-btn-outline { background: transparent; color: var(--magenta); border: 1px solid var(--magenta); border-radius: 6px; padding: 8px 14px; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; cursor: pointer; }
+    #licNewOrderModalCo, #licNewOrderModalUsd, #licTrialModal, #licCountryModal { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    #licNewOrderModalCo.show, #licNewOrderModalUsd.show, #licTrialModal.show, #licCountryModal.show { display: flex; }
+    #licNewOrderModalCo .modal-content, #licNewOrderModalUsd .modal-content, #licTrialModal .modal-content, #licCountryModal .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; max-width: 520px; width: 92%; max-height: 90vh; overflow-y: auto; }
+    .lic-modal-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .lic-modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+    .lic-select, .lic-input { width: 100%; padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: inherit; }
+    .lic-select:focus, .lic-input:focus { outline: none; border-color: var(--magenta); }
+    .lic-form-label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: .5px; }
+    .lic-form-group { margin-bottom: 14px; }
+    .lic-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+</style>
   <script src="/auto-token-refresh.js"></script>
 </head>
 <body>
@@ -1240,6 +1286,22 @@
         </div>
       </div>
 
+      <!-- Divisor -->
+      <div style="height:1px; background:var(--border); margin: 6px 16px;"></div>
+
+      <!-- GRUPO 4: Licencias (LICENSES-V1 Fase 4) -->
+      <div class="sidebar-group licencias open" id="group-licencias">
+        <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-licencias')">
+          <div class="sidebar-group-label">Licencias</div>
+          <div class="sidebar-group-arrow">▶</div>
+        </div>
+        <div class="sidebar-children">
+          <div class="sidebar-children-inner">
+            <button class="tab-btn" data-tab="licencias">Mis Licencias</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- MAIN -->
@@ -1309,6 +1371,54 @@
           </div>
         </div>
         <div id="devices-list"></div>
+      </div>
+
+      <!-- ── LICENCIAS (LICENSES-V1 Fase 4) ── -->
+      <div id="licencias-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Mis Licencias</div>
+          <button class="btn btn-primary btn-sm" onclick="loadLicencias()">Actualizar</button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="lic-kpis" id="licKpis">
+          <div class="lic-kpi-card"><div class="lic-kpi-label">Activas</div><div class="lic-kpi-val accent" id="licKpiActive">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label">En prueba</div><div class="lic-kpi-val" id="licKpiTrial">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label">Por vencer (30d)</div><div class="lic-kpi-val warn" id="licKpiExpiring">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label">Órdenes pendientes</div><div class="lic-kpi-val" id="licKpiPending">—</div></div>
+        </div>
+
+        <!-- CTA trial -->
+        <div class="lic-trial-cta" id="licTrialCta" style="display:none;">
+          <div>
+            <div class="lic-trial-title">Prueba SONORO Smart TV 30 días gratis</div>
+            <div class="lic-trial-sub">Convierte cualquier Smart TV en una pantalla informativa. Sin tarjeta. 1 prueba por cuenta.</div>
+          </div>
+          <button class="lic-btn-grad" onclick="openLicTrialModal()">Activar prueba</button>
+        </div>
+
+        <!-- Licencias activas -->
+        <div class="card">
+          <div class="card-title">Licencias activas</div>
+          <div class="lic-cards-grid" id="licActiveGrid">
+            <div style="color:var(--text-muted);font-size:12px;">Cargando…</div>
+          </div>
+        </div>
+
+        <!-- Historial de órdenes -->
+        <div class="card">
+          <div class="card-title">Historial de órdenes</div>
+          <div style="overflow-x:auto;">
+            <table class="lic-table" id="licOrdersTable">
+              <thead><tr>
+                <th>Orden</th><th>Producto</th><th class="right">Monto</th><th>Estado</th><th>Fecha</th><th class="right">Acción</th>
+              </tr></thead>
+              <tbody id="licOrdersBody">
+                <tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px;">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- ══ ATENCIÓN AL USUARIO ══ -->
@@ -2848,6 +2958,7 @@ function setupTabs() {
       if (tabName === 'appointments') loadAppointmentsTab();
       if (tabName === 'events') loadEventsTab();
       if (tabName === 'ev-proveedores') { evGlobalSupLoaded = false; evLoadGlobalSuppliers(); }
+      if (tabName === 'licencias') loadLicencias();
     });
   });
 }
@@ -3020,6 +3131,8 @@ function showDashboard() {
   // Asegurar que el tab inicial este visible
   const firstTab = document.querySelector('.tab-btn.active');
   if (firstTab) firstTab.click();
+  // LICENSES-V1 Fase 4 — first-time country prompt
+  try { licCheckFirstTimeCountry(); } catch(e) {}
 }
 
 function showAuthStatus(message, type) {
@@ -9213,6 +9326,301 @@ async function submitAddSmartTv() {
   }
 }
 
+/* ═══════════════ LICENSES-V1 Fase 4 — UI cliente ═══════════════ */
+const LIC_PRODUCT_LABELS = {
+  smart_tv: 'SONORO Smart TV Player',
+  player:   'SONORO Player',
+  windows:  'SONORO Windows Player'
+};
+const LIC_MP_LINKS = {
+  smart_tv:       'https://mpago.la/1RMUcqm',
+  windows:        'https://mpago.la/1GinNpm',
+  player_monthly: 'https://mpago.la/152V8LF',
+  player_buy12:   'https://mpago.li/1DZxmn3'
+};
+const LIC_PAYPAL_PLANS = {
+  smart_tv: 'P-6LN56097GB8631050NKMIX3Y',
+  windows:  'P-2V349023L7716652NNKMIY2Y',
+  player:   'P-0P3249314G986501TNKMI2SY'
+};
+const LIC_BRE_B_KEY = '9739871';
+const LIC_BRE_B_NAME = 'Daniel Esteban Pulgarin';
+
+function licMoney(amount, currency) {
+  try {
+    const cur = (currency || 'COP').toUpperCase();
+    const locale = cur === 'COP' ? 'es-CO' : 'en-US';
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(Number(amount || 0));
+  } catch(e) { return String(amount); }
+}
+function licDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('es-CO'); } catch(e) { return String(iso); }
+}
+function licEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+async function loadLicencias() {
+  try {
+    const [licRes, ordRes] = await Promise.all([
+      fetch(`${API_URL}/api/licenses/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/licenses/orders/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+    ]);
+    const licData = licRes.ok ? await licRes.json() : { licenses: [] };
+    const ordData = ordRes.ok ? await ordRes.json() : { orders: [] };
+    const licenses = licData.licenses || [];
+    const orders   = ordData.orders   || [];
+    renderLicKpis(licenses, orders);
+    renderLicTrialCta(licenses);
+    renderLicActiveGrid(licenses);
+    renderLicOrders(orders);
+  } catch (e) {
+    console.error('loadLicencias error', e);
+    showStatus('Error cargando licencias', 'error');
+  }
+}
+
+function licDaysLeft(iso) {
+  if (!iso) return null;
+  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
+  return d;
+}
+
+function renderLicKpis(licenses, orders) {
+  let active = 0, trial = 0, expiring = 0;
+  licenses.forEach(l => {
+    if (l.status === 'active') active++;
+    if (l.status === 'trial') trial++;
+    const d = licDaysLeft(l.expires_at);
+    if (d !== null && d >= 0 && d <= 30 && (l.status === 'active' || l.status === 'trial')) expiring++;
+  });
+  const pending = orders.filter(o => o.status === 'pending' || o.status === 'pending_proof').length;
+  document.getElementById('licKpiActive').textContent = active;
+  document.getElementById('licKpiTrial').textContent = trial;
+  document.getElementById('licKpiExpiring').textContent = expiring;
+  document.getElementById('licKpiPending').textContent = pending;
+}
+
+function renderLicTrialCta(licenses) {
+  const features = currentUser?.features || {};
+  const smarttvEnabled = features.smarttv_enabled === true || features.smarttv === true;
+  const hasTrial = licenses.some(l => l.product === 'smart_tv' && (l.status === 'trial' || l.trial_used === true));
+  const hasUsedTrial = licenses.some(l => l.trial_used === true) || (currentUser?.trial_used_smart_tv === true);
+  const el = document.getElementById('licTrialCta');
+  if (!el) return;
+  el.style.display = (!hasTrial && !hasUsedTrial && smarttvEnabled) ? 'flex' : 'none';
+}
+
+function renderLicActiveGrid(licenses) {
+  const el = document.getElementById('licActiveGrid');
+  if (!el) return;
+  if (!licenses.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Aún no tienes licencias activas.</div>';
+    return;
+  }
+  el.innerHTML = licenses.map(l => {
+    const prod = LIC_PRODUCT_LABELS[l.product] || l.product;
+    const status = l.status || 'active';
+    const daysLeft = licDaysLeft(l.expires_at);
+    const daysTxt = daysLeft === null ? '—' : (daysLeft < 0 ? 'Vencida' : `${daysLeft} días`);
+    const devLabel = l.device_name ? licEsc(l.device_name) : (l.device_id ? `Dispositivo #${l.device_id}` : 'Sin dispositivo asignado');
+    return `
+      <div class="lic-card">
+        <div class="lic-prod">${licEsc(prod)}</div>
+        <div class="lic-device">${devLabel}</div>
+        <span class="lic-badge ${status}">${status === 'trial' ? 'Prueba' : status === 'expired' ? 'Vencida' : 'Activa'}</span>
+        <div class="lic-days">Vence: <strong>${licDate(l.expires_at)}</strong> · <strong>${daysTxt}</strong></div>
+        <button class="lic-btn-outline" onclick="openLicNewOrder('${licEsc(l.product)}')">Renovar</button>
+      </div>`;
+  }).join('');
+}
+
+function renderLicOrders(orders) {
+  const el = document.getElementById('licOrdersBody');
+  if (!el) return;
+  if (!orders.length) {
+    el.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px;">Sin órdenes aún.</td></tr>';
+    return;
+  }
+  el.innerHTML = orders.map(o => {
+    const prod = LIC_PRODUCT_LABELS[o.product] || o.product;
+    const st = o.status || 'pending';
+    const badge = st === 'paid' ? '<span class="lic-badge active">Pagada</span>'
+      : st === 'pending_proof' ? '<span class="lic-badge pending">Comprobante</span>'
+      : st === 'cancelled' ? '<span class="lic-badge expired">Cancelada</span>'
+      : '<span class="lic-badge pending">Pendiente</span>';
+    let action = '—';
+    if (st === 'pending' || st === 'pending_proof') {
+      action = `<label class="lic-btn-outline" style="cursor:pointer;">Subir comprobante<input type="file" style="display:none;" accept="image/*,.pdf" onchange="licUploadProof(${o.id}, this.files[0])"></label>`;
+    }
+    return `<tr>
+      <td>#${licEsc(o.id)}</td>
+      <td>${licEsc(prod)}</td>
+      <td class="right">${licMoney(o.amount, o.currency)}</td>
+      <td>${badge}</td>
+      <td>${licDate(o.created_at)}</td>
+      <td class="right">${action}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openLicTrialModal() {
+  document.getElementById('licTrialModal').classList.add('show');
+}
+function closeLicTrialModal() {
+  document.getElementById('licTrialModal').classList.remove('show');
+}
+async function licCreateTrial() {
+  const btn = document.getElementById('licTrialSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  try {
+    const r = await fetch(`${API_URL}/api/licenses/trial`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ product: 'smart_tv' })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'No se pudo activar la prueba');
+    showStatus('Prueba de 30 días activada', 'success');
+    closeLicTrialModal();
+    await loadLicencias();
+  } catch (e) {
+    showStatus(e.message || 'Error activando prueba', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Activar prueba'; }
+  }
+}
+
+function openLicNewOrder(product) {
+  const cc = (currentUser?.country_code || '').toUpperCase();
+  if (!cc) { openLicCountryModal(); return; }
+  if (cc === 'CO') {
+    const sel = document.getElementById('licOrderProductCo');
+    if (sel && product) sel.value = product === 'smart_tv' || product === 'windows' || product === 'player' ? product : 'smart_tv';
+    licUpdateCoPayLink();
+    document.getElementById('licNewOrderModalCo').classList.add('show');
+  } else {
+    const sel = document.getElementById('licOrderProductUsd');
+    if (sel && product) sel.value = product === 'smart_tv' || product === 'windows' || product === 'player' ? product : 'smart_tv';
+    licUpdateUsdPayLink();
+    document.getElementById('licNewOrderModalUsd').classList.add('show');
+  }
+}
+function closeLicNewOrderModal() {
+  document.getElementById('licNewOrderModalCo').classList.remove('show');
+  document.getElementById('licNewOrderModalUsd').classList.remove('show');
+}
+
+function licUpdateCoPayLink() {
+  const prod = document.getElementById('licOrderProductCo').value;
+  const modeEl = document.getElementById('licOrderPlayerMode');
+  const mode = modeEl ? modeEl.value : 'monthly';
+  let link = LIC_MP_LINKS.smart_tv;
+  if (prod === 'smart_tv') link = LIC_MP_LINKS.smart_tv;
+  else if (prod === 'windows') link = LIC_MP_LINKS.windows;
+  else if (prod === 'player') link = mode === 'buy12' ? LIC_MP_LINKS.player_buy12 : LIC_MP_LINKS.player_monthly;
+  const a = document.getElementById('licMpLink');
+  if (a) a.href = link;
+  const wrap = document.getElementById('licPlayerModeWrap');
+  if (wrap) wrap.style.display = prod === 'player' ? 'block' : 'none';
+}
+function licUpdateUsdPayLink() {
+  const prod = document.getElementById('licOrderProductUsd').value;
+  const planId = LIC_PAYPAL_PLANS[prod] || LIC_PAYPAL_PLANS.smart_tv;
+  const a = document.getElementById('licPaypalLink');
+  if (a) a.href = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${planId}`;
+}
+
+function licCopyBreb() {
+  try {
+    navigator.clipboard.writeText(LIC_BRE_B_KEY);
+    showStatus('Llave BRE-B copiada', 'success');
+  } catch(e) {
+    showStatus('No se pudo copiar', 'error');
+  }
+}
+
+async function licCreateOrder(product, currency) {
+  try {
+    const r = await fetch(`${API_URL}/api/licenses/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ product, currency: currency || currentUser?.currency || 'COP' })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'No se pudo crear la orden');
+    showStatus('Orden creada. Sigue las instrucciones de pago.', 'success');
+    await loadLicencias();
+    return data;
+  } catch (e) {
+    showStatus(e.message || 'Error creando orden', 'error');
+    return null;
+  }
+}
+
+async function licUploadProof(orderId, file) {
+  if (!file) return;
+  try {
+    const fd = new FormData();
+    fd.append('proof', file);
+    const r = await fetch(`${API_URL}/api/licenses/orders/${orderId}/proof`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` },
+      body: fd
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'No se pudo subir el comprobante');
+    showStatus('Comprobante enviado. Revisaremos y confirmaremos.', 'success');
+    await loadLicencias();
+  } catch (e) {
+    showStatus(e.message || 'Error subiendo comprobante', 'error');
+  }
+}
+
+function openLicCountryModal() {
+  document.getElementById('licCountryModal').classList.add('show');
+}
+function closeLicCountryModal() {
+  document.getElementById('licCountryModal').classList.remove('show');
+}
+async function licSetCountry(cc) {
+  if (!cc) return;
+  try {
+    const r = await fetch(`${API_URL}/api/user/country`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ country_code: cc })
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'No se pudo guardar el país');
+    currentUser.country_code = cc;
+    if (data.user && data.user.currency) currentUser.currency = data.user.currency;
+    else currentUser.currency = (cc === 'CO' ? 'COP' : 'USD');
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    closeLicCountryModal();
+    showStatus('País guardado', 'success');
+  } catch (e) {
+    showStatus(e.message || 'Error guardando país', 'error');
+  }
+}
+function licCheckFirstTimeCountry() {
+  if (!currentUser) return;
+  const cc = (currentUser.country_code || '').trim();
+  if (!cc) openLicCountryModal();
+}
+
+async function licSubmitCoOrder() {
+  const prod = document.getElementById('licOrderProductCo').value;
+  const modeEl = document.getElementById('licOrderPlayerMode');
+  const productKey = (prod === 'player' && modeEl && modeEl.value === 'buy12') ? 'player_buy12' : prod;
+  await licCreateOrder(productKey, 'COP');
+  closeLicNewOrderModal();
+}
+async function licSubmitUsdOrder() {
+  const prod = document.getElementById('licOrderProductUsd').value;
+  await licCreateOrder(prod, 'USD');
+  closeLicNewOrderModal();
+}
+
 </script>
 
 <!-- Smart TV pair-code modal (framework v1.2 D2) -->
@@ -9261,5 +9669,124 @@ async function submitAddSmartTv() {
     </div>
   </div>
 </div>
+
+<!-- ═══════════════ LICENSES-V1 Fase 4 — Modales ═══════════════ -->
+
+<!-- Nueva Orden (Colombia / COP) -->
+<div id="licNewOrderModalCo" onclick="if(event.target===this)closeLicNewOrderModal()">
+  <div class="modal-content">
+    <div class="lic-modal-title">Nueva orden — Colombia</div>
+    <div class="lic-modal-sub">Elige el producto y método de pago. Al confirmar generaremos la orden.</div>
+
+    <div class="lic-form-group">
+      <label class="lic-form-label">Producto</label>
+      <select id="licOrderProductCo" class="lic-select" onchange="licUpdateCoPayLink()">
+        <option value="smart_tv">SONORO Smart TV Player — suscripción mensual</option>
+        <option value="player">SONORO Player</option>
+        <option value="windows">SONORO Windows Player — suscripción mensual</option>
+      </select>
+    </div>
+
+    <div class="lic-form-group" id="licPlayerModeWrap" style="display:none;">
+      <label class="lic-form-label">Modalidad Player</label>
+      <select id="licOrderPlayerMode" class="lic-select" onchange="licUpdateCoPayLink()">
+        <option value="monthly">Renovación mensual</option>
+        <option value="buy12">Compra + 12 meses</option>
+      </select>
+    </div>
+
+    <div class="lic-pay-block">
+      <div class="lic-pay-label">Pago con Mercado Pago</div>
+      <a id="licMpLink" href="#" target="_blank" rel="noopener" class="lic-btn-grad" style="display:inline-block;text-decoration:none;text-align:center;">Ir a Mercado Pago</a>
+    </div>
+
+    <div class="lic-pay-block">
+      <div class="lic-pay-label">Pago con BRE-B (transferencia)</div>
+      <div class="lic-pay-key">
+        <span>Llave: <strong>9739871</strong></span>
+        <button onclick="licCopyBreb()">Copiar</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Titular: Daniel Esteban Pulgarin</div>
+    </div>
+
+    <div class="lic-pay-block">
+      <div class="lic-pay-label">¿Ya pagaste? Sube tu comprobante</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Primero crea la orden abajo; luego súbelo desde el historial.</div>
+    </div>
+
+    <div class="lic-modal-actions">
+      <button class="lic-btn-outline" onclick="closeLicNewOrderModal()">Cerrar</button>
+      <button class="lic-btn-grad" onclick="licSubmitCoOrder()">Crear orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Nueva Orden (USD / PayPal) -->
+<div id="licNewOrderModalUsd" onclick="if(event.target===this)closeLicNewOrderModal()">
+  <div class="modal-content">
+    <div class="lic-modal-title">New order — International</div>
+    <div class="lic-modal-sub">Choose product and subscribe via PayPal.</div>
+
+    <div class="lic-form-group">
+      <label class="lic-form-label">Product</label>
+      <select id="licOrderProductUsd" class="lic-select" onchange="licUpdateUsdPayLink()">
+        <option value="smart_tv">SONORO Smart TV Player — monthly</option>
+        <option value="player">SONORO Player — monthly</option>
+        <option value="windows">SONORO Windows Player — monthly</option>
+      </select>
+    </div>
+
+    <div class="lic-pay-block">
+      <div class="lic-pay-label">Pay with PayPal</div>
+      <a id="licPaypalLink" href="#" target="_blank" rel="noopener" class="lic-btn-grad" style="display:inline-block;text-decoration:none;text-align:center;">Subscribe on PayPal</a>
+    </div>
+
+    <div class="lic-modal-actions">
+      <button class="lic-btn-outline" onclick="closeLicNewOrderModal()">Close</button>
+      <button class="lic-btn-grad" onclick="licSubmitUsdOrder()">Create order</button>
+    </div>
+  </div>
+</div>
+
+<!-- Trial 30 días -->
+<div id="licTrialModal" onclick="if(event.target===this)closeLicTrialModal()">
+  <div class="modal-content" style="max-width:440px;">
+    <div class="lic-modal-title">Activar prueba de 30 días</div>
+    <div class="lic-modal-sub">1 prueba por cuenta, solo SONORO Smart TV Player. Al finalizar podrás continuar con una suscripción o dejar que expire.</div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted);margin-bottom:14px;">
+      <strong style="color:var(--text);">Incluye:</strong> pareo del navegador del Smart TV, reproducción de playlist, splash de marca y heartbeat en tiempo real.
+    </div>
+    <div class="lic-modal-actions">
+      <button class="lic-btn-outline" onclick="closeLicTrialModal()">Cancelar</button>
+      <button id="licTrialSubmitBtn" class="lic-btn-grad" onclick="licCreateTrial()">Activar prueba</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirma tu país (first-time) -->
+<div id="licCountryModal">
+  <div class="modal-content" style="max-width:420px;">
+    <div class="lic-modal-title">Confirma tu país</div>
+    <div class="lic-modal-sub">Lo usamos para mostrarte precios y métodos de pago correctos.</div>
+    <div class="lic-form-group">
+      <label class="lic-form-label">País</label>
+      <select id="licCountrySelect" class="lic-select">
+        <option value="">— Selecciona —</option>
+        <option value="CO">Colombia</option>
+        <option value="MX">México</option>
+        <option value="US">Estados Unidos</option>
+        <option value="ES">España</option>
+        <option value="PE">Perú</option>
+        <option value="CL">Chile</option>
+        <option value="AR">Argentina</option>
+        <option value="OTHER">Otro</option>
+      </select>
+    </div>
+    <div class="lic-modal-actions">
+      <button class="lic-btn-grad" onclick="licSetCountry(document.getElementById('licCountrySelect').value)">Guardar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
