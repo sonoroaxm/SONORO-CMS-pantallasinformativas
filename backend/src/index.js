@@ -833,6 +833,22 @@ app.get('/api/user/me', authenticateToken, async (req, res) => {
   }
 });
 
+// S189m: PATCH /api/user/name — actualiza nombre propio
+app.patch('/api/user/name', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.body || {};
+    const trimmed = String(name || '').trim();
+    if (trimmed.length < 2 || trimmed.length > 80) {
+      return res.status(400).json({ error: 'Nombre debe tener entre 2 y 80 caracteres' });
+    }
+    await pool.query('UPDATE users SET name = $1 WHERE id = $2', [trimmed, req.user.id]);
+    res.json({ success: true, name: trimmed });
+  } catch (err) {
+    console.error('PATCH /api/user/name', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // S158: POST /api/user/change-password — cambio de contraseña propia
 app.post('/api/user/change-password', authenticateToken, async (req, res) => {
   try {

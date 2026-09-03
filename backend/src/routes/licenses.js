@@ -40,6 +40,38 @@ router.get('/licenses/health', (req, res) => {
   res.json({ module: 'licenses', status: 'ok', phase: '1c-i' });
 });
 
+// ── GET /api/licenses/pricing ─────────────────────────────────────────────────
+// Endpoint público: expone pricing_catalog completo para que el frontend no
+// tenga precios hardcoded. Retorna { COP:{...}, USD:{...} } con monthly, annual
+// (monthly*12*0.85), second_plus, hw_upfront, free_months por producto.
+router.get('/licenses/pricing', async (req, res) => {
+  const pool = global.pool;
+  try {
+    const r = await pool.query(
+      `SELECT product, currency, monthly, annual, second_plus, hw_upfront, free_months
+         FROM pricing_catalog
+        ORDER BY currency, product`
+    );
+    const out = { COP: {}, USD: {} };
+    for (const row of r.rows) {
+      const cur = out[row.currency] || (out[row.currency] = {});
+      const monthly = Number(row.monthly);
+      const annualDb = row.annual != null ? Number(row.annual) : null;
+      cur[row.product] = {
+        monthly,
+        annual: annualDb || Math.round(monthly * 12 * 0.85),
+        second_plus: row.second_plus != null ? Number(row.second_plus) : null,
+        hw_upfront: row.hw_upfront != null ? Number(row.hw_upfront) : 0,
+        free_months: row.free_months || 0,
+      };
+    }
+    res.json(out);
+  } catch (err) {
+    console.error('GET /licenses/pricing', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // ── GET /api/licenses/mine ────────────────────────────────────────────────────
 // Lista todas las licencias del usuario logueado
 router.get('/licenses/mine', auth, async (req, res) => {
@@ -131,7 +163,7 @@ router.get('/licenses/orders/mine', auth, async (req, res) => {
 // Crea una orden (pending_payment). El cliente sube comprobante después.
 router.post('/licenses/orders', auth, async (req, res) => {
   const pool = global.pool;
-  const { product, months, annual = false } = req.body || {};
+  const { product, months, annual = false, include_hw = false } = req.body || {};
   if (!PRODUCTS.includes(product)) {
     return res.status(400).json({ error: 'product inválido' });
   }
@@ -157,6 +189,18 @@ router.post('/licenses/orders', auth, async (req, res) => {
       isSecondPlus,
     });
 
+    // S189m: buy12 flow (include_hw=true, solo player). Regla LICENSES-V1 §2.2:
+    // Player free_months cubre la licencia año 1; cliente solo paga hw_upfront.
+    // Si include_hw && free_months >= months → amount = hw_upfront (license grant).
+    // Si include_hw && free_months < months → amount = hw_upfront + prorrateo residual.
+    let finalAmount = price.amount;
+    if (include_hw && product === 'player' && price.hw_upfront > 0) {
+      const freeMonths = Number(price.free_months || 0);
+      const paidMonths = Math.max(0, monthsN - freeMonths);
+      const residual   = paidMonths > 0 ? Number(price.unit_price) * paidMonths : 0;
+      finalAmount = Number((price.hw_upfront + residual).toFixed(2));
+    }
+
     const ins = await pool.query(
       `INSERT INTO license_orders
          (user_id, product, months, country_code, currency,
@@ -165,7 +209,7 @@ router.post('/licenses/orders', auth, async (req, res) => {
        RETURNING id, product, months, country_code, currency,
                  amount, unit_price, discount_pct, status, created_at`,
       [req.user.id, product, monthsN, country, currency,
-       price.amount, price.unit_price, price.discount_pct]
+       finalAmount, price.unit_price, price.discount_pct]
     );
 
     // Audit inicial
@@ -173,7 +217,7 @@ router.post('/licenses/orders', auth, async (req, res) => {
       `INSERT INTO license_order_audit (order_id, action, actor_email, metadata)
        VALUES ($1, 'created', $2, $3)`,
       [ins.rows[0].id, req.user.email || null,
-       JSON.stringify({ annual: !!annual, second_plus: isSecondPlus })]
+       JSON.stringify({ annual: !!annual, second_plus: isSecondPlus, include_hw: !!include_hw, hw_upfront: price.hw_upfront })]
     );
 
     res.status(201).json(ins.rows[0]);

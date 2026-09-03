@@ -1437,7 +1437,10 @@
             </div>
             <div>
               <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Nombre</label>
-              <div id="mcName" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                <input id="mcName" class="lic-select" style="flex:1;font-weight:600;" value="" />
+                <button id="mcNameBtn" class="btn btn-outline" style="padding:6px 12px;font-size:11px;" onclick="mcSaveName()">Guardar</button>
+              </div>
             </div>
             <div>
               <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Rol</label>
@@ -9638,15 +9641,15 @@ async function licCreateOrder(productKey, currency, opts) {
   // productKey acepta: smart_tv | windows | player_monthly | player_buy12
   // Backend requiere product en {smart_tv,windows,player} + months (1-36) + annual bool
   const forceAnnual = !!(opts && opts.forceAnnual);
-  let product = productKey, months = 1, annual = false;
+  let product = productKey, months = 1, annual = false, include_hw = false;
   if (productKey === 'player_monthly') { product = 'player'; months = 1; }
-  else if (productKey === 'player_buy12') { product = 'player'; months = 12; annual = true; }
+  else if (productKey === 'player_buy12') { product = 'player'; months = 12; annual = false; include_hw = true; }
   if (forceAnnual && productKey !== 'player_buy12') { months = 12; annual = true; }
   try {
     const r = await fetch(`${API_URL}/api/licenses/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ product, months, annual })
+      body: JSON.stringify({ product, months, annual, include_hw })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'No se pudo crear la orden');
@@ -9687,13 +9690,35 @@ async function loadMiCuenta() {
     });
     const d = await r.json();
     document.getElementById('mcEmail').textContent = d.email || '—';
-    document.getElementById('mcName').textContent  = d.name || '—';
+    document.getElementById('mcName').value        = d.name || '';
     document.getElementById('mcRole').textContent  = d.role === 'admin' ? 'Administrador' : (d.role === 'agent' ? 'Agente' : 'Cliente');
     const cc = currentUser.country_code || '';
     const cur = currentUser.currency || '';
     document.getElementById('mcCountry').textContent = cc ? `${MC_COUNTRY_NAMES[cc] || cc} (${cur || cc})` : 'No configurado';
   } catch(e) {
     showStatus('Error cargando perfil', 'error');
+  }
+}
+async function mcSaveName() {
+  const name = (document.getElementById('mcName').value || '').trim();
+  if (name.length < 2) { showStatus('Nombre demasiado corto', 'error'); return; }
+  const btn = document.getElementById('mcNameBtn');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API_URL}/api/user/name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showStatus(d.error || 'Error al guardar', 'error'); return; }
+    currentUser.name = d.name;
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    showStatus('Nombre actualizado', 'success');
+  } catch(e) {
+    showStatus('Error de red', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
   }
 }
 async function mcChangePassword() {

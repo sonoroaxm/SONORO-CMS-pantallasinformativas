@@ -16,9 +16,18 @@ const mailer = require('./licensing-mailer');
 
 const TICK_MS = 5 * 60 * 1000; // Chequeo cada 5 minutos qué toca ejecutar
 
-function nowInBogota() {
-  const s = new Date().toLocaleString('en-US', { timeZone: 'America/Bogota', hour12: false });
-  return new Date(s);
+// Devuelve { dayKey:'YYYY-MM-DD', hour:0-23 } en America/Bogota sin depender de parseo de fechas.
+// Fix S189m: el `new Date(toLocaleString(...))` producía RangeError 'Invalid time value' en Node
+// cuando en-US formatea con separadores no ISO. Usamos Intl parts para hour/day robustos.
+function nowPartsBogota() {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false
+  });
+  const parts = fmt.formatToParts(new Date()).reduce((acc,p) => { acc[p.type] = p.value; return acc; }, {});
+  const dayKey = `${parts.year}-${parts.month}-${parts.day}`;
+  const hour = parseInt(parts.hour, 10) % 24;
+  return { dayKey, hour };
 }
 
 async function expireLicenses(pool) {
@@ -88,9 +97,7 @@ function start(pool) {
 
   async function tick() {
     try {
-      const bogota = nowInBogota();
-      const dayKey  = bogota.toISOString().slice(0,10);
-      const hour    = bogota.getHours();
+      const { dayKey, hour } = nowPartsBogota();
       const hourKey = `${dayKey}T${hour}`;
 
       if (hour === 3 && state.lastExpireDay !== dayKey) {
