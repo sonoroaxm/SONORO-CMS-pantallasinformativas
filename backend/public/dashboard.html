@@ -1298,6 +1298,7 @@
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="licencias">Mis Licencias</button>
+            <button class="tab-btn" data-tab="micuenta">Mi Cuenta</button>
           </div>
         </div>
       </div>
@@ -1417,6 +1418,59 @@
                 <tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px;">Cargando…</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ MI CUENTA (LICENSES-V1 Ola 2) ══ -->
+      <div id="micuenta-tab" class="container hidden">
+        <div class="section-header">
+          <div class="section-title">Mi Cuenta</div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Información personal</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Email</label>
+              <div id="mcEmail" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Nombre</label>
+              <div id="mcName" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Rol</label>
+              <div id="mcRole" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">País</label>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                <div id="mcCountry" style="font-size:14px;color:var(--text);font-weight:600;">—</div>
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="openLicCountryModal()">Cambiar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Cambiar contraseña</div>
+          <div style="display:grid;gap:12px;max-width:420px;">
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);">Contraseña actual</label>
+              <input type="password" id="mcPwCurrent" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="current-password">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);">Nueva contraseña (mín. 8)</label>
+              <input type="password" id="mcPwNew" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="new-password">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--text-muted);">Confirmar nueva contraseña</label>
+              <input type="password" id="mcPwConfirm" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="new-password">
+            </div>
+            <div>
+              <button id="mcPwBtn" class="btn btn-grad" onclick="mcChangePassword()">Cambiar contraseña</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2959,6 +3013,7 @@ function setupTabs() {
       if (tabName === 'events') loadEventsTab();
       if (tabName === 'ev-proveedores') { evGlobalSupLoaded = false; evLoadGlobalSuppliers(); }
       if (tabName === 'licencias') loadLicencias();
+      if (tabName === 'micuenta') loadMiCuenta();
     });
   });
 }
@@ -9620,6 +9675,52 @@ async function licUploadProof(orderId, file) {
     await loadLicencias();
   } catch (e) {
     showStatus(e.message || 'Error subiendo comprobante', 'error');
+  }
+}
+
+/* ══ MI CUENTA (Ola 2) ══ */
+const MC_COUNTRY_NAMES = { CO:'Colombia', MX:'México', US:'USA', ES:'España', PE:'Perú', CL:'Chile', AR:'Argentina' };
+async function loadMiCuenta() {
+  try {
+    const r = await fetch(`${API_URL}/api/user/profile`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const d = await r.json();
+    document.getElementById('mcEmail').textContent = d.email || '—';
+    document.getElementById('mcName').textContent  = d.name || '—';
+    document.getElementById('mcRole').textContent  = d.role === 'admin' ? 'Administrador' : (d.role === 'agent' ? 'Agente' : 'Cliente');
+    const cc = currentUser.country_code || '';
+    const cur = currentUser.currency || '';
+    document.getElementById('mcCountry').textContent = cc ? `${MC_COUNTRY_NAMES[cc] || cc} (${cur || cc})` : 'No configurado';
+  } catch(e) {
+    showStatus('Error cargando perfil', 'error');
+  }
+}
+async function mcChangePassword() {
+  const cur = document.getElementById('mcPwCurrent').value;
+  const nw  = document.getElementById('mcPwNew').value;
+  const cf  = document.getElementById('mcPwConfirm').value;
+  if (!cur || !nw || !cf) { showStatus('Completa todos los campos', 'error'); return; }
+  if (nw.length < 8) { showStatus('La nueva contraseña debe tener al menos 8 caracteres', 'error'); return; }
+  if (nw !== cf) { showStatus('Las contraseñas no coinciden', 'error'); return; }
+  const btn = document.getElementById('mcPwBtn');
+  btn.disabled = true; btn.textContent = 'Cambiando…';
+  try {
+    const r = await fetch(`${API_URL}/api/user/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ current_password: cur, new_password: nw })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showStatus(d.error || 'Error al cambiar', 'error'); return; }
+    showStatus('Contraseña cambiada correctamente', 'success');
+    document.getElementById('mcPwCurrent').value = '';
+    document.getElementById('mcPwNew').value = '';
+    document.getElementById('mcPwConfirm').value = '';
+  } catch(e) {
+    showStatus('Error de red', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Cambiar contraseña';
   }
 }
 
