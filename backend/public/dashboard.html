@@ -9337,11 +9337,18 @@ const LIC_PRICING = {
   COP: { smart_tv: 25000, windows: 85000, player_monthly: 55000, player_buy12: 800000 },
   USD: { smart_tv: 15,    windows: 25,    player_monthly: 20,    player_buy12: 350    }
 };
+// Precios anuales COP con 15% descuento (mensual × 12 × 0.85)
+const LIC_PRICING_ANNUAL_COP = { smart_tv: 255000, windows: 867000, player_monthly: 561000 };
 const LIC_MP_LINKS = {
-  smart_tv:       'https://mpago.la/1RMUcqm',
-  windows:        'https://mpago.la/1GinNpm',
-  player_monthly: 'https://mpago.la/152V8LF',
-  player_buy12:   'https://mpago.li/1DZxmn3'
+  smart_tv:       'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=1239dd5dcbd349949675483ebe74f600',
+  windows:        'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=1ca7e583905f47a7a892ef766d2d5161',
+  player_monthly: 'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=7ad078be531f4f918891beb4128a42c6',
+  player_buy12:   'https://link.mercadopago.com.co/sonorocms'
+};
+const LIC_MP_LINKS_ANNUAL = {
+  smart_tv:       'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=796319d744f5455a95d533691f26d298',
+  windows:        'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=d11b24419b1f4207b8e26b3374ff14fb',
+  player_monthly: 'https://www.mercadopago.com.co/subscriptions/checkout?preapproval_plan_id=3e4410c1b2c744aeaba090e4a3e23dd6'
 };
 const LIC_PAYPAL_PLANS = {
   smart_tv: 'P-6LN56097GB8631050NKMIX3Y',
@@ -9521,17 +9528,33 @@ function closeLicNewOrderModal() {
 
 function licUpdateCoPayLink() {
   const key = document.getElementById('licOrderProductCo').value;
-  let link = LIC_MP_LINKS.smart_tv, note = '';
-  if (key === 'smart_tv') { link = LIC_MP_LINKS.smart_tv; note = 'Suscripción mensual, cancela cuando quieras.'; }
-  else if (key === 'windows') { link = LIC_MP_LINKS.windows; note = 'Suscripción mensual, cancela cuando quieras.'; }
-  else if (key === 'player_monthly') { link = LIC_MP_LINKS.player_monthly; note = 'Licencia mensual del equipo. Cancela cuando quieras.'; }
-  else if (key === 'player_buy12') { link = LIC_MP_LINKS.player_buy12; note = 'Incluye equipo + 12 meses de licencia. A partir del mes 13: renovación $55.000 / mes.'; }
+  const billingEl = document.querySelector('input[name="licBillingCo"]:checked');
+  const billing = billingEl ? billingEl.value : 'monthly';
+  const isBuy12 = key === 'player_buy12';
+  const billingWrap = document.getElementById('licBillingWrap');
+  if (billingWrap) billingWrap.style.display = isBuy12 ? 'none' : 'block';
+  const isAnnual = billing === 'annual' && !isBuy12;
+  let link = LIC_MP_LINKS[key] || LIC_MP_LINKS.smart_tv;
+  let amount = LIC_PRICING.COP[key] || 0;
+  let suffix = ' / mes', note = '';
+  if (isBuy12) {
+    suffix = ' (pago único)';
+    note = 'Incluye equipo + 12 meses de licencia. Ingresa manualmente $800.000 en Mercado Pago. A partir del mes 13: renovación $55.000 / mes.';
+  } else if (isAnnual) {
+    link = LIC_MP_LINKS_ANNUAL[key] || link;
+    amount = LIC_PRICING_ANNUAL_COP[key] || amount;
+    suffix = ' / año';
+    const monthlyRef = LIC_PRICING.COP[key] * 12;
+    const ahorro = monthlyRef - amount;
+    note = `Ahorra ${licMoney(ahorro,'COP')} vs pagar mes a mes. Renovación anual automática.`;
+  } else {
+    note = key === 'player_monthly' ? 'Licencia mensual del equipo. Cancela cuando quieras.' : 'Suscripción mensual, cancela cuando quieras.';
+  }
   const a = document.getElementById('licMpLink');
   if (a) a.href = link;
-  const amount = LIC_PRICING.COP[key] || 0;
   const fmt = licMoney(amount, 'COP');
   const amtEl = document.getElementById('licAmountCo');
-  if (amtEl) amtEl.textContent = fmt + (key === 'player_buy12' ? '' : ' / mes');
+  if (amtEl) amtEl.textContent = fmt + suffix;
   const noteEl = document.getElementById('licAmountCoNote');
   if (noteEl) noteEl.textContent = note;
   const brebEl = document.getElementById('licBrebAmount');
@@ -9556,12 +9579,14 @@ function licCopyBreb() {
   }
 }
 
-async function licCreateOrder(productKey, currency) {
+async function licCreateOrder(productKey, currency, opts) {
   // productKey acepta: smart_tv | windows | player_monthly | player_buy12
   // Backend requiere product en {smart_tv,windows,player} + months (1-36) + annual bool
+  const forceAnnual = !!(opts && opts.forceAnnual);
   let product = productKey, months = 1, annual = false;
   if (productKey === 'player_monthly') { product = 'player'; months = 1; }
   else if (productKey === 'player_buy12') { product = 'player'; months = 12; annual = true; }
+  if (forceAnnual && productKey !== 'player_buy12') { months = 12; annual = true; }
   try {
     const r = await fetch(`${API_URL}/api/licenses/orders`, {
       method: 'POST',
@@ -9633,7 +9658,10 @@ function licCheckFirstTimeCountry() {
 
 async function licSubmitCoOrder() {
   const productKey = document.getElementById('licOrderProductCo').value;
-  await licCreateOrder(productKey, 'COP');
+  const billingEl = document.querySelector('input[name="licBillingCo"]:checked');
+  const billing = billingEl ? billingEl.value : 'monthly';
+  const forceAnnual = billing === 'annual' && productKey !== 'player_buy12';
+  await licCreateOrder(productKey, 'COP', { forceAnnual });
   closeLicNewOrderModal();
 }
 async function licSubmitUsdOrder() {
@@ -9702,11 +9730,23 @@ async function licSubmitUsdOrder() {
     <div class="lic-form-group">
       <label class="lic-form-label">Producto</label>
       <select id="licOrderProductCo" class="lic-select" onchange="licUpdateCoPayLink()">
-        <option value="smart_tv">Licencia SONORO Smart TV — mensual</option>
-        <option value="windows">Licencia SONORO Windows — mensual</option>
-        <option value="player_monthly">Licencia SONORO Player — mensual</option>
+        <option value="smart_tv">Licencia SONORO Smart TV</option>
+        <option value="windows">Licencia SONORO Windows</option>
+        <option value="player_monthly">Licencia SONORO Player</option>
         <option value="player_buy12">Equipo SONORO Player, 12 meses de licencia incluida</option>
       </select>
+    </div>
+
+    <div class="lic-form-group" id="licBillingWrap">
+      <label class="lic-form-label">Periodicidad</label>
+      <div style="display:flex;gap:8px;">
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2);">
+          <input type="radio" name="licBillingCo" value="monthly" checked onchange="licUpdateCoPayLink()"> Mensual
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface2);">
+          <input type="radio" name="licBillingCo" value="annual" onchange="licUpdateCoPayLink()"> Anual <span style="font-size:11px;color:#22c55e;font-weight:700;">-15%</span>
+        </label>
+      </div>
     </div>
 
     <div class="lic-pay-block" style="background:var(--surface2);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;">
