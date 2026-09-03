@@ -1377,7 +1377,7 @@
       <div id="licencias-tab" class="container hidden">
         <div class="section-header">
           <div class="section-title">Mis Licencias</div>
-          <button class="btn btn-primary btn-sm" onclick="loadLicencias()">Actualizar</button>
+          <button class="btn btn-grad btn-sm" onclick="openLicNewOrder('smart_tv')">+ Comprar licencia</button>
         </div>
 
         <!-- KPIs -->
@@ -9365,10 +9365,10 @@ async function loadLicencias() {
       fetch(`${API_URL}/api/licenses/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
       fetch(`${API_URL}/api/licenses/orders/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } })
     ]);
-    const licData = licRes.ok ? await licRes.json() : { licenses: [] };
-    const ordData = ordRes.ok ? await ordRes.json() : { orders: [] };
-    const licenses = licData.licenses || [];
-    const orders   = ordData.orders   || [];
+    const licData = licRes.ok ? await licRes.json() : [];
+    const ordData = ordRes.ok ? await ordRes.json() : [];
+    const licenses = Array.isArray(licData) ? licData : (licData.licenses || []);
+    const orders   = Array.isArray(ordData) ? ordData : (ordData.orders   || []);
     renderLicKpis(licenses, orders);
     renderLicTrialCta(licenses);
     renderLicActiveGrid(licenses);
@@ -9388,10 +9388,12 @@ function licDaysLeft(iso) {
 function renderLicKpis(licenses, orders) {
   let active = 0, trial = 0, expiring = 0;
   licenses.forEach(l => {
-    if (l.status === 'active') active++;
-    if (l.status === 'trial') trial++;
-    const d = licDaysLeft(l.expires_at);
-    if (d !== null && d >= 0 && d <= 30 && (l.status === 'active' || l.status === 'trial')) expiring++;
+    const isTrial = l.is_trial === true;
+    const isActive = l.status === 'active';
+    if (isActive && !isTrial) active++;
+    if (isActive && isTrial) trial++;
+    const d = licDaysLeft(l.end_date);
+    if (d !== null && d >= 0 && d <= 30 && isActive) expiring++;
   });
   const pending = orders.filter(o => o.status === 'pending' || o.status === 'pending_proof').length;
   document.getElementById('licKpiActive').textContent = active;
@@ -9401,13 +9403,11 @@ function renderLicKpis(licenses, orders) {
 }
 
 function renderLicTrialCta(licenses) {
-  const features = currentUser?.features || {};
-  const smarttvEnabled = features.smarttv_enabled === true || features.smarttv === true;
-  const hasTrial = licenses.some(l => l.product === 'smart_tv' && (l.status === 'trial' || l.trial_used === true));
-  const hasUsedTrial = licenses.some(l => l.trial_used === true) || (currentUser?.trial_used_smart_tv === true);
+  const smarttvEnabled = currentUser?.smarttv_enabled === true;
+  const hasUsedTrial = licenses.some(l => l.is_trial === true);
   const el = document.getElementById('licTrialCta');
   if (!el) return;
-  el.style.display = (!hasTrial && !hasUsedTrial && smarttvEnabled) ? 'flex' : 'none';
+  el.style.display = (!hasUsedTrial && smarttvEnabled) ? 'flex' : 'none';
 }
 
 function renderLicActiveGrid(licenses) {
@@ -9419,16 +9419,19 @@ function renderLicActiveGrid(licenses) {
   }
   el.innerHTML = licenses.map(l => {
     const prod = LIC_PRODUCT_LABELS[l.product] || l.product;
+    const isTrial = l.is_trial === true;
     const status = l.status || 'active';
-    const daysLeft = licDaysLeft(l.expires_at);
+    const badgeClass = isTrial ? 'trial' : status;
+    const badgeLabel = isTrial ? 'Prueba' : (status === 'expired' ? 'Vencida' : 'Activa');
+    const daysLeft = licDaysLeft(l.end_date);
     const daysTxt = daysLeft === null ? '—' : (daysLeft < 0 ? 'Vencida' : `${daysLeft} días`);
     const devLabel = l.device_name ? licEsc(l.device_name) : (l.device_id ? `Dispositivo #${l.device_id}` : 'Sin dispositivo asignado');
     return `
       <div class="lic-card">
         <div class="lic-prod">${licEsc(prod)}</div>
         <div class="lic-device">${devLabel}</div>
-        <span class="lic-badge ${status}">${status === 'trial' ? 'Prueba' : status === 'expired' ? 'Vencida' : 'Activa'}</span>
-        <div class="lic-days">Vence: <strong>${licDate(l.expires_at)}</strong> · <strong>${daysTxt}</strong></div>
+        <span class="lic-badge ${badgeClass}">${badgeLabel}</span>
+        <div class="lic-days">Vence: <strong>${licDate(l.end_date)}</strong> · <strong>${daysTxt}</strong></div>
         <button class="lic-btn-outline" onclick="openLicNewOrder('${licEsc(l.product)}')">Renovar</button>
       </div>`;
   }).join('');
