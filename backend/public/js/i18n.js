@@ -551,6 +551,17 @@
       }
     });
   }
+  function applyThemeToggleLabel(){
+    var btn = document.getElementById('themeToggleBtn'); if (!btn) return;
+    var isLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
+    btn.textContent = isLight ? t('topbar.theme_dark', 'Oscuro') : t('topbar.theme_light', 'Claro');
+  }
+  function patchThemeToggle(){
+    if (typeof window.toggleTheme !== 'function' || window.toggleTheme._sonoroPatched) return;
+    var orig = window.toggleTheme;
+    window.toggleTheme = function(){ var r = orig.apply(this, arguments); applyThemeToggleLabel(); return r; };
+    window.toggleTheme._sonoroPatched = true;
+  }
   function patchAll(){
     patchLicRenders();
     patchContentRenders();
@@ -559,6 +570,8 @@
     patchDevicesRender();
     patchPlaylistModalHooks();
     patchLicModalHooks();
+    patchThemeToggle();
+    applyThemeToggleLabel();
   }
 
   // Wrapper setLocale with full re-render chain
