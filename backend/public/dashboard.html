@@ -1233,8 +1233,8 @@
           <option value="pt-BR">PT</option>
         </select>
         <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
-        <div class="topbar-user">Sesión: <span id="userName"></span></div>
-        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+        <div class="topbar-user"><span data-i18n="topbar.session">Sesión</span>: <span id="userName"></span></div>
+        <button class="logout-btn" onclick="logout()" data-i18n="topbar.logout">Cerrar Sesión</button>
       </div>
     </div>
 
@@ -1244,14 +1244,14 @@
       <!-- GRUPO 1: Gestión de Contenido -->
       <div class="sidebar-group contenido open" id="group-contenido">
         <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-contenido')">
-          <div class="sidebar-group-label">Gestión de<br>Contenido</div>
+          <div class="sidebar-group-label" data-i18n="sidebar.group_content">Gestión de<br>Contenido</div>
           <div class="sidebar-group-arrow">▶</div>
         </div>
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
-            <button class="tab-btn active" data-tab="content">Contenido</button>
-            <button class="tab-btn" data-tab="playlists">Listas</button>
-            <button class="tab-btn" data-tab="devices">Dispositivos</button>
+            <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
+            <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
+            <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
           </div>
         </div>
       </div>
@@ -1298,13 +1298,13 @@
       <!-- GRUPO 4: Licencias (LICENSES-V1 Fase 4) -->
       <div class="sidebar-group licencias open" id="group-licencias">
         <div class="sidebar-group-header" onclick="toggleSidebarGroup('group-licencias')">
-          <div class="sidebar-group-label">Licencias</div>
+          <div class="sidebar-group-label" data-i18n="sidebar.group_licenses">Licencias</div>
           <div class="sidebar-group-arrow">▶</div>
         </div>
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
-            <button class="tab-btn" data-tab="licencias">Mis Licencias</button>
-            <button class="tab-btn" data-tab="micuenta">Mi Cuenta</button>
+            <button class="tab-btn" data-tab="licencias" data-i18n="sidebar.tab_my_licenses">Mis Licencias</button>
+            <button class="tab-btn" data-tab="micuenta" data-i18n="sidebar.tab_my_account">Mi Cuenta</button>
           </div>
         </div>
       </div>
@@ -1329,15 +1329,15 @@
       <!-- ── CONTENIDO ── -->
       <div id="content-tab" class="container">
         <div class="section-header">
-          <div class="section-title">Gestor de Contenido</div>
-          <button class="btn btn-primary btn-sm" onclick="loadContent()">↻ Actualizar</button>
+          <div class="section-title" data-i18n="cnt.title">Gestor de Contenido</div>
+          <button class="btn btn-primary btn-sm" onclick="loadContent()" data-i18n="common.refresh">↻ Actualizar</button>
         </div>
 
         <div class="card">
-          <div class="card-title">Subir Archivo</div>
+          <div class="card-title" data-i18n="cnt.upload_title">Subir Archivo</div>
           <input type="file" id="fileInput" accept="video/*,image/*">
           <div style="margin-top: 10px;">
-            <button class="btn btn-grad" onclick="uploadFile()">↑ Subir</button>
+            <button class="btn btn-grad" onclick="uploadFile()" data-i18n="cnt.upload_btn">↑ Subir</button>
           </div>
           <div id="uploadProgress" class="progress-wrap">
             <div class="progress-label">Subiendo: <strong id="fileName"></strong></div>
@@ -1348,13 +1348,13 @@
         </div>
 
         <div class="card">
-          <div class="card-title">Vista Previa</div>
+          <div class="card-title" data-i18n="cnt.preview">Vista Previa</div>
           <video id="player" controls></video>
           <img id="imageDisplay" style="display:none; width:100%; max-height:380px; border-radius:8px; border:1px solid var(--border);">
         </div>
 
         <div class="card">
-          <div class="card-title">Archivos</div>
+          <div class="card-title" data-i18n="cnt.files">Archivos</div>
           <div id="fileList"></div>
         </div>
       </div>
@@ -1362,8 +1362,8 @@
       <!-- ── LISTAS ── -->
       <div id="playlists-tab" class="container hidden">
         <div class="section-header">
-          <div class="section-title">Listas de Reproducción</div>
-          <button class="btn btn-primary btn-sm" onclick="openCreatePlaylistModal()">+ Nueva Lista</button>
+          <div class="section-title" data-i18n="pl.title">Listas de Reproducción</div>
+          <button class="btn btn-primary btn-sm" onclick="openCreatePlaylistModal()" data-i18n="pl.new_btn">+ Nueva Lista</button>
         </div>
         <div id="playlistsList"></div>
       </div>
@@ -1371,10 +1371,10 @@
       <!-- ── DISPOSITIVOS ── -->
       <div id="devices-tab" class="container hidden">
         <div class="section-header">
-          <div class="section-title">Gestión de Dispositivos</div>
+          <div class="section-title" data-i18n="dev.title">Gestión de Dispositivos</div>
           <div style="display:flex;gap:8px;">
-            <button id="btn-add-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openAddSmartTvModal()">+ Agregar Smart TV</button>
-            <button class="btn btn-grad" onclick="openActivationModal()">+ Generar Código</button>
+            <button id="btn-add-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openAddSmartTvModal()" data-i18n="dev.add_smarttv">+ Agregar Smart TV</button>
+            <button class="btn btn-grad" onclick="openActivationModal()" data-i18n="dev.gen_code">+ Generar Código</button>
           </div>
         </div>
         <div id="devices-list"></div>
@@ -1383,45 +1383,45 @@
       <!-- ── LICENCIAS (LICENSES-V1 Fase 4) ── -->
       <div id="licencias-tab" class="container hidden">
         <div class="section-header">
-          <div class="section-title">Mis Licencias</div>
-          <button class="btn btn-grad btn-sm" onclick="openLicNewOrder('smart_tv')">+ Comprar licencia</button>
+          <div class="section-title" data-i18n="lic.title">Mis Licencias</div>
+          <button class="btn btn-grad btn-sm" onclick="openLicNewOrder('smart_tv')" data-i18n="lic.buy_btn">+ Comprar licencia</button>
         </div>
 
         <!-- KPIs -->
         <div class="lic-kpis" id="licKpis">
-          <div class="lic-kpi-card"><div class="lic-kpi-label">Activas</div><div class="lic-kpi-val accent" id="licKpiActive">—</div></div>
-          <div class="lic-kpi-card"><div class="lic-kpi-label">En prueba</div><div class="lic-kpi-val" id="licKpiTrial">—</div></div>
-          <div class="lic-kpi-card"><div class="lic-kpi-label">Por vencer (30d)</div><div class="lic-kpi-val warn" id="licKpiExpiring">—</div></div>
-          <div class="lic-kpi-card"><div class="lic-kpi-label">Órdenes pendientes</div><div class="lic-kpi-val" id="licKpiPending">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label" data-i18n="lic.kpi_active">Activas</div><div class="lic-kpi-val accent" id="licKpiActive">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label" data-i18n="lic.kpi_trial">En prueba</div><div class="lic-kpi-val" id="licKpiTrial">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label" data-i18n="lic.kpi_expiring">Por vencer (30d)</div><div class="lic-kpi-val warn" id="licKpiExpiring">—</div></div>
+          <div class="lic-kpi-card"><div class="lic-kpi-label" data-i18n="lic.kpi_pending">Órdenes pendientes</div><div class="lic-kpi-val" id="licKpiPending">—</div></div>
         </div>
 
         <!-- CTA trial -->
         <div class="lic-trial-cta" id="licTrialCta" style="display:none;">
           <div>
-            <div class="lic-trial-title">Prueba SONORO Smart TV 30 días gratis</div>
-            <div class="lic-trial-sub">Convierte cualquier Smart TV en una pantalla informativa. Sin tarjeta. 1 prueba por cuenta.</div>
+            <div class="lic-trial-title" data-i18n="lic.trial_title">Prueba SONORO Smart TV 30 días gratis</div>
+            <div class="lic-trial-sub" data-i18n="lic.trial_sub">Convierte cualquier Smart TV en una pantalla informativa. Sin tarjeta. 1 prueba por cuenta.</div>
           </div>
-          <button class="lic-btn-grad" onclick="openLicTrialModal()">Activar prueba</button>
+          <button class="lic-btn-grad" onclick="openLicTrialModal()" data-i18n="lic.trial_btn">Activar prueba</button>
         </div>
 
         <!-- Licencias activas -->
         <div class="card">
-          <div class="card-title">Licencias activas</div>
+          <div class="card-title" data-i18n="lic.active_title">Licencias activas</div>
           <div class="lic-cards-grid" id="licActiveGrid">
-            <div style="color:var(--text-muted);font-size:12px;">Cargando…</div>
+            <div style="color:var(--text-muted);font-size:12px;" data-i18n="common.loading">Cargando…</div>
           </div>
         </div>
 
         <!-- Historial de órdenes -->
         <div class="card">
-          <div class="card-title">Historial de órdenes</div>
+          <div class="card-title" data-i18n="lic.history_title">Historial de órdenes</div>
           <div style="overflow-x:auto;">
             <table class="lic-table" id="licOrdersTable">
               <thead><tr>
-                <th>Orden</th><th>Producto</th><th class="right">Monto</th><th>Estado</th><th>Fecha</th><th class="right">Acción</th>
+                <th data-i18n="lic.col_order">Orden</th><th data-i18n="lic.col_product">Producto</th><th class="right" data-i18n="lic.col_amount">Monto</th><th data-i18n="lic.col_status">Estado</th><th data-i18n="lic.col_date">Fecha</th><th class="right" data-i18n="lic.col_action">Acción</th>
               </tr></thead>
               <tbody id="licOrdersBody">
-                <tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px;">Cargando…</td></tr>
+                <tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px;" data-i18n="common.loading">Cargando…</td></tr>
               </tbody>
             </table>
           </div>
@@ -1431,11 +1431,11 @@
       <!-- ══ MI CUENTA (LICENSES-V1 Ola 2) ══ -->
       <div id="micuenta-tab" class="container hidden">
         <div class="section-header">
-          <div class="section-title">Mi Cuenta</div>
+          <div class="section-title" data-i18n="mc.title">Mi Cuenta</div>
         </div>
 
         <div class="card" style="margin-bottom:16px;">
-          <div class="card-title">Información personal</div>
+          <div class="card-title" data-i18n="mc.personal_info">Información personal</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
             <div>
               <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Email</label>
