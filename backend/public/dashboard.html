@@ -9604,6 +9604,7 @@ async function licSetCountry(cc) {
 }
 function licCheckFirstTimeCountry() {
   if (!currentUser) return;
+  if (currentUser.role === 'admin') return;
   const cc = (currentUser.country_code || '').trim();
   if (!cc) openLicCountryModal();
 }
