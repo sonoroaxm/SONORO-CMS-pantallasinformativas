@@ -2894,8 +2894,19 @@ function escOnclick(s) {
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'");
 }
+// S189n: escape hatch — ?logout=1 fuerza limpieza y login (para clientes con sesión rota)
+if (new URLSearchParams(location.search).get('logout') === '1') {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
+  location.replace(location.pathname);
+}
 let authToken = localStorage.getItem('authToken');
 let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+// S189n: guard estructural — currentUser sin token = sesión rota, forzar login
+if (currentUser && !authToken) {
+  localStorage.removeItem('currentUser');
+  currentUser = null;
+}
 let socket = null;
 let currentPlaylistId = null;
 let playlistItems = [];
