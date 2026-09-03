@@ -663,7 +663,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     // Buscar usuario
-    const result = await pool.query('SELECT id, email, password, name, role, features, country_code, currency, smarttv_enabled FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT id, email, password, name, role, features, country_code, currency, smarttv_enabled, locale FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
@@ -690,7 +690,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures, country_code: user.country_code, currency: user.currency, smarttv_enabled: user.smarttv_enabled }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: loginFeatures, country_code: user.country_code, currency: user.currency, smarttv_enabled: user.smarttv_enabled, locale: user.locale || 'es' }
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -2886,7 +2886,7 @@ app.patch('/api/admin/users/:userId/storage-limit', authenticateToken, requireAd
 app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, name, role, features, smarttv_enabled, country_code, currency FROM users WHERE id = $1',
+      'SELECT id, email, name, role, features, smarttv_enabled, country_code, currency, locale FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -2924,6 +2924,26 @@ app.patch('/api/user/country', authenticateToken, async (req, res) => {
     res.json(r.rows[0]);
   } catch (err) {
     console.error('PATCH /api/user/country', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── PATCH /api/user/locale — usuario actualiza su idioma (i18n Fase 1)
+// Whitelist: es, en, pt-BR. Persiste en users.locale.
+app.patch('/api/user/locale', authenticateToken, async (req, res) => {
+  try {
+    const { locale } = req.body || {};
+    const ALLOWED = ['es', 'en', 'pt-BR'];
+    if (!locale || !ALLOWED.includes(locale)) {
+      return res.status(400).json({ error: 'locale requerido (es|en|pt-BR)' });
+    }
+    const r = await pool.query(
+      `UPDATE users SET locale = $1 WHERE id = $2 RETURNING id, locale`,
+      [locale, req.user.id]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/user/locale', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
