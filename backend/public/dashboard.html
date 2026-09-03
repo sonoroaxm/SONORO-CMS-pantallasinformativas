@@ -9555,12 +9555,17 @@ function licCopyBreb() {
   }
 }
 
-async function licCreateOrder(product, currency) {
+async function licCreateOrder(productKey, currency) {
+  // productKey acepta: smart_tv | windows | player_monthly | player_buy12
+  // Backend requiere product en {smart_tv,windows,player} + months (1-36) + annual bool
+  let product = productKey, months = 1, annual = false;
+  if (productKey === 'player_monthly') { product = 'player'; months = 1; }
+  else if (productKey === 'player_buy12') { product = 'player'; months = 12; annual = true; }
   try {
     const r = await fetch(`${API_URL}/api/licenses/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ product, currency: currency || currentUser?.currency || 'COP' })
+      body: JSON.stringify({ product, months, annual })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'No se pudo crear la orden');
