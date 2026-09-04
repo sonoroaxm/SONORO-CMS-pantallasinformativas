@@ -1166,29 +1166,29 @@
 <div id="loginScreen" class="login-screen">
   <div class="login-wrap">
     <div class="login-logo">SONORO.</div>
-    <div class="login-sub">CMS &nbsp;·&nbsp; Pantallas Informativas</div>
+    <div class="login-sub" data-i18n="login.sub">CMS &nbsp;·&nbsp; Pantallas Informativas</div>
 
     <div class="login-card">
       <div class="login-card-top"></div>
       <div class="login-card-body">
         <div id="authStatus"></div>
         <div class="form-tabs">
-          <button class="form-tab active" data-tab="login">Ingresar</button>
-          <button class="form-tab" data-tab="register">Registrarse</button>
+          <button class="form-tab active" data-tab="login" data-i18n="login.tab_signin">Ingresar</button>
+          <button class="form-tab" data-tab="register" data-i18n="login.tab_signup">Registrarse</button>
         </div>
 
         <form id="loginForm" style="display: block;">
           <div class="form-group">
-            <label>Email</label>
+            <label data-i18n="login.email">Email</label>
             <input type="email" id="loginEmail" placeholder="usuario@sonoro.av" required>
           </div>
           <div class="form-group">
-            <label>Contraseña</label>
+            <label data-i18n="login.password">Contraseña</label>
             <input type="password" id="loginPassword" placeholder="••••••••" required>
           </div>
-          <button type="submit" class="submit-btn">Ingresar</button>
+          <button type="submit" class="submit-btn" data-i18n="login.signin_btn">Ingresar</button>
         </form>
-        <div style="text-align:center;margin-top:14px;"><a href="#" id="forgotToggleLink" onclick="toggleForgotForm(event)" style="font-size:12px;color:var(--text-muted);text-decoration:none;">Olvidé mi contraseña</a></div>
+        <div style="text-align:center;margin-top:14px;"><a href="#" id="forgotToggleLink" onclick="toggleForgotForm(event)" style="font-size:12px;color:var(--text-muted);text-decoration:none;" data-i18n="login.forgot">Olvidé mi contraseña</a></div>
         <form id="forgotPwForm" style="display:none;margin-top:16px;">
           <div class="form-group">
             <label>Email</label>
@@ -1199,18 +1199,18 @@
 
         <form id="registerForm" style="display: none;">
           <div class="form-group">
-            <label>Nombre</label>
+            <label data-i18n="login.name">Nombre</label>
             <input type="text" id="registerName" placeholder="Tu nombre" required>
           </div>
           <div class="form-group">
-            <label>Email</label>
+            <label data-i18n="login.email">Email</label>
             <input type="email" id="registerEmail" placeholder="usuario@sonoro.av" required>
           </div>
           <div class="form-group">
-            <label>Contraseña</label>
+            <label data-i18n="login.password">Contraseña</label>
             <input type="password" id="registerPassword" placeholder="••••••••" required>
           </div>
-          <button type="submit" class="submit-btn">Crear Cuenta</button>
+          <button type="submit" class="submit-btn" data-i18n="login.signup_btn">Crear Cuenta</button>
         </form>
       </div>
     </div>
@@ -1320,10 +1320,10 @@
       <!-- S172j — Banner Plan Pro (visible solo si features.multisede===true) -->
       <div id="proBanner" style="display:none;background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:10px;padding:14px 18px;margin:0 20px 16px;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:240px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text);"><span style="background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;">Plan Pro activo</span> — envía la misma playlist a múltiples pantallas y agrúpalas por sede.</div>
-          <div style="font-size:11px;color:var(--text-muted,#888);margin-top:3px;">Bulk Push · Multi-sede · Reportes por ubicación</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);"><span style="background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;" data-i18n="pro.badge">Plan Pro activo</span> <span data-i18n="pro.desc">— envía la misma playlist a múltiples pantallas y agrúpalas por sede.</span></div>
+          <div style="font-size:11px;color:var(--text-muted,#888);margin-top:3px;" data-i18n="pro.tags">Bulk Push · Multi-sede · Reportes por ubicación</div>
         </div>
-        <a href="/admin-dashboard.html" style="padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 11px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;white-space:nowrap;">Ir a Sedes &amp; Bulk Push →</a>
+        <a href="/admin-dashboard.html" style="padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 11px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;white-space:nowrap;" data-i18n="pro.cta">Ir a Sedes &amp; Bulk Push →</a>
       </div>
 
       <!-- ── CONTENIDO ── -->
@@ -1340,7 +1340,7 @@
             <button class="btn btn-grad" onclick="uploadFile()" data-i18n="cnt.upload_btn">↑ Subir</button>
           </div>
           <div id="uploadProgress" class="progress-wrap">
-            <div class="progress-label">Subiendo: <strong id="fileName"></strong></div>
+            <div class="progress-label"><span data-i18n="cnt.uploading">Subiendo</span>: <strong id="fileName"></strong></div>
             <div class="progress-bar-container">
               <div id="progressBar" class="progress-bar" style="width: 0%;"></div>
             </div>
@@ -1438,47 +1438,47 @@
           <div class="card-title" data-i18n="mc.personal_info">Información personal</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
             <div>
-              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Email</label>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="mc.email">Email</label>
               <div id="mcEmail" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Nombre</label>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="mc.name">Nombre</label>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
                 <input id="mcName" class="lic-select" style="flex:1;font-weight:600;" value="" />
-                <button id="mcNameBtn" class="btn btn-outline" style="padding:6px 12px;font-size:11px;" onclick="mcSaveName()">Guardar</button>
+                <button id="mcNameBtn" class="btn btn-outline" style="padding:6px 12px;font-size:11px;" onclick="mcSaveName()" data-i18n="common.save">Guardar</button>
               </div>
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Rol</label>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="mc.role">Rol</label>
               <div id="mcRole" style="font-size:14px;color:var(--text);margin-top:4px;font-weight:600;">—</div>
             </div>
             <div>
-              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">País</label>
+              <label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="mc.country">País</label>
               <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
                 <div id="mcCountry" style="font-size:14px;color:var(--text);font-weight:600;">—</div>
-                <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="openLicCountryModal()">Cambiar</button>
+                <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" onclick="openLicCountryModal()" data-i18n="common.change">Cambiar</button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-title">Cambiar contraseña</div>
+          <div class="card-title" data-i18n="mc.change_pw">Cambiar contraseña</div>
           <div style="display:grid;gap:12px;max-width:420px;">
             <div>
-              <label style="font-size:12px;color:var(--text-muted);">Contraseña actual</label>
+              <label style="font-size:12px;color:var(--text-muted);" data-i18n="mc.pw_current">Contraseña actual</label>
               <input type="password" id="mcPwCurrent" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="current-password">
             </div>
             <div>
-              <label style="font-size:12px;color:var(--text-muted);">Nueva contraseña (mín. 8)</label>
+              <label style="font-size:12px;color:var(--text-muted);" data-i18n="mc.pw_new">Nueva contraseña (mín. 8)</label>
               <input type="password" id="mcPwNew" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="new-password">
             </div>
             <div>
-              <label style="font-size:12px;color:var(--text-muted);">Confirmar nueva contraseña</label>
+              <label style="font-size:12px;color:var(--text-muted);" data-i18n="mc.pw_confirm">Confirmar nueva contraseña</label>
               <input type="password" id="mcPwConfirm" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="new-password">
             </div>
             <div>
-              <button id="mcPwBtn" class="btn btn-grad" onclick="mcChangePassword()">Cambiar contraseña</button>
+              <button id="mcPwBtn" class="btn btn-grad" onclick="mcChangePassword()" data-i18n="mc.change_pw_btn">Cambiar contraseña</button>
             </div>
           </div>
         </div>
@@ -2829,55 +2829,55 @@
 <div id="playlistModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2 id="playlistModalTitle">Nueva Lista</h2>
+      <h2 id="playlistModalTitle" data-i18n="plm.new_title">Nueva Lista</h2>
       <button class="modal-close" onclick="closePlaylistModal()">×</button>
     </div>
     <div class="modal-body">
       <form id="playlistForm">
         <div class="form-group">
-          <label>Nombre</label>
-          <input type="text" id="playlistName" placeholder="Nombre de la lista" required>
+          <label data-i18n="plm.name">Nombre</label>
+          <input type="text" id="playlistName" placeholder="Nombre de la lista" data-i18n-attr="placeholder:plm.name_ph" required>
         </div>
         <div class="form-group">
-          <label>Descripción</label>
-          <textarea id="playlistDescription" rows="2" placeholder="Descripción opcional"></textarea>
+          <label data-i18n="plm.desc">Descripción</label>
+          <textarea id="playlistDescription" rows="2" placeholder="Descripción opcional" data-i18n-attr="placeholder:plm.desc_ph"></textarea>
         </div>
 
         <div class="form-group">
-          <label>Orientación de Pantalla</label>
+          <label data-i18n="plm.orientation">Orientación de Pantalla</label>
           <select id="playlistOrientation" style="margin: 6px 0;">
-            <option value="horizontal">Horizontal (16:9)</option>
-            <option value="vertical">Vertical (9:16)</option>
+            <option value="horizontal" data-i18n="plm.horizontal">Horizontal (16:9)</option>
+            <option value="vertical" data-i18n="plm.vertical">Vertical (9:16)</option>
           </select>
         </div>
 
         <div style="display:flex; gap:24px; margin-bottom:16px;">
           <div class="option-group">
             <input type="checkbox" id="playlistShuffle" style="width:18px;height:18px;accent-color:var(--magenta);margin:0;">
-            <label for="playlistShuffle" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;">Orden Aleatorio</label>
+            <label for="playlistShuffle" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;" data-i18n="plm.shuffle">Orden Aleatorio</label>
           </div>
           <div class="option-group">
             <input type="checkbox" id="playlistRepeat" style="width:18px;height:18px;accent-color:var(--magenta);margin:0;">
-            <label for="playlistRepeat" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;">Repetir Infinitamente</label>
+            <label for="playlistRepeat" style="font-size:13px;color:var(--text);font-weight:600;margin:0;cursor:pointer;" data-i18n="plm.repeat">Repetir Infinitamente</label>
           </div>
         </div>
 
-        <h3 class="sub">Agregar Contenido</h3>
+        <h3 class="sub" data-i18n="plm.add_content">Agregar Contenido</h3>
         <div style="display:flex; gap:8px; align-items:center;">
           <select id="contentSelector" style="margin:0; flex:1;">
-            <option value="">-- Seleccionar archivo --</option>
+            <option value="" data-i18n="plm.select_file">-- Seleccionar archivo --</option>
           </select>
-          <button type="button" class="btn btn-primary btn-sm" onclick="addContent()">+ Agregar</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="addContent()" data-i18n="plm.add">+ Agregar</button>
         </div>
 
-        <h3 class="sub" style="margin-top:18px;">Contenido</h3>
+        <h3 class="sub" style="margin-top:18px;" data-i18n="plm.content">Contenido</h3>
         <div id="playlistContentList" class="playlist-content-list">
-          <p style="color:var(--text-muted); font-size:13px; text-align:center; padding:12px 0;">Vacío</p>
+          <p style="color:var(--text-muted); font-size:13px; text-align:center; padding:12px 0;" data-i18n="plm.empty">Vacío</p>
         </div>
 
         <div style="display:flex; gap:10px; margin-top:20px;">
-          <button type="submit" class="btn btn-grad" style="flex:1;">Guardar</button>
-          <button type="button" class="btn btn-outline" onclick="closePlaylistModal()">Cancelar</button>
+          <button type="submit" class="btn btn-grad" style="flex:1;" data-i18n="common.save">Guardar</button>
+          <button type="button" class="btn btn-outline" onclick="closePlaylistModal()" data-i18n="common.cancel">Cancelar</button>
         </div>
       </form>
     </div>
@@ -4533,26 +4533,26 @@ async function takeScreenshot(deviceId, ip, deviceName) {
 <div id="activationModal" class="modal">
   <div class="modal-content" style="max-width:480px;">
     <div class="modal-header">
-      <h3 class="modal-title">Códigos de Activación</h3>
+      <h3 class="modal-title" data-i18n="act.title">Códigos de Activación</h3>
       <button class="modal-close" onclick="closeActivationModal()">✕</button>
     </div>
     <div style="padding:20px 24px;">
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6;">
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.7;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.7;" data-i18n="act.intro">
           Haz clic en <strong style="color:var(--text);">Generar código</strong>, luego sigue los pasos para activar tu reproductor.
         </p>
         <div style="font-size:13px;line-height:1.8;margin-bottom:20px;">
           <div style="margin-bottom:10px;padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--magenta);">
-            <strong style="color:var(--text);">Si el reproductor está conectado por cable</strong><br>
-            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
+            <strong style="color:var(--text);" data-i18n="act.wired_title">Si el reproductor está conectado por cable</strong><br>
+            <span style="color:var(--text-muted);" data-i18n="act.wired_steps">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
             2. Conecta el cable de red y enciéndelo — el televisor mostrará el nombre de una red WiFi temporal.<br>
             3. Conecta tu celular a esa red WiFi. El nombre empieza por <strong style="color:var(--text);">SCMS-</strong> (ej: <em>SCMS-RO01AB</em>). Contraseña: <strong style="color:var(--text);">sonorocms</strong><br>
             4. Abre <strong style="color:var(--text);">http://10.42.0.1:8080</strong> en el navegador de tu celular.<br>
             5. Ingresa el código de activación que generaste aquí.</span>
           </div>
           <div style="padding:12px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--orange);">
-            <strong style="color:var(--text);">Si el reproductor no tiene cable</strong><br>
-            <span style="color:var(--text-muted);">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
+            <strong style="color:var(--text);" data-i18n="act.wireless_title">Si el reproductor no tiene cable</strong><br>
+            <span style="color:var(--text-muted);" data-i18n="act.wireless_steps">1. Conecta el reproductor a la energía y al televisor vía HDMI.<br>
             2. Enciéndelo — el televisor mostrará el nombre de una red WiFi temporal.<br>
             3. Conecta tu celular a esa red WiFi. El nombre empieza por <strong style="color:var(--text);">SCMS-</strong> (ej: <em>SCMS-RO01AB</em>). Contraseña: <strong style="color:var(--text);">sonorocms</strong><br>
             4. Abre <strong style="color:var(--text);">http://10.42.0.1:8080</strong> en el navegador de tu celular.<br>
@@ -4561,26 +4561,26 @@ async function takeScreenshot(deviceId, ip, deviceName) {
         </div>
       </p>
       <div style="margin-bottom:16px;">
-        <label style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px;">Nombre del dispositivo (opcional)</label>
-        <input type="text" id="new-device-name" placeholder="Ej: Recepción, Sala de espera..."
+        <label style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px;" data-i18n="act.dev_name">Nombre del dispositivo (opcional)</label>
+        <input type="text" id="new-device-name" placeholder="Ej: Recepción, Sala de espera..." data-i18n-attr="placeholder:act.dev_name_ph"
           style="width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:'Montserrat',sans-serif;">
       </div>
-      <button class="btn btn-grad" onclick="generateCode()" style="width:100%;padding:12px;">Generar código</button>
+      <button class="btn btn-grad" onclick="generateCode()" style="width:100%;padding:12px;" data-i18n="act.gen_btn">Generar código</button>
 
       <div id="generated-code-wrap" style="display:none;margin-top:20px;">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Código de activación</div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;" data-i18n="act.code_label">Código de activación</div>
           <div id="generated-code" style="font-size:28px;font-weight:900;letter-spacing:4px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;"></div>
           <div id="generated-expires" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
         </div>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:12px;text-align:center;line-height:1.6;">
+        <p style="font-size:12px;color:var(--text-muted);margin-top:12px;text-align:center;line-height:1.6;" data-i18n="act.share_note">
           Comparte este código con quien va a activar la pantalla. Es válido por 7 días y solo se puede usar una vez.
         </p>
       </div>
 
       <!-- Códigos existentes -->
       <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;">Códigos generados</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;" data-i18n="act.existing">Códigos generados</div>
         <div id="codes-list" style="font-size:12px;"></div>
       </div>
     </div>
@@ -9818,19 +9818,19 @@ async function licSubmitUsdOrder() {
 <!-- Smart TV pair-code modal (framework v1.2 D2) -->
 <div id="smarttvPairModal" onclick="if(event.target===this)closeSmartTvPairModal()">
   <div class="stv-pair-card">
-    <h3>Código de pareo Smart TV</h3>
+    <h3 data-i18n="stv.pair_title">Código de pareo Smart TV</h3>
     <div class="stv-sub" id="stvPairDevice">—</div>
     <div class="stv-pair-code" id="stvPairCode">------</div>
     <div class="stv-pair-meta">
-      <div>Expira: <strong id="stvPairExpires">—</strong></div>
-      <div>Restante: <strong id="stvPairCountdown">—</strong></div>
+      <div><span data-i18n="stv.expires">Expira:</span> <strong id="stvPairExpires">—</strong></div>
+      <div><span data-i18n="stv.remaining">Restante:</span> <strong id="stvPairCountdown">—</strong></div>
     </div>
-    <div class="stv-pair-hint">
+    <div class="stv-pair-hint" data-i18n="stv.pair_hint" data-i18n-html="1">
       En el navegador del Smart TV abre <code>cms.sonoro.com.co/pair</code> y digita este código. Una vez pareado, la playlist asignada reproduce en el TV.
     </div>
     <div class="stv-pair-actions">
-      <button class="btn btn-outline btn-sm" onclick="copySmartTvCode()">Copiar</button>
-      <button class="btn btn-primary btn-sm" onclick="closeSmartTvPairModal()">Cerrar</button>
+      <button class="btn btn-outline btn-sm" onclick="copySmartTvCode()" data-i18n="common.copy">Copiar</button>
+      <button class="btn btn-primary btn-sm" onclick="closeSmartTvPairModal()" data-i18n="common.close">Cerrar</button>
     </div>
   </div>
 </div>
@@ -9838,26 +9838,26 @@ async function licSubmitUsdOrder() {
 <!-- Add Smart TV device modal -->
 <div id="addSmartTvModal" class="modal-overlay" onclick="if(event.target===this)closeAddSmartTvModal()">
   <div class="modal-content" style="max-width:420px;">
-    <h3 style="margin:0 0 4px 0;">Agregar Smart TV</h3>
-    <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);">Se creará el dispositivo y se generará un código de pareo para el TV.</p>
+    <h3 style="margin:0 0 4px 0;" data-i18n="stv.add_title">Agregar Smart TV</h3>
+    <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);" data-i18n="stv.add_sub">Se creará el dispositivo y se generará un código de pareo para el TV.</p>
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div>
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Nombre</label>
-        <input id="addStvName" type="text" placeholder="Ej. TV Recepción" maxlength="60"
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="stv.name">Nombre</label>
+        <input id="addStvName" type="text" placeholder="Ej. TV Recepción" maxlength="60" data-i18n-attr="placeholder:stv.name_ph"
           style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
       </div>
       <div>
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">Orientación</label>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="stv.orientation">Orientación</label>
         <select id="addStvOrientation"
           style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
-          <option value="H">Horizontal</option>
-          <option value="V">Vertical</option>
+          <option value="H" data-i18n="stv.horizontal">Horizontal</option>
+          <option value="V" data-i18n="stv.vertical">Vertical</option>
         </select>
       </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-outline btn-sm" onclick="closeAddSmartTvModal()">Cancelar</button>
-      <button class="btn btn-primary btn-sm" style="background:#4c2680;border-color:#4c2680;color:#fff;" onclick="submitAddSmartTv()">Crear y generar código</button>
+      <button class="btn btn-outline btn-sm" onclick="closeAddSmartTvModal()" data-i18n="common.cancel">Cancelar</button>
+      <button class="btn btn-primary btn-sm" style="background:#4c2680;border-color:#4c2680;color:#fff;" onclick="submitAddSmartTv()" data-i18n="stv.create_and_generate">Crear y generar código</button>
     </div>
   </div>
 </div>
@@ -9928,31 +9928,31 @@ async function licSubmitUsdOrder() {
 <!-- Nueva Orden (USD / PayPal) -->
 <div id="licNewOrderModalUsd" onclick="if(event.target===this)closeLicNewOrderModal()">
   <div class="modal-content">
-    <div class="lic-modal-title">New order — International</div>
-    <div class="lic-modal-sub">Choose product and subscribe via PayPal.</div>
+    <div class="lic-modal-title" data-i18n="usd.title">New order — International</div>
+    <div class="lic-modal-sub" data-i18n="usd.sub">Choose product and subscribe via PayPal.</div>
 
     <div class="lic-form-group">
-      <label class="lic-form-label">Product</label>
+      <label class="lic-form-label" data-i18n="usd.product">Product</label>
       <select id="licOrderProductUsd" class="lic-select" onchange="licUpdateUsdPayLink()">
-        <option value="smart_tv">SONORO Smart TV — monthly subscription</option>
-        <option value="windows">SONORO Windows — monthly subscription</option>
-        <option value="player">SONORO Player — monthly subscription</option>
+        <option value="smart_tv" data-i18n="usd.prod_smarttv">SONORO Smart TV — monthly subscription</option>
+        <option value="windows" data-i18n="usd.prod_windows">SONORO Windows — monthly subscription</option>
+        <option value="player" data-i18n="usd.prod_player">SONORO Player — monthly subscription</option>
       </select>
     </div>
 
     <div class="lic-pay-block" style="background:var(--surface2);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Amount</div>
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="usd.amount">Amount</div>
       <div id="licAmountUsd" style="font-size:22px;font-weight:800;color:var(--text);margin-top:4px;">—</div>
     </div>
 
     <div class="lic-pay-block">
-      <div class="lic-pay-label">Pay with PayPal</div>
-      <a id="licPaypalLink" href="#" target="_blank" rel="noopener" class="lic-btn-grad" style="display:inline-block;text-decoration:none;text-align:center;">Subscribe on PayPal</a>
+      <div class="lic-pay-label" data-i18n="usd.pay_paypal">Pay with PayPal</div>
+      <a id="licPaypalLink" href="#" target="_blank" rel="noopener" class="lic-btn-grad" style="display:inline-block;text-decoration:none;text-align:center;" data-i18n="usd.subscribe">Subscribe on PayPal</a>
     </div>
 
     <div class="lic-modal-actions">
-      <button class="lic-btn-outline" onclick="closeLicNewOrderModal()">Close</button>
-      <button class="lic-btn-grad" onclick="licSubmitUsdOrder()">Create order</button>
+      <button class="lic-btn-outline" onclick="closeLicNewOrderModal()" data-i18n="common.close">Close</button>
+      <button class="lic-btn-grad" onclick="licSubmitUsdOrder()" data-i18n="usd.create_order">Create order</button>
     </div>
   </div>
 </div>

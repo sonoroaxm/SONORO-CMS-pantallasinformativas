@@ -1060,9 +1060,9 @@
 <div class="topbar">
   <div class="topbar-logo">SONORO.</div>
   <div class="topbar-divider"></div>
-  <div class="topbar-subtitle">Admin</div>
-  <span class="topbar-badge super-only">Super Admin</span>
-  <span class="topbar-badge admin-only" id="topbar-staff-badge" style="display:none;background:rgba(123,97,255,0.12);border-color:rgba(123,97,255,0.3);color:#a78bfa;">Admin</span>
+  <div class="topbar-subtitle" data-i18n="tb.admin">Admin</div>
+  <span class="topbar-badge super-only" data-i18n="tb.super_admin">Super Admin</span>
+  <span class="topbar-badge admin-only" id="topbar-staff-badge" style="display:none;background:rgba(123,97,255,0.12);border-color:rgba(123,97,255,0.3);color:#a78bfa;" data-i18n="tb.admin">Admin</span>
   <span class="topbar-badge client-only" id="topbar-client-badge" style="background:rgba(255,140,0,0.12);border-color:rgba(255,140,0,0.3);color:#ff8c00;"></span>
   <div class="topbar-right">
     <span class="topbar-user" id="topbar-user"></span>
@@ -1072,7 +1072,7 @@
       <option value="pt-BR">PT</option>
     </select>
     <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
-    <button class="logout-btn" onclick="logout()" data-i18n="topbar.logout">Cerrar Sesión</button>
+    <button class="logout-btn" onclick="logout()" data-i18n="tb.logout">Cerrar Sesión</button>
   </div>
 </div>
 
@@ -1085,24 +1085,24 @@
     <!-- CLIENT ADMIN sidebar (hidden for super admin) -->
     <div class="sidebar-group mi-cuenta open client-only" id="sg-mi-cuenta">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-mi-cuenta')">
-        <div class="sidebar-group-label" data-i18n="mc.title">Mi Cuenta</div>
+        <div class="sidebar-group-label" data-i18n="sb.mi_cuenta">Mi Cuenta</div>
         <div class="sidebar-group-arrow">▶</div>
       </div>
       <div class="sidebar-children">
         <div class="sidebar-children-inner">
-          <button class="sidebar-btn active" onclick="showTab('client-overview', this)">Resumen</button>
-          <button class="sidebar-btn" onclick="showTab('mis-dispositivos', this)">Mis Dispositivos</button>
+          <button class="sidebar-btn active" onclick="showTab('client-overview', this)" data-i18n="sb.resumen">Resumen</button>
+          <button class="sidebar-btn" onclick="showTab('mis-dispositivos', this)" data-i18n="sb.mis_dispositivos">Mis Dispositivos</button>
         </div>
       </div>
     </div>
     <div class="sidebar-group mis-sedes open client-only" id="sg-mis-sedes">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-mis-sedes')">
-        <div class="sidebar-group-label">Mis Sedes</div>
+        <div class="sidebar-group-label" data-i18n="sb.mis_sedes">Mis Sedes</div>
         <div class="sidebar-group-arrow">▶</div>
       </div>
       <div class="sidebar-children">
         <div class="sidebar-children-inner">
-          <button class="sidebar-btn" onclick="showTab('mis-sedes', this)">Ver Sedes</button>
+          <button class="sidebar-btn" onclick="showTab('mis-sedes', this)" data-i18n="sb.ver_sedes">Ver Sedes</button>
         </div>
       </div>
     </div>
@@ -1182,12 +1182,12 @@
 
     <div class="sidebar-group contenido open" id="sg-contenido">
       <div class="sidebar-group-header" onclick="toggleAdminGroup('sg-contenido')">
-        <div class="sidebar-group-label">Contenido</div>
+        <div class="sidebar-group-label" data-i18n="sb.contenido">Contenido</div>
         <div class="sidebar-group-arrow">▶</div>
       </div>
       <div class="sidebar-children">
         <div class="sidebar-children-inner">
-          <button class="sidebar-btn" onclick="showTab('bulkpush', this)">Bulk Push</button>
+          <button class="sidebar-btn" onclick="showTab('bulkpush', this)" data-i18n="sb.bulkpush">Bulk Push</button>
         </div>
       </div>
     </div>
@@ -1452,70 +1452,70 @@
     <div id="tab-client-overview" class="tab-content">
       <div class="section-header">
         <div>
-          <div class="section-title" id="client-overview-title">Resumen</div>
-          <div class="section-sub" id="client-overview-sub">Cargando...</div>
+          <div class="section-title" id="client-overview-title" data-i18n="ov.title">Resumen</div>
+          <div class="section-sub" id="client-overview-sub" data-i18n="common.loading">Cargando...</div>
         </div>
-        <button class="btn btn-outline btn-sm" id="client-refresh-btn" onclick="loadClientOverview()">Actualizar</button>
+        <button class="btn btn-outline btn-sm" id="client-refresh-btn" onclick="loadClientOverview()" data-i18n="ov.refresh">Actualizar</button>
       </div>
       <!-- Server status bar -->
       <div class="server-status-bar" id="client-server-bar">
-        <span class="ssb-label">Servidor CMS</span>
+        <span class="ssb-label" data-i18n="ov.server">Servidor CMS</span>
         <span class="ssb-dot"></span>
-        <span class="ssb-operative">Operativo</span>
+        <span class="ssb-operative" data-i18n="ov.operative">Operativo</span>
         <span class="ssb-meta" id="ssb-uptime">Uptime: —</span>
         <span class="ssb-meta" id="ssb-latency">Latencia: —ms</span>
       </div>
       <!-- Stats -->
       <div class="stats-grid" id="client-stats-grid">
-        <div class="stat-card"><div class="stat-label">Dispositivos</div><div class="stat-value" id="cs-devices">—</div><div class="stat-sub" id="cs-devices-sub">—</div></div>
-        <div class="stat-card"><div class="stat-label">Sedes</div><div class="stat-value" id="cs-sedes">—</div><div class="stat-sub" id="cs-sedes-sub">—</div></div>
-        <div class="stat-card"><div class="stat-label">Playlists activas</div><div class="stat-value" id="cs-playlists">—</div><div class="stat-sub">en reproducción ahora</div></div>
-        <div class="stat-card"><div class="stat-label">Contenido</div><div class="stat-value" id="cs-content">—</div><div class="stat-sub" id="cs-content-sub">archivos</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="ov.devices">Dispositivos</div><div class="stat-value" id="cs-devices">—</div><div class="stat-sub" id="cs-devices-sub">—</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="ov.sedes">Sedes</div><div class="stat-value" id="cs-sedes">—</div><div class="stat-sub" id="cs-sedes-sub">—</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="ov.playlists">Playlists activas</div><div class="stat-value" id="cs-playlists">—</div><div class="stat-sub" data-i18n="ov.playing_now">en reproducción ahora</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="ov.content">Contenido</div><div class="stat-value" id="cs-content">—</div><div class="stat-sub" id="cs-content-sub" data-i18n="ov.files">archivos</div></div>
       </div>
       <!-- Sedes summary -->
-      <div class="section-sub" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;">Estado por sede</div>
-      <div class="sedes-grid" id="client-sedes-grid"><div class="loading">Cargando sedes...</div></div>
+      <div class="section-sub" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;" data-i18n="ov.status_by_sede">Estado por sede</div>
+      <div class="sedes-grid" id="client-sedes-grid"><div class="loading" data-i18n="ov.loading_sedes">Cargando sedes...</div></div>
     </div>
 
     <!-- ═══════════════ MIS DISPOSITIVOS ═══════════════ -->
     <div id="tab-mis-dispositivos" class="tab-content">
       <div class="section-header">
-        <div><div class="section-title">Mis Dispositivos</div><div class="section-sub">Dispositivos asignados a tu cuenta</div></div>
+        <div><div class="section-title" data-i18n="md.title">Mis Dispositivos</div><div class="section-sub" data-i18n="md.sub">Dispositivos asignados a tu cuenta</div></div>
       </div>
-      <div id="mis-dispositivos-grid" class="rpi-grid"><div class="loading">Cargando...</div></div>
+      <div id="mis-dispositivos-grid" class="rpi-grid"><div class="loading" data-i18n="common.loading">Cargando...</div></div>
     </div>
 
     <!-- ═══════════════ MIS SEDES ═══════════════ -->
     <div id="tab-mis-sedes" class="tab-content">
       <div class="section-header">
-        <div><div class="section-title">Mis Sedes</div><div class="section-sub">Gestión de ubicaciones y dispositivos</div></div>
+        <div><div class="section-title" data-i18n="ms.title">Mis Sedes</div><div class="section-sub" data-i18n="ms.sub">Gestión de ubicaciones y dispositivos</div></div>
       </div>
-      <div class="sedes-grid" id="mis-sedes-grid"><div class="loading">Cargando sedes...</div></div>
+      <div class="sedes-grid" id="mis-sedes-grid"><div class="loading" data-i18n="ov.loading_sedes">Cargando sedes...</div></div>
     </div>
 
     <!-- ═══════════════ BULK PUSH ═══════════════ -->
     <div id="tab-bulkpush" class="tab-content">
       <div class="section-header">
         <div>
-          <div class="section-title">Bulk Push</div>
-          <div class="section-sub">Envío masivo de playlist a múltiples dispositivos</div>
+          <div class="section-title" data-i18n="bp.title">Bulk Push</div>
+          <div class="section-sub" data-i18n="bp.sub">Envío masivo de playlist a múltiples dispositivos</div>
         </div>
       </div>
 
       <div class="card" style="max-width:820px;">
         <!-- Steps -->
         <div class="bulk-step-bar" id="bulk-steps">
-          <div class="bulk-step done"><div class="bulk-step-num">1</div><div class="bulk-step-label">Playlist</div></div>
-          <div class="bulk-step active"><div class="bulk-step-num">2</div><div class="bulk-step-label">Destino</div></div>
-          <div class="bulk-step"><div class="bulk-step-num">3</div><div class="bulk-step-label">Formato</div></div>
-          <div class="bulk-step"><div class="bulk-step-num">4</div><div class="bulk-step-label">Confirmar</div></div>
+          <div class="bulk-step done"><div class="bulk-step-num">1</div><div class="bulk-step-label" data-i18n="bp.step_playlist">Playlist</div></div>
+          <div class="bulk-step active"><div class="bulk-step-num">2</div><div class="bulk-step-label" data-i18n="bp.step_dest">Destino</div></div>
+          <div class="bulk-step"><div class="bulk-step-num">3</div><div class="bulk-step-label" data-i18n="bp.step_format">Formato</div></div>
+          <div class="bulk-step"><div class="bulk-step-num">4</div><div class="bulk-step-label" data-i18n="bp.step_confirm">Confirmar</div></div>
         </div>
 
         <!-- Step 1: Playlist -->
         <div style="margin-bottom:18px;">
-          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">1 — Playlist a enviar</div>
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;" data-i18n="bp.s1_label">1 — Playlist a enviar</div>
           <select id="bulk-playlist" class="renew-select" style="width:100%;padding:10px 12px;font-size:13px;" onchange="updateBulkSteps()">
-            <option value="">— Seleccionar playlist —</option>
+            <option value="" data-i18n="bp.select_playlist">— Seleccionar playlist —</option>
           </select>
         </div>
 
@@ -1523,47 +1523,47 @@
 
         <!-- Step 2: Destino geográfico -->
         <div style="margin-bottom:18px;">
-          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">2 — Nivel geográfico de destino</div>
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;" data-i18n="bp.s2_label">2 — Nivel geográfico de destino</div>
           <div class="geo-level">
             <div class="geo-row">
-              <div class="geo-label">País</div>
+              <div class="geo-label" data-i18n="bp.country">País</div>
               <div class="geo-chips">
                 <span class="geo-chip selected" data-level="country" data-val="all" onclick="selectGeo(this,'country')">Colombia</span>
               </div>
             </div>
             <div class="geo-row">
-              <div class="geo-label">Ciudad</div>
+              <div class="geo-label" data-i18n="bp.city">Ciudad</div>
               <div class="geo-chips" id="bulk-cities">
-                <span class="geo-chip selected" data-level="city" data-val="" onclick="selectGeo(this,'city')">Todas</span>
+                <span class="geo-chip selected" data-level="city" data-val="" onclick="selectGeo(this,'city')" data-i18n="bp.all_f">Todas</span>
               </div>
             </div>
             <div class="geo-row">
-              <div class="geo-label">Sede</div>
+              <div class="geo-label" data-i18n="bp.branch">Sede</div>
               <div class="geo-chips" id="bulk-branches">
-                <span class="geo-chip selected disabled" data-level="branch" data-val="" onclick="selectGeo(this,'branch')">Todas</span>
+                <span class="geo-chip selected disabled" data-level="branch" data-val="" onclick="selectGeo(this,'branch')" data-i18n="bp.all_f">Todas</span>
               </div>
             </div>
           </div>
-          <div style="margin-top:10px;font-size:11px;color:var(--muted);">Ruta: <span id="bulk-path" style="color:var(--magenta);font-weight:600;">Colombia</span></div>
+          <div style="margin-top:10px;font-size:11px;color:var(--muted);"><span data-i18n="bp.route">Ruta:</span> <span id="bulk-path" style="color:var(--magenta);font-weight:600;">Colombia</span></div>
         </div>
 
         <div style="height:1px;background:var(--border);margin-bottom:18px;"></div>
 
         <!-- Step 3: Formato -->
         <div style="margin-bottom:18px;">
-          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">3 — Formato de pantalla</div>
+          <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;" data-i18n="bp.s3_label">3 — Formato de pantalla</div>
           <div class="format-cards">
             <div class="format-card selected" onclick="selectFormat(this,'')">
-              <div class="format-card-title">Todas</div>
-              <div class="format-card-sub">Sin filtrar por orientación</div>
+              <div class="format-card-title" data-i18n="bp.all_f">Todas</div>
+              <div class="format-card-sub" data-i18n="bp.all_sub">Sin filtrar por orientación</div>
             </div>
             <div class="format-card" onclick="selectFormat(this,'horizontal')">
-              <div class="format-card-title">Horizontal</div>
-              <div class="format-card-sub">Pantallas apaisadas</div>
+              <div class="format-card-title" data-i18n="bp.horizontal">Horizontal</div>
+              <div class="format-card-sub" data-i18n="bp.horizontal_sub">Pantallas apaisadas</div>
             </div>
             <div class="format-card" onclick="selectFormat(this,'vertical')">
-              <div class="format-card-title">Vertical</div>
-              <div class="format-card-sub">Pantallas de pie</div>
+              <div class="format-card-title" data-i18n="bp.vertical">Vertical</div>
+              <div class="format-card-sub" data-i18n="bp.vertical_sub">Pantallas de pie</div>
             </div>
           </div>
         </div>
@@ -1573,18 +1573,18 @@
         <!-- Step 4: Preview + Confirmar -->
         <div style="margin-bottom:16px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">4 — Previsualizar y confirmar</div>
-            <button class="btn btn-outline btn-sm" onclick="previewBulkPush()">Previsualizar</button>
+            <div class="form-label" style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);" data-i18n="bp.s4_label">4 — Previsualizar y confirmar</div>
+            <button class="btn btn-outline btn-sm" onclick="previewBulkPush()" data-i18n="bp.preview">Previsualizar</button>
           </div>
           <div id="bulk-preview-wrap" style="display:none;">
             <div class="bulk-preview-box" style="margin-bottom:12px;">
               <div class="bulk-preview-header">
-                <span class="bulk-preview-title">Dispositivos que recibirán la playlist</span>
-                <span class="bulk-preview-count"><span id="bulk-count">0</span> <span>dispositivos</span></span>
+                <span class="bulk-preview-title" data-i18n="bp.recv_title">Dispositivos que recibirán la playlist</span>
+                <span class="bulk-preview-count"><span id="bulk-count">0</span> <span data-i18n="bp.devices">dispositivos</span></span>
               </div>
               <table class="bulk-preview-table" id="bulk-preview-table">
                 <thead><tr>
-                  <th>Dispositivo</th><th>Ciudad / Sede</th><th>Puertos</th><th>Playlist actual</th><th>Acción</th>
+                  <th data-i18n="bp.th_device">Dispositivo</th><th data-i18n="bp.th_city_branch">Ciudad / Sede</th><th data-i18n="bp.th_ports">Puertos</th><th data-i18n="bp.th_current">Playlist actual</th><th data-i18n="bp.th_action">Acción</th>
                 </tr></thead>
                 <tbody id="bulk-preview-body"></tbody>
               </table>
@@ -1594,8 +1594,8 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">
               <span style="margin-right:auto;font-size:12px;color:var(--magenta);font-weight:600;" id="bulk-summary-pill"></span>
-              <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulk-preview-wrap').style.display='none'">Cancelar</button>
-              <button class="btn btn-primary" onclick="applyBulkPush()" id="bulk-apply-btn">Enviar a todos</button>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulk-preview-wrap').style.display='none'" data-i18n="common.cancel">Cancelar</button>
+              <button class="btn btn-primary" onclick="applyBulkPush()" id="bulk-apply-btn" data-i18n="bp.send_all">Enviar a todos</button>
             </div>
           </div>
         </div>
