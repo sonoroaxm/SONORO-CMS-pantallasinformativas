@@ -1384,6 +1384,7 @@
         <div class="section-header">
           <div class="section-title" data-i18n="dev.title">Gestión de Dispositivos</div>
           <div style="display:flex;gap:8px;">
+            <button id="btn-pair-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openSmartTvBindModal()" data-i18n="dev.pair_smarttv">Emparejar código TV</button>
             <button id="btn-add-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openAddSmartTvModal()" data-i18n="dev.add_smarttv">+ Agregar Smart TV</button>
             <button class="btn btn-grad" onclick="openActivationModal()" data-i18n="dev.gen_code">+ Generar Código</button>
           </div>
@@ -3768,6 +3769,8 @@ async function loadDevices(silent = false) {
   const container = document.getElementById('devices-list');
   const addStvBtn = document.getElementById('btn-add-smarttv');
   if (addStvBtn) addStvBtn.style.display = currentUser?.smarttv_enabled ? '' : 'none';
+  const pairStvBtn = document.getElementById('btn-pair-smarttv');
+  if (pairStvBtn) pairStvBtn.style.display = currentUser?.smarttv_enabled ? '' : 'none';
   if (!container.innerHTML || container.innerHTML.includes('Cargando') || container.innerHTML.includes('No hay')) {
     container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">Cargando...</p>';
   }
@@ -9373,6 +9376,110 @@ function closeSmartTvPairModal() {
   document.getElementById('stvPairCode').style.opacity = '1';
 }
 
+// ── v1.2.1: EMPAREJAR CÓDIGO TV (TV-initiated + dual-confirm) ────
+// Flujo: cliente enciende TV → TV abre /pair → TV muestra código →
+// cliente lo tipea acá → server lookup eligible devices → dropdown →
+// confirma → server bindea + notifica al TV vía SSE → TV va a /player.
+function openSmartTvBindModal() {
+  const modal = document.getElementById('smarttvBindModal');
+  if (!modal) return;
+  document.getElementById('stvBindCode').value = '';
+  document.getElementById('stvBindDeviceRow').style.display = 'none';
+  document.getElementById('stvBindMsg').textContent = '';
+  document.getElementById('stvBindMsg').className = 'stv-bind-msg';
+  document.getElementById('stvBindSubmit').disabled = false;
+  document.getElementById('stvBindSubmit').textContent = 'Emparejar';
+  modal.classList.add('show');
+  setTimeout(() => document.getElementById('stvBindCode').focus(), 50);
+}
+function closeSmartTvBindModal() {
+  document.getElementById('smarttvBindModal').classList.remove('show');
+}
+async function stvBindLookup() {
+  const code = document.getElementById('stvBindCode').value.trim().toUpperCase();
+  const msgEl = document.getElementById('stvBindMsg');
+  msgEl.className = 'stv-bind-msg';
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    msgEl.textContent = 'Código inválido (6 caracteres A-Z, 0-9).';
+    msgEl.className = 'stv-bind-msg err';
+    return;
+  }
+  const base = window.SMARTTV_API_BASE || '';
+  try {
+    const r = await fetch(`${base}/api/pair/eligible-devices`, {
+      headers: { 'authorization': 'Bearer ' + authToken },
+    });
+    if (r.status === 401) { msgEl.textContent = 'Sesión expirada.'; msgEl.className = 'stv-bind-msg err'; return; }
+    if (!r.ok) { msgEl.textContent = 'Error consultando dispositivos.'; msgEl.className = 'stv-bind-msg err'; return; }
+    const j = await r.json();
+    const sel = document.getElementById('stvBindDevice');
+    sel.innerHTML = '';
+    if (!j.devices || j.devices.length === 0) {
+      msgEl.textContent = 'No tienes Smart TVs disponibles para emparejar. Crea uno primero.';
+      msgEl.className = 'stv-bind-msg warn';
+      return;
+    }
+    j.devices.forEach((d) => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name + ' — ' + (d.orientation === 'V' || d.orientation === 'portrait' ? 'Vertical' : 'Horizontal');
+      sel.appendChild(opt);
+    });
+    document.getElementById('stvBindDeviceRow').style.display = '';
+    msgEl.textContent = '';
+  } catch (e) {
+    msgEl.textContent = 'Error de red.';
+    msgEl.className = 'stv-bind-msg err';
+  }
+}
+async function stvBindSubmit() {
+  const code = document.getElementById('stvBindCode').value.trim().toUpperCase();
+  const deviceId = parseInt(document.getElementById('stvBindDevice').value, 10);
+  const msgEl = document.getElementById('stvBindMsg');
+  const btn = document.getElementById('stvBindSubmit');
+  if (!/^[A-Z0-9]{6}$/.test(code) || !deviceId) return;
+  btn.disabled = true;
+  btn.textContent = 'Emparejando…';
+  const base = window.SMARTTV_API_BASE || '';
+  try {
+    const r = await fetch(`${base}/api/pair/bind`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ short_code: code, device_id: deviceId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      msgEl.textContent = stvBindErr(j.error) || ('Error: ' + r.status);
+      msgEl.className = 'stv-bind-msg err';
+      btn.disabled = false;
+      btn.textContent = 'Emparejar';
+      return;
+    }
+    msgEl.textContent = 'Emparejado. El TV cambia solo a la playlist.';
+    msgEl.className = 'stv-bind-msg ok';
+    btn.textContent = 'Listo';
+    setTimeout(() => { closeSmartTvBindModal(); loadDevices(); }, 1400);
+  } catch (e) {
+    msgEl.textContent = 'Error de red.';
+    msgEl.className = 'stv-bind-msg err';
+    btn.disabled = false;
+    btn.textContent = 'Emparejar';
+  }
+}
+function stvBindErr(code) {
+  return ({
+    session_not_found: 'Ese código no existe. Verifica lo que muestra el TV.',
+    session_already_bound: 'Ese pareo ya fue confirmado antes.',
+    session_expired: 'El código expiró. Recarga la pantalla del TV.',
+    smarttv_not_enabled: 'Tu cuenta no tiene Smart TV habilitado.',
+    device_not_found: 'Dispositivo no encontrado.',
+    not_owner: 'Ese dispositivo no te pertenece.',
+    device_not_smarttv: 'Ese dispositivo no es un Smart TV.',
+    device_already_claimed: 'Ese Smart TV ya está emparejado con otro TV.',
+    invalid_short_code_format: 'Código inválido (6 caracteres A-Z, 0-9).',
+  })[code];
+}
+
 async function copySmartTvCode() {
   const code = document.getElementById('stvPairCode').textContent;
   try {
@@ -9405,8 +9512,10 @@ async function submitAddSmartTv() {
     closeAddSmartTvModal();
     showStatus('Smart TV creado', 'success');
     await loadDevices();
-    // Auto-genera pair-code inmediato — flujo D2 pair-only.
-    generateSmartTvCode(data.device.id, data.device.name);
+    // v1.2.1: no auto-generamos código. El TV lo crea al abrir /pair.
+    // Abrimos directamente el modal "Emparejar código TV" para que el
+    // cliente digite el código que aparecerá en el TV.
+    openSmartTvBindModal();
   } catch (e) {
     showStatus('Error de red: ' + e.message, 'error');
   }
@@ -9826,7 +9935,38 @@ async function licSubmitUsdOrder() {
 
 </script>
 
-<!-- Smart TV pair-code modal (framework v1.2 D2) -->
+<!-- Smart TV bind modal (framework v1.2.1 D2' — cliente tipea código del TV) -->
+<div id="smarttvBindModal" onclick="if(event.target===this)closeSmartTvBindModal()">
+  <div class="modal-content" style="background:#151515;border:1px solid #2a2a2a;border-radius:10px;padding:26px;max-width:440px;width:92%;">
+    <h3 style="margin:0 0 6px 0;font-size:18px;font-weight:600;">Emparejar código TV</h3>
+    <p style="margin:0 0 20px 0;font-size:13px;color:var(--text-muted);">Digita el código que aparece en la pantalla del TV.</p>
+    <div>
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Código del TV</label>
+      <input id="stvBindCode" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="ABC123"
+        oninput="this.value=this.value.toUpperCase();if(this.value.length===6)stvBindLookup();"
+        style="width:100%;font-family:'SF Mono',Menlo,monospace;font-size:30px;text-align:center;letter-spacing:.28em;padding:14px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);text-transform:uppercase;outline:none;">
+    </div>
+    <div id="stvBindDeviceRow" style="display:none;margin-top:16px;">
+      <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Vincular al dispositivo</label>
+      <select id="stvBindDevice"
+        style="width:100%;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;"></select>
+    </div>
+    <div id="stvBindMsg" class="stv-bind-msg" style="margin-top:14px;min-height:18px;font-size:13px;text-align:center;font-weight:500;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-outline btn-sm" onclick="closeSmartTvBindModal()">Cancelar</button>
+      <button id="stvBindSubmit" class="btn btn-primary btn-sm" style="background:#4c2680;border-color:#4c2680;color:#fff;" onclick="stvBindSubmit()">Emparejar</button>
+    </div>
+  </div>
+</div>
+<style>
+  #smarttvBindModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+  #smarttvBindModal.show { display: flex; }
+  .stv-bind-msg.err { color: #ff6b6b; }
+  .stv-bind-msg.ok { color: #00e676; }
+  .stv-bind-msg.warn { color: #ffd54f; }
+</style>
+
+<!-- Smart TV pair-code modal (framework v1.2 D2 — DEPRECADO por v1.2.1, se mantiene para rollback) -->
 <div id="smarttvPairModal" onclick="if(event.target===this)closeSmartTvPairModal()">
   <div class="stv-pair-card">
     <h3 data-i18n="stv.pair_title">Código de pareo Smart TV</h3>
