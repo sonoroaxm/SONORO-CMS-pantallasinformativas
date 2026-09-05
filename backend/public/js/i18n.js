@@ -929,8 +929,11 @@
 
   // Bootstrap
   function bootstrap(){
+    var fromUrl = null;
+    try { var _m = /[?&]lang=([^&]+)/.exec(location.search||''); if (_m) fromUrl = decodeURIComponent(_m[1]); } catch(e){}
     var stored = null;
     try { stored = localStorage.getItem('sonoro_locale'); } catch(e){}
+    if (fromUrl){ var _r = resolveLocale(fromUrl); try { localStorage.setItem('sonoro_locale', _r); } catch(e){} stored = _r; }
     var fromUser = null;
     try { var cu = JSON.parse(localStorage.getItem('currentUser')||'null'); if (cu && cu.locale) fromUser = cu.locale; } catch(e){}
     var initial = resolveLocale(stored || fromUser || detectFromNavigator());

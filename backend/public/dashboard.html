@@ -1214,6 +1214,37 @@
         </form>
       </div>
     </div>
+
+    <!-- Language selector -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+      <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+    </defs></svg>
+    <div id="langSelectLoginWrap" style="display:flex;justify-content:center;margin-top:20px;">
+      <div class="sonoro-lang-pill" style="display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px;gap:2px;">
+        <button type="button" data-lang="es" onclick="window.SonoroI18n&&window.SonoroI18n.setLocale('es')" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:7px;cursor:pointer;color:var(--text-muted);font-size:12px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit;">ES</button>
+        <button type="button" data-lang="en" onclick="window.SonoroI18n&&window.SonoroI18n.setLocale('en')" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:7px;cursor:pointer;color:var(--text-muted);font-size:12px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit;"><svg style="width:20px;height:14px;display:block;border-radius:2px;"><use href="#sonoro-flag-us"/></svg>EN</button>
+        <button type="button" data-lang="pt-BR" onclick="window.SonoroI18n&&window.SonoroI18n.setLocale('pt-BR')" style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:7px;cursor:pointer;color:var(--text-muted);font-size:12px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit;"><svg style="width:20px;height:14px;display:block;border-radius:2px;"><use href="#sonoro-flag-br"/></svg>PT</button>
+      </div>
+    </div>
+    <script>
+      (function(){
+        function syncLangPill(){
+          var loc = (window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || 'es';
+          document.querySelectorAll('#langSelectLoginWrap [data-lang]').forEach(function(b){
+            var on = b.getAttribute('data-lang') === loc;
+            b.style.background = on ? 'var(--surface)' : 'transparent';
+            b.style.color = on ? 'var(--text)' : 'var(--text-muted)';
+          });
+        }
+        document.addEventListener('DOMContentLoaded', function(){
+          syncLangPill();
+          document.querySelectorAll('#langSelectLoginWrap [data-lang]').forEach(function(b){
+            b.addEventListener('click', function(){ setTimeout(syncLangPill, 30); });
+          });
+        });
+      })();
+    </script>
   </div>
 </div>
 
