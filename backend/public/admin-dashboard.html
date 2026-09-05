@@ -2031,7 +2031,7 @@
           <div style="margin-bottom:12px;">
             <div class="form-label">Playlist de publicidad</div>
             <select id="fids-overlay-playlist" class="renew-select" style="width:100%;">
-              <option value="">— Seleccionar playlist —</option>
+              <option value="" data-i18n="bp.select_playlist">— Seleccionar playlist —</option>
             </select>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">Gestionadas en <strong>Playlist FIDS</strong> del sidebar.</div>
           </div>
@@ -3156,7 +3156,7 @@ async function loadBulkPushData() {
   const playlists = await api('/api/playlists');
   const sel = document.getElementById('bulk-playlist');
   if (sel && playlists?.length) {
-    sel.innerHTML = '<option value="">— Seleccionar playlist —</option>' +
+    sel.innerHTML = '<option value="">' + (window.SonoroI18n ? SonoroI18n.t('bp.select_playlist','— Seleccionar playlist —') : '— Seleccionar playlist —') + '</option>' +
       playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   }
   // Cargar ciudades y sedes desde dispositivos con branch
@@ -4467,10 +4467,11 @@ async function openFidsModal(groupId) {
     _fidsPlaylists = pl || [];
   }
   const sel = document.getElementById('fids-overlay-playlist');
-  sel.innerHTML = '<option value="">— Seleccionar playlist —</option>' +
+  var _t = window.SonoroI18n ? SonoroI18n.t.bind(SonoroI18n) : function(k,f){return f;};
+  sel.innerHTML = '<option value="">' + _t('bp.select_playlist','— Seleccionar playlist —') + '</option>' +
     _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
   const selLb = document.getElementById('fids-lowerbar-playlist');
-  selLb.innerHTML = '<option value="">— Seleccionar playlist FIDS —</option>' +
+  selLb.innerHTML = '<option value="">' + _t('bp.select_playlist_fids','— Seleccionar playlist FIDS —') + '</option>' +
     _fidsPlaylists.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
 
   if (groupId) {

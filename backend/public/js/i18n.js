@@ -36,7 +36,7 @@
         email:'Email', name:'Nombre', role:'Rol', country:'País',
         change_pw:'Cambiar contraseña', pw_current:'Contraseña actual', pw_new:'Nueva contraseña (mín. 8)', pw_confirm:'Confirmar nueva contraseña', change_pw_btn:'Cambiar contraseña',
         role_admin:'Administrador', role_agent:'Agente', role_client:'Cliente' },
-      stv: { add_title:'Agregar Smart TV', add_sub:'Se creará el dispositivo y se generará un código de pareo para el TV.', name:'Nombre', name_ph:'Ej. TV Recepción', orientation:'Orientación', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Crear y generar código', pair_title:'Código de pareo Smart TV', expires:'Expira:', remaining:'Restante:' },
+      stv: { add_title:'Agregar Smart TV', add_sub:'Se creará el dispositivo y se generará un código de pareo para el TV.', name:'Nombre', name_ph:'Ej. TV Recepción', orientation:'Orientación', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Crear y generar código', pair_title:'Código de pareo Smart TV', expires:'Expira:', remaining:'Restante:', pair_hint:'En el navegador del Smart TV abre <code>cms.sonoro.com.co/pair</code> y digita este código. Una vez pareado, la playlist asignada reproduce en el TV.' },
       usd: { title:'Nueva orden — Internacional', sub:'Elige el producto y suscríbete vía PayPal.', product:'Producto', prod_smarttv:'SONORO Smart TV — suscripción mensual', prod_windows:'SONORO Windows — suscripción mensual', prod_player:'SONORO Player — suscripción mensual', amount:'Monto', pay_paypal:'Pago con PayPal', subscribe:'Suscribirse en PayPal', create_order:'Crear orden' },
       pro: { badge:'Plan Pro activo', desc:'— envía la misma playlist a múltiples pantallas y agrúpalas por sede.', tags:'Bulk Push · Multi-sede · Reportes por ubicación', cta:'Ir a Sedes & Bulk Push →' },
       tb: { admin:'Admin', super_admin:'Super Admin', logout:'Cerrar Sesión' },
@@ -76,7 +76,7 @@
         email:'Email', name:'Name', role:'Role', country:'Country',
         change_pw:'Change password', pw_current:'Current password', pw_new:'New password (min. 8)', pw_confirm:'Confirm new password', change_pw_btn:'Change password',
         role_admin:'Administrator', role_agent:'Agent', role_client:'Client' },
-      stv: { add_title:'Add Smart TV', add_sub:'The device will be created and a pairing code will be generated for the TV.', name:'Name', name_ph:'E.g. Reception TV', orientation:'Orientation', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Create and generate code', pair_title:'Smart TV pairing code', expires:'Expires:', remaining:'Remaining:' },
+      stv: { add_title:'Add Smart TV', add_sub:'The device will be created and a pairing code will be generated for the TV.', name:'Name', name_ph:'E.g. Reception TV', orientation:'Orientation', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Create and generate code', pair_title:'Smart TV pairing code', expires:'Expires:', remaining:'Remaining:', pair_hint:'On the Smart TV browser open <code>cms.sonoro.com.co/pair</code> and enter this code. Once paired, the assigned playlist plays on the TV.' },
       usd: { title:'New order — International', sub:'Choose product and subscribe via PayPal.', product:'Product', prod_smarttv:'SONORO Smart TV — monthly subscription', prod_windows:'SONORO Windows — monthly subscription', prod_player:'SONORO Player — monthly subscription', amount:'Amount', pay_paypal:'Pay with PayPal', subscribe:'Subscribe on PayPal', create_order:'Create order' },
       pro: { badge:'Pro Plan active', desc:'— push the same playlist to multiple screens and group them by location.', tags:'Bulk Push · Multi-site · Reports by location', cta:'Go to Sites & Bulk Push →' },
       tb: { admin:'Admin', super_admin:'Super Admin', logout:'Log out' },
@@ -116,7 +116,7 @@
         email:'E-mail', name:'Nome', role:'Função', country:'País',
         change_pw:'Alterar senha', pw_current:'Senha atual', pw_new:'Nova senha (mín. 8)', pw_confirm:'Confirmar nova senha', change_pw_btn:'Alterar senha',
         role_admin:'Administrador', role_agent:'Agente', role_client:'Cliente' },
-      stv: { add_title:'Adicionar Smart TV', add_sub:'O dispositivo será criado e um código de pareamento será gerado para a TV.', name:'Nome', name_ph:'Ex. TV Recepção', orientation:'Orientação', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Criar e gerar código', pair_title:'Código de pareamento Smart TV', expires:'Expira:', remaining:'Restante:' },
+      stv: { add_title:'Adicionar Smart TV', add_sub:'O dispositivo será criado e um código de pareamento será gerado para a TV.', name:'Nome', name_ph:'Ex. TV Recepção', orientation:'Orientação', horizontal:'Horizontal', vertical:'Vertical', create_and_generate:'Criar e gerar código', pair_title:'Código de pareamento Smart TV', expires:'Expira:', remaining:'Restante:', pair_hint:'No navegador da Smart TV abra <code>cms.sonoro.com.co/pair</code> e digite este código. Uma vez pareado, a playlist atribuída é reproduzida na TV.' },
       usd: { title:'Novo pedido — Internacional', sub:'Escolha o produto e assine via PayPal.', product:'Produto', prod_smarttv:'SONORO Smart TV — assinatura mensal', prod_windows:'SONORO Windows — assinatura mensal', prod_player:'SONORO Player — assinatura mensal', amount:'Valor', pay_paypal:'Pagamento com PayPal', subscribe:'Assinar no PayPal', create_order:'Criar pedido' },
       pro: { badge:'Plano Pro ativo', desc:'— envie a mesma playlist para várias telas e agrupe-as por local.', tags:'Bulk Push · Multi-sede · Relatórios por local', cta:'Ir para Sedes & Bulk Push →' },
       tb: { admin:'Admin', super_admin:'Super Admin', logout:'Sair' },
@@ -335,8 +335,8 @@
             (pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">'+L.shuffle+'</span>':'')+
             (pl.repeat_enabled  ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">'+L.repeat+'</span>':'')+
             '</div>'+
-            '<button class="btn btn-outline btn-sm">'+L.edit+'</button>'+
-            '<button class="btn btn-danger btn-sm">✕</button>'+
+            '<button class="btn btn-outline btn-sm" onclick="editPlaylist('+pl.id+')">'+L.edit+'</button>'+
+            '<button class="btn btn-danger btn-sm" onclick="deletePlaylist('+pl.id+')">✕</button>'+
             '</div>';
         }).join('');
       } catch(e){ console.error(e); }
@@ -413,7 +413,11 @@
       'Cronograma TV':'TV schedule', 'Sin horarios configurados':'No schedules configured', '+ Agregar horario':'+ Add schedule',
       'Online':'Online', 'Offline':'Offline',
       'ID:':'ID:', 'IP:':'IP:',
-      'Mirror':'Mirror', 'Dual':'Dual', 'Videowall':'Videowall'
+      'Mirror':'Mirror', 'Dual':'Dual', 'Videowall':'Videowall',
+      'Verificar':'Verify', 'Verificando...':'Verifying…', 'Error al verificar':'Verification error',
+      'Guardar y Aplicar':'Save and Apply', 'Generar código de pareo':'Generate pairing code',
+      'Captura':'Screenshot', '↻ Reiniciar':'↻ Reboot', 'Detener player':'Stop player',
+      'Configuracion':'Configuration', 'Dispositivos actualizados':'Devices updated'
     },
     'pt-BR': {
       'Nombre del dispositivo':'Nome do dispositivo', 'Modo de pantalla':'Modo de tela',
@@ -440,7 +444,11 @@
       'Cronograma TV':'Cronograma TV', 'Sin horarios configurados':'Sem horários configurados', '+ Agregar horario':'+ Adicionar horário',
       'Online':'On-line', 'Offline':'Off-line',
       'ID:':'ID:', 'IP:':'IP:',
-      'Mirror':'Espelho', 'Dual':'Dupla', 'Videowall':'Videowall'
+      'Mirror':'Espelho', 'Dual':'Dupla', 'Videowall':'Videowall',
+      'Verificar':'Verificar', 'Verificando...':'Verificando…', 'Error al verificar':'Erro ao verificar',
+      'Guardar y Aplicar':'Salvar e Aplicar', 'Generar código de pareo':'Gerar código de pareamento',
+      'Captura':'Captura', '↻ Reiniciar':'↻ Reiniciar', 'Detener player':'Parar player',
+      'Configuracion':'Configuração', 'Dispositivos actualizados':'Dispositivos atualizados'
     }
   };
   function translateNode(root, map){
@@ -455,16 +463,293 @@
     root.querySelectorAll('input[placeholder]').forEach(function(i){ var tt = i.placeholder; if (map[tt]) i.placeholder = map[tt]; });
     root.querySelectorAll('[title]').forEach(function(el){ var tt = el.getAttribute('title'); if (map[tt]) el.setAttribute('title', map[tt]); });
   }
+  var DEV_TIME_LBL = {
+    en:  { verified:'Verified', ago:'', s:'s ago', m:'m ago', h:'h ago', never:'never' },
+    'pt-BR': { verified:'Verificado', ago:'há ', s:'s', m:'m', h:'h', never:'nunca' }
+  };
+  function translateDevTimePatterns(root, locale){
+    var L = DEV_TIME_LBL[locale]; if (!L || !root) return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function(node){
+      var v = node.nodeValue;
+      if (!v || v.indexOf('Verificado')<0 && v.indexOf('hace')<0 && v.indexOf('nunca')<0) return;
+      var out = v;
+      out = out.replace(/Verificado\s+hace\s+(\d+)\s*([smh])/g, function(_,num,unit){
+        if (locale === 'en') return L.verified+' '+num+(unit==='s'?L.s:unit==='m'?L.m:L.h);
+        return L.verified+' '+L.ago+num+(unit==='s'?L.s:unit==='m'?L.m:L.h);
+      });
+      out = out.replace(/Verificado\s+nunca/g, L.verified+' '+L.never);
+      out = out.replace(/^Verificado$/,' '+L.verified).trim();
+      if (out !== v) node.nodeValue = out;
+    });
+  }
   function patchDevicesRender(){
     if (typeof window.loadDevices !== 'function' || window.loadDevices._sonoroPatched) return;
     var orig = window.loadDevices;
     window.loadDevices = async function(){
       var r = await orig.apply(this, arguments);
       var el = document.getElementById('devices-list');
-      if (el && state.locale !== 'es') translateNode(el, DEV_MAP[state.locale]);
+      if (el && state.locale !== 'es') { translateNode(el, DEV_MAP[state.locale]); translateDevTimePatterns(el, state.locale); }
       return r;
     };
     window.loadDevices._sonoroPatched = true;
+    // Patch verifyDevice: it rewrites #lastseen_* asynchronously in Spanish
+    if (typeof window.verifyDevice === 'function' && !window.verifyDevice._sonoroPatched){
+      var origV = window.verifyDevice;
+      window.verifyDevice = async function(deviceId){
+        var r = await origV.apply(this, arguments);
+        if (state.locale !== 'es'){
+          var el = document.getElementById('lastseen_'+deviceId);
+          if (el){
+            var map = DEV_MAP[state.locale] || {};
+            var t = el.textContent;
+            if (map[t]) el.textContent = map[t];
+            else translateDevTimePatterns(el, state.locale);
+          }
+        }
+        return r;
+      };
+      window.verifyDevice._sonoroPatched = true;
+    }
+  }
+
+  // Toast/status i18n for hardcoded showStatus calls (playlist orientation warning, etc.)
+  var STATUS_PATTERNS = {
+    en: [
+      { re:/^La playlist seleccionada para HDMI (\d) \((\w+)\) no coincide con la orientación del dispositivo \((\w+)\)\. Cambia la orientación o selecciona una playlist (\w+)\.$/,
+        fn:function(m){ return 'The playlist selected for HDMI '+m[1]+' ('+m[2]+') does not match the device orientation ('+m[3]+'). Change the orientation or select a '+m[4]+' playlist.'; } },
+      { re:/^Espera, hay una acción TV en curso\.\.\.$/, fn:function(){ return 'Please wait, a TV action is in progress…'; } },
+      { re:/^Dispositivos actualizados$/, fn:function(){ return 'Devices updated'; } },
+      { re:/^Política Windows aplicada$/, fn:function(){ return 'Windows policy applied'; } },
+      { re:/^Comando de reinicio enviado al player$/, fn:function(){ return 'Restart command sent to player'; } },
+      { re:/^Selecciona una sucursal primero$/, fn:function(){ return 'Select a branch first'; } }
+    ],
+    'pt-BR': [
+      { re:/^La playlist seleccionada para HDMI (\d) \((\w+)\) no coincide con la orientación del dispositivo \((\w+)\)\. Cambia la orientación o selecciona una playlist (\w+)\.$/,
+        fn:function(m){ return 'A playlist selecionada para HDMI '+m[1]+' ('+m[2]+') não coincide com a orientação do dispositivo ('+m[3]+'). Altere a orientação ou selecione uma playlist '+m[4]+'.'; } },
+      { re:/^Espera, hay una acción TV en curso\.\.\.$/, fn:function(){ return 'Aguarde, há uma ação de TV em curso…'; } },
+      { re:/^Dispositivos actualizados$/, fn:function(){ return 'Dispositivos atualizados'; } },
+      { re:/^Política Windows aplicada$/, fn:function(){ return 'Política Windows aplicada'; } },
+      { re:/^Comando de reinicio enviado al player$/, fn:function(){ return 'Comando de reinício enviado ao player'; } },
+      { re:/^Selecciona una sucursal primero$/, fn:function(){ return 'Selecione uma filial primeiro'; } }
+    ]
+  };
+  // Fase 2g — TOAST_I18N: diccionario amplio de mensajes showStatus/alert
+  // Cubre 142 literales extraídos de dashboard.html. Prefix-match para "Error: <detalle>".
+  var TOAST_I18N = {
+    'Agente agregado — credenciales enviadas por email': { en:'Agent added — credentials sent by email', 'pt-BR':'Agente adicionado — credenciais enviadas por email' },
+    'Agente eliminado': { en:'Agent removed', 'pt-BR':'Agente removido' },
+    'Agrega proveedores al directorio primero': { en:'Add providers to the directory first', 'pt-BR':'Adicione fornecedores ao diretório primeiro' },
+    'Batch revocado': { en:'Batch revoked', 'pt-BR':'Lote revogado' },
+    'Bloqueo creado': { en:'Block created', 'pt-BR':'Bloqueio criado' },
+    'Bloqueo eliminado': { en:'Block removed', 'pt-BR':'Bloqueio removido' },
+    'Cita creada correctamente': { en:'Appointment created', 'pt-BR':'Agendamento criado' },
+    'Citas no habilitadas para tu cuenta.': { en:'Appointments not enabled for your account.', 'pt-BR':'Agendamentos não habilitados na sua conta.' },
+    'Comando de reinicio enviado al player': { en:'Restart command sent to player', 'pt-BR':'Comando de reinício enviado ao player' },
+    'Completa todos los campos': { en:'Fill in all fields', 'pt-BR':'Preencha todos os campos' },
+    'Comprobante enviado. Revisaremos y confirmaremos.': { en:'Proof submitted. We will review and confirm.', 'pt-BR':'Comprovante enviado. Vamos revisar e confirmar.' },
+    'Comprobante guardado': { en:'Proof saved', 'pt-BR':'Comprovante salvo' },
+    'Configuración del display guardada': { en:'Display configuration saved', 'pt-BR':'Configuração do display salva' },
+    'Contraseña cambiada correctamente': { en:'Password changed successfully', 'pt-BR':'Senha alterada com sucesso' },
+    'Cronograma guardado y aplicado en el reproductor': { en:'Schedule saved and applied on the player', 'pt-BR':'Cronograma salvo e aplicado no player' },
+    'Cue eliminado': { en:'Cue removed', 'pt-BR':'Cue removido' },
+    'Código copiado': { en:'Code copied', 'pt-BR':'Código copiado' },
+    'Datos de cita incompletos.': { en:'Incomplete appointment data.', 'pt-BR':'Dados de agendamento incompletos.' },
+    'Dispositivo guardado correctamente': { en:'Device saved successfully', 'pt-BR':'Dispositivo salvo com sucesso' },
+    'Dispositivo reiniciando...': { en:'Device rebooting…', 'pt-BR':'Dispositivo reiniciando…' },
+    'Dispositivos actualizados': { en:'Devices updated', 'pt-BR':'Dispositivos atualizados' },
+    'Documento guardado': { en:'Document saved', 'pt-BR':'Documento salvo' },
+    'El PIN es requerido': { en:'PIN is required', 'pt-BR':'O PIN é obrigatório' },
+    'El email es requerido': { en:'Email is required', 'pt-BR':'O email é obrigatório' },
+    'El grupo debe tener al menos 2 cupos': { en:'The group must have at least 2 slots', 'pt-BR':'O grupo deve ter ao menos 2 vagas' },
+    'El modo ya estaba aplicado.': { en:'The mode was already applied.', 'pt-BR':'O modo já estava aplicado.' },
+    'El nombre es requerido': { en:'Name is required', 'pt-BR':'O nome é obrigatório' },
+    'Enlace copiado': { en:'Link copied', 'pt-BR':'Link copiado' },
+    'Error': { en:'Error', 'pt-BR':'Erro' },
+    'Error al actualizar estado': { en:'Failed to update status', 'pt-BR':'Falha ao atualizar status' },
+    'Error al actualizar precio': { en:'Failed to update price', 'pt-BR':'Falha ao atualizar preço' },
+    'Error al copiar. Selecciona el campo manualmente.': { en:'Copy failed. Select the field manually.', 'pt-BR':'Falha ao copiar. Selecione o campo manualmente.' },
+    'Error al eliminar': { en:'Failed to delete', 'pt-BR':'Falha ao excluir' },
+    'Error al eliminar cue': { en:'Failed to delete cue', 'pt-BR':'Falha ao excluir cue' },
+    'Error al eliminar el evento': { en:'Failed to delete event', 'pt-BR':'Falha ao excluir evento' },
+    'Error al enviar cotización': { en:'Failed to send quote', 'pt-BR':'Falha ao enviar orçamento' },
+    'Error al generar CSV': { en:'Failed to generate CSV', 'pt-BR':'Falha ao gerar CSV' },
+    'Error al generar PDF': { en:'Failed to generate PDF', 'pt-BR':'Falha ao gerar PDF' },
+    'Error al generar enlace': { en:'Failed to generate link', 'pt-BR':'Falha ao gerar link' },
+    'Error al guardar': { en:'Failed to save', 'pt-BR':'Falha ao salvar' },
+    'Error al guardar cue': { en:'Failed to save cue', 'pt-BR':'Falha ao salvar cue' },
+    'Error al guardar presupuesto': { en:'Failed to save budget', 'pt-BR':'Falha ao salvar orçamento' },
+    'Error al preparar impresión': { en:'Failed to prepare print', 'pt-BR':'Falha ao preparar impressão' },
+    'Error al reiniciar: ': { en:'Reboot error: ', 'pt-BR':'Erro ao reiniciar: ' },
+    'Error al subir comprobante': { en:'Failed to upload proof', 'pt-BR':'Falha ao enviar comprovante' },
+    'Error al subir documento': { en:'Failed to upload document', 'pt-BR':'Falha ao enviar documento' },
+    'Error cargando cotización': { en:'Error loading quote', 'pt-BR':'Erro ao carregar orçamento' },
+    'Error cargando evento': { en:'Error loading event', 'pt-BR':'Erro ao carregar evento' },
+    'Error cargando invitaciones': { en:'Error loading invitations', 'pt-BR':'Erro ao carregar convites' },
+    'Error cargando licencias': { en:'Error loading licenses', 'pt-BR':'Erro ao carregar licenças' },
+    'Error cargando perfil': { en:'Error loading profile', 'pt-BR':'Erro ao carregar perfil' },
+    'Error cargando proveedores': { en:'Error loading providers', 'pt-BR':'Erro ao carregar fornecedores' },
+    'Error cargando registros': { en:'Error loading records', 'pt-BR':'Erro ao carregar registros' },
+    'Error cargando staff': { en:'Error loading staff', 'pt-BR':'Erro ao carregar equipe' },
+    'Error de conexion con el servidor': { en:'Server connection error', 'pt-BR':'Erro de conexão com o servidor' },
+    'Error de conexión': { en:'Connection error', 'pt-BR':'Erro de conexão' },
+    'Error de conexión: ': { en:'Connection error: ', 'pt-BR':'Erro de conexão: ' },
+    'Error de red': { en:'Network error', 'pt-BR':'Erro de rede' },
+    'Error de red: ': { en:'Network error: ', 'pt-BR':'Erro de rede: ' },
+    'Error de red al confirmar llegada.': { en:'Network error confirming arrival.', 'pt-BR':'Erro de rede ao confirmar chegada.' },
+    'Error exportando CSV': { en:'Error exporting CSV', 'pt-BR':'Erro ao exportar CSV' },
+    'Error generando PDF': { en:'Error generating PDF', 'pt-BR':'Erro ao gerar PDF' },
+    'Error generando código': { en:'Error generating code', 'pt-BR':'Erro ao gerar código' },
+    'Error generando token': { en:'Error generating token', 'pt-BR':'Erro ao gerar token' },
+    'Error guardando cronograma: ': { en:'Error saving schedule: ', 'pt-BR':'Erro ao salvar cronograma: ' },
+    'Error importando CSV': { en:'Error importing CSV', 'pt-BR':'Erro ao importar CSV' },
+    'Error revocando': { en:'Error revoking', 'pt-BR':'Erro ao revogar' },
+    'Error subiendo logo': { en:'Error uploading logo', 'pt-BR':'Erro ao enviar logo' },
+    'Error: ': { en:'Error: ', 'pt-BR':'Erro: ' },
+    'Espera, hay una acción TV en curso...': { en:'Please wait, a TV action is in progress…', 'pt-BR':'Aguarde, há uma ação de TV em curso…' },
+    'Evento actualizado': { en:'Event updated', 'pt-BR':'Evento atualizado' },
+    'Evento creado': { en:'Event created', 'pt-BR':'Evento criado' },
+    'Evento eliminado': { en:'Event removed', 'pt-BR':'Evento removido' },
+    'Formulario guardado': { en:'Form saved', 'pt-BR':'Formulário salvo' },
+    'Guardado, pero error al reenviar: ': { en:'Saved, but resend failed: ', 'pt-BR':'Salvo, mas falha ao reenviar: ' },
+    'Importando CSV...': { en:'Importing CSV…', 'pt-BR':'Importando CSV…' },
+    'Ingresa un monto válido': { en:'Enter a valid amount', 'pt-BR':'Informe um valor válido' },
+    'Ingresa un nombre': { en:'Enter a name', 'pt-BR':'Informe um nome' },
+    'Ingresa un slug.': { en:'Enter a slug.', 'pt-BR':'Informe um slug.' },
+    'Ingresa un valor válido': { en:'Enter a valid value', 'pt-BR':'Informe um valor válido' },
+    'Inscrito actualizado': { en:'Registrant updated', 'pt-BR':'Inscrito atualizado' },
+    'La nueva contraseña debe tener al menos 8 caracteres': { en:'New password must be at least 8 characters', 'pt-BR':'A nova senha deve ter ao menos 8 caracteres' },
+    'Las contraseñas no coinciden': { en:'Passwords do not match', 'pt-BR':'As senhas não coincidem' },
+    'Link copiado': { en:'Link copied', 'pt-BR':'Link copiado' },
+    'Llave BRE-B copiada': { en:'BRE-B key copied', 'pt-BR':'Chave BRE-B copiada' },
+    'Logo actualizado': { en:'Logo updated', 'pt-BR':'Logo atualizado' },
+    'Modulos actualizados': { en:'Modules updated', 'pt-BR':'Módulos atualizados' },
+    'No se pudieron cargar las sucursales: ': { en:'Could not load branches: ', 'pt-BR':'Não foi possível carregar as filiais: ' },
+    'No se pudo copiar': { en:'Could not copy', 'pt-BR':'Não foi possível copiar' },
+    'Nombre actualizado': { en:'Name updated', 'pt-BR':'Nome atualizado' },
+    'Nombre demasiado corto': { en:'Name too short', 'pt-BR':'Nome muito curto' },
+    'Nombre requerido': { en:'Name required', 'pt-BR':'Nome obrigatório' },
+    'Nombre y fechas son obligatorios': { en:'Name and dates are required', 'pt-BR':'Nome e datas são obrigatórios' },
+    'Nombre y prefijo requeridos': { en:'Name and prefix required', 'pt-BR':'Nome e prefixo obrigatórios' },
+    'Nombre, fecha y horas son obligatorios': { en:'Name, date and times are required', 'pt-BR':'Nome, data e horários são obrigatórios' },
+    'Orden creada. Sigue las instrucciones de pago.': { en:'Order created. Follow the payment instructions.', 'pt-BR':'Pedido criado. Siga as instruções de pagamento.' },
+    'País guardado': { en:'Country saved', 'pt-BR':'País salvo' },
+    'Permite ventanas emergentes para imprimir': { en:'Allow pop-ups to print', 'pt-BR':'Permita pop-ups para imprimir' },
+    'Política Windows aplicada': { en:'Windows policy applied', 'pt-BR':'Política Windows aplicada' },
+    'Precio actualizado': { en:'Price updated', 'pt-BR':'Preço atualizado' },
+    'Presupuesto guardado': { en:'Budget saved', 'pt-BR':'Orçamento salvo' },
+    'Primero asigna una sucursal al dispositivo y guarda.': { en:'First assign a branch to the device and save.', 'pt-BR':'Primeiro atribua uma filial ao dispositivo e salve.' },
+    'Primero asigna una sucursal al dispositivo.': { en:'First assign a branch to the device.', 'pt-BR':'Primeiro atribua uma filial ao dispositivo.' },
+    'Primero debes crear una sucursal antes de agendar citas.': { en:'You must create a branch before scheduling appointments.', 'pt-BR':'Você deve criar uma filial antes de agendar.' },
+    'Proveedor agregado': { en:'Provider added', 'pt-BR':'Fornecedor adicionado' },
+    'Proveedor eliminado': { en:'Provider removed', 'pt-BR':'Fornecedor removido' },
+    'Proveedor eliminado del directorio': { en:'Provider removed from directory', 'pt-BR':'Fornecedor removido do diretório' },
+    'Proveedor quitado del evento': { en:'Provider removed from event', 'pt-BR':'Fornecedor removido do evento' },
+    'Prueba de 30 días activada': { en:'30-day trial activated', 'pt-BR':'Teste de 30 dias ativado' },
+    'Registro aprobado, QR enviado': { en:'Registration approved, QR sent', 'pt-BR':'Registro aprovado, QR enviado' },
+    'Registro eliminado': { en:'Registration removed', 'pt-BR':'Registro removido' },
+    'Reiniciando... vuelve en ~40 segundos': { en:'Rebooting… back in ~40 seconds', 'pt-BR':'Reiniciando… volta em ~40 segundos' },
+    'Selecciona al menos una sesión': { en:'Select at least one session', 'pt-BR':'Selecione ao menos uma sessão' },
+    'Selecciona un proveedor del directorio': { en:'Select a provider from the directory', 'pt-BR':'Selecione um fornecedor do diretório' },
+    'Selecciona un rol': { en:'Select a role', 'pt-BR':'Selecione um papel' },
+    'Selecciona una sesión primero': { en:'Select a session first', 'pt-BR':'Selecione uma sessão primeiro' },
+    'Selecciona una sucursal primero': { en:'Select a branch first', 'pt-BR':'Selecione uma filial primeiro' },
+    'Servicio agregado': { en:'Service added', 'pt-BR':'Serviço adicionado' },
+    'Servicios actualizados': { en:'Services updated', 'pt-BR':'Serviços atualizados' },
+    'Sesión eliminada': { en:'Session removed', 'pt-BR':'Sessão removida' },
+    'Sin registros para imprimir': { en:'No records to print', 'pt-BR':'Sem registros para imprimir' },
+    'Slug guardado correctamente.': { en:'Slug saved successfully.', 'pt-BR':'Slug salvo com sucesso.' },
+    'Slug inválido: solo minúsculas, números y guiones (2–60 caracteres).': { en:'Invalid slug: lowercase, numbers and hyphens only (2–60 characters).', 'pt-BR':'Slug inválido: apenas minúsculas, números e hífens (2–60 caracteres).' },
+    'Smart TV creado': { en:'Smart TV created', 'pt-BR':'Smart TV criada' },
+    'Staff agregado': { en:'Staff added', 'pt-BR':'Equipe adicionada' },
+    'Staff eliminado': { en:'Staff removed', 'pt-BR':'Equipe removida' },
+    'Sucursal eliminada': { en:'Branch removed', 'pt-BR':'Filial removida' },
+    'Sucursal no encontrada.': { en:'Branch not found.', 'pt-BR':'Filial não encontrada.' },
+    'Token copiado al portapapeles.': { en:'Token copied to clipboard.', 'pt-BR':'Token copiado para a área de transferência.' },
+    'Token revocado': { en:'Token revoked', 'pt-BR':'Token revogado' },
+    'Token rotado. Reconfigura el kiosko con el nuevo token.': { en:'Token rotated. Reconfigure the kiosk with the new token.', 'pt-BR':'Token rotacionado. Reconfigure o kiosk com o novo token.' },
+    'Turno de prueba enviado al display (A-99 / Prueba Display)': { en:'Test ticket sent to display (A-99 / Display Test)', 'pt-BR':'Senha de teste enviada ao display (A-99 / Teste Display)' },
+    'Título y hora son requeridos': { en:'Title and time are required', 'pt-BR':'Título e hora são obrigatórios' },
+    'URL copiada': { en:'URL copied', 'pt-BR':'URL copiada' },
+    'URL copiada al portapapeles.': { en:'URL copied to clipboard.', 'pt-BR':'URL copiada para a área de transferência.' },
+    'URL copiada.': { en:'URL copied.', 'pt-BR':'URL copiada.' },
+    'URL pública generada': { en:'Public URL generated', 'pt-BR':'URL pública gerada' },
+    'Ventanilla agregada': { en:'Window added', 'pt-BR':'Guichê adicionado' },
+    'Ventanilla eliminada': { en:'Window removed', 'pt-BR':'Guichê removido' },
+    // Fase 2g — confirm() prompts
+    '¿Aprobar todos los registros pendientes de este batch? Se enviará el email con QR a cada persona.': { en:'Approve all pending records in this batch? An email with QR will be sent to each person.', 'pt-BR':'Aprovar todos os registros pendentes deste lote? Um e-mail com QR será enviado a cada pessoa.' },
+    '¿Confirmar llegada de ': { en:'Confirm arrival of ', 'pt-BR':'Confirmar chegada de ' },
+    '¿Eliminar archivo?': { en:'Delete file?', 'pt-BR':'Excluir arquivo?' },
+    '¿Eliminar esta sesión?': { en:'Delete this session?', 'pt-BR':'Excluir esta sessão?' },
+    '¿Eliminar esta ventanilla? Esta acción no se puede deshacer.': { en:'Delete this window? This action cannot be undone.', 'pt-BR':'Excluir este guichê? Esta ação não pode ser desfeita.' },
+    '¿Eliminar este agente?': { en:'Delete this agent?', 'pt-BR':'Excluir este agente?' },
+    '¿Eliminar este bloqueo de horario?': { en:'Delete this schedule block?', 'pt-BR':'Excluir este bloqueio de horário?' },
+    '¿Eliminar este cue?': { en:'Delete this cue?', 'pt-BR':'Excluir este cue?' },
+    '¿Eliminar lista?': { en:'Delete playlist?', 'pt-BR':'Excluir playlist?' },
+    '¿Eliminar permanentemente este registro? Esta acción no se puede deshacer.': { en:'Permanently delete this record? This action cannot be undone.', 'pt-BR':'Excluir permanentemente este registro? Esta ação não pode ser desfeita.' },
+    '¿Reenviar correo con el QR al inscrito?': { en:'Resend QR email to registrant?', 'pt-BR':'Reenviar e-mail com QR ao inscrito?' },
+    '¿Reiniciar el dispositivo? Tardará ~40 segundos en volver.': { en:'Reboot the device? It will take ~40 seconds to return.', 'pt-BR':'Reiniciar o dispositivo? Levará ~40 segundos para voltar.' },
+    '¿Revocar este batch? El link dejará de funcionar para nuevos claims. Los registros ya creados se conservan.': { en:'Revoke this batch? The link will stop working for new claims. Existing records are kept.', 'pt-BR':'Revogar este lote? O link deixará de funcionar para novos claims. Os registros já criados são mantidos.' },
+    '¿Revocar este token? La URL actual dejará de funcionar.': { en:'Revoke this token? The current URL will stop working.', 'pt-BR':'Revogar este token? A URL atual deixará de funcionar.' },
+    '¿Rotar el token de kiosko? El kiosko actual dejará de funcionar hasta que se reconfigure con el nuevo token.': { en:'Rotate kiosk token? The current kiosk will stop working until reconfigured with the new token.', 'pt-BR':'Rotacionar o token do quiosque? O quiosque atual deixará de funcionar até ser reconfigurado com o novo token.' }
+  };
+  function translateToast(msg){
+    if (!msg || typeof msg !== 'string') return msg;
+    var loc = state.locale; if (loc === 'es') return msg;
+    var entry = TOAST_I18N[msg];
+    if (entry && entry[loc]) return entry[loc];
+    // Prefix-match para "Error: <detalle>", "Error al reiniciar: <err>", etc.
+    var bestKey = null;
+    for (var key in TOAST_I18N){
+      if (key.charAt(key.length-1) === ' ' || key.charAt(key.length-1) === ':' || /[: ]$/.test(key)){
+        if (msg.indexOf(key) === 0 && (!bestKey || key.length > bestKey.length)) bestKey = key;
+      }
+    }
+    if (bestKey){
+      var e = TOAST_I18N[bestKey];
+      if (e && e[loc]) return e[loc] + msg.substring(bestKey.length);
+    }
+    return msg;
+  }
+  function translateStatusMsg(msg){
+    if (state.locale === 'es' || typeof msg !== 'string') return msg;
+    // 1) Regex patrones dinámicos (playlist orientation warning, etc.)
+    var list = STATUS_PATTERNS[state.locale];
+    if (list){
+      for (var i=0;i<list.length;i++){
+        var m = msg.match(list[i].re);
+        if (m) return list[i].fn(m);
+      }
+    }
+    // 2) Diccionario TOAST_I18N (142 entradas + prefix-match)
+    return translateToast(msg);
+  }
+  function patchShowStatus(){
+    if (typeof window.showStatus === 'function' && !window.showStatus._sonoroPatched){
+      var orig = window.showStatus;
+      window.showStatus = function(msg, kind){ return orig.call(this, translateStatusMsg(msg), kind); };
+      window.showStatus._sonoroPatched = true;
+    }
+    // Fase 2g — también monkey-patch window.alert para traducir alerts nativos
+    if (typeof window.alert === 'function' && !window.alert._sonoroPatched){
+      var origAlert = window.alert;
+      window.alert = function(msg){ return origAlert.call(this, translateStatusMsg(msg)); };
+      window.alert._sonoroPatched = true;
+    }
+    // Fase 2g — confirm() nativo (¿Eliminar lista?, ¿Estás seguro?, etc.)
+    if (typeof window.confirm === 'function' && !window.confirm._sonoroPatched){
+      var origConfirm = window.confirm;
+      window.confirm = function(msg){ return origConfirm.call(this, translateStatusMsg(msg)); };
+      window.confirm._sonoroPatched = true;
+    }
+    // Fase 2g — prompt() nativo (por si aparece en algún flow)
+    if (typeof window.prompt === 'function' && !window.prompt._sonoroPatched){
+      var origPrompt = window.prompt;
+      window.prompt = function(msg, def){ return origPrompt.call(this, translateStatusMsg(msg), def); };
+      window.prompt._sonoroPatched = true;
+    }
   }
 
   var LIC_MODAL_MAP = {
@@ -599,15 +884,18 @@
     window.toggleTheme._sonoroPatched = true;
   }
   function patchAll(){
-    patchLicRenders();
-    patchContentRenders();
-    patchPlaylistsRender();
-    patchSchedulesRender();
-    patchDevicesRender();
-    patchPlaylistModalHooks();
-    patchLicModalHooks();
-    patchThemeToggle();
-    applyThemeToggleLabel();
+    // Fase 2g — showStatus/alert primero + try/catch por patch para que un throw
+    // en cualquier hook downstream no impida traducir toasts.
+    try { patchShowStatus(); } catch(e){ console.warn('[i18n] patchShowStatus:', e); }
+    try { patchLicRenders(); } catch(e){ console.warn('[i18n] patchLicRenders:', e); }
+    try { patchContentRenders(); } catch(e){ console.warn('[i18n] patchContentRenders:', e); }
+    try { patchPlaylistsRender(); } catch(e){ console.warn('[i18n] patchPlaylistsRender:', e); }
+    try { patchSchedulesRender(); } catch(e){ console.warn('[i18n] patchSchedulesRender:', e); }
+    try { patchDevicesRender(); } catch(e){ console.warn('[i18n] patchDevicesRender:', e); }
+    try { patchPlaylistModalHooks(); } catch(e){ console.warn('[i18n] patchPlaylistModalHooks:', e); }
+    try { patchLicModalHooks(); } catch(e){ console.warn('[i18n] patchLicModalHooks:', e); }
+    try { patchThemeToggle(); } catch(e){ console.warn('[i18n] patchThemeToggle:', e); }
+    try { applyThemeToggleLabel(); } catch(e){}
   }
 
   // Wrapper setLocale with full re-render chain
