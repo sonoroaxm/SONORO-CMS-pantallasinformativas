@@ -1415,9 +1415,7 @@
         <div class="section-header">
           <div class="section-title" data-i18n="dev.title">Gestión de Dispositivos</div>
           <div style="display:flex;gap:8px;">
-            <button id="btn-pair-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openSmartTvBindModal()" data-i18n="dev.pair_smarttv">Emparejar código TV</button>
-            <button id="btn-add-smarttv" class="btn btn-outline" style="display:none;color:#c9a4ff;border-color:#4c2680;" onclick="openAddSmartTvModal()" data-i18n="dev.add_smarttv">+ Agregar Smart TV</button>
-            <button class="btn btn-grad" onclick="openActivationModal()" data-i18n="dev.gen_code">+ Generar Código</button>
+            <button class="btn btn-grad" onclick="openAddDeviceWizard()" data-i18n="dev.add_device">+ Agregar dispositivo</button>
           </div>
         </div>
         <div id="devices-list"></div>
@@ -4119,7 +4117,7 @@ async function loadDevices(silent = false) {
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
                 ${!isSmartTv ? `<button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>` : ''}
                 ${isSmartTv
-                  ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="generateSmartTvCode(${d.id}, '${escOnclick(d.name)}')">Generar código de pareo</button>`
+                  ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="openRepairSmartTvModal(${d.id}, '${escOnclick(d.name)}')" data-i18n="dev.repair_smarttv">Re-emparejar</button>`
                   : (isWin
                     ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${escOnclick(d.name)}')">Detener player</button>`
                     : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`)}
@@ -9552,6 +9550,156 @@ async function submitAddSmartTv() {
   }
 }
 
+/* ═══════════════ S191g — Add Device Wizard ═══════════════ */
+// Unifica los 3 botones antiguos (Emparejar código TV / + Agregar Smart TV /
+// + Generar Código) en un solo flujo poka-yoke: elige tipo → completa form.
+// Reutiliza APIs existentes: POST /api/devices/smarttv + POST /api/pair/bind
+// para Smart TV, y openActivationModal() para RPi/Windows.
+
+let _wizardType = null;
+
+function openAddDeviceWizard() {
+  _wizardType = null;
+  document.getElementById('wizStep1Next').disabled = true;
+  document.querySelectorAll('#wizTypeGrid .wiz-type-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('wizStep1').style.display = '';
+  document.getElementById('wizStep2SmartTv').style.display = 'none';
+  document.getElementById('wizStep2Player').style.display = 'none';
+  document.getElementById('wizStep1Dot').style.background = 'var(--grad)';
+  document.getElementById('wizStep2Dot').style.background = 'var(--surface3)';
+  // Mostrar card Smart TV solo si el usuario tiene el add-on habilitado.
+  const stvCard = document.getElementById('wizTypeSmartTv');
+  if (stvCard) stvCard.style.display = (currentUser && currentUser.smarttv_enabled) ? '' : 'none';
+  document.getElementById('addDeviceWizardModal').classList.add('show');
+}
+function closeAddDeviceWizard() {
+  document.getElementById('addDeviceWizardModal').classList.remove('show');
+}
+function wizardSelectType(t) {
+  _wizardType = t;
+  document.querySelectorAll('#wizTypeGrid .wiz-type-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.type === t);
+  });
+  document.getElementById('wizStep1Next').disabled = false;
+}
+function wizardNextStep() {
+  if (!_wizardType) return;
+  document.getElementById('wizStep1').style.display = 'none';
+  document.getElementById('wizStep2Dot').style.background = 'var(--grad)';
+  if (_wizardType === 'smarttv') {
+    document.getElementById('wizStep2SmartTv').style.display = '';
+    document.getElementById('wizStvCode').value = '';
+    document.getElementById('wizStvName').value = 'Smart TV 1';
+    document.getElementById('wizStvOrientation').value = 'H';
+    document.getElementById('wizStvMsg').textContent = '';
+    document.getElementById('wizStvSubmit').disabled = false;
+    setTimeout(() => document.getElementById('wizStvCode').focus(), 50);
+  } else {
+    document.getElementById('wizStep2Player').style.display = '';
+  }
+}
+function wizardPrevStep() {
+  document.getElementById('wizStep2SmartTv').style.display = 'none';
+  document.getElementById('wizStep2Player').style.display = 'none';
+  document.getElementById('wizStep2Dot').style.background = 'var(--surface3)';
+  document.getElementById('wizStep1').style.display = '';
+}
+function wizardOpenActivation() {
+  closeAddDeviceWizard();
+  openActivationModal();
+}
+async function wizardSubmitSmartTv() {
+  const code = document.getElementById('wizStvCode').value.trim().toUpperCase();
+  const name = document.getElementById('wizStvName').value.trim();
+  const orientation = document.getElementById('wizStvOrientation').value;
+  const msgEl = document.getElementById('wizStvMsg');
+  const btn = document.getElementById('wizStvSubmit');
+  msgEl.style.color = 'var(--offline)';
+  if (!/^[A-Z0-9]{6}$/.test(code)) { msgEl.textContent = 'Código inválido (6 caracteres A-Z, 0-9).'; return; }
+  if (!name) { msgEl.textContent = 'Ingresa un nombre.'; return; }
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Agregando…';
+  try {
+    // 1) Crear device Smart TV
+    const r1 = await fetch(`${API_URL}/api/devices/smarttv`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ name, orientation })
+    });
+    const d1 = await r1.json().catch(() => ({}));
+    if (!r1.ok) { msgEl.textContent = d1.error || 'Error creando Smart TV'; btn.disabled = false; btn.textContent = originalLabel; return; }
+    const newDeviceId = d1.device && (d1.device.id || d1.device.device_id) || d1.id || d1.device_id;
+    if (!newDeviceId) { msgEl.textContent = 'Error: no se recibió ID del dispositivo.'; btn.disabled = false; btn.textContent = originalLabel; return; }
+    // 2) Bind con el código del TV
+    const base = window.SMARTTV_API_BASE || '';
+    const r2 = await fetch(`${base}/api/pair/bind`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ short_code: code, device_id: newDeviceId }),
+    });
+    const d2 = await r2.json().catch(() => ({}));
+    if (!r2.ok) {
+      msgEl.textContent = (stvBindErr(d2.error) || ('Error emparejando: ' + r2.status)) + ' El dispositivo fue creado; usa "Re-emparejar" desde su card.';
+      msgEl.style.color = 'var(--offline)';
+      btn.disabled = false; btn.textContent = originalLabel;
+      await loadDevices();
+      return;
+    }
+    msgEl.style.color = 'var(--online)';
+    msgEl.textContent = 'Listo. El TV cambia solo a la playlist.';
+    btn.textContent = 'Listo';
+    setTimeout(() => { closeAddDeviceWizard(); loadDevices(); }, 1400);
+  } catch (e) {
+    msgEl.textContent = 'Error de red: ' + e.message;
+    btn.disabled = false; btn.textContent = originalLabel;
+  }
+}
+
+// Re-emparejar Smart TV existente (device ya creado, sesión rota o cambiada de TV)
+let _repairDeviceId = null;
+function openRepairSmartTvModal(deviceId, deviceName) {
+  _repairDeviceId = deviceId;
+  document.getElementById('repairStvName').textContent = deviceName || ('#' + deviceId);
+  document.getElementById('repairStvCode').value = '';
+  document.getElementById('repairStvMsg').textContent = '';
+  document.getElementById('repairStvSubmit').disabled = false;
+  document.getElementById('repairSmartTvModal').classList.add('show');
+  setTimeout(() => document.getElementById('repairStvCode').focus(), 50);
+}
+function closeRepairSmartTvModal() {
+  document.getElementById('repairSmartTvModal').classList.remove('show');
+  _repairDeviceId = null;
+}
+async function repairSmartTvSubmit() {
+  const code = document.getElementById('repairStvCode').value.trim().toUpperCase();
+  const msgEl = document.getElementById('repairStvMsg');
+  const btn = document.getElementById('repairStvSubmit');
+  msgEl.style.color = 'var(--offline)';
+  if (!_repairDeviceId) { msgEl.textContent = 'Error interno.'; return; }
+  if (!/^[A-Z0-9]{6}$/.test(code)) { msgEl.textContent = 'Código inválido (6 caracteres A-Z, 0-9).'; return; }
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Re-emparejando…';
+  const base = window.SMARTTV_API_BASE || '';
+  try {
+    const r = await fetch(`${base}/api/pair/bind`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ short_code: code, device_id: _repairDeviceId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { msgEl.textContent = stvBindErr(j.error) || ('Error: ' + r.status); btn.disabled = false; btn.textContent = originalLabel; return; }
+    msgEl.style.color = 'var(--online)';
+    msgEl.textContent = 'Re-emparejado.';
+    btn.textContent = 'Listo';
+    setTimeout(() => { closeRepairSmartTvModal(); loadDevices(); }, 1400);
+  } catch (e) {
+    msgEl.textContent = 'Error de red.';
+    btn.disabled = false; btn.textContent = originalLabel;
+  }
+}
+
 /* ═══════════════ LICENSES-V1 Fase 4 — UI cliente ═══════════════ */
 const LIC_PRODUCT_LABELS = {
   smart_tv: 'Licencia SONORO Smart TV',
@@ -10043,6 +10191,138 @@ async function licSubmitUsdOrder() {
     </div>
   </div>
 </div>
+
+<!-- ═══════════════ S191g — Add Device Wizard ═══════════════ -->
+<!-- Unifica los 3 botones ("Emparejar código TV" + "+ Agregar Smart TV" +
+     "+ Generar Código") en un solo flujo wizard. Poka-yoke: cliente elige
+     el tipo primero, luego el flujo específico. -->
+<div id="addDeviceWizardModal" class="modal-overlay" onclick="if(event.target===this)closeAddDeviceWizard()">
+  <div class="modal-content" style="max-width:520px;">
+    <!-- Stepper -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <div id="wizStep1Dot" style="flex:1;height:4px;background:var(--grad);border-radius:2px;"></div>
+      <div id="wizStep2Dot" style="flex:1;height:4px;background:var(--surface3);border-radius:2px;"></div>
+    </div>
+
+    <!-- STEP 1: Tipo -->
+    <div id="wizStep1">
+      <h3 style="margin:0 0 6px 0;" data-i18n="wiz.s1_title">Agregar dispositivo</h3>
+      <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);" data-i18n="wiz.s1_sub">¿Qué tipo de dispositivo vas a conectar?</p>
+      <div id="wizTypeGrid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px;">
+        <div class="wiz-type-card" data-type="rpi" onclick="wizardSelectType('rpi')" style="background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px 10px;cursor:pointer;text-align:center;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;" data-i18n="wiz.type_rpi">SONORO Player</div>
+          <div style="font-size:10px;color:var(--text-muted);line-height:1.3;" data-i18n="wiz.type_rpi_desc">Hardware dedicado (RPi)</div>
+        </div>
+        <div class="wiz-type-card" data-type="win" onclick="wizardSelectType('win')" style="background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px 10px;cursor:pointer;text-align:center;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;" data-i18n="wiz.type_win">SONORO Player</div>
+          <div style="font-size:10px;color:var(--text-muted);line-height:1.3;" data-i18n="wiz.type_win_desc">Windows PC</div>
+        </div>
+        <div id="wizTypeSmartTv" class="wiz-type-card" data-type="smarttv" onclick="wizardSelectType('smarttv')" style="background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px 10px;cursor:pointer;text-align:center;display:none;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;" data-i18n="wiz.type_smarttv">Smart TV</div>
+          <div style="font-size:10px;color:var(--text-muted);line-height:1.3;" data-i18n="wiz.type_smarttv_desc">TV con navegador</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+        <button class="btn btn-outline btn-sm" onclick="closeAddDeviceWizard()" data-i18n="common.cancel">Cancelar</button>
+        <button id="wizStep1Next" class="btn btn-grad btn-sm" onclick="wizardNextStep()" disabled data-i18n="wiz.next">Siguiente</button>
+      </div>
+    </div>
+
+    <!-- STEP 2A: Smart TV -->
+    <div id="wizStep2SmartTv" style="display:none;">
+      <h3 style="margin:0 0 6px 0;" data-i18n="wiz.s2tv_title">Agregar Smart TV</h3>
+      <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);" data-i18n="wiz.s2tv_sub">Sigue estos pasos en el TV y copia el código que aparece en su pantalla.</p>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:600;color:#c9a4ff;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;" data-i18n="wiz.tv_inst_title">En el TV</div>
+        <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--text);line-height:1.7;">
+          <li data-i18n="wiz.tv_inst_1">Enciende el TV y abre el navegador.</li>
+          <li data-i18n-html="wiz.tv_inst_2">Entra a <span style="background:#111;color:#c9a4ff;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;">cms.sonoro.com.co/pair</span></li>
+          <li data-i18n="wiz.tv_inst_3">Copia abajo el código de 6 caracteres que aparece en pantalla.</li>
+        </ol>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="wiz.code">Código del TV</label>
+        <input id="wizStvCode" type="text" placeholder="XXXXXX" maxlength="8" autocomplete="off"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:20px;font-weight:600;letter-spacing:4px;font-family:monospace;text-align:center;text-transform:uppercase;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="wiz.name">Nombre del dispositivo</label>
+        <input id="wizStvName" type="text" value="Smart TV 1" maxlength="60"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="wiz.orientation">Orientación</label>
+        <select id="wizStvOrientation"
+          style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+          <option value="H" data-i18n="stv.horizontal">Horizontal</option>
+          <option value="V" data-i18n="stv.vertical">Vertical</option>
+        </select>
+      </div>
+
+      <div id="wizStvMsg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+
+      <div style="display:flex;gap:8px;justify-content:space-between;">
+        <button class="btn btn-outline btn-sm" onclick="wizardPrevStep()" data-i18n="wiz.back">← Atrás</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="closeAddDeviceWizard()" data-i18n="common.cancel">Cancelar</button>
+          <button id="wizStvSubmit" class="btn btn-grad btn-sm" onclick="wizardSubmitSmartTv()" data-i18n="wiz.add">Agregar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2B: RPi / Windows player — delega al modal activación existente -->
+    <div id="wizStep2Player" style="display:none;">
+      <h3 style="margin:0 0 6px 0;" data-i18n="wiz.s2p_title">Generar código de activación</h3>
+      <p style="margin:0 0 18px 0;font-size:13px;color:var(--text-muted);" data-i18n="wiz.s2p_sub">El instalador te pedirá este código al configurar el dispositivo.</p>
+      <div style="display:flex;gap:8px;justify-content:space-between;">
+        <button class="btn btn-outline btn-sm" onclick="wizardPrevStep()" data-i18n="wiz.back">← Atrás</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="closeAddDeviceWizard()" data-i18n="common.cancel">Cancelar</button>
+          <button class="btn btn-grad btn-sm" onclick="wizardOpenActivation()" data-i18n="wiz.continue">Continuar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Re-emparejar Smart TV (device ya existe, solo renovar sesión) -->
+<div id="repairSmartTvModal" class="modal-overlay" onclick="if(event.target===this)closeRepairSmartTvModal()">
+  <div class="modal-content" style="max-width:440px;">
+    <h3 style="margin:0 0 6px 0;" data-i18n="repair.title">Re-emparejar Smart TV</h3>
+    <p style="margin:0 0 4px 0;font-size:13px;color:var(--text-muted);"><span data-i18n="repair.device">Dispositivo</span>: <strong id="repairStvName" style="color:var(--text);"></strong></p>
+    <p style="margin:0 0 18px 0;font-size:12px;color:var(--text-muted);" data-i18n="repair.sub">El TV perderá su sesión actual y necesitará un nuevo código.</p>
+
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
+      <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--text);line-height:1.7;">
+        <li data-i18n="repair.inst_1">Enciende el TV.</li>
+        <li data-i18n-html="repair.inst_2">Abre <span style="background:#111;color:#c9a4ff;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;">cms.sonoro.com.co/pair</span> en el TV.</li>
+        <li data-i18n="repair.inst_3">Copia abajo el nuevo código que aparece.</li>
+      </ol>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="wiz.code">Código del TV</label>
+      <input id="repairStvCode" type="text" placeholder="XXXXXX" maxlength="8" autocomplete="off"
+        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:20px;font-weight:600;letter-spacing:4px;font-family:monospace;text-align:center;text-transform:uppercase;">
+    </div>
+
+    <div id="repairStvMsg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-outline btn-sm" onclick="closeRepairSmartTvModal()" data-i18n="common.cancel">Cancelar</button>
+      <button id="repairStvSubmit" class="btn btn-grad btn-sm" onclick="repairSmartTvSubmit()" data-i18n="repair.confirm">Re-emparejar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.wiz-type-card:hover{border-color:var(--text-muted) !important}
+.wiz-type-card.selected{border-color:#c9a4ff !important;background:var(--surface3) !important}
+</style>
 
 <!-- ═══════════════ LICENSES-V1 Fase 4 — Modales ═══════════════ -->
 
