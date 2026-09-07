@@ -885,9 +885,9 @@
     }
 
     /* Smart TV pair-code modal */
-    #smarttvPairModal, #addSmartTvModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
-    #smarttvPairModal.show, #addSmartTvModal.show { display: flex; }
-    #addSmartTvModal .modal-content { background: #151515; border: 1px solid #2a2a2a; border-radius: 8px; padding: 24px; }
+    #smarttvPairModal, #addSmartTvModal, #addDeviceWizardModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    #smarttvPairModal.show, #addSmartTvModal.show, #addDeviceWizardModal.show { display: flex; }
+    #addSmartTvModal .modal-content, #addDeviceWizardModal .modal-content { background: #151515; border: 1px solid #2a2a2a; border-radius: 10px; padding: 24px; max-width: 520px; width: 92%; }
     .stv-pair-card { background: #151515; border: 1px solid #2a2a2a; border-radius: 8px; padding: 28px 32px; max-width: 440px; width: 92%; text-align: center; }
     .stv-pair-card h3 { margin: 0 0 6px; font-size: 16px; color: #fff; }
     .stv-pair-card .stv-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
@@ -4117,7 +4117,7 @@ async function loadDevices(silent = false) {
                 <button class="btn btn-outline btn-sm" onclick="verifyDevice('${d.device_id}')">Verificar</button>
                 ${!isSmartTv ? `<button class="btn btn-outline btn-sm" onclick="takeScreenshot('${d.device_id}', '${d.ip_address || ''}', '${escOnclick(d.name)}')">Captura</button>` : ''}
                 ${isSmartTv
-                  ? `<button class="btn btn-outline btn-sm" style="color:#c9a4ff;border-color:#4c2680;" onclick="openRepairSmartTvModal(${d.id}, '${escOnclick(d.name)}')" data-i18n="dev.repair_smarttv">Re-emparejar</button>`
+                  ? ''
                   : (isWin
                     ? `<button class="btn btn-outline btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayer('${d.device_id}', '${escOnclick(d.name)}')">Detener player</button>`
                     : `<button class="btn btn-outline btn-sm" onclick="rebootDevice('${d.device_id}')">&#8635; Reiniciar</button>`)}
@@ -9656,50 +9656,6 @@ async function wizardSubmitSmartTv() {
   }
 }
 
-// Re-emparejar Smart TV existente (device ya creado, sesión rota o cambiada de TV)
-let _repairDeviceId = null;
-function openRepairSmartTvModal(deviceId, deviceName) {
-  _repairDeviceId = deviceId;
-  document.getElementById('repairStvName').textContent = deviceName || ('#' + deviceId);
-  document.getElementById('repairStvCode').value = '';
-  document.getElementById('repairStvMsg').textContent = '';
-  document.getElementById('repairStvSubmit').disabled = false;
-  document.getElementById('repairSmartTvModal').classList.add('show');
-  setTimeout(() => document.getElementById('repairStvCode').focus(), 50);
-}
-function closeRepairSmartTvModal() {
-  document.getElementById('repairSmartTvModal').classList.remove('show');
-  _repairDeviceId = null;
-}
-async function repairSmartTvSubmit() {
-  const code = document.getElementById('repairStvCode').value.trim().toUpperCase();
-  const msgEl = document.getElementById('repairStvMsg');
-  const btn = document.getElementById('repairStvSubmit');
-  msgEl.style.color = 'var(--offline)';
-  if (!_repairDeviceId) { msgEl.textContent = 'Error interno.'; return; }
-  if (!/^[A-Z0-9]{6}$/.test(code)) { msgEl.textContent = 'Código inválido (6 caracteres A-Z, 0-9).'; return; }
-  btn.disabled = true;
-  const originalLabel = btn.textContent;
-  btn.textContent = 'Re-emparejando…';
-  const base = window.SMARTTV_API_BASE || '';
-  try {
-    const r = await fetch(`${base}/api/pair/bind`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({ short_code: code, device_id: _repairDeviceId }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { msgEl.textContent = stvBindErr(j.error) || ('Error: ' + r.status); btn.disabled = false; btn.textContent = originalLabel; return; }
-    msgEl.style.color = 'var(--online)';
-    msgEl.textContent = 'Re-emparejado.';
-    btn.textContent = 'Listo';
-    setTimeout(() => { closeRepairSmartTvModal(); loadDevices(); }, 1400);
-  } catch (e) {
-    msgEl.textContent = 'Error de red.';
-    btn.disabled = false; btn.textContent = originalLabel;
-  }
-}
-
 /* ═══════════════ LICENSES-V1 Fase 4 — UI cliente ═══════════════ */
 const LIC_PRODUCT_LABELS = {
   smart_tv: 'Licencia SONORO Smart TV',
@@ -10285,36 +10241,6 @@ async function licSubmitUsdOrder() {
           <button class="btn btn-grad btn-sm" onclick="wizardOpenActivation()" data-i18n="wiz.continue">Continuar</button>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- Re-emparejar Smart TV (device ya existe, solo renovar sesión) -->
-<div id="repairSmartTvModal" class="modal-overlay" onclick="if(event.target===this)closeRepairSmartTvModal()">
-  <div class="modal-content" style="max-width:440px;">
-    <h3 style="margin:0 0 6px 0;" data-i18n="repair.title">Re-emparejar Smart TV</h3>
-    <p style="margin:0 0 4px 0;font-size:13px;color:var(--text-muted);"><span data-i18n="repair.device">Dispositivo</span>: <strong id="repairStvName" style="color:var(--text);"></strong></p>
-    <p style="margin:0 0 18px 0;font-size:12px;color:var(--text-muted);" data-i18n="repair.sub">El TV perderá su sesión actual y necesitará un nuevo código.</p>
-
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;">
-      <ol style="margin:0;padding-left:20px;font-size:12px;color:var(--text);line-height:1.7;">
-        <li data-i18n="repair.inst_1">Enciende el TV.</li>
-        <li data-i18n-html="repair.inst_2">Abre <span style="background:#111;color:#c9a4ff;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;">cms.sonoro.com.co/pair</span> en el TV.</li>
-        <li data-i18n="repair.inst_3">Copia abajo el nuevo código que aparece.</li>
-      </ol>
-    </div>
-
-    <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;" data-i18n="wiz.code">Código del TV</label>
-      <input id="repairStvCode" type="text" placeholder="XXXXXX" maxlength="8" autocomplete="off"
-        style="width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:20px;font-weight:600;letter-spacing:4px;font-family:monospace;text-align:center;text-transform:uppercase;">
-    </div>
-
-    <div id="repairStvMsg" style="font-size:12px;min-height:16px;margin-bottom:8px;"></div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-outline btn-sm" onclick="closeRepairSmartTvModal()" data-i18n="common.cancel">Cancelar</button>
-      <button id="repairStvSubmit" class="btn btn-grad btn-sm" onclick="repairSmartTvSubmit()" data-i18n="repair.confirm">Re-emparejar</button>
     </div>
   </div>
 </div>
