@@ -9421,7 +9421,7 @@ async function wizardSubmitSmartTv() {
   const msgEl = document.getElementById('wizStvMsg');
   const btn = document.getElementById('wizStvSubmit');
   msgEl.style.color = 'var(--offline)';
-  if (!/^[A-Z0-9]{6}$/.test(code)) { msgEl.textContent = 'Código inválido (6 caracteres A-Z, 0-9).'; return; }
+  if (!/^[A-Z0-9]{6}$/.test(code)) { msgEl.textContent = (window.SonoroI18n && window.SonoroI18n.t) ? window.SonoroI18n.t('stv.err_invalid_code') : 'Código inválido (6 caracteres A-Z, 0-9).'; return; }
   if (!name) { msgEl.textContent = 'Ingresa un nombre.'; return; }
   btn.disabled = true;
   const originalLabel = btn.textContent;
