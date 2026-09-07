@@ -2955,6 +2955,26 @@ let repeatMode = false;
 let shuffledOrder = [];
 let playbackTimer = null;
 
+// S192e — return_to whitelist para flujo Smart TV pair QR.
+// confirm.html del servicio smarttvsignage redirige a dashboard.html#login?return_to=/c/<uuid>
+// cuando el phone que escanea el QR no está logueado. Al loguearse, debe volver a /c/<uuid>
+// para completar el bind. Whitelist estricta: solo /c/<uuid v4> — evita open-redirect.
+function _smartTvReturnTo() {
+  try {
+    var raw = null;
+    var h = location.hash || '';
+    var m = h.match(/[?&]return_to=([^&]+)/);
+    if (m) raw = decodeURIComponent(m[1]);
+    if (!raw) {
+      var q = new URLSearchParams(location.search);
+      raw = q.get('return_to');
+    }
+    if (!raw) return null;
+    if (!/^\/c\/[0-9a-fA-F-]{36}$/.test(raw)) return null;
+    return raw;
+  } catch (_) { return null; }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   // Restaurar tema guardado
   if (localStorage.getItem('theme') === 'light') {
@@ -2981,6 +3001,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     } catch(e) { console.error('refresh error:', e); }
     console.log('[INIT] features antes showDashboard:', JSON.stringify(currentUser?.features));
+    var _rt = _smartTvReturnTo();
+    if (_rt) { location.href = _rt; return; }
     showDashboard();
     connectWebSocket();
     loadContent();
@@ -3127,6 +3149,8 @@ async function login() {
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     showAuthStatus('Acceso correcto', 'success');
     // S172j — modelo aditivo: dashboard usuario nunca se pierde. multisede solo agrega banner CTA hacia admin-dashboard.
+    var _rt = _smartTvReturnTo();
+    if (_rt) { setTimeout(() => { location.href = _rt; }, 400); return; }
     setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
   } catch (err) {
     showAuthStatus(`Error: ${err.message}`, 'error');
@@ -3150,6 +3174,8 @@ async function register() {
     localStorage.setItem('authToken', authToken);
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     showAuthStatus('Cuenta creada', 'success');
+    var _rt = _smartTvReturnTo();
+    if (_rt) { setTimeout(() => { location.href = _rt; }, 400); return; }
     setTimeout(() => { showDashboard(); connectWebSocket(); loadContent(); }, 800);
   } catch (err) {
     showAuthStatus(`Error: ${err.message}`, 'error');
