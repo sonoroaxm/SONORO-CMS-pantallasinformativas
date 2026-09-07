@@ -95,13 +95,13 @@ router.get('/licenses/mine', auth, async (req, res) => {
 });
 
 // ── POST /api/licenses/trial ──────────────────────────────────────────────────
-// Crea trial 30 días para (user, product). 1 por producto de por vida.
+// S194: Trial 15 días + 150 MB storage cap. Elegible: smart_tv | windows.
+// 1 trial por usuario TOTAL (constraint licenses_one_trial_per_user).
 router.post('/licenses/trial', auth, async (req, res) => {
   const pool = global.pool;
   const { product } = req.body || {};
-  if (product !== 'smart_tv') {
-    // Fase 4: trial solo aplica a Smart TV, 1 vez por usuario
-    return res.status(400).json({ error: 'Trial solo disponible para Smart TV' });
+  if (product !== 'smart_tv' && product !== 'windows') {
+    return res.status(400).json({ error: 'Trial disponible para Smart TV o Windows' });
   }
   try {
     const already = await hasUsedTrial(pool, req.user.id);
@@ -117,8 +117,8 @@ router.post('/licenses/trial', auth, async (req, res) => {
          (user_id, product, months, start_date, end_date, status, currency,
           amount, unit_price, discount_pct, is_free_grant, is_trial, trial_days,
           created_by, note)
-       VALUES ($1, $2, 1, NOW(), NOW() + INTERVAL '30 days', 'active', $3,
-               0, 0, 0, TRUE, TRUE, 30, $1, 'trial 30d')
+       VALUES ($1, $2, 1, NOW(), NOW() + INTERVAL '15 days', 'active', $3,
+               0, 0, 0, TRUE, TRUE, 15, $1, 'trial 15d 150MB')
        RETURNING id, product, start_date, end_date, is_trial, trial_days`,
       [req.user.id, product, currency]
     );

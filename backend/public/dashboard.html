@@ -1426,11 +1426,11 @@
           <div class="lic-kpi-card"><div class="lic-kpi-label" data-i18n="lic.kpi_pending">Órdenes pendientes</div><div class="lic-kpi-val" id="licKpiPending">—</div></div>
         </div>
 
-        <!-- CTA trial -->
+        <!-- CTA trial (S194: self-service · 15d · 150 MB · smart_tv|windows) -->
         <div class="lic-trial-cta" id="licTrialCta" style="display:none;">
           <div>
-            <div class="lic-trial-title" data-i18n="lic.trial_title">Prueba SONORO Smart TV 30 días gratis</div>
-            <div class="lic-trial-sub" data-i18n="lic.trial_sub">Convierte cualquier Smart TV en una pantalla informativa. Sin tarjeta. 1 prueba por cuenta.</div>
+            <div class="lic-trial-title" data-i18n="lic.trial_title">Prueba gratis 15 días</div>
+            <div class="lic-trial-sub" data-i18n="lic.trial_sub">Escoge Smart TV o Windows. Incluye 150 MB durante la prueba. Solo una prueba por cuenta.</div>
           </div>
           <button class="lic-btn-grad" onclick="openLicTrialModal()" data-i18n="lic.trial_btn">Activar prueba</button>
         </div>
@@ -3363,6 +3363,16 @@ async function uploadFile() {
     if (xhr.status === 200) {
       updateStatus('Archivo subido', 'success');
       fileInput.value = '';
+      progressDiv.style.display = 'none';
+    } else if (xhr.status === 413) {
+      // S194: cap alcanzado (trial 150 MB o pago 500 MB)
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch(_) {}
+      const T = (k, fb) => (window.SonoroI18n ? SonoroI18n.t(k, fb) : fb);
+      const msg = body.trial_capped
+        ? T('lic.storage_toast_trial','Alcanzaste 150 MB de la prueba. Actualiza a plan pago para 500 MB.')
+        : (body.message || T('lic.storage_toast_paid','Alcanzaste tu límite de almacenamiento.'));
+      updateStatus(msg, 'error');
       progressDiv.style.display = 'none';
     } else {
       updateStatus('Error al subir', 'error');
@@ -9535,14 +9545,17 @@ function licEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => 
 
 async function loadLicencias() {
   try {
-    const [licRes, ordRes] = await Promise.all([
+    const [licRes, ordRes, stRes] = await Promise.all([
       fetch(`${API_URL}/api/licenses/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
-      fetch(`${API_URL}/api/licenses/orders/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(`${API_URL}/api/licenses/orders/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/user/storage`, { headers: { 'Authorization': `Bearer ${authToken}` } })
     ]);
     const licData = licRes.ok ? await licRes.json() : [];
     const ordData = ordRes.ok ? await ordRes.json() : [];
+    const stData  = stRes.ok  ? await stRes.json()  : null;
     const licenses = Array.isArray(licData) ? licData : (licData.licenses || []);
     const orders   = Array.isArray(ordData) ? ordData : (ordData.orders   || []);
+    window.__licTrialStorage = stData; // usado por renderLicActiveGrid en trials
     renderLicKpis(licenses, orders);
     renderLicTrialCta(licenses);
     renderLicActiveGrid(licenses);
@@ -9577,11 +9590,11 @@ function renderLicKpis(licenses, orders) {
 }
 
 function renderLicTrialCta(licenses) {
-  const smarttvEnabled = currentUser?.smarttv_enabled === true;
+  // S194: trial abierto self-service (opción B) — sin gate por add-on.
   const hasUsedTrial = licenses.some(l => l.is_trial === true);
   const el = document.getElementById('licTrialCta');
   if (!el) return;
-  el.style.display = (!hasUsedTrial && smarttvEnabled) ? 'flex' : 'none';
+  el.style.display = hasUsedTrial ? 'none' : 'flex';
 }
 
 function renderLicActiveGrid(licenses) {
@@ -9591,22 +9604,76 @@ function renderLicActiveGrid(licenses) {
     el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Aún no tienes licencias activas.</div>';
     return;
   }
+  const T = (k, fb) => (window.SonoroI18n ? SonoroI18n.t(k, fb) : fb);
+  const st = window.__licTrialStorage;
   el.innerHTML = licenses.map(l => {
     const prod = LIC_PRODUCT_LABELS[l.product] || l.product;
     const isTrial = l.is_trial === true;
     const status = l.status || 'active';
     const badgeClass = isTrial ? 'trial' : status;
-    const badgeLabel = isTrial ? 'Prueba' : (status === 'expired' ? 'Vencida' : 'Activa');
+    const badgeLabel = isTrial
+      ? T('lic.badge_trial','Prueba')
+      : (status === 'expired' ? T('lic.badge_expired','Vencida') : T('lic.badge_active','Activa'));
     const daysLeft = licDaysLeft(l.end_date);
-    const daysTxt = daysLeft === null ? '—' : (daysLeft < 0 ? 'Vencida' : `${daysLeft} días`);
-    const devLabel = l.device_name ? licEsc(l.device_name) : (l.device_id ? `Dispositivo #${l.device_id}` : 'Sin dispositivo asignado');
+    const daysWord = T('lic.days_word','días');
+    const daysTxt = daysLeft === null ? '—'
+      : (daysLeft < 0 ? T('lic.badge_expired','Vencida')
+      : `${daysLeft} ${daysWord}`);
+    const devLabel = l.device_name ? licEsc(l.device_name)
+      : (l.device_id ? `${T('lic.device_word','Dispositivo')} #${l.device_id}`
+                     : T('lic.no_device','Sin dispositivo asignado'));
+
+    // S194: barra de storage sólo dentro de licencia trial activa (cap 150 MB, o sin cap si grandfathered)
+    let storageBlock = '';
+    if (isTrial && st) {
+      const usedMb = st.used_mb || 0;
+      const limitMb = st.limit_mb;
+      const pct = st.percent || 0;
+      const trialCap = st.trial_capped === true;
+      const barColor = pct >= 100 ? 'var(--offline)' : (pct >= 85 ? '#ffb300' : 'var(--grad)');
+      const barBg = pct >= 100 || pct >= 85 ? barColor : 'var(--grad)';
+      const hint = pct >= 100
+        ? `<div style="font-size:10px;color:var(--offline);margin-top:6px;">${T('lic.storage_full','Alcanzaste el límite de 150 MB de la prueba.')}</div>`
+        : (pct >= 85 && trialCap
+            ? `<div style="font-size:10px;color:#ffb300;margin-top:6px;">${T('lic.storage_near','Cerca del límite de la prueba.')}</div>`
+            : '');
+      const labelRight = trialCap
+        ? `<strong>${usedMb} MB</strong> / ${limitMb} MB`
+        : `<strong>${usedMb} MB</strong>`;
+      const noteGf = !trialCap
+        ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${T('lic.trial_grandfathered','Prueba original de 30 días sin límite de almacenamiento.')}</div>`
+        : '';
+      storageBlock = `
+        <div style="margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:5px;">
+            <span data-i18n="lic.storage_label">Almacenamiento</span><span>${labelRight}</span>
+          </div>
+          <div style="height:7px;background:var(--surface3);border-radius:999px;overflow:hidden;">
+            <div style="width:${Math.min(100,pct)}%;height:100%;background:${barBg};transition:width .3s;"></div>
+          </div>
+          ${hint}${noteGf}
+        </div>`;
+    }
+
+    // S194: banner ≤3 días para trial activo
+    let endingBanner = '';
+    if (isTrial && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3) {
+      endingBanner = `<div style="background:rgba(255,179,0,.10);border:1px solid #ffb300;color:#ffb300;padding:8px 10px;border-radius:6px;font-size:11px;margin-top:10px;">
+        <strong>${T('lic.trial_ending_title','Tu prueba está por terminar.')}</strong>
+        ${T('lic.trial_ending_body','Compra una licencia para continuar sin interrupciones.')}
+      </div>`;
+    }
+
+    const renewLabel = isTrial ? T('lic.trial_buy_btn','Comprar licencia') : T('lic.renew_btn','Renovar');
     return `
       <div class="lic-card">
         <div class="lic-prod">${licEsc(prod)}</div>
         <div class="lic-device">${devLabel}</div>
         <span class="lic-badge ${badgeClass}">${badgeLabel}</span>
-        <div class="lic-days">Vence: <strong>${licDate(l.end_date)}</strong> · <strong>${daysTxt}</strong></div>
-        <button class="lic-btn-outline" onclick="openLicNewOrder('${licEsc(l.product)}')">Renovar</button>
+        <div class="lic-days">${T('lic.expires_word','Vence')}: <strong>${licDate(l.end_date)}</strong> · <strong>${daysTxt}</strong></div>
+        ${storageBlock}
+        ${endingBanner}
+        <button class="lic-btn-outline" onclick="openLicNewOrder('${licEsc(l.product)}')">${renewLabel}</button>
       </div>`;
   }).join('');
 }
@@ -9649,22 +9716,26 @@ function closeLicTrialModal() {
 }
 async function licCreateTrial() {
   const btn = document.getElementById('licTrialSubmitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Activando…'; }
+  const sel = document.querySelector('input[name="licTrialProduct"]:checked');
+  const product = sel ? sel.value : 'smart_tv';
+  const btnLabel = (window.SonoroI18n && SonoroI18n.t('lic.trial_btn')) || 'Activar prueba';
+  if (btn) { btn.disabled = true; btn.textContent = (window.SonoroI18n && SonoroI18n.t('common.loading')) || 'Activando…'; }
   try {
     const r = await fetch(`${API_URL}/api/licenses/trial`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ product: 'smart_tv' })
+      body: JSON.stringify({ product })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'No se pudo activar la prueba');
-    showStatus('Prueba de 30 días activada', 'success');
+    const okMsg = (window.SonoroI18n && SonoroI18n.t('lic.trial_activated_toast')) || 'Prueba de 15 días activada';
+    showStatus(okMsg, 'success');
     closeLicTrialModal();
     await loadLicencias();
   } catch (e) {
     showStatus(e.message || 'Error activando prueba', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Activar prueba'; }
+    if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
   }
 }
 
@@ -10099,20 +10170,50 @@ async function licSubmitUsdOrder() {
   </div>
 </div>
 
-<!-- Trial 30 días -->
+<!-- Trial 15 días · 150 MB · smart_tv|windows (S194) -->
 <div id="licTrialModal" onclick="if(event.target===this)closeLicTrialModal()">
-  <div class="modal-content" style="max-width:440px;">
-    <div class="lic-modal-title">Activar prueba de 30 días</div>
-    <div class="lic-modal-sub">1 prueba por cuenta, solo SONORO Smart TV Player. Al finalizar podrás continuar con una suscripción o dejar que expire.</div>
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted);margin-bottom:14px;">
-      <strong style="color:var(--text);">Incluye:</strong> pareo del navegador del Smart TV, reproducción de playlist, splash de marca y heartbeat en tiempo real.
+  <div class="modal-content" style="max-width:460px;">
+    <div class="lic-modal-title" data-i18n="lic.trial_modal_title">Activar prueba gratis</div>
+    <div class="lic-modal-sub" data-i18n="lic.trial_modal_sub">Escoge un producto. 15 días · 150 MB de almacenamiento · sin tarjeta · solo una prueba por cuenta.</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <label class="lic-trial-prod-opt" style="background:var(--surface2);border:1px solid rgba(255,27,141,.35);border-radius:8px;padding:14px;cursor:pointer;display:block;">
+        <input type="radio" name="licTrialProduct" value="smart_tv" checked style="display:none;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px;" data-i18n="lic.trial_prod_smarttv">Smart TV</div>
+        <div style="font-size:10px;color:var(--text-muted);line-height:1.4;" data-i18n="lic.trial_prod_smarttv_desc">Reproduce en tu Smart TV con la app SONORO Player.</div>
+      </label>
+      <label class="lic-trial-prod-opt" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;display:block;">
+        <input type="radio" name="licTrialProduct" value="windows" style="display:none;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px;" data-i18n="lic.trial_prod_windows">Windows</div>
+        <div style="font-size:10px;color:var(--text-muted);line-height:1.4;" data-i18n="lic.trial_prod_windows_desc">Reproduce en PC Windows en modo kiosko.</div>
+      </label>
     </div>
+
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted);margin-bottom:14px;" data-i18n="lic.trial_modal_note">
+      Solo puedes activar una prueba por cuenta y no podrás cambiar de producto luego.
+    </div>
+
     <div class="lic-modal-actions">
-      <button class="lic-btn-outline" onclick="closeLicTrialModal()">Cancelar</button>
-      <button id="licTrialSubmitBtn" class="lic-btn-grad" onclick="licCreateTrial()">Activar prueba</button>
+      <button class="lic-btn-outline" onclick="closeLicTrialModal()" data-i18n="common.cancel">Cancelar</button>
+      <button id="licTrialSubmitBtn" class="lic-btn-grad" onclick="licCreateTrial()" data-i18n="lic.trial_btn">Activar prueba</button>
     </div>
   </div>
 </div>
+
+<script>
+// S194: highlight visual del radio seleccionado en modal trial (no rompe i18n)
+document.addEventListener('change', function(e){
+  if (e.target && e.target.name === 'licTrialProduct') {
+    document.querySelectorAll('.lic-trial-prod-opt').forEach(function(l){
+      var r = l.querySelector('input[type=radio]');
+      l.style.borderColor = (r && r.checked) ? 'rgba(255,27,141,.35)' : 'var(--border)';
+      l.style.background = (r && r.checked)
+        ? 'linear-gradient(135deg,rgba(255,27,141,.10),rgba(255,140,0,.06))'
+        : 'var(--surface2)';
+    });
+  }
+});
+</script>
 
 <!-- Confirma tu país (first-time) -->
 <div id="licCountryModal">

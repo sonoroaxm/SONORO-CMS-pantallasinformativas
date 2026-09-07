@@ -766,14 +766,28 @@ async function getUserStorage(userId) {
       (SELECT COALESCE(SUM(size_bytes),0) FROM fids_media      WHERE user_id = $1) +
       (SELECT COALESCE(SUM(size_bytes),0) FROM product_assets  WHERE user_id = $1) +
       (SELECT COALESCE(SUM(size_bytes),0) FROM creative_pieces WHERE user_id = $1) AS used_bytes,
-      (SELECT storage_limit_mb FROM users WHERE id = $1) AS limit_mb
+      (SELECT storage_limit_mb FROM users WHERE id = $1) AS limit_mb,
+      (SELECT id FROM licenses
+        WHERE user_id = $1 AND is_trial = true AND status = 'active'
+          AND end_date > NOW()
+          AND (note IS NULL OR note NOT LIKE '%grandfathered%')
+        LIMIT 1) AS trial_capped_id
   `, [userId]);
-  const row = q.rows[0] || { used_bytes: 0, limit_mb: 500 };
+  const row = q.rows[0] || { used_bytes: 0, limit_mb: 500, trial_capped_id: null };
   const usedBytes = Number(row.used_bytes) || 0;
-  const limitMb = row.limit_mb; // puede ser null
+  // S194: si hay trial activo sin grandfathering, cap = 150 MB.
+  const isTrialCapped = row.trial_capped_id != null;
+  const limitMb = isTrialCapped ? 150 : row.limit_mb; // puede ser null (super admin)
   const limitBytes = limitMb === null || limitMb === undefined ? null : limitMb * 1024 * 1024;
   const percent = limitBytes === null ? 0 : Math.min(100, Math.round((usedBytes / limitBytes) * 100));
-  return { used_bytes: usedBytes, limit_mb: limitMb, limit_bytes: limitBytes, percent, unlimited: limitBytes === null };
+  return {
+    used_bytes: usedBytes,
+    limit_mb: limitMb,
+    limit_bytes: limitBytes,
+    percent,
+    unlimited: limitBytes === null,
+    trial_capped: isTrialCapped
+  };
 }
 
 // Endpoint público para el dashboard
@@ -785,7 +799,8 @@ app.get('/api/user/storage', authenticateToken, async (req, res) => {
       used_bytes: info.used_bytes,
       limit_mb: info.limit_mb,
       percent: info.percent,
-      unlimited: info.unlimited
+      unlimited: info.unlimited,
+      trial_capped: info.trial_capped
     });
   } catch (err) {
     console.error('❌ Error /api/user/storage:', err);
@@ -824,7 +839,8 @@ app.get('/api/user/me', authenticateToken, async (req, res) => {
         used_mb: Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10,
         limit_mb: storage.limit_mb,
         percent: storage.percent,
-        unlimited: storage.unlimited
+        unlimited: storage.unlimited,
+        trial_capped: storage.trial_capped
       }
     });
   } catch (err) {
@@ -893,12 +909,16 @@ app.post('/api/content/upload', authenticateToken, async (req, res) => {
         const incomingBytes = file.size || 0;
         if (storage.used_bytes + incomingBytes > storage.limit_bytes) {
           const usedMb = Math.round(storage.used_bytes / 1024 / 1024 * 10) / 10;
+          const msg = storage.trial_capped
+            ? `Alcanzaste el límite de ${storage.limit_mb} MB de la prueba. Actualiza a plan pago para 500 MB.`
+            : `Has alcanzado tu límite de ${storage.limit_mb} MB. Elimina contenido o contacta a SONORO para ampliar tu espacio.`;
           return res.status(413).json({
-            error: 'storage_limit_exceeded',
-            message: `Has alcanzado tu límite de ${storage.limit_mb} MB. Elimina contenido o contacta a SONORO para ampliar tu espacio.`,
+            error: storage.trial_capped ? 'trial_storage_exceeded' : 'storage_limit_exceeded',
+            message: msg,
             used_mb: usedMb,
             limit_mb: storage.limit_mb,
-            incoming_mb: Math.round(incomingBytes / 1024 / 1024 * 10) / 10
+            incoming_mb: Math.round(incomingBytes / 1024 / 1024 * 10) / 10,
+            trial_capped: storage.trial_capped
           });
         }
       }
