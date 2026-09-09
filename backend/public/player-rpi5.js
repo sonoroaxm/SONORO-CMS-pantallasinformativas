@@ -20,6 +20,11 @@ const { spawn } = require('child_process');
 const MEDIA_DIR = '/home/sonoro/media';
 const POLL_MS   = 5000;
 const FFMPEG    = process.env.FFMPEG_BIN || '/usr/bin/ffmpeg';
+const CURRENT_MARKER = '/tmp/sonoro-current.txt'; // consumido por sonoro-screenshot.sh
+
+function writeCurrentMarker(file) {
+  try { fs.writeFileSync(CURRENT_MARKER, `${file}\n`); } catch (_) {}
+}
 
 let currentSignature = null;
 let playableItems    = [];
@@ -75,6 +80,7 @@ function playItem(item) {
     '-map', '0:v:0', '-an', '-f', 'vout_drm', '-'
   ];
   log(`ffmpeg → ${path.basename(item.local_path)} (${durSec || 'full'}s)`);
+  writeCurrentMarker(item.local_path);
   ffmpegProc = spawn(FFMPEG, args, { stdio: ['ignore', 'inherit', 'inherit'] });
   ffmpegProc.on('exit', (code, sig) => {
     log(`ffmpeg exited code=${code} sig=${sig}`);
@@ -99,6 +105,7 @@ function playSplash(orientation) {
     '-map', '0:v:0', '-an', '-f', 'vout_drm', '-'
   ];
   log(`ffmpeg → splash idle (${orientation || 'horizontal'})`);
+  writeCurrentMarker(file);
   ffmpegProc = spawn(FFMPEG, args, { stdio: ['ignore', 'inherit', 'inherit'] });
   ffmpegProc.on('exit', (code, sig) => {
     log(`splash ffmpeg exited code=${code} sig=${sig}`);
