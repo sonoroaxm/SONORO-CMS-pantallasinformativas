@@ -1,0 +1,24 @@
+[Unit]
+Description=SONORO SSH Tunnel (reverse forward to VPS)
+After=network-online.target sonoro-player.service
+Wants=network-online.target
+
+[Service]
+User=__SONORO_USER__
+Environment="AUTOSSH_GATETIME=30"
+EnvironmentFile=-/etc/sonoro/tunnel-port
+ExecStart=/usr/bin/autossh -M 0 -N \
+  -o "ExitOnForwardFailure=yes" \
+  -o "ServerAliveInterval=30" \
+  -o "ServerAliveCountMax=3" \
+  -o "StrictHostKeyChecking=no" \
+  -o "UserKnownHostsFile=/dev/null" \
+  -R ${TUNNEL_PORT}:localhost:22 \
+  -i __TUNNEL_KEY__ \
+  debian@45.181.156.171
+Restart=always
+RestartSec=30
+StartLimitBurst=0
+
+[Install]
+WantedBy=multi-user.target

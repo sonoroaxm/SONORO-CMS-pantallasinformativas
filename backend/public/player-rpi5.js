@@ -25,6 +25,7 @@ let currentSignature = null;
 let playableItems    = [];
 let currentIdx       = 0;
 let ffmpegProc       = null;
+let mode             = null; // 'playlist' | 'splash'
 
 function log(...args) {
   console.log(`[${new Date().toISOString()}]`, ...args);
@@ -87,6 +88,31 @@ function playItem(item) {
   });
 }
 
+function playSplash(orientation) {
+  const file = path.join(MEDIA_DIR, orientation === 'vertical' ? 'splash_v.mp4' : 'splash_h.mp4');
+  if (!fs.existsSync(file)) { log(`splash no encontrado (${file})`); return; }
+  const args = [
+    '-hide_banner', '-loglevel', 'warning',
+    '-hwaccel', 'drm', '-hwaccel_output_format', 'drm_prime',
+    '-c:v', 'hevc', '-re', '-stream_loop', '-1',
+    '-i', file,
+    '-map', '0:v:0', '-an', '-f', 'vout_drm', '-'
+  ];
+  log(`ffmpeg → splash idle (${orientation || 'horizontal'})`);
+  ffmpegProc = spawn(FFMPEG, args, { stdio: ['ignore', 'inherit', 'inherit'] });
+  ffmpegProc.on('exit', (code, sig) => {
+    log(`splash ffmpeg exited code=${code} sig=${sig}`);
+    ffmpegProc = null;
+  });
+  ffmpegProc.on('error', err => { log(`splash ffmpeg error: ${err.message}`); ffmpegProc = null; });
+}
+
+function enterSplash(orientation) {
+  if (mode === 'splash' && ffmpegProc) return;
+  mode = 'splash';
+  killFfmpeg(() => setTimeout(() => playSplash(orientation), 300));
+}
+
 function advanceItem() {
   if (!playableItems.length) return;
   currentIdx = (currentIdx + 1) % playableItems.length;
@@ -96,17 +122,18 @@ function advanceItem() {
 function tick() {
   const config = readLastConfig();
   const playlistId = config?.hdmi0_playlist_id || config?.hdmi1_playlist_id;
+  const orientation = config?.orientation_hdmi0 || config?.orientation || 'horizontal';
 
   if (!playlistId) {
-    if (ffmpegProc) { log('Sin playlist activa → detengo ffmpeg'); killFfmpeg(); }
     playableItems = []; currentSignature = null;
+    enterSplash(orientation);
     return;
   }
 
   const playlist = readPlaylist(playlistId);
   if (!playlist?.items?.length) {
-    if (ffmpegProc) { log(`Playlist ${playlistId} vacía → detengo ffmpeg`); killFfmpeg(); }
     playableItems = []; currentSignature = null;
+    enterSplash(orientation);
     return;
   }
 
@@ -114,14 +141,15 @@ function tick() {
   const sig   = playlistSignature(playlist.items);
 
   if (!sig) {
-    if (ffmpegProc) { log('Sin items con local_path válido → detengo ffmpeg'); killFfmpeg(); }
     playableItems = []; currentSignature = null;
+    enterSplash(orientation);
     return;
   }
 
-  if (sig === currentSignature && ffmpegProc) return;
+  if (sig === currentSignature && ffmpegProc && mode === 'playlist') return;
 
   log(`Cambio detectado (playlist=${playlistId}, items=${items.length}) → restart secuencial`);
+  mode = 'playlist';
   currentSignature = sig;
   playableItems    = items;
   currentIdx       = 0;

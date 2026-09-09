@@ -119,14 +119,39 @@ cp "${SCRIPT_DIR}/package.json" "${PLAYER_DIR}/"
 grep -q "logs_request" "${PLAYER_DIR}/sync-app.js" || { echo "ERROR: sync-app.js sin handler logs_request (S172h)"; exit 1; }
 grep -q "IS_RPI5"      "${PLAYER_DIR}/sync-app.js" || { echo "ERROR: sync-app.js sin gate IS_RPI5"; exit 1; }
 log "sync-app.js validado (logs_request + IS_RPI5 presentes)"
-# Splash idle (ambos modelos — sync-app.js los busca en PLAYER_DIR)
+# Splash idle (ambos modelos). Fix S197 fila 59-G: sync-app.js:623 busca
+# splashhorizontalcms.png / splashverticalcms.png en MEDIA_DIR (no PLAYER_DIR
+# ni con nombre snake_case). Sin esto, "Splash no encontrado" → pantalla negra
+# pre-activación. Se mantiene copia a PLAYER_DIR por si algún consumer legacy
+# depende del nombre snake_case.
 cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLAYER_DIR}/" 2>/dev/null || warn "splash_horizontal.png no encontrado"
 cp "${SCRIPT_DIR}/splash_vertical.png"   "${PLAYER_DIR}/" 2>/dev/null || warn "splash_vertical.png no encontrado"
+cp "${SCRIPT_DIR}/splash_horizontal.png" "${MEDIA_DIR}/splashhorizontalcms.png" 2>/dev/null || warn "splash MEDIA_DIR (H) fallo"
+cp "${SCRIPT_DIR}/splash_vertical.png"   "${MEDIA_DIR}/splashverticalcms.png"   2>/dev/null || warn "splash MEDIA_DIR (V) fallo"
+chown "${SONORO_USER}:${SONORO_USER}" "${MEDIA_DIR}/splashhorizontalcms.png" "${MEDIA_DIR}/splashverticalcms.png" 2>/dev/null || true
 
 if [ "$IS_RPI5" = "1" ]; then
   # RPi5: player nativo ffmpeg vout_drm + concat (S168b — gap 0ms visual)
   cp "${SCRIPT_DIR}/player-rpi5.js" "${PLAYER_DIR}/"
   log "player-rpi5.js copiado"
+
+  # Fix S197 fila 59-I: player-rpi5.js reproduce splash_h.mp4 / splash_v.mp4
+  # via vout_drm cuando no hay playlist. vout_drm requiere DRM_PRIME frames
+  # (hardware decode) → pre-encode PNG → HEVC MP4 aquí (una vez al install).
+  # Sin esto el player queda pantalla negra pre-activación en RPi5.
+  for orient in horizontal vertical; do
+    src="${SCRIPT_DIR}/splash_${orient}.png"
+    dst_short=$([ "$orient" = "horizontal" ] && echo "splash_h.mp4" || echo "splash_v.mp4")
+    dst="${MEDIA_DIR}/${dst_short}"
+    [ -f "$src" ] || { warn "splash_${orient}.png no encontrado — skip HEVC encode"; continue; }
+    dims=$([ "$orient" = "horizontal" ] && echo "1920:1080" || echo "1080:1920")
+    ffmpeg -y -hide_banner -loglevel error -loop 1 -i "$src" \
+      -c:v libx265 -preset ultrafast -pix_fmt yuv420p -r 30 -t 5 \
+      -vf "scale=${dims}:force_original_aspect_ratio=decrease,pad=${dims}:(ow-iw)/2:(oh-ih)/2:color=black" \
+      "$dst" 2>/dev/null && log "splash HEVC ${orient} → ${dst_short}" \
+      || warn "encode splash HEVC ${orient} fallo"
+  done
+  chown "${SONORO_USER}:${SONORO_USER}" "${MEDIA_DIR}/splash_h.mp4" "${MEDIA_DIR}/splash_v.mp4" 2>/dev/null || true
 else
   # Fix S168 #8: xinitrc solo aplica a RPi4 (X11/mpv path).
   cp "${SCRIPT_DIR}/xinitrc.sh" "${PLAYER_DIR}/"
@@ -303,12 +328,40 @@ PQW
   fi
 
   # S169: config.txt — HDMI hotplug + boot_delay + RTC trickle charge.
+  # Fix S197 fila 59-B: el guard `^${k}=` matchea cualquier `dtparam=*` (audio,
+  # spi, etc.) → nunca aplicaba rtc_bbat_vchg pero tampoco lo agregaba, y en
+  # reruns creaba duplicados. Uso `grep -qxF` (línea completa, string literal)
+  # + dedup explícito para migrar SDs que ya tienen duplicados de installs previos.
   if [ -f "$CONFIG" ]; then
     for kv in "hdmi_force_hotplug=1" "boot_delay=3" "dtparam=rtc_bbat_vchg=3000000"; do
-      k="${kv%%=*}"
-      grep -q "^${k}=" "$CONFIG" || echo "$kv" >> "$CONFIG"
+      grep -qxF "$kv" "$CONFIG" || echo "$kv" >> "$CONFIG"
     done
+    # Dedup específico rtc_bbat_vchg si migración previa dejó duplicados.
+    if [ "$(grep -c '^dtparam=rtc_bbat_vchg=' "$CONFIG")" -gt 1 ]; then
+      awk '!/^dtparam=rtc_bbat_vchg=/ || !seen++' "$CONFIG" > "${CONFIG}.dedup" && \
+        mv "${CONFIG}.dedup" "$CONFIG" && \
+        log "config.txt: rtc_bbat_vchg duplicados removidos"
+    fi
     log "config.txt: hdmi_force_hotplug + boot_delay=3 + rtc_bbat_vchg"
+  fi
+
+  # S197 fila 59-C: EEPROM NET_INSTALL_AT_POWER_ON=0 (default 1 hace boot lento
+  # buscando red antes de arrancar OS). Idempotente: solo aplica si no está en 0.
+  if command -v rpi-eeprom-config >/dev/null 2>&1; then
+    current_ni=$(rpi-eeprom-config | awk -F= '/^NET_INSTALL_AT_POWER_ON=/{print $2; exit}')
+    if [ "$current_ni" != "0" ]; then
+      rpi-eeprom-config > /tmp/eeprom-current.conf
+      if grep -q '^NET_INSTALL_AT_POWER_ON=' /tmp/eeprom-current.conf; then
+        sed -i 's/^NET_INSTALL_AT_POWER_ON=.*/NET_INSTALL_AT_POWER_ON=0/' /tmp/eeprom-current.conf
+      else
+        echo 'NET_INSTALL_AT_POWER_ON=0' >> /tmp/eeprom-current.conf
+      fi
+      rpi-eeprom-config --apply /tmp/eeprom-current.conf >/dev/null 2>&1 && \
+        log "EEPROM: NET_INSTALL_AT_POWER_ON=0 (activa post-reboot)" || \
+        warn "EEPROM update fallo (revisar manual con rpi-eeprom-config --edit)"
+    else
+      log "EEPROM: NET_INSTALL_AT_POWER_ON ya en 0"
+    fi
   fi
 
   # S169: enmascarar getty@tty1 — compite con ffmpeg vout_drm por DRM master
@@ -447,30 +500,9 @@ if [ ! -f /etc/sonoro/tunnel-port ]; then
   echo "TUNNEL_PORT=2222" > /etc/sonoro/tunnel-port
 fi
 chmod 644 /etc/sonoro/tunnel-port
-cat > /etc/systemd/system/sonoro-tunnel.service << 'TUN'
-[Unit]
-Description=SONORO SSH Tunnel
-After=network-online.target sonoro-player.service
-Wants=network-online.target
-[Service]
-User=__SONORO_USER__
-Environment="AUTOSSH_GATETIME=30"
-EnvironmentFile=-/etc/sonoro/tunnel-port
-ExecStart=/usr/bin/autossh -M 0 -N \
-  -o "ExitOnForwardFailure=yes" \
-  -o "ServerAliveInterval=30" \
-  -o "ServerAliveCountMax=3" \
-  -o "StrictHostKeyChecking=no" \
-  -o "UserKnownHostsFile=/dev/null" \
-  -R ${TUNNEL_PORT}:localhost:22 \
-  -i __TUNNEL_KEY__ \
-  debian@45.181.156.171
-Restart=always
-RestartSec=30
-StartLimitBurst=0
-[Install]
-WantedBy=multi-user.target
-TUN
+# Fix S197 fila 59-E: sonoro-tunnel.service extraído a archivo repo (era inline
+# heredoc previamente). Beneficio: greppable/diffable/curl-able como resto de units.
+cp "${SCRIPT_DIR}/sonoro-tunnel.service" /etc/systemd/system/sonoro-tunnel.service
 sed -i "s|__SONORO_USER__|${SONORO_USER}|g; s|__TUNNEL_KEY__|${TUNNEL_KEY}|g" /etc/systemd/system/sonoro-tunnel.service
 
 # Sudoers: permite al user aplicar tunnel_port sin password (portal + sync-app)
