@@ -1,5 +1,5 @@
 #!/bin/bash
-# SONORO AV CMS — Instalador RPi v5.2 (RPi4 + RPi5 nativo)
+# SONORO AV CMS — Instalador RPi v5.4 (RPi4 + RPi5 nativo)
 # S172 (04/08/2026): portal cautivo (wifi-recover + dnsmasq preseed + CAPTIVE_OWN_DNS)
 #                    + OverlayFS RPi5 (regresion v5.1 corregida) + iptables en base.
 # S169 (02/08/2026): plymouth theme symlink + MODULES=most + splash PNG real
@@ -113,6 +113,12 @@ step "5/9 Instalando player"
 cp "${SCRIPT_DIR}/sync-app.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/activation-portal.js" "${PLAYER_DIR}/"
 cp "${SCRIPT_DIR}/package.json" "${PLAYER_DIR}/"
+
+# Guards S172i — validar contenido crítico copiado. Fail-fast si el sync-app no trae
+# handlers que soporta la flota (logs remotos desde admin dashboard + gate IS_RPI5).
+grep -q "logs_request" "${PLAYER_DIR}/sync-app.js" || { echo "ERROR: sync-app.js sin handler logs_request (S172h)"; exit 1; }
+grep -q "IS_RPI5"      "${PLAYER_DIR}/sync-app.js" || { echo "ERROR: sync-app.js sin gate IS_RPI5"; exit 1; }
+log "sync-app.js validado (logs_request + IS_RPI5 presentes)"
 # Splash idle (ambos modelos — sync-app.js los busca en PLAYER_DIR)
 cp "${SCRIPT_DIR}/splash_horizontal.png" "${PLAYER_DIR}/" 2>/dev/null || warn "splash_horizontal.png no encontrado"
 cp "${SCRIPT_DIR}/splash_vertical.png"   "${PLAYER_DIR}/" 2>/dev/null || warn "splash_vertical.png no encontrado"
@@ -587,7 +593,7 @@ TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 HOTSPOT_ID=$(echo "${DEVICE_ID}" | sed -E 's/^rpi[45]-//' | tr '[:lower:]' '[:upper:]' | rev | cut -c1-6 | rev)
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  SONORO AV CMS v5.2 instalado (${SONORO_MODEL})${NC}"
+echo -e "${GREEN}  SONORO AV CMS v5.4 instalado (${SONORO_MODEL})${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "  DEVICE_ID : ${DEVICE_ID}"

@@ -1355,6 +1355,20 @@ function connectSocket() {
     });
   });
 
+  // 12b. Logs — journalctl (S172h/S172i: cubre sonoro-player [rpi4], sonoro-sync-rpi5 y sonoro-player-rpi5).
+  socket.on('logs_request', ({ device_id, lines }) => {
+    if (IS_WINDOWS) return;
+    const n = Math.min(Math.max(parseInt(lines) || 100, 10), 2000);
+    console.log(`📜 Logs solicitados (${n} lineas)`);
+    exec(`journalctl -u sonoro-player -u sonoro-sync-rpi5 -u sonoro-player-rpi5 -n ${n} --no-pager 2>&1`, { maxBuffer: 4 * 1024 * 1024, timeout: 12000 }, (err, stdout, stderr) => {
+      const logs = (stdout || stderr || '').toString();
+      axios.post(`${CMS_URL}/api/devices/${device_id}/logs-result`, {
+        logs,
+        error: err && !logs ? err.message : null,
+      }).catch(e => console.error('📜 logs result error:', e.message));
+    });
+  });
+
   // 13. Reboot — sin SSH, via socket.io (funciona detrás de NAT y sin key).
   socket.on('reboot_request', ({ device_id } = {}) => {
     if (device_id && device_id !== DEVICE_ID) return;

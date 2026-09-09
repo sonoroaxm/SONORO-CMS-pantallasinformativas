@@ -13,6 +13,19 @@ const path    = require('path');
 const CMS_URL        = process.env.CMS_URL   || 'https://cms.sonoro.com.co';
 const DEVICE_ID      = process.env.DEVICE_ID || 'rpi4-sonoro-01';
 const RECONNECT_MODE = process.env.RECONNECT_MODE === 'true';
+// SONORO_MODEL: rpi4|rpi5|windows. Fallback lee /etc/default/sonoro cuando el proceso
+// no hereda env (portal spawn manual). Sin esto /api/activate default=rpi4 y RPi5 sale
+// pantalla negra (bug S172g).
+const SONORO_MODEL   = (() => {
+  const env = (process.env.SONORO_MODEL || '').toLowerCase();
+  if (['rpi4','rpi5','windows'].includes(env)) return env;
+  try {
+    const raw = fs.readFileSync('/etc/default/sonoro', 'utf8');
+    const m = raw.match(/^SONORO_MODEL=(\w+)/m);
+    if (m && ['rpi4','rpi5','windows'].includes(m[1].toLowerCase())) return m[1].toLowerCase();
+  } catch(_) {}
+  return null;
+})();
 // IS_DEMO=true: el RPi olvida perfiles WiFi al reboot (cómodo para demos moviéndose entre redes).
 // IS_DEMO=false (default, producción): persiste perfiles WiFi al SD lower para sobrevivir reboot.
 const IS_DEMO        = process.env.IS_DEMO === 'true';
@@ -252,7 +265,10 @@ async function activateDevice(code) {
   const https = require('https');
   const http2 = require('http');
   const url = new URL(`${CMS_URL}/api/activate`);
-  const body = JSON.stringify({ code, device_id: DEVICE_ID });
+  const payload = { code, device_id: DEVICE_ID };
+  if (SONORO_MODEL) payload.model = SONORO_MODEL;
+  const body = JSON.stringify(payload);
+  log(`Payload: device_id=${DEVICE_ID} model=${SONORO_MODEL || '(default rpi4)'}`);
   
   return new Promise((resolve, reject) => {
     const client = url.protocol === 'https:' ? https : http2;

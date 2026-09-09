@@ -353,7 +353,7 @@ router.post('/rpi/update', auth, (req, res) => {
     `sudo cp -a /tmp/sync-app.js.new /home/sonoro/sonoro-player/sync-app.js`,
     `if mountpoint -q /media/root-ro; then sudo /usr/local/bin/sonoro-sd-rw && sudo cp -a /tmp/sync-app.js.new /media/root-ro/home/sonoro/sonoro-player/sync-app.js && sudo sync && sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' && sudo /usr/local/bin/sonoro-sd-ro; fi`,
     `rm -f /tmp/sync-app.js.new`,
-    `sudo systemctl restart sonoro-player`,
+    `(sudo systemctl restart sonoro-sync-rpi5 2>/dev/null || sudo systemctl restart sonoro-player)`,
     `echo OK`,
   ].join(' && ');
   execFile('ssh', ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', `sonoro@${ip}`, remoteCmd], { timeout: 30000, windowsHide: true }, (err, stdout) => {
