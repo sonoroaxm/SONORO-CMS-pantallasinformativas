@@ -317,9 +317,9 @@
   }
 
   var CNT_DYN = {
-    es: { no_files:'No hay archivos', video:'video', image:'image' },
-    en: { no_files:'No files',        video:'video', image:'image' },
-    'pt-BR': { no_files:'Sem arquivos', video:'video', image:'image' }
+    es: { no_files:'No hay archivos', video:'video', image:'image', optimizing:'Optimizando para RPi5' },
+    en: { no_files:'No files',        video:'video', image:'image', optimizing:'Optimizing for RPi5' },
+    'pt-BR': { no_files:'Sem arquivos', video:'video', image:'image', optimizing:'Otimizando para RPi5' }
   };
   function patchContentRenders(){
     if (typeof window.displayFiles !== 'function' || window.displayFiles._sonoroPatched) return;
@@ -327,17 +327,25 @@
       var el = document.getElementById('fileList'); if (!el) return;
       var L = CNT_DYN[state.locale] || CNT_DYN.es;
       if (!files || !files.length){ el.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">'+L.no_files+'</p>'; return; }
+      var esc = (typeof window.escOnclick === 'function') ? window.escOnclick : function(s){ return String(s||'').replace(/'/g,"\'"); };
       el.innerHTML = files.map(function(file){
         var size = ((file.size_bytes||file.size||0)/1024/1024).toFixed(2);
         var dur = (file.duration_ms || file.duration) ? '<small>'+(((file.duration_ms||file.duration*1000))/1000).toFixed(1)+'s</small>' : '';
+        var processing = file.hevc_status === 'pending' || file.hevc_status === 'processing' || file.hevc_status === 'uploading';
+        var title = file.title || file.name || file.filename || '';
+        var fp = file.file_path || '';
         return '<div class="file-item" data-content-id="'+file.id+'">'+
           '<div class="file-info">'+
-          '<strong>'+(file.title || file.name || file.filename)+'</strong>'+
+          '<strong>'+title+'</strong>'+
           '<span class="file-type-badge '+(file.type==='image'?'badge-image':'badge-video')+'">'+(file.type==='image'?L.image:L.video)+'</span>'+
           '<small>'+size+' MB</small>'+dur+
+          '<div class="hevc-progress" id="hevc-progress-'+file.id+'" style="display:'+(processing?'block':'none')+'">'+
+            '<div class="hevc-progress-label">'+L.optimizing+'<span id="hevc-percent-'+file.id+'"></span></div>'+
+            '<div class="hevc-progress-track"><div class="hevc-progress-fill" id="hevc-fill-'+file.id+'" style="width:0%"></div></div>'+
           '</div>'+
-          '<button class="btn btn-outline btn-sm" onclick="void 0">▶</button>'+
-          '<button class="btn btn-danger btn-sm" onclick="void 0">✕</button>'+
+          '</div>'+
+          '<button class="btn btn-outline btn-sm" onclick="playFile(\''+fp+'\',\''+esc(title)+'\',\''+file.type+'\')">▶</button>'+
+          '<button class="btn btn-danger btn-sm" onclick="deleteFile('+file.id+')">✕</button>'+
           '</div>';
       }).join('');
     };
