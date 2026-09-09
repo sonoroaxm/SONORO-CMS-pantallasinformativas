@@ -1427,7 +1427,12 @@ function startHeartbeat() {
     const ok = await hasNetwork();
     if (ok) {
       _networkFailCount = 0;
-      try { await axios.get(`${CMS_URL}/api/devices/${DEVICE_ID}/config`, { timeout: 5000 }); } catch(e) {}
+      // Fix S197c: usar getDeviceConfig() en vez de axios.get raw — así corre
+      // syncTunnelPort() en cada heartbeat y reconcilia /etc/sonoro/tunnel-port
+      // con el valor autoritativo de BD (backfill para pre-activación remota
+      // que salta el portal cautivo). Idempotente: solo reinicia sonoro-tunnel
+      // si el valor cambió.
+      try { await getDeviceConfig(); } catch(e) {}
     } else {
       _networkFailCount++;
       if (_networkFailCount % 2 === 0)
