@@ -3684,6 +3684,18 @@ async function deleteUser(userId, userName) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
+async function deleteDevice(deviceId, deviceName) {
+  const label = deviceName || deviceId;
+  if (!confirm(`¿Eliminar "${label}" del CMS?\n\nSe borra el registro en BD. Requiere re-activación (código nuevo) si se reflashea.`)) return;
+  if (!confirm(`Segunda confirmación: ¿estás seguro de eliminar "${label}"?`)) return;
+  try {
+    const data = await api(`/api/admin/devices/${deviceId}`, { method: 'DELETE' });
+    toast(data?.success ? `Dispositivo ${label} eliminado` : (data?.error || 'Error'), data?.success ? 'success' : 'error');
+    if (typeof loadMisDispositivos === 'function') loadMisDispositivos();
+    if (typeof loadAllDevices === 'function') loadAllDevices();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
 async function viewUserDevices(userId, userName) {
   try {
     const devices = await api(`/api/admin/users/${userId}/devices`);
@@ -3789,6 +3801,7 @@ function renderAllDevices(devices) {
             ${!isWin
               ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
               : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
+            <button class="btn btn-outline btn-sm super-only" style="color:var(--offline);border-color:var(--offline);" onclick="deleteDevice('${d.device_id}','${escOnclick(d.name||d.device_id)}')" title="Eliminar dispositivo del CMS">Eliminar</button>
           </div>
         </div>`;
       }).join('')}
@@ -4079,6 +4092,7 @@ function renderRpis(devices) {
           ` : `
           <button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener player</button>
           `}
+          <button class="btn btn-outline btn-sm super-only" style="color:var(--offline);border-color:var(--offline);" onclick="event.stopPropagation();deleteDevice('${d.device_id}','${escOnclick(d.name||d.device_id)}')" title="Eliminar dispositivo del CMS">Eliminar</button>
         </div>
         ${!isWin ? `
         ${isSuperAdmin() ? `<div style="margin-top:8px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;">
@@ -4216,6 +4230,7 @@ async function loadAllDevices() {
               ${!isWin
                 ? `<button class="btn btn-danger btn-sm" onclick="rebootRpi('${d.device_id}')">Reboot</button>`
                 : `<button class="btn btn-danger btn-sm" style="color:var(--offline);border-color:var(--offline);" onclick="killWinPlayerAdmin('${d.device_id}','${escOnclick(d.name||d.device_id)}')">Detener</button>`}
+              <button class="btn btn-outline btn-sm super-only" style="color:var(--offline);border-color:var(--offline);" onclick="deleteDevice('${d.device_id}','${escOnclick(d.name||d.device_id)}')" title="Eliminar dispositivo del CMS">Eliminar</button>
             </div>
           </div>`;
         }).join('')}
