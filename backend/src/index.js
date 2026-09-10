@@ -619,8 +619,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     // Insertar usuario — features vacías por defecto (admin las asigna luego)
     const defaultFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
     const result = await pool.query(
-      `INSERT INTO users (email, password, name, features)
-       VALUES ($1, $2, $3, $4) RETURNING id, email, name, features`,
+      `INSERT INTO users (email, password, name, features, smarttv_enabled, smarttv_enabled_at)
+       VALUES ($1, $2, $3, $4, true, NOW()) RETURNING id, email, name, features, smarttv_enabled`,
       [email, hashedPassword, name || email, JSON.stringify(defaultFeatures)]
     );
 
@@ -641,7 +641,7 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: regFeatures }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, features: regFeatures, smarttv_enabled: user.smarttv_enabled }
     });
   } catch (err) {
     console.error('❌ Register error:', err);
