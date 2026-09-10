@@ -9395,7 +9395,7 @@ function stvBindErr(code) {
 /* ═══════════════ S191g — Add Device Wizard ═══════════════ */
 // Unifica los 3 botones antiguos (Emparejar código TV / + Agregar Smart TV /
 // + Generar Código) en un solo flujo poka-yoke: elige tipo → completa form.
-// Reutiliza APIs existentes: POST /api/devices/smarttv + POST /api/pair/bind
+// Reutiliza APIs existentes: POST /api/devices/smarttv + POST /api/smarttv/pair/bind
 // para Smart TV, y openActivationModal() para RPi/Windows.
 
 let _wizardType = null;
@@ -9475,7 +9475,7 @@ async function wizardSubmitSmartTv() {
     if (!newDeviceId) { msgEl.textContent = 'Error: no se recibió ID del dispositivo.'; btn.disabled = false; btn.textContent = originalLabel; return; }
     // 2) Bind con el código del TV
     const base = window.SMARTTV_API_BASE || '';
-    const r2 = await fetch(`${base}/api/pair/bind`, {
+    const r2 = await fetch(`${base}/api/smarttv/pair/bind`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + authToken },
       body: JSON.stringify({ short_code: code, device_id: newDeviceId }),
