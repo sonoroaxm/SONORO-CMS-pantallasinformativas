@@ -599,12 +599,7 @@ app.get('/dashboard.html', (req, res) => {
 // ========================================
 
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
-  // S158d: register público cerrado. Las cuentas ahora se crean sólo por admin.
-  return res.status(403).json({
-    error: 'registro_cerrado',
-    message: 'El registro público está deshabilitado. Contacta a SONORO por WhatsApp al +57 314 446 0990 para activar tu cuenta.'
-  });
-  // eslint-disable-next-line no-unreachable
+  // S197h (10-sep-2026): register público reabierto. Trial se reclama self-service post-login.
   try {
     const { email, password, name } = req.body;
 
