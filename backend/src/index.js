@@ -599,7 +599,6 @@ app.get('/dashboard.html', (req, res) => {
 // ========================================
 
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
-  // S197h (10-sep-2026): register público reabierto. Trial se reclama self-service post-login.
   try {
     const { email, password, name } = req.body;
 
@@ -618,13 +617,32 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
 
     // Insertar usuario — features vacías por defecto (admin las asigna luego)
     const defaultFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
+    // S197j: register nace en trial 15d / 150 MB (no heredar defaults RPi 1 año / 500 MB)
     const result = await pool.query(
-      `INSERT INTO users (email, password, name, features, smarttv_enabled, smarttv_enabled_at)
-       VALUES ($1, $2, $3, $4, true, NOW()) RETURNING id, email, name, features, smarttv_enabled`,
+      `INSERT INTO users (email, password, name, features, smarttv_enabled, smarttv_enabled_at,
+                          license_type, license_status, license_start, license_end, storage_limit_mb)
+       VALUES ($1, $2, $3, $4, true, NOW(),
+               'smart_tv', 'trial', NOW(), NOW() + INTERVAL '15 days', 150)
+       RETURNING id, email, name, features, smarttv_enabled, role, currency`,
       [email, hashedPassword, name || email, JSON.stringify(defaultFeatures)]
     );
 
     const user = result.rows[0];
+
+    // S197j: crear fila licenses trial (is_trial=TRUE) — arma poka-yoke 1-trial/user y cap 150 MB
+    try {
+      await pool.query(
+        `INSERT INTO licenses
+           (user_id, product, months, start_date, end_date, status, currency,
+            amount, unit_price, discount_pct, is_free_grant, is_trial, trial_days,
+            created_by, note)
+         VALUES ($1, 'smart_tv', 1, NOW(), NOW() + INTERVAL '15 days', 'active', $2,
+                 0, 0, 0, TRUE, TRUE, 15, $1, 'trial 15d 150MB — auto register S197j')`,
+        [user.id, user.currency || 'COP']
+      );
+    } catch (e) {
+      console.error('[register S197j licenses insert]', e.message);
+    }
 
     // Generar JWT
     const regFeatures = user.role === 'admin' ? { turnos: true, analytics: true, dual_hdmi: true } : (user.features || { turnos: false, analytics: false, dual_hdmi: false });
