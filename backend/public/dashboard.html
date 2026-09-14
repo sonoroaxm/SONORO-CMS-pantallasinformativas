@@ -4137,6 +4137,17 @@ async function loadDevices(silent = false) {
               <div class="dc-section-body">${secCtrl}</div>
             </div>` : ''}
 
+            ${isSmartTv ? `
+            <div class="dc-section" id="dcsec_sched_${d.device_id}">
+              <div class="dc-section-header" onclick="toggleDeviceSection('dcsec_sched_${d.device_id}')">
+                <span class="dc-section-label">Programacion de contenido</span>
+                <span class="dc-section-arrow">&#9658;</span>
+              </div>
+              <div class="dc-section-body" id="stv_sched_body_${d.device_id}">
+                <div style="font-size:12px;color:var(--text-muted);text-align:center;padding:10px 0;">Proximamente</div>
+              </div>
+            </div>` : ''}
+
             <div class="dc-footer">
               <span id="lastseen_${d.device_id}" class="dc-footer-meta">Verificado ${lastSeen}</span>
               <div class="dc-footer-actions">
