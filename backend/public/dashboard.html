@@ -4167,6 +4167,7 @@ async function loadDevices(silent = false) {
 
     window._devicesCache = devices;
     devices.forEach(d => loadSchedules(d.device_id));
+    devices.forEach(d => { if (d.model === 'smarttv') loadStvScheduling(d.device_id); });
     if (!silent) showStatus('Dispositivos actualizados', 'success');
   } catch (err) { if (!silent) container.innerHTML = `<p style="color:var(--offline);">Error: ${err.message}</p>`; }
 }
@@ -4466,6 +4467,38 @@ async function loadSchedules(deviceId) {
       renderSchedules(deviceId, data.schedules);
     }
   } catch (e) { console.warn('No se pudieron cargar schedules:', e.message); }
+}
+
+// Smart TV Scheduling v1 (S199) — feature-detect + resumen texto.
+// Consulta el endpoint del servicio smarttvsignage (mismo host vía nginx
+// namespace /api/smarttv/*). Beta-gated en backend: si el user no está en
+// SCHEDULING_BETA_USERS retorna 404 y el shell queda en 'Próximamente'.
+// try/catch envolvente: cualquier falla (404, CORS, red) no rompe render.
+async function loadStvScheduling(deviceId) {
+  const body = document.getElementById('stv_sched_body_' + deviceId);
+  if (!body) return; // shell no existe (device no es smarttv) → no-op
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) return; // 404 beta gate o 403 → placeholder queda
+    const data = await res.json();
+    const s = data.schedule || {};
+    const nBlocks = (data.blocks || []).length;
+    const cov = data.coverage || {};
+    const modeLabel = s.mode === 'scheduled'
+      ? (s.active ? 'Programado (activo)' : 'Programado (pausado)')
+      : 'Playlist única';
+    const covText = cov.covered ? 'Cobertura 100%' :
+      (cov.reason === 'no_operating_hours' ? 'Sin horario declarado' :
+       `${(cov.gaps || []).length} huecos sin cubrir`);
+    body.innerHTML =
+      '<div style="font-size:12px;padding:12px;display:flex;flex-direction:column;gap:6px;">' +
+        '<div><span style="color:var(--text-muted);">Modo:</span> <strong>' + modeLabel + '</strong></div>' +
+        '<div><span style="color:var(--text-muted);">Franjas:</span> ' + nBlocks + '</div>' +
+        '<div><span style="color:var(--text-muted);">Cobertura:</span> ' + covText + '</div>' +
+      '</div>';
+  } catch (e) { console.warn('[stv-sched] load fail dev ' + deviceId + ':', e.message); }
 }
 
 async function saveSchedules(deviceId) {
