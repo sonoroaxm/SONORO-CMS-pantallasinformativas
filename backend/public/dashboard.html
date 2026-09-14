@@ -1183,8 +1183,67 @@
   .stv-coverage-missing b { color: var(--text); }
   .stv-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   .stv-single-hint { padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
-  .stv-open-blocks-btn { padding: 9px 14px; background: transparent; border: 1px dashed var(--smarttv-border); color: var(--smarttv); border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; transition: all .15s; }
-  .stv-open-blocks-btn:hover { background: rgba(201, 164, 255, .06); border-style: solid; }
+  /* Paso 4 — layout inline 1:1 mockup (.prog-grid 280px | 1fr) */
+  :root {
+    --stv-pl1:#5aa3ff;--stv-pl1-b:#1e4a80;
+    --stv-pl2:#ff8ac9;--stv-pl2-b:#7a2c5b;
+    --stv-pl3:#7ed957;--stv-pl3-b:#2e6b1c;
+    --stv-pl4:#ffb84d;--stv-pl4-b:#805020;
+    --stv-pl5:#a084ff;--stv-pl5-b:#4a2d80;
+  }
+  body.light-mode { --stv-pl1-b:#3a72c4;--stv-pl2-b:#c85c9a;--stv-pl3-b:#4f9c33;--stv-pl4-b:#c7862f;--stv-pl5-b:#6a4dcc; }
+  .stv-prog-grid { display: grid; grid-template-columns: 280px 1fr; gap: 14px; }
+  @media (max-width: 900px) { .stv-prog-grid { grid-template-columns: 1fr; } }
+  .stv-pl-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 6px; margin-top: 16px; }
+  .stv-pl-help { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin: 0 0 8px; }
+  .stv-pl-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 5px; font-size: 12px; cursor: grab; user-select: none; transition: all .12s; }
+  .stv-pl-item:hover { border-color: var(--smarttv-border); }
+  .stv-pl-item:active { cursor: grabbing; }
+  .stv-pl-swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .stv-editor-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+  .stv-tbtn { padding: 6px 12px; font-size: 11px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .stv-tbtn:hover { border-color: var(--text); }
+  .stv-tbtn-grad { background: var(--grad); color: #111; border: none; padding: 9px 16px; font-size: 12px; }
+  .stv-tbtn-grad:disabled { background: var(--surface3); color: var(--text-muted); cursor: not-allowed; }
+  .stv-tbtn-danger { color: var(--offline); border-color: var(--offline); }
+  .stv-cap-warn { padding: 8px 12px; background: rgba(255,179,0,.08); border: 1px solid #805e00; border-radius: 6px; font-size: 11px; color: var(--warning); margin-top: 8px; display: none; }
+  .stv-cap-warn.show { display: block; }
+  .stv-canvas-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; overflow: auto; }
+  .stv-canvas { display: grid; grid-template-columns: 52px repeat(7,1fr); gap: 0; min-width: 720px; user-select: none; }
+  .stv-canvas-corner { background: transparent; }
+  .stv-day-head { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; padding: 6px 4px; border-bottom: 1px solid var(--border); position: relative; }
+  .stv-day-head .stv-day-actions { opacity: 0; transition: opacity .15s; position: absolute; top: 2px; right: 2px; display: flex; gap: 2px; }
+  .stv-day-head:hover .stv-day-actions { opacity: 1; }
+  .stv-day-mini-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: 4px; padding: 2px 5px; font-size: 9px; cursor: pointer; font-family: inherit; }
+  .stv-day-mini-btn:hover { color: var(--text); border-color: var(--smarttv-border); }
+  .stv-hr-label { font-size: 10px; color: var(--text-muted); text-align: right; padding-right: 6px; height: 11px; line-height: 11px; border-right: 1px solid var(--border); }
+  .stv-hr-label.hh { font-weight: 700; color: var(--text); }
+  .stv-slot { height: 11px; border-bottom: 1px dashed rgba(128,128,128,.06); cursor: crosshair; position: relative; }
+  .stv-slot.hourline { border-bottom: 1px solid rgba(128,128,128,.15); }
+  .stv-slot.oh-off { background: repeating-linear-gradient(45deg,transparent 0 4px,rgba(128,128,128,.05) 4px 8px); cursor: not-allowed; }
+  .stv-slot.hover { background: rgba(201,164,255,.15); }
+  body.light-mode .stv-slot.hover { background: rgba(109,63,255,.15); }
+  .stv-block { position: absolute; left: 2px; right: 2px; border-radius: 5px; padding: 4px 6px; font-size: 10px; font-weight: 700; color: #fff; cursor: pointer; overflow: hidden; border: 1px solid rgba(0,0,0,.15); z-index: 2; line-height: 1.2; }
+  body.light-mode .stv-block { color: #111; border: 1px solid rgba(0,0,0,.25); }
+  .stv-block:hover { filter: brightness(1.15); z-index: 3; }
+  .stv-block .stv-b-time { opacity: .85; font-weight: 500; font-size: 9px; margin-top: 1px; }
+  /* Modales del mockup: #blockModal + #copyModal (los ÚNICOS permitidos) */
+  .stv-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  body.light-mode .stv-modal-overlay { background: rgba(0,0,0,.45); }
+  .stv-modal-overlay.active { display: flex; }
+  .stv-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; max-width: 460px; width: 100%; padding: 22px; position: relative; }
+  .stv-modal-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .stv-modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+  .stv-modal-close { position: absolute; top: 12px; right: 14px; background: transparent; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; line-height: 1; }
+  .stv-fg { margin-bottom: 12px; }
+  .stv-fl { display: block; font-size: 10px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .stv-fi { width: 100%; padding: 9px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-size: 13px; font-family: inherit; }
+  .stv-fr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stv-modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+  .stv-modal-actions .stv-right { display: flex; gap: 8px; }
+  .stv-dow-picker { display: flex; gap: 4px; flex-wrap: wrap; }
+  .stv-dow-chip { padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text-muted); user-select: none; }
+  .stv-dow-chip.selected { background: var(--surface3); color: var(--text); border-color: var(--smarttv); }
 </style>
   <script src="/auto-token-refresh.js"></script>
   <script src="/js/i18n.js"></script>
@@ -4595,21 +4654,43 @@ function renderStvScheduling(deviceId) {
         '</div>'
       : '';
 
+    // Layout 1:1 mockup: .prog-grid (280px left | 1fr right)
+    // LEFT: mode-toggle (arriba de la grid, full width) + OH + palette
+    // RIGHT: toolbar (Vaciar + coverage chip) + missing + capWarn + canvas + hint+Activar
+    const activeBool = !!(data.schedule && data.schedule.active);
+    const capExceeded = [0,1,2,3,4,5,6].some(d => (data.blocks || []).filter(b => b.dow === d).length > 12);
+    const paletteHtml = stvRenderPaletteHtml();
+    const canvasSkelHtml = `<div class="stv-canvas" id="stv_canvas_${deviceId}"></div>`;
     panelHtml =
-      '<div>' +
-        '<div class="stv-oh-title">Horario de operación</div>' +
-        ohRowsHtml +
-      '</div>' +
-      `<div class="stv-coverage-chip ${covClass}">` +
-        `<span>${covLabel}</span>` +
-        `<span class="stv-coverage-pct ${covClass}">${covPct}</span>` +
-      '</div>' +
-      missingHtml +
-      `<button class="stv-open-blocks-btn" onclick="stvSchedOpenBlocks(${deviceId})">Editar franjas (${nBlocks}) →</button>` +
-      '<div class="stv-hint">Clic en el día para abrirlo/cerrarlo. Ajusta horas con los inputs. La cobertura debe ser 100% antes de activar.</div>';
+      '<div class="stv-prog-grid">' +
+        '<div>' +
+          '<div class="stv-oh-title">Horario de operación</div>' +
+          ohRowsHtml +
+          '<div class="stv-pl-title">Tus playlists</div>' +
+          '<div class="stv-pl-help">Selecciona una y arrastra sobre la grilla para crear una franja (mínimo 30 min).</div>' +
+          `<div id="stv_palette_${deviceId}">${paletteHtml}</div>` +
+        '</div>' +
+        '<div>' +
+          '<div class="stv-editor-toolbar">' +
+            `<button class="stv-tbtn" onclick="stvSchedClearWeek(${deviceId})">Vaciar semana</button>` +
+            `<div class="stv-coverage-chip ${covClass}" style="min-width:280px">` +
+              `<span>${covLabel}</span>` +
+              `<span class="stv-coverage-pct ${covClass}">${covPct}</span>` +
+            '</div>' +
+          '</div>' +
+          missingHtml +
+          `<div class="stv-cap-warn ${capExceeded ? 'show' : ''}">Algún día tiene más de 12 franjas. Si necesitas tantas, probablemente puedas simplificar.</div>` +
+          `<div class="stv-canvas-wrap" style="margin-top:12px">${canvasSkelHtml}</div>` +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:14px;gap:12px;flex-wrap:wrap">' +
+            '<div class="stv-hint" style="max-width:460px"><b>Cómo usar:</b> arrastra una playlist desde la izquierda hasta el día y hora donde quieras. Click en una franja para ajustar horas o eliminarla.</div>' +
+            `<button class="stv-tbtn stv-tbtn-grad" onclick="stvSchedActivate(${deviceId})" ${(covered && nBlocks > 0 && !activeBool) ? '' : 'disabled'}>${activeBool ? 'Programación activa' : 'Activar programación'}</button>` +
+          '</div>' +
+        '</div>' +
+      '</div>';
   }
 
   body.innerHTML = '<div class="stv-sched">' + modeToggleHtml + panelHtml + '</div>';
+  if (mode === 'scheduled') { stvSchedLoadPlaylists().then(() => stvSchedRenderCanvas(deviceId)); }
 }
 
 // PUT modo. Al pasar a 'scheduled' se intenta activar; si 422 coverage_incomplete
@@ -4687,9 +4768,205 @@ function stvSchedSetOhTime(deviceId, dow, field, value) {
   stvSchedSaveOh(deviceId, hours);
 }
 
-// Placeholder editor de franjas (Paso 4: modal con canvas 7×48 + drag&drop).
-function stvSchedOpenBlocks(deviceId) {
-  showStatus('Editor de franjas: próximo paso (drag&drop 7×48)', 'info');
+// ===== Smart TV Scheduling v1 (S199) Paso 4 — canvas 7×48 INLINE 1:1 mockup =====
+// Layout: dentro de .stv-prog-grid (280px | 1fr). Cero modal editor.
+// Únicos modales permitidos (declarados en mockup): #stvBlockModal + #stvCopyModal.
+// Cero cambios en player.html — resolver del backend smarttvsignage sirve la
+// playlist correcta en el próximo /config poll gracias al schedule_version bump.
+window._stvPlCache = null;
+window._stvEditingBlock = { deviceId: null, blockId: null, dow: null };
+window._stvCopySrc = { deviceId: null, dow: null };
+const STV_PL_PALETTE = [
+  { c: 'var(--stv-pl1)', b: 'var(--stv-pl1-b)' },
+  { c: 'var(--stv-pl2)', b: 'var(--stv-pl2-b)' },
+  { c: 'var(--stv-pl3)', b: 'var(--stv-pl3-b)' },
+  { c: 'var(--stv-pl4)', b: 'var(--stv-pl4-b)' },
+  { c: 'var(--stv-pl5)', b: 'var(--stv-pl5-b)' },
+];
+function stvPlColor(id) { return STV_PL_PALETTE[((+id) - 1) % STV_PL_PALETTE.length] || STV_PL_PALETTE[0]; }
+function stvTimeToIdx(t) { const m = (t || '').match(/^(\d{2}):(\d{2})/); return m ? (+m[1]) * 2 + (+m[2] >= 30 ? 1 : 0) : 0; }
+function stvIdxToTime(i) { const h = Math.floor(i / 2), m = (i % 2) * 30; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':00'; }
+function stvIdxToHHMM(i) { return stvIdxToTime(i).slice(0, 5); }
+
+async function stvSchedLoadPlaylists() {
+  if (window._stvPlCache) return window._stvPlCache;
+  try {
+    const res = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    window._stvPlCache = res.ok ? await res.json() : [];
+  } catch (e) { window._stvPlCache = []; }
+  return window._stvPlCache;
+}
+function stvRenderPaletteHtml() {
+  const pls = window._stvPlCache || [];
+  if (!pls.length) return '<div class="stv-pl-help">No tienes playlists. Créalas en la pestaña Listas.</div>';
+  return pls.map(p => {
+    const col = stvPlColor(p.id);
+    return `<div class="stv-pl-item" draggable="true" ondragstart="stvSchedPlDragStart(event,${p.id})"><span class="stv-pl-swatch" style="background:${col.c}"></span>${(p.name || 'Playlist ' + p.id).replace(/</g,'&lt;')}</div>`;
+  }).join('');
+}
+function stvSchedPlDragStart(e, playlistId) {
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', String(playlistId));
+}
+function stvSchedRenderCanvas(deviceId) {
+  const data = window._stvSchedCache[deviceId] || {};
+  const c = document.getElementById('stv_canvas_' + deviceId);
+  const paletteHost = document.getElementById('stv_palette_' + deviceId);
+  if (paletteHost) paletteHost.innerHTML = stvRenderPaletteHtml();
+  if (!c) return;
+  const ohByDow = {}; (data.operating_hours || []).forEach(h => { ohByDow[h.dow] = h; });
+  let html = '<div class="stv-canvas-corner"></div>';
+  for (let d = 0; d < 7; d++) {
+    html += `<div class="stv-day-head">${STV_DOW_LABELS[d]}<div class="stv-day-actions"><button class="stv-day-mini-btn" title="Copiar día" onclick="stvSchedOpenCopyDay(${deviceId},${d})">⎘</button></div></div>`;
+  }
+  const isOhOff = (dow, idx) => { const h = ohByDow[dow]; if (!h || !h.is_open) return true; return idx < stvTimeToIdx(h.open_time) || idx >= stvTimeToIdx(h.close_time); };
+  for (let idx = 0; idx < 48; idx++) {
+    const hh = Math.floor(idx / 2), isHour = idx % 2 === 0;
+    html += `<div class="stv-hr-label ${isHour ? 'hh' : ''}">${isHour ? String(hh).padStart(2, '0') + ':00' : ''}</div>`;
+    for (let d = 0; d < 7; d++) { const off = isOhOff(d, idx); html += `<div class="stv-slot ${off ? 'oh-off' : ''} ${isHour ? 'hourline' : ''}" data-dow="${d}" data-idx="${idx}"></div>`; }
+  }
+  c.innerHTML = html;
+  stvSchedLayoutBlocks(deviceId);
+  stvSchedAttachCanvasEvents(deviceId);
+}
+function stvSchedLayoutBlocks(deviceId) {
+  const data = window._stvSchedCache[deviceId] || {};
+  const pls = window._stvPlCache || [];
+  const plName = {}; pls.forEach(p => { plName[p.id] = p.name || 'Playlist ' + p.id; });
+  (data.blocks || []).forEach(b => {
+    const startIdx = stvTimeToIdx(b.start_time), endIdx = stvTimeToIdx(b.end_time);
+    const s = document.querySelector(`#stv_canvas_${deviceId} .stv-slot[data-dow="${b.dow}"][data-idx="${startIdx}"]`);
+    if (!s) return;
+    const col = stvPlColor(b.playlist_id);
+    const el = document.createElement('div');
+    el.className = 'stv-block';
+    el.style.background = col.c; el.style.borderColor = col.b;
+    el.style.top = '0px'; el.style.height = ((endIdx - startIdx) * 11) + 'px';
+    el.innerHTML = `<div>${(plName[b.playlist_id] || 'Playlist ' + b.playlist_id).replace(/</g,'&lt;')}</div><div class="stv-b-time">${stvIdxToHHMM(startIdx)}–${stvIdxToHHMM(endIdx)}</div>`;
+    el.onclick = (e) => { e.stopPropagation(); stvSchedOpenBlockModal(deviceId, b); };
+    s.appendChild(el); s.style.position = 'relative';
+  });
+}
+function stvSchedAttachCanvasEvents(deviceId) {
+  document.querySelectorAll(`#stv_canvas_${deviceId} .stv-slot`).forEach(s => {
+    s.addEventListener('dragover', e => { if (s.classList.contains('oh-off')) return; e.preventDefault(); s.classList.add('hover'); });
+    s.addEventListener('dragleave', () => s.classList.remove('hover'));
+    s.addEventListener('drop', async e => {
+      e.preventDefault(); s.classList.remove('hover');
+      if (s.classList.contains('oh-off')) return;
+      const pl = +e.dataTransfer.getData('text/plain'); if (!pl) return;
+      const dow = +s.dataset.dow, start = +s.dataset.idx, end = Math.min(48, start + 2);
+      await stvSchedTryCreateBlock(deviceId, dow, start, end, pl);
+    });
+  });
+}
+async function stvSchedTryCreateBlock(deviceId, dow, startIdx, endIdx, playlistId) {
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dow, start_time: stvIdxToTime(startIdx), end_time: stvIdxToTime(endIdx), playlist_id: playlistId })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msgMap = { overlap: 'Esa franja se solapa con otra existente', too_short_min_30min: 'Mínimo 30 minutos', cross_midnight_or_empty: 'Rango inválido', playlist_not_owned: 'Playlist no válida' };
+      showStatus(msgMap[err.error] || 'No se pudo crear la franja', 'error'); return;
+    }
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red creando franja', 'error'); }
+}
+function stvSchedOpenBlockModal(deviceId, b) {
+  window._stvEditingBlock = { deviceId, blockId: b.id, dow: b.dow };
+  const sel = document.getElementById('stvBmPlaylist');
+  const pls = window._stvPlCache || [];
+  sel.innerHTML = pls.map(p => `<option value="${p.id}" ${p.id === b.playlist_id ? 'selected' : ''}>${(p.name || 'Playlist ' + p.id).replace(/</g,'&lt;')}</option>`).join('');
+  document.getElementById('stvBmStart').value = (b.start_time || '').slice(0, 5);
+  document.getElementById('stvBmEnd').value = (b.end_time || '').slice(0, 5);
+  document.getElementById('stvBlockModalOverlay').classList.add('active');
+}
+function stvSchedCloseBlockModal() {
+  document.getElementById('stvBlockModalOverlay').classList.remove('active');
+  window._stvEditingBlock = { deviceId: null, blockId: null, dow: null };
+}
+async function stvSchedSaveBlock() {
+  const { deviceId, blockId, dow } = window._stvEditingBlock;
+  if (!deviceId || !blockId) return;
+  const pl = +document.getElementById('stvBmPlaylist').value;
+  const start = document.getElementById('stvBmStart').value, end = document.getElementById('stvBmEnd').value;
+  if (!start || !end || !pl) { showStatus('Datos incompletos', 'error'); return; }
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks/${blockId}`, {
+      method: 'PUT', headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dow, start_time: start + ':00', end_time: end + ':00', playlist_id: pl })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msgMap = { overlap: 'Esa franja se solapa con otra', too_short_min_30min: 'Mínimo 30 minutos', cross_midnight_or_empty: 'Rango inválido' };
+      showStatus(msgMap[err.error] || 'No se pudo guardar', 'error'); return;
+    }
+    stvSchedCloseBlockModal();
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red guardando franja', 'error'); }
+}
+async function stvSchedDeleteBlock() {
+  const { deviceId, blockId } = window._stvEditingBlock;
+  if (!deviceId || !blockId) return;
+  if (!confirm('¿Eliminar esta franja?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks/${blockId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!res.ok) { showStatus('No se pudo eliminar', 'error'); return; }
+    stvSchedCloseBlockModal();
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red', 'error'); }
+}
+async function stvSchedClearWeek(deviceId) {
+  const data = window._stvSchedCache[deviceId] || {};
+  const blocks = data.blocks || [];
+  if (!blocks.length) return;
+  if (!confirm(`¿Eliminar todas las franjas (${blocks.length}) de la semana?`)) return;
+  for (const b of blocks) {
+    try { await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks/${b.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } }); } catch (e) {}
+  }
+  await loadStvScheduling(deviceId);
+  showStatus('Semana vaciada', 'success');
+}
+async function stvSchedActivate(deviceId) {
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/mode`, {
+      method: 'PUT', headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'scheduled', active: true })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'coverage_incomplete') showStatus('Cobertura incompleta — cubre el horario de operación', 'error');
+      else showStatus('No se pudo activar', 'error');
+      return;
+    }
+    showStatus('Programación activada', 'success');
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red activando', 'error'); }
+}
+function stvSchedOpenCopyDay(deviceId, dow) {
+  window._stvCopySrc = { deviceId, dow };
+  const picker = document.getElementById('stvCdPicker');
+  const dowLong = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  picker.innerHTML = dowLong.map((n, i) => i === dow ? '' : `<div class="stv-dow-chip" data-dow="${i}" onclick="this.classList.toggle('selected')">${n}</div>`).join('');
+  document.getElementById('stvCopyModalOverlay').classList.add('active');
+}
+function stvSchedCloseCopyModal() { document.getElementById('stvCopyModalOverlay').classList.remove('active'); }
+async function stvSchedDoCopyDay() {
+  const { deviceId, dow: srcDow } = window._stvCopySrc;
+  const targets = [...document.querySelectorAll('#stvCdPicker .stv-dow-chip.selected')].map(el => +el.dataset.dow);
+  if (!targets.length) { stvSchedCloseCopyModal(); return; }
+  const data = window._stvSchedCache[deviceId] || {};
+  const srcBlocks = (data.blocks || []).filter(b => b.dow === srcDow);
+  for (const t of targets) {
+    const existing = (data.blocks || []).filter(b => b.dow === t);
+    for (const b of existing) { try { await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks/${b.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } }); } catch (e) {} }
+    for (const b of srcBlocks) { try { await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/blocks`, { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ dow: t, start_time: b.start_time, end_time: b.end_time, playlist_id: b.playlist_id }) }); } catch (e) {} }
+  }
+  stvSchedCloseCopyModal();
+  await loadStvScheduling(deviceId);
+  showStatus('Día copiado', 'success');
 }
 
 async function saveSchedules(deviceId) {
@@ -10471,6 +10748,43 @@ document.addEventListener('change', function(e){
     </div>
     <div class="lic-modal-actions">
       <button class="lic-btn-grad" onclick="licSetCountry(document.getElementById('licCountrySelect').value)">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ S199 Paso 4 — Smart TV Scheduling: Modales ═══════════════ -->
+<div class="stv-modal-overlay" id="stvBlockModalOverlay" onclick="if(event.target===this)stvSchedCloseBlockModal()">
+  <div class="modal-content" style="max-width:480px;">
+    <button class="modal-close" onclick="stvSchedCloseBlockModal()">×</button>
+    <div class="modal-title">Editar franja horaria</div>
+    <div class="modal-subtitle">Ajusta la playlist, el horario o elimina esta franja.</div>
+    <div class="form-group">
+      <label class="form-label">Playlist</label>
+      <select class="form-input" id="stvBmPlaylist"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Inicio</label><input type="time" step="1800" class="form-input" id="stvBmStart"></div>
+      <div class="form-group"><label class="form-label">Fin</label><input type="time" step="1800" class="form-input" id="stvBmEnd"></div>
+    </div>
+    <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <button class="btn btn-danger btn-sm" onclick="stvSchedDeleteBlock()">Eliminar franja</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="stvSchedCloseBlockModal()">Cancelar</button>
+        <button class="btn btn-grad btn-sm" onclick="stvSchedSaveBlock()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stv-modal-overlay" id="stvCopyModalOverlay" onclick="if(event.target===this)stvSchedCloseCopyModal()">
+  <div class="modal-content" style="max-width:480px;">
+    <button class="modal-close" onclick="stvSchedCloseCopyModal()">×</button>
+    <div class="modal-title">Copiar día a otros días</div>
+    <div class="modal-subtitle" id="stvCdSub">Se copiarán todas las franjas del día seleccionado a los días marcados abajo (se reemplaza el contenido existente).</div>
+    <div class="form-group"><label class="form-label">Días destino</label><div class="dow-picker" id="stvCdPicker" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
+    <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-outline btn-sm" onclick="stvSchedCloseCopyModal()">Cancelar</button>
+      <button class="btn btn-grad btn-sm" onclick="stvSchedDoCopyDay()">Copiar</button>
     </div>
   </div>
 </div>
