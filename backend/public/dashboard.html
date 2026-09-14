@@ -1141,6 +1141,51 @@
     .lic-form-group { margin-bottom: 14px; }
     .lic-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 </style>
+
+<!-- Smart TV Scheduling v1 (S199) — estilos portados 1:1 de MOCKUP_smarttv_scheduling_v1.html
+     Vars aditivas (--smarttv, --smarttv-border, --bg-alt, --bg-secondary, --warning)
+     scoped a :root — no colisiona con vars existentes. Prefijo .stv-sched-* para
+     evitar chocar con clases del mockup en caso de coexistencia futura. -->
+<style id="stv-sched-styles">
+  :root {
+    --smarttv: #c9a4ff;
+    --smarttv-border: #4c2680;
+    --bg-alt: #141414;
+    --bg-secondary: #1a1a1a;
+    --warning: #ffb300;
+  }
+  body.light-mode {
+    --smarttv: #6d3fff;
+    --smarttv-border: #c9a4ff;
+    --bg-alt: #f0f0f0;
+    --bg-secondary: #f7f7f7;
+  }
+  .stv-sched { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .stv-mode-toggle { display: flex; background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px; padding: 4px; gap: 4px; }
+  .stv-mode-btn { flex: 1; padding: 9px 10px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; border-radius: 7px; font-family: inherit; transition: all .15s; }
+  .stv-mode-btn.active { background: var(--surface3); color: var(--text); box-shadow: 0 0 0 1px var(--smarttv-border); }
+  .stv-oh-title { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 8px; }
+  .stv-oh-row { display: grid; grid-template-columns: 44px 1fr auto 1fr; gap: 6px; align-items: center; margin-bottom: 6px; font-size: 12px; }
+  .stv-oh-row.closed .stv-oh-time, .stv-oh-row.closed .stv-oh-sep { opacity: .3; pointer-events: none; }
+  .stv-oh-dow-toggle { font-weight: 700; color: var(--text); text-align: center; font-size: 11px; padding: 7px 0; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; user-select: none; transition: all .12s; text-transform: uppercase; letter-spacing: .3px; }
+  .stv-oh-dow-toggle:hover { border-color: var(--smarttv-border); color: var(--smarttv); }
+  .stv-oh-row.closed .stv-oh-dow-toggle { background: transparent; color: var(--text-muted); border-style: dashed; text-decoration: line-through; }
+  .stv-oh-time { padding: 7px 8px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; font-family: inherit; width: 100%; text-align: center; }
+  .stv-oh-time:focus { outline: none; border-color: var(--smarttv); }
+  .stv-oh-sep { color: var(--text-muted); font-size: 11px; padding: 0 2px; }
+  .stv-coverage-chip { padding: 9px 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 14px; font-size: 12px; }
+  .stv-coverage-chip.ok { border-color: #1e5c34; background: rgba(0, 230, 118, .06); }
+  .stv-coverage-chip.warn { border-color: #805e00; background: rgba(255, 179, 0, .06); }
+  .stv-coverage-pct { font-weight: 800; font-size: 14px; }
+  .stv-coverage-pct.ok { color: var(--online); }
+  .stv-coverage-pct.warn { color: var(--warning); }
+  .stv-coverage-missing { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+  .stv-coverage-missing b { color: var(--text); }
+  .stv-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .stv-single-hint { padding: 12px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .stv-open-blocks-btn { padding: 9px 14px; background: transparent; border: 1px dashed var(--smarttv-border); color: var(--smarttv); border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; transition: all .15s; }
+  .stv-open-blocks-btn:hover { background: rgba(201, 164, 255, .06); border-style: solid; }
+</style>
   <script src="/auto-token-refresh.js"></script>
   <script src="/js/i18n.js"></script>
 </head>
@@ -4474,6 +4519,11 @@ async function loadSchedules(deviceId) {
 // namespace /api/smarttv/*). Beta-gated en backend: si el user no está en
 // SCHEDULING_BETA_USERS retorna 404 y el shell queda en 'Próximamente'.
 // try/catch envolvente: cualquier falla (404, CORS, red) no rompe render.
+// Cache por device del último payload de scheduling. Fuente única para
+// reconstruir bulk operating-hours en toggles optimistas.
+window._stvSchedCache = window._stvSchedCache || {};
+const STV_DOW_LABELS = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']; // 0=Lun..6=Dom
+
 async function loadStvScheduling(deviceId) {
   const body = document.getElementById('stv_sched_body_' + deviceId);
   if (!body) return; // shell no existe (device no es smarttv) → no-op
@@ -4483,22 +4533,163 @@ async function loadStvScheduling(deviceId) {
     });
     if (!res.ok) return; // 404 beta gate o 403 → placeholder queda
     const data = await res.json();
-    const s = data.schedule || {};
-    const nBlocks = (data.blocks || []).length;
-    const cov = data.coverage || {};
-    const modeLabel = s.mode === 'scheduled'
-      ? (s.active ? 'Programado (activo)' : 'Programado (pausado)')
-      : 'Playlist única';
-    const covText = cov.covered ? 'Cobertura 100%' :
-      (cov.reason === 'no_operating_hours' ? 'Sin horario declarado' :
-       `${(cov.gaps || []).length} huecos sin cubrir`);
-    body.innerHTML =
-      '<div style="font-size:12px;padding:12px;display:flex;flex-direction:column;gap:6px;">' +
-        '<div><span style="color:var(--text-muted);">Modo:</span> <strong>' + modeLabel + '</strong></div>' +
-        '<div><span style="color:var(--text-muted);">Franjas:</span> ' + nBlocks + '</div>' +
-        '<div><span style="color:var(--text-muted);">Cobertura:</span> ' + covText + '</div>' +
-      '</div>';
+    window._stvSchedCache[deviceId] = data;
+    renderStvScheduling(deviceId);
   } catch (e) { console.warn('[stv-sched] load fail dev ' + deviceId + ':', e.message); }
+}
+
+// Render 1:1 columna izquierda del mockup MOCKUP_smarttv_scheduling_v1.html:
+// mode-toggle + panel según modo (single: hint informativa; scheduled: horario
+// de operación 7 filas con dow-toggle + inputs HH:MM + coverage-chip + botón
+// 'Editar franjas' que abrirá modal 7×48 en Paso 4).
+function renderStvScheduling(deviceId) {
+  const body = document.getElementById('stv_sched_body_' + deviceId);
+  const data = window._stvSchedCache[deviceId];
+  if (!body || !data) return;
+  const s = data.schedule || {};
+  const mode = s.mode || 'single';
+  const nBlocks = (data.blocks || []).length;
+  const cov = data.coverage || {};
+  // Índice dow→row de operating_hours para hidratar inputs.
+  const ohByDow = {};
+  (data.operating_hours || []).forEach(h => { ohByDow[h.dow] = h; });
+
+  const modeToggleHtml =
+    '<div class="stv-mode-toggle">' +
+      `<button class="stv-mode-btn ${mode === 'single' ? 'active' : ''}" onclick="stvSchedSetMode(${deviceId},'single')">Playlist única</button>` +
+      `<button class="stv-mode-btn ${mode === 'scheduled' ? 'active' : ''}" onclick="stvSchedSetMode(${deviceId},'scheduled')">Franjas horarias</button>` +
+    '</div>';
+
+  let panelHtml;
+  if (mode === 'single') {
+    panelHtml =
+      '<div class="stv-single-hint">' +
+        'Reproduciendo <b>una sola playlist las 24 horas</b>. La playlist asignada arriba en esta ficha se muestra permanentemente. ' +
+        'Cambia a <b>Franjas horarias</b> para programar distintas playlists por día y hora.' +
+      '</div>';
+  } else {
+    const ohRowsHtml = STV_DOW_LABELS.map((lbl, dow) => {
+      const h = ohByDow[dow];
+      const isOpen = !!(h && h.is_open);
+      const openTime = (h && h.open_time) ? h.open_time.slice(0, 5) : '08:00';
+      const closeTime = (h && h.close_time) ? h.close_time.slice(0, 5) : '20:00';
+      return (
+        `<div class="stv-oh-row ${isOpen ? '' : 'closed'}">` +
+          `<div class="stv-oh-dow-toggle" title="Clic para ${isOpen ? 'cerrar' : 'abrir'} día" onclick="stvSchedToggleDow(${deviceId},${dow})">${lbl}</div>` +
+          `<input type="time" step="1800" class="stv-oh-time" value="${openTime}" onchange="stvSchedSetOhTime(${deviceId},${dow},'open',this.value)" ${isOpen ? '' : 'disabled'}>` +
+          `<span class="stv-oh-sep">–</span>` +
+          `<input type="time" step="1800" class="stv-oh-time" value="${closeTime}" onchange="stvSchedSetOhTime(${deviceId},${dow},'close',this.value)" ${isOpen ? '' : 'disabled'}>` +
+        `</div>`
+      );
+    }).join('');
+
+    const covered = !!cov.covered;
+    const covPct = covered ? '100%' : (cov.reason === 'no_operating_hours' ? '—' : Math.max(0, 100 - (cov.gaps || []).length * 10) + '%');
+    const covClass = covered ? 'ok' : 'warn';
+    const covLabel = covered ? 'Cobertura horario operación:' :
+      (cov.reason === 'no_operating_hours' ? 'Sin horario declarado' : 'Cobertura horario operación:');
+    const missingHtml = (!covered && (cov.gaps || []).length > 0)
+      ? '<div class="stv-coverage-missing"><b>Sin cubrir:</b> ' +
+          cov.gaps.slice(0, 4).map(g => `${STV_DOW_LABELS[g.dow] || '?'} ${(g.from||'').slice(0,5)}–${(g.to||'').slice(0,5)}`).join(' · ') +
+          (cov.gaps.length > 4 ? ` +${cov.gaps.length - 4} más` : '') +
+        '</div>'
+      : '';
+
+    panelHtml =
+      '<div>' +
+        '<div class="stv-oh-title">Horario de operación</div>' +
+        ohRowsHtml +
+      '</div>' +
+      `<div class="stv-coverage-chip ${covClass}">` +
+        `<span>${covLabel}</span>` +
+        `<span class="stv-coverage-pct ${covClass}">${covPct}</span>` +
+      '</div>' +
+      missingHtml +
+      `<button class="stv-open-blocks-btn" onclick="stvSchedOpenBlocks(${deviceId})">Editar franjas (${nBlocks}) →</button>` +
+      '<div class="stv-hint">Clic en el día para abrirlo/cerrarlo. Ajusta horas con los inputs. La cobertura debe ser 100% antes de activar.</div>';
+  }
+
+  body.innerHTML = '<div class="stv-sched">' + modeToggleHtml + panelHtml + '</div>';
+}
+
+// PUT modo. Al pasar a 'scheduled' se intenta activar; si 422 coverage_incomplete
+// reintenta con active=false (queda pausado) + warning.
+async function stvSchedSetMode(deviceId, mode) {
+  try {
+    const attempt = async (active) => fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/mode`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, active })
+    });
+    let res = await attempt(mode === 'scheduled');
+    if (!res.ok && mode === 'scheduled') {
+      const err = await res.json().catch(() => ({}));
+      if (err.error === 'coverage_incomplete') {
+        res = await attempt(false);
+        if (res.ok) showStatus('Franjas pausadas — completa la cobertura para activar', 'warning');
+      }
+    }
+    if (!res.ok) { showStatus('No se pudo cambiar el modo', 'error'); return; }
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red al cambiar modo', 'error'); }
+}
+
+// Helper interno: reconstruye array 7-day y hace PUT bulk-replace.
+async function stvSchedSaveOh(deviceId, hours) {
+  const data = window._stvSchedCache[deviceId];
+  if (!data) return;
+  // Optimistic update en cache
+  data.operating_hours = hours.map(h => ({ dow: h.dow, is_open: !!h.is_open, open_time: h.is_open ? h.open_time : null, close_time: h.is_open ? h.close_time : null }));
+  renderStvScheduling(deviceId);
+  try {
+    const res = await fetch(`${API_URL}/api/smarttv/schedule/${deviceId}/operating-hours`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hours })
+    });
+    if (!res.ok) { showStatus('No se pudo guardar el horario', 'error'); await loadStvScheduling(deviceId); return; }
+    await loadStvScheduling(deviceId);
+  } catch (e) { showStatus('Error de red guardando horario', 'error'); await loadStvScheduling(deviceId); }
+}
+
+// Toggle abrir/cerrar día. Defaults 08:00–20:00 al abrir.
+function stvSchedToggleDow(deviceId, dow) {
+  const data = window._stvSchedCache[deviceId];
+  if (!data) return;
+  const current = {};
+  (data.operating_hours || []).forEach(h => { current[h.dow] = h; });
+  const wasOpen = !!(current[dow] && current[dow].is_open);
+  const hours = [];
+  for (let d = 0; d < 7; d++) {
+    if (d === dow) hours.push({ dow: d, is_open: !wasOpen, open_time: '08:00', close_time: '20:00' });
+    else if (current[d]) hours.push({ dow: d, is_open: !!current[d].is_open, open_time: current[d].open_time, close_time: current[d].close_time });
+    else hours.push({ dow: d, is_open: false });
+  }
+  stvSchedSaveOh(deviceId, hours);
+}
+
+// Cambio de hora open/close vía input type=time. Reconstruye 7 días desde cache.
+function stvSchedSetOhTime(deviceId, dow, field, value) {
+  const data = window._stvSchedCache[deviceId];
+  if (!data) return;
+  const current = {};
+  (data.operating_hours || []).forEach(h => { current[h.dow] = h; });
+  const hours = [];
+  for (let d = 0; d < 7; d++) {
+    if (current[d]) {
+      const row = { dow: d, is_open: !!current[d].is_open, open_time: current[d].open_time || '08:00', close_time: current[d].close_time || '20:00' };
+      if (d === dow) row[field + '_time'] = value;
+      hours.push(row);
+    } else {
+      hours.push({ dow: d, is_open: false });
+    }
+  }
+  stvSchedSaveOh(deviceId, hours);
+}
+
+// Placeholder editor de franjas (Paso 4: modal con canvas 7×48 + drag&drop).
+function stvSchedOpenBlocks(deviceId) {
+  showStatus('Editor de franjas: próximo paso (drag&drop 7×48)', 'info');
 }
 
 async function saveSchedules(deviceId) {
