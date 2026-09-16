@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SONORO. CMS — Cartelería Digital</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800;900&family=Barlow:wght@900&display=swap" rel="stylesheet">
@@ -1070,6 +1073,126 @@
       .dc-footer-actions .btn-outline { flex: 1; text-align: center; }
       .save-btn { width: 100%; }
       .dc-fg-2 { grid-template-columns: 1fr; }
+
+      /* ── Fase A · Mobile v1 · Header colapsado (P0-6/P0-7/P0-8) ── */
+      /* Ocultar controles densos del topbar en móvil */
+      #langSelectDash,
+      #themeToggleBtn,
+      .topbar-user,
+      .topbar .logout-btn { display: none !important; }
+      /* Mostrar botón de cuenta compacto */
+      #mobUserBtn {
+        display: inline-flex !important;
+        align-items: center; justify-content: center;
+        width: 36px; height: 36px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        cursor: pointer;
+        padding: 0;
+      }
+      #mobUserBtn:hover { border-color: var(--magenta); color: var(--magenta); }
+    }
+    /* Fuera de @media: por defecto el botón móvil está oculto en desktop */
+    #mobUserBtn { display: none; }
+
+    /* ══ Fase C · Mobile v1 · FAB + sheets — defaults ══ */
+    .mob-fab { display: none; }
+    .mob-sheet-overlay { display: none; }
+    .mob-sheet { display: none; }
+
+    @media (max-width: 768px) {
+      /* FAB */
+      .mob-fab {
+        display: flex; align-items: center; justify-content: center;
+        position: fixed; right: 16px; bottom: calc(78px + env(safe-area-inset-bottom));
+        width: 56px; height: 56px; border-radius: 50%;
+        background: var(--magenta); color: #fff;
+        border: none; cursor: pointer;
+        box-shadow: 0 6px 20px rgba(255,27,141,.35);
+        z-index: 1001;
+        transition: transform .2s cubic-bezier(0.2,0.8,0.2,1);
+      }
+      .mob-fab:active { transform: scale(0.95); }
+      .mob-fab.rotated svg { transform: rotate(45deg); transition: transform .2s cubic-bezier(0.2,0.8,0.2,1); }
+      .mob-fab svg { transition: transform .2s cubic-bezier(0.2,0.8,0.2,1); }
+      .mob-fab.hidden { display: none !important; }
+
+      /* Overlay */
+      .mob-sheet-overlay {
+        display: block; position: fixed; inset: 0;
+        background: rgba(0,0,0,.45); z-index: 1500;
+        opacity: 0; pointer-events: none;
+        transition: opacity .25s cubic-bezier(0.2,0.8,0.2,1);
+      }
+      .mob-sheet-overlay.open { opacity: 1; pointer-events: auto; }
+
+      /* Sheet */
+      .mob-sheet {
+        display: flex; flex-direction: column;
+        position: fixed; left: 0; right: 0; bottom: 0;
+        background: var(--surface); border-top-left-radius: 16px; border-top-right-radius: 16px;
+        box-shadow: 0 -8px 30px rgba(0,0,0,.25);
+        z-index: 1600; transform: translateY(100%);
+        transition: transform .3s cubic-bezier(0.2,0.8,0.2,1);
+        padding-bottom: env(safe-area-inset-bottom);
+        max-height: 95vh; overflow-y: auto;
+      }
+      .mob-sheet.open { transform: translateY(0); }
+      .mob-sheet-cuenta { min-height: 60vh; }
+      .mob-sheet-fab, .mob-sheet-lang { min-height: auto; }
+
+      .mob-sheet-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .mob-sheet-title {
+        flex: 1; font-size: 15px; font-weight: 800;
+        font-family: 'Montserrat', sans-serif; letter-spacing: .3px;
+        color: var(--text);
+      }
+      .mob-sheet-icon-btn {
+        background: none; border: none; padding: 6px;
+        color: var(--text-muted); cursor: pointer;
+        border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+      }
+      .mob-sheet-icon-btn:hover { color: var(--magenta); background: rgba(255,27,141,.08); }
+
+      .mob-sheet-body { padding: 8px 0; }
+      .mob-sheet-row {
+        display: flex; align-items: center; gap: 12px;
+        width: 100%; padding: 14px 16px;
+        background: none; border: none; text-align: left;
+        font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 600;
+        color: var(--text); cursor: pointer;
+      }
+      .mob-sheet-row:hover { background: rgba(255,27,141,.06); }
+      .mob-sheet-row svg { color: var(--text-muted); flex-shrink: 0; }
+      .mob-sheet-row span:first-of-type { flex: 1; }
+      .mob-sheet-row-value {
+        font-size: 12px; font-weight: 700; color: var(--text-muted);
+        letter-spacing: .5px;
+      }
+
+      .mob-confirm {
+        padding: 12px 16px; background: rgba(255,27,141,.06);
+        border-bottom: 1px solid var(--border);
+      }
+      .mob-confirm-msg { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+      .mob-confirm-actions { display: flex; gap: 8px; }
+      .mob-confirm-actions .btn { flex: 1; }
+
+      /* Fase C · Mobile v1 · ocultar CTAs "+" inline duplicados por el FAB
+         (excluye botones del FAB sheet que llevan class .mob-sheet-row) */
+      button[onclick*="openCreatePlaylistModal"]:not(.mob-sheet-row),
+      button[onclick*="openAddDeviceWizard"]:not(.mob-sheet-row),
+      button[onclick*="openLicNewOrder"]:not(.mob-sheet-row) {
+        display: none !important;
+      }
+      /* Ocultar card de "Subir Archivo" en Contenido — el FAB lo reemplaza */
+      #content-tab .card:has(#fileInput) { display: none !important; }
     }
     @media (min-width: 769px) {
       .mobile-tabbar { display: none !important; }
@@ -1140,6 +1263,15 @@
     .lic-form-label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: .5px; }
     .lic-form-group { margin-bottom: 14px; }
     .lic-modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+    /* ══ Fase D-v2 · Iconos Phosphor en botones móvil ══
+       Aditivo: solo escala SVG dentro de botones .mob-svg-btn en móvil.
+       Los renders JS móviles emiten los mismos .btn/.file-item que desktop; en
+       desktop el template usa emojis (intacto). Iconos: Opción B iconography-p04. */
+    @media (max-width: 768px) {
+      .mob-svg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+      .mob-svg-btn svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+    }
 </style>
 
 <!-- Smart TV Scheduling v1 (S199) — estilos portados 1:1 de MOCKUP_smarttv_scheduling_v1.html
@@ -1372,6 +1504,10 @@
         <button id="themeToggleBtn" onclick="toggleTheme()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;letter-spacing:.5px;">Claro</button>
         <div class="topbar-user"><span data-i18n="topbar.session">Sesión</span>: <span id="userName"></span></div>
         <button class="logout-btn" onclick="logout()" data-i18n="topbar.logout">Cerrar Sesión</button>
+        <!-- Fase A · Mobile v1 · botón cuenta (visible sólo <768px) -->
+        <button id="mobUserBtn" onclick="toggleMobileSidebar()" aria-label="Cuenta" title="Cuenta">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
       </div>
     </div>
 
@@ -2935,41 +3071,125 @@
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
         <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
       </svg>
-      Contenido
+      <span data-i18n="sidebar.tab_content">Contenido</span>
     </button>
     <button class="mobile-tab-btn" id="mtab-playlists" onclick="switchMobileTab('playlists')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
         <line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/>
       </svg>
-      Listas
+      <span data-i18n="sidebar.tab_playlists">Playlist</span>
     </button>
     <button class="mobile-tab-btn" id="mtab-devices" onclick="switchMobileTab('devices')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
       </svg>
-      Pantallas
+      <span data-i18n="sidebar.tab_devices">Dispositivos</span>
     </button>
     <button class="mobile-tab-btn" id="mtab-queue" onclick="switchMobileTab('queue')" style="display:none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
       </svg>
-      Turnos
+      <span data-i18n="sidebar.tab_queue">Turnos</span>
     </button>
     <button class="mobile-tab-btn" id="mtab-events" onclick="switchMobileTab('events')" style="display:none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
-      Eventos
+      <span data-i18n="sidebar.tab_events">Eventos</span>
     </button>
     <button class="mobile-tab-btn" id="mtab-more" onclick="toggleMobileSidebar()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
-      Mas
+      <span data-i18n="sidebar.tab_account">Cuenta</span>
     </button>
   </nav>
+
+  <!-- ══ Fase C · Mobile v1 · FAB "+" contextual (P0-2) ══ -->
+  <button id="mobFab" class="mob-fab" onclick="mobFabClick()" aria-label="Crear">
+    <svg id="mobFabIcon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+
+  <!-- ══ Fase C · Mobile v1 · Sheets (P0-2) ══ -->
+  <div id="mobSheetOverlay" class="mob-sheet-overlay" onclick="closeMobSheet()"></div>
+
+  <!-- Sheet: Cuenta -->
+  <div id="mobSheetCuenta" class="mob-sheet mob-sheet-cuenta" role="dialog" aria-modal="true" aria-labelledby="mobSheetCuentaTitle">
+    <div class="mob-sheet-header">
+      <div class="mob-sheet-title" id="mobSheetCuentaTitle" data-i18n="sidebar.tab_account">Cuenta</div>
+      <button class="mob-sheet-icon-btn" onclick="mobShowLogoutConfirm()" aria-label="Cerrar sesión" title="Cerrar sesión">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      </button>
+      <button class="mob-sheet-icon-btn" onclick="closeMobSheet()" aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="mobLogoutConfirm" class="mob-confirm" style="display:none;">
+      <div class="mob-confirm-msg">¿Cerrar sesión?</div>
+      <div class="mob-confirm-actions">
+        <button class="btn btn-outline btn-sm" onclick="mobHideLogoutConfirm()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </div>
+    <div class="mob-sheet-body">
+      <button class="mob-sheet-row" onclick="mobGoToTab('my_account')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span data-i18n="sidebar.tab_my_account">Mi Cuenta</span>
+      </button>
+      <button class="mob-sheet-row" onclick="mobGoToTab('my_licenses')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span data-i18n="sidebar.tab_my_licenses">Mis Licencias</span>
+      </button>
+      <button class="mob-sheet-row" onclick="mobOpenLangPicker()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>Idioma</span>
+        <span class="mob-sheet-row-value" id="mobLangValue">ES</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sheet: FAB Dispositivos -->
+  <div id="mobSheetDevices" class="mob-sheet mob-sheet-fab" role="dialog" aria-modal="true">
+    <div class="mob-sheet-header">
+      <div class="mob-sheet-title">Nuevo</div>
+      <button class="mob-sheet-icon-btn" onclick="closeMobSheet()" aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="mob-sheet-body">
+      <button class="mob-sheet-row" onclick="closeMobSheet(); if(typeof openAddDeviceWizard==='function') openAddDeviceWizard();">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span data-i18n="dev.add_device">Agregar dispositivo</span>
+      </button>
+      <button class="mob-sheet-row" onclick="closeMobSheet(); if(typeof openLicNewOrder==='function') openLicNewOrder('smart_tv');">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span data-i18n="lic.buy_btn">Comprar licencia</span>
+      </button>
+      <button class="mob-sheet-row" onclick="mobGoToTab('my_licenses')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <span>Renovar / Ver licencias</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Sheet: Idioma -->
+  <div id="mobSheetLang" class="mob-sheet mob-sheet-lang" role="dialog" aria-modal="true">
+    <div class="mob-sheet-header">
+      <div class="mob-sheet-title">Idioma</div>
+      <button class="mob-sheet-icon-btn" onclick="closeMobSheet()" aria-label="Cerrar">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="mob-sheet-body">
+      <button class="mob-sheet-row" onclick="mobSetLang('es')"><span>Español</span><span class="mob-sheet-row-value">ES</span></button>
+      <button class="mob-sheet-row" onclick="mobSetLang('en')"><span>English</span><span class="mob-sheet-row-value">EN</span></button>
+      <button class="mob-sheet-row" onclick="mobSetLang('pt-BR')"><span>Português</span><span class="mob-sheet-row-value">PT</span></button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MODAL PLAYLIST ══ -->
@@ -3098,6 +3318,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     const btn = document.getElementById('themeToggleBtn');
     if (btn) btn.textContent = 'Oscuro';
   }
+  // Fase A · Mobile v1 · P0-8: forzar light-mode en viewport móvil (no persiste)
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+    document.body.classList.add('light-mode');
+  }
+  // Fase C · Mobile v1 · auto-upload al seleccionar archivo desde FAB (solo móvil)
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+    const fi = document.getElementById('fileInput');
+    if (fi) {
+      fi.addEventListener('change', function() {
+        if (fi.files && fi.files[0] && typeof uploadFile === 'function') {
+          setTimeout(function(){ uploadFile(); }, 100);
+        }
+      });
+    }
+  }
   setupTabs();
   setupEvents();
   setupKeyboard();
@@ -3136,16 +3371,24 @@ function switchMobileTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     if (b.dataset.tab === tab) b.click();
   });
+  // Fase C · Mobile v1: refrescar visibilidad del FAB según tab
+  if (typeof mobRefreshFabVisibility === 'function') mobRefreshFabVisibility();
 }
 
 function toggleMobileSidebar() {
+  // Fase C · Mobile v1 · P0-2: reruteo a sheet Cuenta (reemplaza overlay sidebar)
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches
+      && document.getElementById('mobSheetCuenta')) {
+    openMobSheet('cuenta');
+    return;
+  }
+  // Fallback desktop legacy (no debería ejecutarse por CSS pero se preserva)
   const sidebar = document.querySelector('.sidebar');
   if (!sidebar) return;
   if (sidebar.style.display === 'flex') {
     sidebar.style.display = 'none';
   } else {
     sidebar.style.cssText = 'display:flex!important;position:fixed;top:0;left:0;bottom:0;width:260px;z-index:999;overflow-y:auto;';
-    // Cerrar al hacer clic fuera
     setTimeout(() => {
       document.addEventListener('click', function closeSidebar(e) {
         if (!sidebar.contains(e.target)) {
@@ -3155,6 +3398,88 @@ function toggleMobileSidebar() {
       });
     }, 100);
   }
+}
+
+// ══ Fase C · Mobile v1 · FAB + Sheets (P0-2) ══
+function openMobSheet(kind) {
+  const map = { cuenta: 'mobSheetCuenta', devices: 'mobSheetDevices', lang: 'mobSheetLang' };
+  const id = map[kind]; if (!id) return;
+  document.querySelectorAll('.mob-sheet').forEach(s => s.classList.remove('open'));
+  const overlay = document.getElementById('mobSheetOverlay');
+  const sheet = document.getElementById(id);
+  if (!sheet || !overlay) return;
+  overlay.classList.add('open');
+  sheet.classList.add('open');
+  const fab = document.getElementById('mobFab');
+  if (fab) fab.classList.add('rotated');
+  mobHideLogoutConfirm();
+  // Refresh idioma actual
+  const langV = document.getElementById('mobLangValue');
+  if (langV) {
+    const cur = (window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || 'es';
+    langV.textContent = cur === 'pt-BR' ? 'PT' : cur.toUpperCase();
+  }
+}
+function closeMobSheet() {
+  document.querySelectorAll('.mob-sheet').forEach(s => s.classList.remove('open'));
+  const overlay = document.getElementById('mobSheetOverlay');
+  if (overlay) overlay.classList.remove('open');
+  const fab = document.getElementById('mobFab');
+  if (fab) fab.classList.remove('rotated');
+  mobHideLogoutConfirm();
+}
+function mobFabClick() {
+  // Detectar tab activa vía botón .mobile-tab-btn.active
+  const activeBtn = document.querySelector('.mobile-tab-btn.active');
+  const tab = activeBtn ? activeBtn.id.replace('mtab-', '') : 'content';
+  // Si hay sheet abierto, cerrar (rotación cerrar)
+  if (document.querySelector('.mob-sheet.open')) { closeMobSheet(); return; }
+  switch (tab) {
+    case 'content': {
+      const fi = document.getElementById('fileInput');
+      if (fi) fi.click();
+      break;
+    }
+    case 'playlists': {
+      if (typeof openCreatePlaylistModal === 'function') openCreatePlaylistModal();
+      break;
+    }
+    case 'devices': {
+      openMobSheet('devices');
+      break;
+    }
+    default:
+      // Fallback: abrir sheet Cuenta si no hay acción
+      openMobSheet('cuenta');
+  }
+}
+function mobGoToTab(tabName) {
+  closeMobSheet();
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.tab === tabName) b.click();
+  });
+}
+function mobShowLogoutConfirm() {
+  const c = document.getElementById('mobLogoutConfirm');
+  if (c) c.style.display = 'block';
+}
+function mobHideLogoutConfirm() {
+  const c = document.getElementById('mobLogoutConfirm');
+  if (c) c.style.display = 'none';
+}
+function mobOpenLangPicker() { openMobSheet('lang'); }
+function mobSetLang(loc) {
+  if (window.SonoroI18n && window.SonoroI18n.setLocale) window.SonoroI18n.setLocale(loc);
+  closeMobSheet();
+}
+// FAB hidden en tab Cuenta (mtab-more)
+function mobRefreshFabVisibility() {
+  const fab = document.getElementById('mobFab');
+  if (!fab) return;
+  const active = document.querySelector('.mobile-tab-btn.active');
+  const tab = active ? active.id.replace('mtab-', '') : 'content';
+  if (tab === 'more' || tab === 'queue' || tab === 'events') fab.classList.add('hidden');
+  else fab.classList.remove('hidden');
 }
 
 function syncMobileTab(tabName) {
@@ -3511,7 +3836,87 @@ async function loadContent() {
   } catch (err) { console.error('Error:', err); }
 }
 
+// ══ Fase D-v2 · Mobile helpers ══
+const MOB_MQ = window.matchMedia ? window.matchMedia('(max-width: 768px)') : { matches: false };
+function mobIsMobile() { return !!MOB_MQ.matches; }
+function mobFmtSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  const mb = bytes / 1024 / 1024;
+  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes/1024).toFixed(0)} KB`;
+}
+function mobFmtDur(ms) {
+  if (!ms) return '';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60), r = s % 60;
+  return r ? `${m}m ${r}s` : `${m} min`;
+}
+function mobEsc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Phosphor SVGs (viewBox 256, fill currentColor) — canónicos mockup
+const MOB_SVG = {
+  play:  '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg>',
+  image: '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V158.75l-26.07-26.06a16,16,0,0,0-22.63,0l-20,20-44-44a16,16,0,0,0-22.62,0L40,149.37V56ZM40,172l52-52,80,80H40Zm176,28H194.63l-36-36,20-20L216,181.38V200ZM144,100a12,12,0,1,1,12,12A12,12,0,0,1,144,100Z"/></svg>',
+  trash: '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M216,48H176V40a24,24,0,0,0-24-24H104A24,24,0,0,0,80,40v8H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM96,40a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96Zm96,168H64V64H192ZM112,104v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm48,0v64a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Z"/></svg>',
+  edit:  '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.32,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.32,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/></svg>'
+};
+
+// Renders móviles: mismo HTML que desktop (mismas clases .file-item, .btn-outline, .btn-danger)
+// solo cambia caracteres emoji por SVG Phosphor inline. Desktop intacto.
+function displayFilesMobile(files) {
+  const fileList = document.getElementById('fileList');
+  if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
+  fileList.innerHTML = files.map(file => {
+    const processing = file.hevc_status === 'pending' || file.hevc_status === 'processing' || file.hevc_status === 'uploading';
+    return `
+    <div class="file-item" data-content-id="${file.id}">
+      <div class="file-info">
+        <strong>${file.title}</strong>
+        <span class="file-type-badge ${file.type === 'image' ? 'badge-image' : 'badge-video'}">${file.type}</span>
+        <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
+        ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
+        <div class="hevc-progress" id="hevc-progress-${file.id}" style="display:${processing ? 'block' : 'none'}">
+          <div class="hevc-progress-label">Optimizando para RPi5<span id="hevc-percent-${file.id}"></span></div>
+          <div class="hevc-progress-track"><div class="hevc-progress-fill" id="hevc-fill-${file.id}" style="width:0%"></div></div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm mob-svg-btn" aria-label="Reproducir" onclick="playFile('${file.file_path}','${escOnclick(file.title)}','${file.type}')">${MOB_SVG.play}</button>
+      <button class="btn btn-danger btn-sm mob-svg-btn" aria-label="Eliminar" onclick="deleteFile(${file.id})">${MOB_SVG.trash}</button>
+    </div>`;
+  }).join('');
+}
+
+function renderPlaylistsMobile(playlists) {
+  const container = document.getElementById('playlistsList');
+  if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
+  container.innerHTML = playlists.map(pl => `
+    <div class="file-item">
+      <div class="file-info">
+        <strong>${pl.name}</strong>
+        <small>${pl.description || ''}</small>
+        <small>${pl.item_count} elementos</small>
+        <span class="file-type-badge" style="${pl.orientation === 'vertical' ? 'background:rgba(255,230,102,0.12);color:var(--yellow)' : 'background:rgba(255,140,0,0.12);color:var(--orange)'}">
+          ${pl.orientation === 'vertical' ? 'Vertical' : 'Horizontal'}
+        </span>
+        ${pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">Shuffle</span>' : ''}
+        ${pl.repeat_enabled ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">Repetir</span>' : ''}
+      </div>
+      <button class="btn btn-outline btn-sm mob-svg-btn" aria-label="Editar" onclick="editPlaylist(${pl.id})">${MOB_SVG.edit}</button>
+      <button class="btn btn-danger btn-sm mob-svg-btn" aria-label="Eliminar" onclick="deletePlaylist(${pl.id})">${MOB_SVG.trash}</button>
+    </div>`).join('');
+}
+
+// Re-render al cambiar de viewport (desktop→móvil o al revés)
+MOB_MQ.addEventListener && MOB_MQ.addEventListener('change', () => {
+  if (typeof loadContent === 'function') loadContent();
+  if (typeof loadPlaylists === 'function') loadPlaylists();
+});
+
 function displayFiles(files) {
+  if (mobIsMobile()) return displayFilesMobile(files);
   const fileList = document.getElementById('fileList');
   if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
   fileList.innerHTML = files.map(file => {
@@ -3673,6 +4078,7 @@ async function loadPlaylists() {
     const response = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!response.ok) throw new Error('Error');
     const playlists = await response.json();
+    if (mobIsMobile()) return renderPlaylistsMobile(playlists);
     const container = document.getElementById('playlistsList');
     if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
     container.innerHTML = playlists.map(pl => `
