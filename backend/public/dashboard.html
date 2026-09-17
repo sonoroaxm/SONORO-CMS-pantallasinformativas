@@ -1533,8 +1533,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede" style="display:none;">Multi-sede<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist" style="display:none;">Multi-playlist<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
+            <button class="tab-btn" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede">Multi-sede<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
+            <button class="tab-btn" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist">Multi-playlist<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
           </div>
         </div>
       </div>
@@ -1673,12 +1673,21 @@
           </div>
         </div>
 
+        <!-- Upsell (visible cuando features.multisede !== true) -->
+        <div id="ms-upsell" style="display:none;background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:12px;padding:32px 28px;margin:20px 0;text-align:center">
+          <div style="display:inline-block;font-size:10px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:3px 10px;border-radius:4px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 12px rgba(123,97,255,.6);margin-bottom:14px">PLAN PRO</div>
+          <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent" data-i18n="ms.upsell_title">Organiza tus dispositivos por sede</h3>
+          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5" data-i18n="ms.upsell_desc">Agrupa pantallas por ubicación, envía la misma playlist a varias sedes con un clic y obtén reportes por ubicación. Ideal si operas más de una tienda o punto de venta.</div>
+          <a href="mailto:comercial@sonoro.com.co?subject=Quiero%20activar%20Plan%20Pro%20Multi-sede" style="display:inline-block;padding:11px 22px;border-radius:8px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 12px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;box-shadow:0 4px 20px rgba(123,97,255,.35)" data-i18n="ms.upsell_cta">Contactar a comercial →</a>
+        </div>
+
         <!-- Pro banner (mockup) -->
         <div id="msProBanner" style="background:linear-gradient(90deg,rgba(123,97,255,.12),rgba(0,245,212,.08));border:1px solid rgba(123,97,255,.35);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin:16px 0 4px">
           <div style="width:8px;height:8px;border-radius:50%;background:#00f5d4;box-shadow:0 0 8px #00f5d4"></div>
           <div style="font-size:12px;color:var(--text)"><b style="background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent;font-weight:800" data-i18n="ms.pro_banner_title">Plan Multi-sede activo</b> · <span id="msProSedesCount">0</span> <span data-i18n="ms.sedes_word">sedes</span> · <span id="msProDevCount">0</span> <span data-i18n="ms.devices_word">dispositivos</span> · <span data-i18n="ms.bulk_enabled">Bulk push habilitado</span></div>
         </div>
 
+        <div id="ms-real-content">
         <!-- Sub-tabs Sedes / Bulk -->
         <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin:12px 0 22px;">
           <button class="ms-subtab active" data-ms-sub="sedes" onclick="switchMultisedeSub('sedes')" style="padding:12px 18px;background:transparent;border:0;color:var(--text);border-bottom:2px solid var(--magenta);font:700 12px inherit;text-transform:uppercase;letter-spacing:.5px;cursor:pointer" data-i18n="ms.tab_sedes">Sedes</button>
@@ -1706,6 +1715,23 @@
             <div style="color:var(--text-muted);font-size:12px;margin-bottom:18px" data-i18n="bp.subtitle">Selecciona una playlist y las sedes destino. Todos los dispositivos filtrados reciben la misma lista.</div>
             <div style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center;border:1px dashed var(--border);border-radius:8px" data-i18n="bp.pending">Envío masivo — próxima entrega (Bloque B).</div>
           </div>
+        </div>
+        </div><!-- /ms-real-content -->
+      </div>
+
+      <!-- ── MULTI-PLAYLIST (upsell-only Fase 3 Bloque A) ── -->
+      <div id="multiplaylist-tab" class="container hidden">
+        <div class="section-header">
+          <div>
+            <div class="section-title" data-i18n="mp.title">Multi-playlist</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:2px" data-i18n="mp.subtitle">Programa varias listas por franja horaria en un mismo dispositivo.</div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:12px;padding:32px 28px;margin:20px 0;text-align:center">
+          <div style="display:inline-block;font-size:10px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:3px 10px;border-radius:4px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 12px rgba(123,97,255,.6);margin-bottom:14px">PLAN PRO</div>
+          <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent" data-i18n="mp.upsell_title">Programa varias playlists por franja horaria</h3>
+          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5" data-i18n="mp.upsell_desc">Asigna distintas listas a la misma pantalla según hora del día — mañana promoción, tarde menú, noche marca. Ideal para restaurantes, retail y espacios con audiencias que cambian.</div>
+          <a href="mailto:comercial@sonoro.com.co?subject=Quiero%20activar%20Plan%20Pro%20Multi-playlist" style="display:inline-block;padding:11px 22px;border-radius:8px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 12px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;box-shadow:0 4px 20px rgba(123,97,255,.35)" data-i18n="mp.upsell_cta">Contactar a comercial →</a>
         </div>
       </div>
 
@@ -3751,11 +3777,14 @@ function showDashboard() {
   // S172j — Plan Pro CTA banner
   const proBanner = document.getElementById('proBanner');
   if (proBanner) proBanner.style.display = features.multisede === true ? 'flex' : 'none';
-  const msBtn = document.getElementById('btn-tab-multisede');
-  const mpBtn = document.getElementById('btn-tab-multiplaylist');
+  // Multi-sede / Multi-playlist: sidebar siempre visible (upsell). Panel real solo si features.multisede===true.
   const msOn = features.multisede === true;
-  if (msBtn) { msBtn.classList.toggle('hidden-feature', !msOn); msBtn.style.display = msOn ? 'flex' : 'none'; }
-  if (mpBtn) { mpBtn.classList.toggle('hidden-feature', !msOn); mpBtn.style.display = msOn ? 'flex' : 'none'; }
+  const msUp = document.getElementById('ms-upsell');
+  const msRc = document.getElementById('ms-real-content');
+  const msBan = document.getElementById('msProBanner');
+  if (msUp) msUp.style.display = msOn ? 'none' : 'block';
+  if (msRc) msRc.style.display = msOn ? 'block' : 'none';
+  if (msBan) msBan.style.display = msOn ? 'flex' : 'none';
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
     if (g) g.style.display = '';
