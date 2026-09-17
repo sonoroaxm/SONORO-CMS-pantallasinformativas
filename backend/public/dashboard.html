@@ -892,6 +892,10 @@
     #addDeviceWizardModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
     #addDeviceWizardModal.show { display: flex; }
     #addDeviceWizardModal .modal-content { background: #151515; border: 1px solid #2a2a2a; border-radius: 10px; padding: 24px; max-width: 520px; width: 92%; }
+    /* S207 Multi-sede modals (mismo patrón overlay) */
+    #mNewSedeModal, #mAssignModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    #mNewSedeModal.show, #mAssignModal.show { display: flex; }
+    #mNewSedeModal .modal-content, #mAssignModal .modal-content { background: var(--surface, #151515); border: 1px solid var(--border, #2a2a2a); border-radius: 10px; padding: 24px; width: 92%; }
 
     .dc-field-grid { display: grid; gap: 12px; }
     .dc-fg-2 { grid-template-columns: 1fr 1fr; }
@@ -1529,8 +1533,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede" style="display:none;">Multi-sede<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 8px rgba(123,97,255,.4)">PRO</span></button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist" style="display:none;">Multi-playlist<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 8px rgba(123,97,255,.4)">PRO</span></button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede" style="display:none;">Multi-sede<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist" style="display:none;">Multi-playlist<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.75), 0 0 18px rgba(0,245,212,.35)">PRO</span></button>
           </div>
         </div>
       </div>
