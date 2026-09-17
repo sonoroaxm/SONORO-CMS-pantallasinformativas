@@ -4071,8 +4071,8 @@ function renderRpis(devices) {
             <span class="rpi-info-label">Versión player</span>
             <span class="rpi-info-val">${d.player_version}</span>
           </div>` : ''}
-          <div class="rpi-info-row">
-            <span class="rpi-info-label">Orientación pantalla</span>
+          <div class="rpi-info-row" title="Etiqueta usada para filtrar dispositivos en Bulk Push. NO rota el contenido — la orientación real de render se controla desde el dashboard del cliente (orientation_hdmi0).">
+            <span class="rpi-info-label">Etiqueta Bulk Push <span style="opacity:.5;font-size:9px;font-weight:400;">(no rota)</span></span>
             <span class="rpi-info-val">
               <select onchange="updateOrientation('${d.device_id}', this.value)" onclick="event.stopPropagation()"
                 style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:11px;padding:3px 8px;font-family:inherit;cursor:pointer;">
