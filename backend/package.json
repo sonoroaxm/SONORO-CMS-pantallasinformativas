@@ -40,6 +40,7 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
+    "country-state-city": "^3.2.1",
     "nodemon": "^3.1.14"
   },
   "nexe": {

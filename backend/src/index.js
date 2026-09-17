@@ -3071,6 +3071,100 @@ app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PUT /api/locations/:id — S207 Fase 2 Multi-sede.
+// Actualiza nombre y/o ciudad canónica (city_id → geo_cities). Deriva city/country
+// legacy desde el JOIN geo para mantener compat con consumidores del endpoint viejo.
+app.put('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, city_id } = req.body || {};
+    const isAdmin = req.user.role === 'admin';
+
+    // Resolver city/country legacy desde city_id si viene
+    let cityLegacy = null, countryLegacy = null;
+    if (city_id != null) {
+      const g = await pool.query(
+        `SELECT c.name AS city, co.name_es AS country
+           FROM geo_cities c
+           JOIN geo_states s ON s.id = c.state_id
+           JOIN geo_countries co ON co.code = s.country_code
+          WHERE c.id = $1`,
+        [city_id]
+      );
+      if (!g.rows.length) return res.status(400).json({ error: 'city_id inválido' });
+      cityLegacy = g.rows[0].city;
+      countryLegacy = g.rows[0].country;
+    }
+
+    const sets = [];
+    const params = [];
+    if (name != null) { params.push(name); sets.push(`name = $${params.length}`); }
+    if (city_id != null) {
+      params.push(city_id); sets.push(`city_id = $${params.length}`);
+      params.push(cityLegacy); sets.push(`city = $${params.length}`);
+      params.push(countryLegacy); sets.push(`country = $${params.length}`);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'nada para actualizar' });
+
+    params.push(id);
+    let q = `UPDATE locations SET ${sets.join(', ')} WHERE id = $${params.length}`;
+    if (!isAdmin) { params.push(req.user.id); q += ` AND user_id = $${params.length}`; }
+    q += ' RETURNING *';
+
+    const { rows } = await pool.query(q, params);
+    if (!rows.length) return res.status(404).json({ error: 'Sede no encontrada' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GEO endpoints (S207 Fase 2) ─────────────────────────────
+// Dataset: geo_countries/geo_states/geo_cities (seed Américas+PT+ES).
+// i18n: `lang` in {es,en,pt}, default es. Payloads livianos, aptos para dropdowns.
+
+app.get('/api/geo/countries', authenticateToken, async (req, res) => {
+  try {
+    const lang = ['es','en','pt'].includes(req.query.lang) ? req.query.lang : 'es';
+    const { rows } = await pool.query(
+      `SELECT code, name_${lang} AS name, state_label_${lang} AS state_label
+         FROM geo_countries
+        ORDER BY sort_order ASC, name_${lang} ASC`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/geo/states', authenticateToken, async (req, res) => {
+  try {
+    const country = String(req.query.country || '').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(country)) return res.status(400).json({ error: 'country ISO-2 requerido' });
+    const { rows } = await pool.query(
+      'SELECT id, name FROM geo_states WHERE country_code = $1 ORDER BY name ASC',
+      [country]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/geo/cities', authenticateToken, async (req, res) => {
+  try {
+    const stateId = parseInt(req.query.state, 10);
+    if (!Number.isInteger(stateId)) return res.status(400).json({ error: 'state id requerido' });
+    const q = String(req.query.q || '').trim();
+    if (q) {
+      const { rows } = await pool.query(
+        `SELECT id, name FROM geo_cities WHERE state_id = $1 AND name ILIKE $2 ORDER BY name ASC LIMIT 50`,
+        [stateId, `%${q}%`]
+      );
+      return res.json(rows);
+    }
+    const { rows } = await pool.query(
+      'SELECT id, name FROM geo_cities WHERE state_id = $1 ORDER BY name ASC LIMIT 200',
+      [stateId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.put('/api/devices/:deviceId/location', authenticateToken, async (req, res) => {
   try {
     const { deviceId } = req.params;
