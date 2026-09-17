@@ -6,6 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>try{if(location.search.indexOf('debug=1')!==-1||localStorage.getItem('sonoro_debug')==='1'){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/eruda';s.onload=function(){eruda.init();};document.head.appendChild(s);}}catch(e){}</script>
   <title>SONORO. CMS — Cartelería Digital</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800;900&family=Barlow:wght@900&display=swap" rel="stylesheet">
   <style>
@@ -1268,9 +1269,12 @@
        Aditivo: solo escala SVG dentro de botones .mob-svg-btn en móvil.
        Los renders JS móviles emiten los mismos .btn/.file-item que desktop; en
        desktop el template usa emojis (intacto). Iconos: Opción B iconography-p04. */
+    /* SVG Phosphor universal en cards (desktop + móvil) */
+    .mob-svg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .mob-svg-btn svg { width: 14px; height: 14px; fill: currentColor; display: block; }
     @media (max-width: 768px) {
-      .mob-svg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-      .mob-svg-btn svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+      /* Móvil: ocultar label textual "Editar" — solo icono */
+      .mob-svg-btn .edit-label { display: none !important; }
     }
 </style>
 
@@ -3334,6 +3338,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
   setupTabs();
+  // S205: honor ?tab= query param (usado por /c/:uuid post-pair para saltar a Dispositivos)
+  try {
+    var _tp = new URLSearchParams(location.search).get("tab");
+    if (_tp && /^[a-z-]+$/.test(_tp)) {
+      setTimeout(function(){
+        var b = document.querySelector(".tab-btn[data-tab=\""+_tp+"\"]");
+        if (b) b.click();
+      }, 500);
+    }
+  } catch(_) {}
   setupEvents();
   setupKeyboard();
   if (authToken && currentUser) {
@@ -3864,9 +3878,13 @@ const MOB_SVG = {
   edit:  '<svg viewBox="0 0 256 256" fill="currentColor"><path d="M227.32,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.32,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/></svg>'
 };
 
-// Renders móviles: mismo HTML que desktop (mismas clases .file-item, .btn-outline, .btn-danger)
-// solo cambia caracteres emoji por SVG Phosphor inline. Desktop intacto.
-function displayFilesMobile(files) {
+// Re-render al cambiar de viewport (desktop→móvil o al revés) para refrescar guard inline
+MOB_MQ.addEventListener && MOB_MQ.addEventListener('change', () => {
+  if (typeof loadContent === 'function') loadContent();
+  if (typeof loadPlaylists === 'function') loadPlaylists();
+});
+
+function displayFiles(files) {
   const fileList = document.getElementById('fileList');
   if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
   fileList.innerHTML = files.map(file => {
@@ -3885,56 +3903,6 @@ function displayFilesMobile(files) {
       </div>
       <button class="btn btn-outline btn-sm mob-svg-btn" aria-label="Reproducir" onclick="playFile('${file.file_path}','${escOnclick(file.title)}','${file.type}')">${MOB_SVG.play}</button>
       <button class="btn btn-danger btn-sm mob-svg-btn" aria-label="Eliminar" onclick="deleteFile(${file.id})">${MOB_SVG.trash}</button>
-    </div>`;
-  }).join('');
-}
-
-function renderPlaylistsMobile(playlists) {
-  const container = document.getElementById('playlistsList');
-  if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
-  container.innerHTML = playlists.map(pl => `
-    <div class="file-item">
-      <div class="file-info">
-        <strong>${pl.name}</strong>
-        <small>${pl.description || ''}</small>
-        <small>${pl.item_count} elementos</small>
-        <span class="file-type-badge" style="${pl.orientation === 'vertical' ? 'background:rgba(255,230,102,0.12);color:var(--yellow)' : 'background:rgba(255,140,0,0.12);color:var(--orange)'}">
-          ${pl.orientation === 'vertical' ? 'Vertical' : 'Horizontal'}
-        </span>
-        ${pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">Shuffle</span>' : ''}
-        ${pl.repeat_enabled ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">Repetir</span>' : ''}
-      </div>
-      <button class="btn btn-outline btn-sm mob-svg-btn" aria-label="Editar" onclick="editPlaylist(${pl.id})">${MOB_SVG.edit}</button>
-      <button class="btn btn-danger btn-sm mob-svg-btn" aria-label="Eliminar" onclick="deletePlaylist(${pl.id})">${MOB_SVG.trash}</button>
-    </div>`).join('');
-}
-
-// Re-render al cambiar de viewport (desktop→móvil o al revés)
-MOB_MQ.addEventListener && MOB_MQ.addEventListener('change', () => {
-  if (typeof loadContent === 'function') loadContent();
-  if (typeof loadPlaylists === 'function') loadPlaylists();
-});
-
-function displayFiles(files) {
-  if (mobIsMobile()) return displayFilesMobile(files);
-  const fileList = document.getElementById('fileList');
-  if (!files.length) { fileList.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay archivos</p>'; return; }
-  fileList.innerHTML = files.map(file => {
-    const processing = file.hevc_status === 'pending' || file.hevc_status === 'processing' || file.hevc_status === 'uploading';
-    return `
-    <div class="file-item" data-content-id="${file.id}">
-      <div class="file-info">
-        <strong>${file.title}</strong>
-        <span class="file-type-badge ${file.type === 'image' ? 'badge-image' : 'badge-video'}">${file.type}</span>
-        <small>${(file.size_bytes / 1024 / 1024).toFixed(2)} MB</small>
-        ${file.duration_ms ? `<small>${(file.duration_ms/1000).toFixed(1)}s</small>` : ''}
-        <div class="hevc-progress" id="hevc-progress-${file.id}" style="display:${processing ? 'block' : 'none'}">
-          <div class="hevc-progress-label">Optimizando para RPi5<span id="hevc-percent-${file.id}"></span></div>
-          <div class="hevc-progress-track"><div class="hevc-progress-fill" id="hevc-fill-${file.id}" style="width:0%"></div></div>
-        </div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="playFile('${file.file_path}','${escOnclick(file.title)}','${file.type}')">▶</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteFile(${file.id})">✕</button>
     </div>
   `;}).join('');
 }
@@ -4078,7 +4046,6 @@ async function loadPlaylists() {
     const response = await fetch(`${API_URL}/api/playlists`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!response.ok) throw new Error('Error');
     const playlists = await response.json();
-    if (mobIsMobile()) return renderPlaylistsMobile(playlists);
     const container = document.getElementById('playlistsList');
     if (!playlists.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay listas</p>'; return; }
     container.innerHTML = playlists.map(pl => `
@@ -4093,8 +4060,8 @@ async function loadPlaylists() {
           ${pl.shuffle_enabled ? '<span class="file-type-badge" style="background:rgba(255,27,141,0.12);color:var(--magenta)">Shuffle</span>' : ''}
           ${pl.repeat_enabled ? '<span class="file-type-badge" style="background:rgba(0,200,150,0.12);color:#00c896">Repetir</span>' : ''}
         </div>
-        <button class="btn btn-outline btn-sm" onclick="editPlaylist(${pl.id})">✏ Editar</button>
-        <button class="btn btn-danger btn-sm" onclick="deletePlaylist(${pl.id})">✕</button>
+        <button class="btn btn-outline btn-sm mob-svg-btn" aria-label="Editar" onclick="editPlaylist(${pl.id})">${MOB_SVG.edit}<span class="edit-label"> Editar</span></button>
+        <button class="btn btn-danger btn-sm mob-svg-btn" aria-label="Eliminar" onclick="deletePlaylist(${pl.id})">${MOB_SVG.trash}</button>
       </div>
     `).join('');
   } catch (err) { console.error('Error:', err); }
