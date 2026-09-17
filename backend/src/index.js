@@ -3046,9 +3046,30 @@ app.get('/api/locations', authenticateToken, async (req, res) => {
 
 app.post('/api/locations', authenticateToken, async (req, res) => {
   try {
-    const { name, city, country = 'Colombia', user_id } = req.body;
-    if (!name || !city) return res.status(400).json({ error: 'name y city requeridos' });
+    const { name, city, country = 'Colombia', user_id, city_id } = req.body;
     const ownerId = req.user.role === 'admin' && user_id ? user_id : req.user.id;
+
+    // Rama S207 Fase 2 Multi-sede: city_id → resuelve city/country legacy desde geo.
+    if (city_id != null) {
+      if (!name) return res.status(400).json({ error: 'name requerido' });
+      const g = await pool.query(
+        `SELECT c.name AS city, co.name_es AS country
+           FROM geo_cities c
+           JOIN geo_states s ON s.id = c.state_id
+           JOIN geo_countries co ON co.code = s.country_code
+          WHERE c.id = $1`,
+        [city_id]
+      );
+      if (!g.rows.length) return res.status(400).json({ error: 'city_id inválido' });
+      const { rows } = await pool.query(
+        'INSERT INTO locations (user_id, name, city, country, city_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+        [ownerId, name, g.rows[0].city, g.rows[0].country, city_id]
+      );
+      return res.json(rows[0]);
+    }
+
+    // Rama legacy (backward compat).
+    if (!name || !city) return res.status(400).json({ error: 'name y city requeridos' });
     const { rows } = await pool.query(
       'INSERT INTO locations (user_id, name, city, country) VALUES ($1,$2,$3,$4) RETURNING *',
       [ownerId, name, city, country]

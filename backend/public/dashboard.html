@@ -1529,6 +1529,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede">Multi-sede<span style="float:right;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800">PRO</span></button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist">Multi-playlist<span style="float:right;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800">PRO</span></button>
           </div>
         </div>
       </div>
@@ -1665,6 +1667,45 @@
           </div>
         </div>
         <div id="devices-list"></div>
+      </div>
+
+      <!-- ── MULTI-SEDE (S207 Fase 3) ── -->
+      <div id="multisede-tab" class="container hidden">
+        <div class="section-header">
+          <div>
+            <div class="section-title" data-i18n="ms.title">Multi-sede</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:2px" data-i18n="ms.subtitle">Organiza tus dispositivos por ubicación y envía contenido a varias sedes a la vez.</div>
+          </div>
+        </div>
+
+        <!-- Sub-tabs Sedes / Bulk -->
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin:12px 0 22px;">
+          <button class="ms-subtab active" data-ms-sub="sedes" onclick="switchMultisedeSub('sedes')" style="padding:12px 18px;background:transparent;border:0;color:var(--text);border-bottom:2px solid var(--magenta);font:700 12px inherit;text-transform:uppercase;letter-spacing:.5px;cursor:pointer" data-i18n="ms.tab_sedes">Sedes</button>
+          <button class="ms-subtab" data-ms-sub="bulk" onclick="switchMultisedeSub('bulk')" style="padding:12px 18px;background:transparent;border:0;color:var(--text-muted);border-bottom:2px solid transparent;font:700 12px inherit;text-transform:uppercase;letter-spacing:.5px;cursor:pointer" data-i18n="ms.tab_bulk">Envío masivo</button>
+        </div>
+
+        <!-- SUB-PANEL: Sedes -->
+        <div id="ms-panel-sedes">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+              <div>
+                <h3 style="font-size:15px;font-weight:700;margin:0" data-i18n="ms.your_sedes">Tus sedes</h3>
+                <div style="color:var(--text-muted);font-size:12px;margin-top:2px" data-i18n="ms.your_sedes_hint">Cada dispositivo puede pertenecer a una sede. Se usa para filtrar en envío masivo y reportes por ubicación.</div>
+              </div>
+              <button class="btn btn-grad" onclick="openNewSedeModal()" data-i18n="ms.new_sede">+ Nueva sede</button>
+            </div>
+            <div id="ms-sedes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL: Bulk push -->
+        <div id="ms-panel-bulk" style="display:none">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px">
+            <h3 style="font-size:15px;font-weight:700;margin:0 0 4px" data-i18n="bp.title">Envío masivo de playlist</h3>
+            <div style="color:var(--text-muted);font-size:12px;margin-bottom:18px" data-i18n="bp.subtitle">Selecciona una playlist y las sedes destino. Todos los dispositivos filtrados reciben la misma lista.</div>
+            <div style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center;border:1px dashed var(--border);border-radius:8px" data-i18n="bp.pending">Envío masivo — próxima entrega (Bloque B).</div>
+          </div>
+        </div>
       </div>
 
       <!-- ── LICENCIAS (LICENSES-V1 Fase 4) ── -->
@@ -3709,6 +3750,10 @@ function showDashboard() {
   // S172j — Plan Pro CTA banner
   const proBanner = document.getElementById('proBanner');
   if (proBanner) proBanner.style.display = features.multisede === true ? 'flex' : 'none';
+  const msBtn = document.getElementById('btn-tab-multisede');
+  const mpBtn = document.getElementById('btn-tab-multiplaylist');
+  if (msBtn) msBtn.classList.toggle('hidden-feature', features.multisede !== true);
+  if (mpBtn) mpBtn.classList.toggle('hidden-feature', features.multisede !== true);
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
     if (g) g.style.display = '';
@@ -10879,6 +10924,58 @@ async function licSubmitUsdOrder() {
 <!-- Unifica los 3 botones ("Emparejar código TV" + "+ Agregar Smart TV" +
      "+ Generar Código") en un solo flujo wizard. Poka-yoke: cliente elige
      el tipo primero, luego el flujo específico. -->
+<!-- ── MULTI-SEDE modales (S207 Fase 3 Bloque A) ── -->
+<div id="mNewSedeModal" class="modal-overlay" onclick="if(event.target===this)closeNewSedeModal()">
+  <div class="modal-content" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="margin:0;font-size:16px" data-i18n="ms.modal_new_title">Nueva sede</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeNewSedeModal()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <input type="hidden" id="msFormId">
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700" data-i18n="ms.field_name">Nombre</label>
+        <input id="msFormName" placeholder="Ej: Sonoro AXM" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700" data-i18n="ms.field_country">País</label>
+        <select id="msFormCountry" onchange="msLoadStates()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label id="msFormStateLabel" style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700">Departamento</label>
+          <select id="msFormState" onchange="msLoadCities()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit"><option value="">— Selecciona —</option></select>
+        </div>
+        <div style="position:relative">
+          <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700" data-i18n="ms.field_city">Ciudad</label>
+          <input id="msFormCity" placeholder="Escribe para buscar…" autocomplete="off" oninput="msSearchCity()" onfocus="msSearchCity()" disabled style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit">
+          <input type="hidden" id="msFormCityId">
+          <div id="msCityList" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:220px;overflow:auto;z-index:10;margin-top:2px"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn btn-outline btn-sm" onclick="closeNewSedeModal()" style="flex:1" data-i18n="common.cancel">Cancelar</button>
+        <button class="btn btn-grad btn-sm" onclick="saveSede()" style="flex:1" data-i18n="ms.save">Guardar sede</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mAssignModal" class="modal-overlay" onclick="if(event.target===this)closeAssignModal()">
+  <div class="modal-content" style="max-width:520px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 id="msAssignTitle" style="margin:0;font-size:16px">Asignar dispositivos</h3>
+      <button class="btn btn-outline btn-sm" onclick="closeAssignModal()">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px" data-i18n="ms.assign_hint">Selecciona los dispositivos que pertenecen a esta sede. Un dispositivo solo puede estar en una sede.</div>
+    <div id="msAssignList" style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-outline btn-sm" onclick="closeAssignModal()" style="flex:1" data-i18n="common.cancel">Cancelar</button>
+      <button class="btn btn-grad btn-sm" onclick="saveAssign()" style="flex:1" data-i18n="ms.save_changes">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div id="addDeviceWizardModal" class="modal-overlay" onclick="if(event.target===this)closeAddDeviceWizard()">
   <div class="modal-content" style="max-width:520px;">
     <!-- Stepper -->
@@ -11115,6 +11212,233 @@ document.addEventListener('change', function(e){
     });
   }
 });
+</script>
+
+<!-- ── MULTI-SEDE JS (S207 Fase 3 Bloque A) ── -->
+<script>
+(function(){
+  let msSedes = [], msDevices = [], msCurrentSedeId = null, msCityDebounce = null;
+
+  function msAuthHeaders() { return { 'Authorization': 'Bearer ' + (localStorage.getItem('authToken')||''), 'Content-Type':'application/json' }; }
+  function msLang() { try { return (window.SonoroI18n && SonoroI18n.getLocale && SonoroI18n.getLocale()) || 'es'; } catch(_) { return 'es'; } }
+
+  window.switchMultisedeSub = function(sub) {
+    document.querySelectorAll('.ms-subtab').forEach(function(b){
+      const on = b.getAttribute('data-ms-sub') === sub;
+      b.style.color = on ? 'var(--text)' : 'var(--text-muted)';
+      b.style.borderBottomColor = on ? 'var(--magenta)' : 'transparent';
+      b.classList.toggle('active', on);
+    });
+    document.getElementById('ms-panel-sedes').style.display = sub==='sedes' ? '' : 'none';
+    document.getElementById('ms-panel-bulk').style.display  = sub==='bulk'  ? '' : 'none';
+  };
+
+  window.loadSedesGrid = async function() {
+    const grid = document.getElementById('ms-sedes-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);font-size:12px">Cargando…</div>';
+    try {
+      const [rSedes, rDev] = await Promise.all([
+        fetch('/api/locations', { headers: msAuthHeaders() }),
+        fetch('/api/devices',   { headers: msAuthHeaders() })
+      ]);
+      msSedes   = rSedes.ok ? await rSedes.json() : [];
+      msDevices = rDev.ok   ? await rDev.json()   : [];
+      renderSedesGrid();
+    } catch (e) {
+      grid.innerHTML = '<div style="grid-column:1/-1;color:#ff5b7a;font-size:12px">Error cargando sedes.</div>';
+    }
+  };
+
+  function renderSedesGrid() {
+    const grid = document.getElementById('ms-sedes-grid');
+    const cards = msSedes.map(function(s){
+      const devs = msDevices.filter(function(d){ return d.location_id === s.id; });
+      const chips = devs.map(function(d){
+        return '<span style="background:var(--bg);border:1px solid var(--border);padding:4px 10px;border-radius:20px;font-size:11px;display:inline-flex;align-items:center;gap:4px">'+ escapeHtml(d.name||('Device #'+d.id)) +'</span>';
+      }).join('');
+      const meta = [s.country, s.city].filter(Boolean).join(' · ') + (s.address ? '<br>'+escapeHtml(s.address) : '');
+      return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative">'
+        + '<span style="position:absolute;top:12px;right:12px;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(0,245,212,.15);color:var(--cyan);font-weight:700">'+ devs.length +' '+ (devs.length===1?'dispositivo':'dispositivos') +'</span>'
+        + '<h4 style="margin:0 0 6px;font-size:14px">'+ escapeHtml(s.name||'') +'</h4>'
+        + '<div style="color:var(--text-muted);font-size:12px;line-height:1.5">'+ meta +'</div>'
+        + (chips ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">'+ chips +'</div>' : '')
+        + '<div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap">'
+        +   '<button class="btn btn-grad btn-sm" onclick="openAssignModal('+ s.id +')">+ Asignar</button>'
+        +   '<button class="btn btn-outline btn-sm" onclick="editSede('+ s.id +')">Editar</button>'
+        +   '<button class="btn btn-outline btn-sm" style="color:#ff5b7a;border-color:rgba(255,91,122,.4);margin-left:auto" onclick="deleteSede('+ s.id +')">Eliminar</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+    const addCard = '<div style="border:1px dashed var(--border);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--text-muted);cursor:pointer;min-height:140px" onclick="openNewSedeModal()"><div><div style="font-size:24px;line-height:1">+</div><div style="font-size:12px;margin-top:6px">Añadir sede</div></div></div>';
+    grid.innerHTML = cards + addCard;
+  }
+
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+
+  // ── Modal Nueva/Editar sede ──
+  window.openNewSedeModal = async function(sede) {
+    document.getElementById('mNewSedeModal').classList.add('show');
+    document.getElementById('msFormId').value      = sede ? sede.id : '';
+    document.getElementById('msFormName').value    = sede ? (sede.name||'') : '';
+    document.getElementById('msFormCityId').value  = sede ? (sede.city_id||'') : '';
+    document.getElementById('msFormCity').value    = sede ? (sede.city||'') : '';
+    document.getElementById('msFormCity').disabled = true;
+    document.getElementById('msFormState').innerHTML = '<option value="">— Selecciona —</option>';
+    // Cargar países
+    const rC = await fetch('/api/geo/countries?lang='+msLang(), { headers: msAuthHeaders() });
+    const cs = rC.ok ? await rC.json() : [];
+    const sel = document.getElementById('msFormCountry');
+    sel.innerHTML = '<option value="">— Selecciona —</option>' + cs.map(function(c){
+      return '<option value="'+ c.code +'" data-label-es="'+ escapeHtml(c.state_label_es||'') +'" data-label-en="'+ escapeHtml(c.state_label_en||'') +'" data-label-pt="'+ escapeHtml(c.state_label_pt||'') +'">'+ escapeHtml(c.name) +'</option>';
+    }).join('');
+    // Default CO
+    const def = sede && sede.country_code ? sede.country_code : 'CO';
+    sel.value = def;
+    await msLoadStates();
+    if (sede && sede.state_id) {
+      document.getElementById('msFormState').value = sede.state_id;
+      await msLoadCities();
+    }
+  };
+  window.closeNewSedeModal = function(){ document.getElementById('mNewSedeModal').classList.remove('show'); document.getElementById('msCityList').style.display='none'; };
+
+  window.msLoadStates = async function() {
+    const code = document.getElementById('msFormCountry').value;
+    const lbl = document.getElementById('msFormStateLabel');
+    const opt = document.querySelector('#msFormCountry option[value="'+code+'"]');
+    if (opt) {
+      const lang = msLang();
+      lbl.textContent = opt.getAttribute('data-label-'+lang) || 'Estado';
+    }
+    const s = document.getElementById('msFormState');
+    s.innerHTML = '<option value="">— Selecciona —</option>';
+    document.getElementById('msFormCity').value = '';
+    document.getElementById('msFormCity').disabled = true;
+    document.getElementById('msFormCityId').value = '';
+    if (!code) return;
+    const r = await fetch('/api/geo/states?country='+encodeURIComponent(code), { headers: msAuthHeaders() });
+    const arr = r.ok ? await r.json() : [];
+    arr.forEach(function(st){
+      const o = document.createElement('option');
+      o.value = st.id; o.textContent = st.name;
+      s.appendChild(o);
+    });
+  };
+
+  window.msLoadCities = function() {
+    const hasState = !!document.getElementById('msFormState').value;
+    const inp = document.getElementById('msFormCity');
+    inp.disabled = !hasState;
+    inp.value = '';
+    document.getElementById('msFormCityId').value = '';
+    document.getElementById('msCityList').style.display = 'none';
+  };
+
+  window.msSearchCity = function() {
+    clearTimeout(msCityDebounce);
+    msCityDebounce = setTimeout(async function(){
+      const stateId = document.getElementById('msFormState').value;
+      if (!stateId) return;
+      const q = document.getElementById('msFormCity').value.trim();
+      const url = '/api/geo/cities?state='+encodeURIComponent(stateId) + (q ? '&q='+encodeURIComponent(q) : '');
+      const r = await fetch(url, { headers: msAuthHeaders() });
+      const arr = r.ok ? await r.json() : [];
+      const list = document.getElementById('msCityList');
+      if (!arr.length) { list.style.display='none'; return; }
+      list.innerHTML = arr.map(function(c){
+        return '<div style="padding:10px 12px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" onclick="msPickCity('+ c.id +','+ JSON.stringify(c.name) +')">'+ escapeHtml(c.name) +'</div>';
+      }).join('');
+      list.style.display = 'block';
+    }, 200);
+  };
+  window.msPickCity = function(id, name) {
+    document.getElementById('msFormCityId').value = id;
+    document.getElementById('msFormCity').value = name;
+    document.getElementById('msCityList').style.display = 'none';
+  };
+  document.addEventListener('click', function(e){
+    if (!e.target.closest('#msFormCity') && !e.target.closest('#msCityList')) {
+      const l = document.getElementById('msCityList'); if (l) l.style.display='none';
+    }
+  });
+
+  window.saveSede = async function() {
+    const id      = document.getElementById('msFormId').value;
+    const name    = document.getElementById('msFormName').value.trim();
+    const city_id = document.getElementById('msFormCityId').value;
+    if (!name)    { alert('Nombre requerido'); return; }
+    if (!city_id) { alert('Selecciona una ciudad'); return; }
+    const url    = id ? ('/api/locations/'+id) : '/api/locations';
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, { method: method, headers: msAuthHeaders(), body: JSON.stringify({ name: name, city_id: Number(city_id) }) });
+    if (!r.ok) { alert('Error guardando sede'); return; }
+    closeNewSedeModal();
+    loadSedesGrid();
+  };
+
+  window.editSede = function(id) {
+    const s = msSedes.find(function(x){ return x.id === id; });
+    if (s) openNewSedeModal(s);
+  };
+
+  window.deleteSede = async function(id) {
+    if (!confirm('¿Eliminar esta sede? Los dispositivos asignados quedarán sin sede.')) return;
+    const r = await fetch('/api/locations/'+id, { method:'DELETE', headers: msAuthHeaders() });
+    if (!r.ok) { alert('Error eliminando'); return; }
+    loadSedesGrid();
+  };
+
+  // ── Modal Asignar dispositivos ──
+  window.openAssignModal = function(sedeId) {
+    msCurrentSedeId = sedeId;
+    const sede = msSedes.find(function(s){ return s.id===sedeId; });
+    document.getElementById('msAssignTitle').textContent = 'Asignar dispositivos a "'+ (sede?sede.name:'') +'"';
+    const list = document.getElementById('msAssignList');
+    list.innerHTML = msDevices.map(function(d){
+      const inHere = d.location_id === sedeId;
+      const otherSede = !inHere && d.location_id ? msSedes.find(function(s){ return s.id===d.location_id; }) : null;
+      const sub = inHere ? 'Ya en esta sede' : (otherSede ? ('Actualmente en "'+ otherSede.name +'"') : 'Sin sede');
+      return '<label style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer">'
+        + '<input type="checkbox" data-dev-id="'+ escapeHtml(d.device_id||'') +'"'+ (inHere?' checked':'') +'>'
+        + '<div style="flex:1"><b style="font-size:13px">'+ escapeHtml(d.name||('Device #'+d.id)) +'</b><div style="font-size:11px;color:var(--text-muted);margin-top:2px">'+ escapeHtml(sub) +'</div></div>'
+        + '</label>';
+    }).join('') || '<div style="padding:14px;color:var(--text-muted);font-size:12px">No hay dispositivos.</div>';
+    document.getElementById('mAssignModal').classList.add('show');
+  };
+  window.closeAssignModal = function(){ document.getElementById('mAssignModal').classList.remove('show'); };
+
+  window.saveAssign = async function() {
+    const checks = document.querySelectorAll('#msAssignList input[type=checkbox]');
+    const targetDids = [];
+    const clearDids  = [];
+    checks.forEach(function(c){
+      const did = c.getAttribute('data-dev-id');
+      const dev = msDevices.find(function(d){ return d.device_id===did; });
+      if (c.checked) {
+        if (!dev || dev.location_id !== msCurrentSedeId) targetDids.push(did);
+      } else {
+        if (dev && dev.location_id === msCurrentSedeId) clearDids.push(did);
+      }
+    });
+    try {
+      for (const did of targetDids) {
+        await fetch('/api/devices/'+encodeURIComponent(did)+'/location', { method:'PUT', headers: msAuthHeaders(), body: JSON.stringify({ location_id: msCurrentSedeId }) });
+      }
+      for (const did of clearDids) {
+        await fetch('/api/devices/'+encodeURIComponent(did)+'/location', { method:'PUT', headers: msAuthHeaders(), body: JSON.stringify({ location_id: null }) });
+      }
+    } catch(e) { alert('Error asignando: '+e.message); return; }
+    closeAssignModal();
+    loadSedesGrid();
+  };
+
+  // Hook: cargar sedes al activar tab Multi-sede
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('.tab-btn[data-tab="multisede"]');
+    if (btn) setTimeout(loadSedesGrid, 50);
+  });
+})();
 </script>
 
 <!-- Confirma tu país (first-time) -->
