@@ -1529,8 +1529,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede">Multi-sede<span style="float:right;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800">PRO</span></button>
-            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist">Multi-playlist<span style="float:right;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800">PRO</span></button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multisede" data-tab="multisede" data-i18n="sidebar.tab_multisede" style="display:none;">Multi-sede<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 8px rgba(123,97,255,.4)">PRO</span></button>
+            <button class="tab-btn hidden-feature" id="btn-tab-multiplaylist" data-tab="multiplaylist" data-i18n="sidebar.tab_multiplaylist" style="display:none;">Multi-playlist<span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 6px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 8px rgba(123,97,255,.4)">PRO</span></button>
           </div>
         </div>
       </div>
@@ -1595,15 +1595,6 @@
 
       <!-- STATUS TOAST -->
       <div id="statusMessage"></div>
-
-      <!-- S172j — Banner Plan Pro (visible solo si features.multisede===true) -->
-      <div id="proBanner" style="display:none;background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:10px;padding:14px 18px;margin:0 20px 16px;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:240px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text);"><span style="background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800;" data-i18n="pro.badge">Plan Pro activo</span> <span data-i18n="pro.desc">— envía la misma playlist a múltiples pantallas y agrúpalas por sede.</span></div>
-          <div style="font-size:11px;color:var(--text-muted,#888);margin-top:3px;" data-i18n="pro.tags">Bulk Push · Multi-sede · Reportes por ubicación</div>
-        </div>
-        <a href="/admin-dashboard.html" style="padding:8px 14px;border-radius:6px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 11px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;white-space:nowrap;" data-i18n="pro.cta">Ir a Sedes &amp; Bulk Push →</a>
-      </div>
 
       <!-- ── CONTENIDO ── -->
       <div id="content-tab" class="container">
@@ -1676,6 +1667,12 @@
             <div class="section-title" data-i18n="ms.title">Multi-sede</div>
             <div style="color:var(--text-muted);font-size:13px;margin-top:2px" data-i18n="ms.subtitle">Organiza tus dispositivos por ubicación y envía contenido a varias sedes a la vez.</div>
           </div>
+        </div>
+
+        <!-- Pro banner (mockup) -->
+        <div id="msProBanner" style="background:linear-gradient(90deg,rgba(123,97,255,.12),rgba(0,245,212,.08));border:1px solid rgba(123,97,255,.35);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin:16px 0 4px">
+          <div style="width:8px;height:8px;border-radius:50%;background:#00f5d4;box-shadow:0 0 8px #00f5d4"></div>
+          <div style="font-size:12px;color:var(--text)"><b style="background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent;font-weight:800" data-i18n="ms.pro_banner_title">Plan Multi-sede activo</b> · <span id="msProSedesCount">0</span> <span data-i18n="ms.sedes_word">sedes</span> · <span id="msProDevCount">0</span> <span data-i18n="ms.devices_word">dispositivos</span> · <span data-i18n="ms.bulk_enabled">Bulk push habilitado</span></div>
         </div>
 
         <!-- Sub-tabs Sedes / Bulk -->
@@ -3752,8 +3749,9 @@ function showDashboard() {
   if (proBanner) proBanner.style.display = features.multisede === true ? 'flex' : 'none';
   const msBtn = document.getElementById('btn-tab-multisede');
   const mpBtn = document.getElementById('btn-tab-multiplaylist');
-  if (msBtn) msBtn.classList.toggle('hidden-feature', features.multisede !== true);
-  if (mpBtn) mpBtn.classList.toggle('hidden-feature', features.multisede !== true);
+  const msOn = features.multisede === true;
+  if (msBtn) { msBtn.classList.toggle('hidden-feature', !msOn); msBtn.style.display = msOn ? 'flex' : 'none'; }
+  if (mpBtn) { mpBtn.classList.toggle('hidden-feature', !msOn); mpBtn.style.display = msOn ? 'flex' : 'none'; }
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
     if (g) g.style.display = '';
@@ -11243,7 +11241,11 @@ document.addEventListener('change', function(e){
         fetch('/api/devices',   { headers: msAuthHeaders() })
       ]);
       msSedes   = rSedes.ok ? await rSedes.json() : [];
-      msDevices = rDev.ok   ? await rDev.json()   : [];
+      let allDevs = rDev.ok ? await rDev.json() : [];
+      // Multi-sede es per-tenant: incluso siendo admin, solo se listan los devices
+      // del propio usuario (no la flota completa).
+      const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) || null;
+      msDevices = uid ? allDevs.filter(function(d){ return d.user_id === uid; }) : allDevs;
       renderSedesGrid();
     } catch (e) {
       grid.innerHTML = '<div style="grid-column:1/-1;color:#ff5b7a;font-size:12px">Error cargando sedes.</div>';
@@ -11272,6 +11274,11 @@ document.addEventListener('change', function(e){
     }).join('');
     const addCard = '<div style="border:1px dashed var(--border);border-radius:10px;padding:16px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--text-muted);cursor:pointer;min-height:140px" onclick="openNewSedeModal()"><div><div style="font-size:24px;line-height:1">+</div><div style="font-size:12px;margin-top:6px">Añadir sede</div></div></div>';
     grid.innerHTML = cards + addCard;
+    // Actualiza contadores del pro-banner
+    const nSedes = msSedes.length;
+    const nDev   = msDevices.filter(function(d){ return d.location_id != null; }).length;
+    const cS = document.getElementById('msProSedesCount'); if (cS) cS.textContent = nSedes;
+    const cD = document.getElementById('msProDevCount');   if (cD) cD.textContent = nDev;
   }
 
   function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }

@@ -2935,7 +2935,7 @@ app.post('/api/auth/refresh', authenticateToken, async (req, res) => {
     const user = result.rows[0];
     const isAdmin = user.role === 'admin';
     const features = isAdmin
-      ? { turnos: true, analytics: true }
+      ? { turnos: true, analytics: true, ...(user.features || {}) }
       : (user.features || { turnos: false, analytics: false });
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, features },
