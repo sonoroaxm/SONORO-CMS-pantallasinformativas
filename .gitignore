@@ -12,6 +12,8 @@ backend/src/.env
 # OS files 
 .DS_Store 
 Thumbs.db 
-# Temp 
-*.bat.bak 
+# Temp
+*.bat.bak
+*.bak
+*.bak-*
 _vps_snapshot_*/
