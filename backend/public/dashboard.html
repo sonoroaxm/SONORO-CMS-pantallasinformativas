@@ -1533,8 +1533,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
-            <button class="tab-btn" id="btn-tab-multisede" data-tab="multisede"><span data-i18n="sidebar.tab_multisede">Sedes</span><span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
-            <button class="tab-btn" id="btn-tab-multiplaylist" data-tab="multiplaylist"><span data-i18n="sidebar.tab_multiplaylist">Programaciones</span><span style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
+            <button class="tab-btn" id="btn-tab-multisede" data-tab="multisede"><span data-i18n="sidebar.tab_multisede">Sedes</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
+            <button class="tab-btn" id="btn-tab-multiplaylist" data-tab="multiplaylist"><span data-i18n="sidebar.tab_multiplaylist">Programaciones</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
           </div>
         </div>
       </div>
@@ -3785,6 +3785,7 @@ function showDashboard() {
   if (msUp) msUp.style.display = msOn ? 'none' : 'block';
   if (msRc) msRc.style.display = msOn ? 'block' : 'none';
   if (msBan) msBan.style.display = msOn ? 'flex' : 'none';
+  document.querySelectorAll('.ms-pro-tag').forEach(function(t){ t.style.display = msOn ? 'none' : 'inline-block'; });
   if (features.turnos) {
     const g = document.getElementById('group-atencion');
     if (g) g.style.display = '';
