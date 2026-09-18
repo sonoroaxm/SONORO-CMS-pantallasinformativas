@@ -4397,7 +4397,10 @@ async function loadDevices(silent = false) {
   }
   try {
     const res = await fetch(`${API_URL}/api/devices`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const devices = await res.json();
+    let devices = await res.json();
+    // Dashboard usuario = per-tenant siempre, incluso siendo admin (admin ve flota completa en /admin-dashboard.html).
+    const _uid = currentUser && currentUser.id;
+    if (_uid && Array.isArray(devices)) devices = devices.filter(function(d){ return d.user_id === _uid; });
     const [plRes, brRes] = await Promise.all([
       fetch(`${API_URL}/api/playlists`,       { headers: { 'Authorization': `Bearer ${authToken}` } }),
       fetch(`${API_URL}/api/queue/branches`,  { headers: { 'Authorization': `Bearer ${authToken}` } }),
