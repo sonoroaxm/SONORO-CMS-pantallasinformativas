@@ -895,7 +895,7 @@
     /* S207 Multi-sede modals (mismo patrón overlay) */
     #mNewSedeModal, #mAssignModal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: none; align-items: center; justify-content: center; }
     #mNewSedeModal.show, #mAssignModal.show { display: flex; }
-    #mNewSedeModal .modal-content, #mAssignModal .modal-content { background: var(--surface, #151515); border: 1px solid var(--border, #2a2a2a); border-radius: 10px; padding: 24px; width: 92%; }
+    #mNewSedeModal .modal-content, #mAssignModal .modal-content { background: var(--surface, #151515); border: 1px solid var(--border, #2a2a2a); border-radius: 10px; padding: 24px; width: 92%; overflow: visible; }
 
     .dc-field-grid { display: grid; gap: 12px; }
     .dc-fg-2 { grid-template-columns: 1fr 1fr; }
@@ -10981,11 +10981,11 @@ async function licSubmitUsdOrder() {
           <label id="msFormStateLabel" style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700">Departamento</label>
           <select id="msFormState" onchange="msLoadCities()" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit"><option value="">— Selecciona —</option></select>
         </div>
-        <div style="position:relative">
+        <div style="position:relative;z-index:20">
           <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700" data-i18n="ms.field_city">Ciudad</label>
           <input id="msFormCity" placeholder="Escribe para buscar…" autocomplete="off" oninput="msSearchCity()" onfocus="msSearchCity()" disabled style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit">
           <input type="hidden" id="msFormCityId">
-          <div id="msCityList" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:220px;overflow:auto;z-index:10;margin-top:2px"></div>
+          <div id="msCityList" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;max-height:220px;overflow:auto;z-index:100;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.45)"></div>
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:6px">
