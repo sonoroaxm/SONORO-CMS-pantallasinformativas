@@ -335,14 +335,44 @@
       background: rgba(255,27,141,0.15);
       color: var(--magenta);
     }
-    .sidebar-group.contenido .sidebar-group-label { color: var(--magenta); }
-    .sidebar-group.contenido .sidebar-group-header:hover { background: rgba(255,27,141,0.06); }
-    .sidebar-group.contenido .tab-btn.active {
-      background: rgba(255,27,141,0.1);
-      color: var(--magenta);
+    .sidebar-group.contenido .sidebar-group-label { color: var(--orange); }
+    .sidebar-group.contenido .sidebar-group-header:hover { background: rgba(255,140,0,0.06); }
+    /* Base tabs (Contenido, Listas, Dispositivos) — pill magenta→naranja */
+    .sidebar-group.contenido .tab-btn {
+      color: #fff;
+      background: linear-gradient(135deg, #ff1b8d, #ff8c00);
+      border: 0;
+      border-radius: 10px;
+      font-weight: 800;
+      letter-spacing: .3px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(255,27,141,0.25);
     }
-    .sidebar-group.contenido .tab-btn:hover { color: var(--magenta); }
-    .sidebar-group.contenido .sidebar-indicator { background: var(--magenta); }
+    .sidebar-group.contenido .tab-btn:hover {
+      color: #fff;
+      filter: brightness(1.08);
+      box-shadow: 0 3px 12px rgba(255,27,141,0.40);
+    }
+    .sidebar-group.contenido .tab-btn.active {
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(255,27,141,0.55), inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
+    .sidebar-group.contenido .sidebar-indicator { display: none; }
+    /* PRO tabs (Programaciones, Multi-sede) — pill lila→cyan */
+    .sidebar-group.contenido .tab-btn.pro-tab {
+      color: #fff;
+      background: linear-gradient(135deg, #7b61ff, #00f5d4);
+      box-shadow: 0 2px 8px rgba(123,97,255,0.35);
+    }
+    .sidebar-group.contenido .tab-btn.pro-tab:hover {
+      filter: brightness(1.08);
+      box-shadow: 0 3px 12px rgba(123,97,255,0.50);
+      color: #fff;
+    }
+    .sidebar-group.contenido .tab-btn.pro-tab.active {
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(123,97,255,0.60), inset 0 0 0 2px rgba(255,255,255,0.30);
+    }
 
     /* Color: Gestión de la Atención — azul/cian */
     .sidebar-group.atencion .sidebar-group-icon {
@@ -351,11 +381,17 @@
     }
     .sidebar-group.atencion .sidebar-group-label { color: #00c8ff; }
     .sidebar-group.atencion .sidebar-group-header:hover { background: rgba(0,200,255,0.06); }
-    .sidebar-group.atencion .tab-btn.active {
-      background: rgba(0,200,255,0.1);
-      color: #00c8ff;
+    .sidebar-group.atencion .tab-btn {
+      color: #fff;
+      background: linear-gradient(135deg, #0088cc, #00c8ff);
+      border: 0; border-radius: 10px; font-weight: 800; letter-spacing: .3px; margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(0,200,255,0.30);
     }
-    .sidebar-group.atencion .tab-btn:hover { color: #00c8ff; }
+    .sidebar-group.atencion .tab-btn:hover { filter: brightness(1.08); box-shadow: 0 3px 12px rgba(0,200,255,0.45); color: #fff; }
+    .sidebar-group.atencion .tab-btn.active {
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(0,200,255,0.55), inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
     .sidebar-group.atencion .sidebar-indicator { background: #00c8ff; }
 
     /* Submenú colapsable */
@@ -375,12 +411,21 @@
       padding-bottom: 6px;
       padding-top: 4px;
     }
-    .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(255,27,141,0.25); }
+    .sidebar-group.contenido .sidebar-children-inner { border-color: rgba(255,140,0,0.25); }
     .sidebar-group.atencion .sidebar-children-inner { border-color: rgba(0,200,255,0.2); }
     .sidebar-group.eventos .sidebar-group-label { color: #f59e0b; }
     .sidebar-group.eventos .sidebar-group-header:hover { background: rgba(245,158,11,0.06); }
-    .sidebar-group.eventos .tab-btn.active { background: rgba(245,158,11,0.1); color: #f59e0b; }
-    .sidebar-group.eventos .tab-btn:hover { color: #f59e0b; }
+    .sidebar-group.eventos .tab-btn {
+      color: #fff;
+      background: linear-gradient(135deg, #ff1b8d, #ff8c00);
+      border: 0; border-radius: 10px; font-weight: 800; letter-spacing: .3px; margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(255,27,141,0.25);
+    }
+    .sidebar-group.eventos .tab-btn:hover { filter: brightness(1.08); box-shadow: 0 3px 12px rgba(255,27,141,0.40); color: #fff; }
+    .sidebar-group.eventos .tab-btn.active {
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(255,27,141,0.55), inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
     .sidebar-group.eventos .sidebar-indicator { background: #f59e0b; }
     .sidebar-group.eventos .sidebar-children-inner { border-color: rgba(245,158,11,0.25); }
 
@@ -1224,9 +1269,77 @@
     .hevc-progress-fill { height: 100%; background: var(--magenta, #b829e8); width: 0%; transition: width 0.4s ease; }
 
     /* ── LICENSES-V1 Fase 4 ── */
-    .sidebar-group.licencias .sidebar-group-label { color: var(--magenta); }
-    .sidebar-group.licencias .tab-btn.active { color: var(--magenta); border-color: var(--magenta); }
-    .sidebar-group.licencias .tab-btn:hover { color: var(--magenta); }
+    .sidebar-group.licencias .sidebar-group-label { color: var(--orange); }
+    .sidebar-group.licencias .sidebar-group-header:hover { background: rgba(229,196,84,0.06); }
+    .sidebar-group.licencias .tab-btn {
+      color: #fff;
+      background: linear-gradient(135deg, #ff1b8d, #ff8c00);
+      border: 0; border-radius: 10px; font-weight: 800; letter-spacing: .3px; margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(255,27,141,0.25);
+    }
+    .sidebar-group.licencias .tab-btn:hover { filter: brightness(1.08); box-shadow: 0 3px 12px rgba(255,27,141,0.40); color: #fff; }
+    .sidebar-group.licencias .tab-btn.active {
+      color: #fff;
+      box-shadow: 0 3px 14px rgba(255,27,141,0.55), inset 0 0 0 2px rgba(255,255,255,0.25);
+    }
+    .sidebar-group.licencias .sidebar-indicator { background: #e5c454; }
+    .sidebar-group.licencias .sidebar-children-inner { border-color: rgba(229,196,84,0.25); }
+
+    /* ─── PRO scope: botones gradiente lila→cyan dentro de Programaciones y Sedes ─── */
+    #multiplaylist-tab .btn-primary,
+    #multisede-tab .btn-primary,
+    #multiplaylist-tab .btn-grad,
+    #multisede-tab .btn-grad,
+    #multiplaylist-tab button.primary,
+    #multisede-tab button.primary,
+    .pro-modal .btn-primary,
+    .pro-modal .btn-grad,
+    .pro-modal button.primary {
+      background: linear-gradient(135deg, #7b61ff, #00f5d4) !important;
+      background-image: linear-gradient(135deg, #7b61ff, #00f5d4) !important;
+      color: #fff !important;
+      border: 0 !important;
+      font-weight: 800 !important;
+      letter-spacing: .3px;
+      box-shadow: 0 2px 8px rgba(123,97,255,0.35) !important;
+      text-shadow: none !important;
+    }
+    #multiplaylist-tab .btn-primary:hover,
+    #multisede-tab .btn-primary:hover,
+    #multiplaylist-tab .btn-grad:hover,
+    #multisede-tab .btn-grad:hover,
+    #multiplaylist-tab button.primary:hover,
+    #multisede-tab button.primary:hover,
+    .pro-modal .btn-primary:hover,
+    .pro-modal .btn-grad:hover,
+    .pro-modal button.primary:hover {
+      filter: brightness(1.08);
+      box-shadow: 0 3px 12px rgba(123,97,255,0.50) !important;
+    }
+    #multiplaylist-tab .btn-outline,
+    #multisede-tab .btn-outline,
+    #multiplaylist-tab .btn-secondary,
+    #multisede-tab .btn-secondary,
+    .pro-modal .btn-outline,
+    .pro-modal .btn-secondary {
+      background: transparent !important;
+      color: #7b61ff !important;
+      border: 1px solid #7b61ff !important;
+      font-weight: 700 !important;
+    }
+    #multiplaylist-tab .btn-outline:hover,
+    #multisede-tab .btn-outline:hover,
+    #multiplaylist-tab .btn-secondary:hover,
+    #multisede-tab .btn-secondary:hover,
+    .pro-modal .btn-outline:hover,
+    .pro-modal .btn-secondary:hover {
+      background: rgba(123,97,255,0.10) !important;
+      color: #00f5d4 !important;
+      border-color: #00f5d4 !important;
+    }
+    /* Modal-close (×) dentro de modales PRO */
+    .pro-modal .modal-close { color: #7b61ff !important; }
+    .pro-modal .modal-close:hover { color: #00f5d4 !important; }
     .lic-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
     .lic-kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
     .lic-kpi-card .lic-kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 6px; }
@@ -1537,8 +1650,8 @@
             <button class="tab-btn active" data-tab="content" data-i18n="sidebar.tab_content">Contenido</button>
             <button class="tab-btn" data-tab="playlists" data-i18n="sidebar.tab_playlists">Listas</button>
             <button class="tab-btn" data-tab="devices" data-i18n="sidebar.tab_devices">Dispositivos</button>
-            <button class="tab-btn" id="btn-tab-multisede" data-tab="multisede"><span data-i18n="sidebar.tab_multisede">Sedes</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
-            <button class="tab-btn" id="btn-tab-multiplaylist" data-tab="multiplaylist"><span data-i18n="sidebar.tab_multiplaylist">Programaciones</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
+            <button class="tab-btn pro-tab" id="btn-tab-multiplaylist" data-tab="multiplaylist"><span data-i18n="sidebar.tab_multiplaylist">Programaciones</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
+            <button class="tab-btn pro-tab" id="btn-tab-multisede" data-tab="multisede"><span data-i18n="sidebar.tab_multisede">Sedes</span><span class="ms-pro-tag" style="margin-left:auto;font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 10px rgba(123,97,255,.6);white-space:nowrap;flex-shrink:0">PRO</span></button>
           </div>
         </div>
       </div>
@@ -1694,8 +1807,8 @@
         <div id="ms-real-content">
         <!-- Sub-tabs Sedes / Bulk -->
         <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin:12px 0 22px;">
-          <button class="ms-subtab active" data-ms-sub="sedes" onclick="switchMultisedeSub('sedes')" style="padding:12px 18px;background:transparent;border:0;color:var(--text);border-bottom:2px solid var(--magenta);font:700 12px inherit;text-transform:uppercase;letter-spacing:.5px;cursor:pointer" data-i18n="ms.tab_sedes">Sedes</button>
-          <button class="ms-subtab" data-ms-sub="bulk" onclick="switchMultisedeSub('bulk')" style="padding:12px 18px;background:transparent;border:0;color:var(--text-muted);border-bottom:2px solid transparent;font:700 12px inherit;text-transform:uppercase;letter-spacing:.5px;cursor:pointer" data-i18n="ms.tab_bulk">Envío masivo</button>
+          <button class="ms-subtab active" data-ms-sub="sedes" onclick="switchMultisedeSub('sedes')" style="padding:10px 22px;background:linear-gradient(135deg,#7b61ff,#00f5d4);border:0;border-radius:7px;color:#fff;font:800 13px inherit;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;box-shadow:0 2px 8px rgba(123,97,255,.35);margin-right:6px" data-i18n="ms.tab_sedes">Sedes</button>
+          <button class="ms-subtab" data-ms-sub="bulk" onclick="switchMultisedeSub('bulk')" style="padding:10px 22px;background:transparent;border:0;border-radius:7px;color:var(--text-muted);font:800 13px inherit;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;box-shadow:none" data-i18n="ms.tab_bulk">Envío masivo</button>
         </div>
 
         <!-- SUB-PANEL: Sedes -->
@@ -1715,9 +1828,61 @@
         <!-- SUB-PANEL: Bulk push -->
         <div id="ms-panel-bulk" style="display:none">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px">
-            <h3 style="font-size:15px;font-weight:700;margin:0 0 4px" data-i18n="bp.title">Envío masivo de playlist</h3>
-            <div style="color:var(--text-muted);font-size:12px;margin-bottom:18px" data-i18n="bp.subtitle">Selecciona una playlist y las sedes destino. Todos los dispositivos filtrados reciben la misma lista.</div>
-            <div style="color:var(--text-muted);font-size:13px;padding:20px;text-align:center;border:1px dashed var(--border);border-radius:8px" data-i18n="bp.pending">Envío masivo — próxima entrega (Bloque B).</div>
+            <h3 style="font-size:15px;font-weight:700;margin:0 0 4px">Envío masivo</h3>
+            <div style="color:var(--text-muted);font-size:12px;margin-bottom:18px">Selecciona una playlist (o programación) y los dispositivos destino. Se aplica inmediatamente; los que estén offline recibirán el cambio al reconectar.</div>
+
+            <!-- Toggle Playlist / Programación (Programación habilita en Paso B) -->
+            <div id="bpTypeToggle" style="display:flex;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:18px;width:fit-content">
+              <button type="button" class="bp-type-btn active" data-bp-type="playlist" onclick="bpSetType('playlist')" style="padding:10px 22px;background:linear-gradient(135deg,#7b61ff,#00f5d4);border:0;border-radius:7px;color:#fff;font:800 13px inherit;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;box-shadow:0 2px 8px rgba(123,97,255,.35)">Playlist</button>
+              <button type="button" class="bp-type-btn" data-bp-type="schedule" onclick="bpSetType('schedule')" style="padding:10px 22px;background:transparent;border:0;border-radius:7px;color:var(--text-muted);font:800 13px inherit;text-transform:uppercase;letter-spacing:.6px;cursor:pointer;box-shadow:none">Programación</button>
+            </div>
+
+            <!-- Selector principal (playlist o template) -->
+            <div style="margin-bottom:18px">
+              <label id="bpMainLabel" style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:700">Playlist a enviar</label>
+              <select id="bpMainSelect" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font:inherit"><option value="">— Selecciona —</option></select>
+              <div id="bpMainHint" style="color:var(--text-muted);font-size:11px;margin-top:4px;display:none">La Programación solo se puede enviar a dispositivos PRO.</div>
+            </div>
+
+            <!-- Scope -->
+            <div style="margin-bottom:14px">
+              <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">Destino</label>
+              <div style="display:flex;gap:14px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="bpScope" value="all" checked onchange="bpOnScopeChange()"> Todas mis sedes</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="bpScope" value="sedes" onchange="bpOnScopeChange()"> Sedes seleccionadas</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="bpScope" value="devices" onchange="bpOnScopeChange()"> Dispositivos específicos</label>
+              </div>
+            </div>
+
+            <!-- Sedes multi-check (hidden por default) -->
+            <div id="bpSedesWrap" style="display:none;margin-bottom:14px">
+              <div id="bpSedesList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:200px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px"></div>
+            </div>
+
+            <!-- Devices multi-check (hidden por default) -->
+            <div id="bpDevicesWrap" style="display:none;margin-bottom:14px">
+              <div id="bpDevicesList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;max-height:240px;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px"></div>
+            </div>
+
+            <!-- Preview / contador -->
+            <div id="bpPreview" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text-muted)">Selecciona para ver cuántos dispositivos recibirán el cambio.</div>
+
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-grad" id="bpSubmitBtn" onclick="bpSubmit()" disabled>Enviar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal confirmación Bulk -->
+        <div id="bpConfirmModal" class="modal-overlay pro-modal" onclick="if(event.target===this)bpCloseConfirm()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;align-items:center;justify-content:center">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;width:92%;max-width:520px">
+            <div style="font-size:16px;font-weight:700;margin-bottom:6px">Confirmar envío masivo</div>
+            <div id="bpConfirmBody" style="color:var(--text-muted);font-size:13px;margin-bottom:16px;line-height:1.5"></div>
+            <div id="bpConfirmSchedWarn" style="display:none;background:#3a2a0f;border:1px solid #a86a1a;border-radius:6px;padding:10px 12px;font-size:12px;color:#ffcc66;margin-bottom:14px"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="btn btn-outline btn-sm" onclick="bpCloseConfirm()">Cancelar</button>
+              <button class="btn btn-grad btn-sm" id="bpConfirmBtn" onclick="bpDoSubmit(false)">Enviar</button>
+            </div>
           </div>
         </div>
         </div><!-- /ms-real-content -->
@@ -1753,7 +1918,7 @@
       </div>
 
       <!-- Modal editor de programación -->
-      <div class="stv-modal-overlay" id="tplEditorOverlay" onclick="if(event.target===this)tplCloseEditor()">
+      <div class="stv-modal-overlay pro-modal" id="tplEditorOverlay" onclick="if(event.target===this)tplCloseEditor()">
         <div class="modal-content" style="max-width:1140px;padding:24px 32px 28px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:4px;">
             <div style="flex:1;min-width:0;">
@@ -11093,7 +11258,7 @@ async function licSubmitUsdOrder() {
      "+ Generar Código") en un solo flujo wizard. Poka-yoke: cliente elige
      el tipo primero, luego el flujo específico. -->
 <!-- ── MULTI-SEDE modales (S207 Fase 3 Bloque A) ── -->
-<div id="mNewSedeModal" class="modal-overlay" onclick="if(event.target===this)closeNewSedeModal()">
+<div id="mNewSedeModal" class="modal-overlay pro-modal" onclick="if(event.target===this)closeNewSedeModal()">
   <div class="modal-content" style="max-width:520px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
       <h3 style="margin:0;font-size:16px" data-i18n="ms.modal_new_title">Nueva sede</h3>
@@ -11129,7 +11294,7 @@ async function licSubmitUsdOrder() {
   </div>
 </div>
 
-<div id="mAssignModal" class="modal-overlay" onclick="if(event.target===this)closeAssignModal()">
+<div id="mAssignModal" class="modal-overlay pro-modal" onclick="if(event.target===this)closeAssignModal()">
   <div class="modal-content" style="max-width:520px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
       <h3 id="msAssignTitle" style="margin:0;font-size:16px">Asignar dispositivos</h3>
@@ -11144,7 +11309,7 @@ async function licSubmitUsdOrder() {
   </div>
 </div>
 
-<div id="addDeviceWizardModal" class="modal-overlay" onclick="if(event.target===this)closeAddDeviceWizard()">
+<div id="addDeviceWizardModal" class="modal-overlay pro-modal" onclick="if(event.target===this)closeAddDeviceWizard()">
   <div class="modal-content" style="max-width:520px;">
     <!-- Stepper -->
     <div style="display:flex;gap:8px;margin-bottom:20px;">
@@ -11393,12 +11558,162 @@ document.addEventListener('change', function(e){
   window.switchMultisedeSub = function(sub) {
     document.querySelectorAll('.ms-subtab').forEach(function(b){
       const on = b.getAttribute('data-ms-sub') === sub;
-      b.style.color = on ? 'var(--text)' : 'var(--text-muted)';
-      b.style.borderBottomColor = on ? 'var(--magenta)' : 'transparent';
+      b.style.background = on ? 'linear-gradient(135deg,#7b61ff,#00f5d4)' : 'transparent';
+      b.style.color      = on ? '#fff' : 'var(--text-muted)';
+      b.style.boxShadow  = on ? '0 2px 8px rgba(123,97,255,.35)' : 'none';
       b.classList.toggle('active', on);
     });
     document.getElementById('ms-panel-sedes').style.display = sub==='sedes' ? '' : 'none';
     document.getElementById('ms-panel-bulk').style.display  = sub==='bulk'  ? '' : 'none';
+    if (sub === 'bulk') bpInit();
+  };
+
+  // ───── Bulk Push (S208d) ─────
+  let _bpState = { type: 'playlist', playlists: [], templates: [], sedes: [], devices: [], proDevices: [], loaded: false, previewTimer: null };
+  window.bpSetType = function(t) {
+    _bpState.type = t;
+    document.querySelectorAll('.bp-type-btn').forEach(function(b){
+      const on = b.getAttribute('data-bp-type') === t;
+      b.style.background = on ? 'linear-gradient(135deg,#7b61ff,#00f5d4)' : 'transparent';
+      b.style.color      = on ? '#fff' : 'var(--text-muted)';
+      b.style.boxShadow  = on ? '0 2px 8px rgba(123,97,255,.35)' : 'none';
+      b.classList.toggle('active', on);
+    });
+    document.getElementById('bpMainLabel').textContent = t === 'playlist' ? 'Playlist a enviar' : 'Programación a enviar';
+    document.getElementById('bpMainHint').style.display = t === 'schedule' ? '' : 'none';
+    bpFillMainSelect();
+    bpRenderDevicesList();  // Re-render porque schedule filtra a PRO
+    bpUpdatePreview();
+  };
+  window.bpInit = async function() {
+    if (_bpState.loaded) { bpUpdatePreview(); return; }
+    try {
+      const [rPl, rLoc, rDev, rTpl, rPro] = await Promise.all([
+        fetch('/api/playlists',           { headers: msAuthHeaders() }),
+        fetch('/api/locations',           { headers: msAuthHeaders() }),
+        fetch('/api/devices',             { headers: msAuthHeaders() }),
+        fetch('/api/schedule/templates',  { headers: msAuthHeaders() }).catch(() => null),
+        fetch('/api/schedule/pro-devices',{ headers: msAuthHeaders() }).catch(() => null),
+      ]);
+      _bpState.playlists = rPl.ok  ? await rPl.json()  : [];
+      _bpState.sedes     = rLoc.ok ? await rLoc.json() : [];
+      let allDevs = rDev.ok ? await rDev.json() : [];
+      const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) || null;
+      _bpState.devices = uid ? allDevs.filter(function(d){ return d.user_id === uid; }) : allDevs;
+      if (rTpl && rTpl.ok) { const j = await rTpl.json(); _bpState.templates = Array.isArray(j) ? j : (j.templates || []); }
+      if (rPro && rPro.ok) { const j = await rPro.json(); _bpState.proDevices = (j.devices || []).map(function(d){ return d.device_id; }); }
+      _bpState.loaded = true;
+      bpFillMainSelect();
+      bpRenderSedesList();
+      bpRenderDevicesList();
+      bpUpdatePreview();
+    } catch(e) { console.error('bulk init error', e); }
+  };
+  function bpFillMainSelect() {
+    const sel = document.getElementById('bpMainSelect');
+    const items = _bpState.type === 'playlist' ? _bpState.playlists : _bpState.templates;
+    const prevVal = sel.value;
+    sel.innerHTML = '<option value="">— Selecciona —</option>' + items.map(function(it){
+      return '<option value="'+ it.id +'">'+ escapeHtml(it.name) +'</option>';
+    }).join('');
+    if (prevVal && sel.querySelector('option[value="'+prevVal+'"]')) sel.value = prevVal;
+    sel.onchange = bpUpdatePreview;
+  }
+  function bpRenderSedesList() {
+    const el = document.getElementById('bpSedesList');
+    if (!_bpState.sedes.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px">No tienes sedes creadas.</div>'; return; }
+    el.innerHTML = _bpState.sedes.map(function(s){
+      return '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface);border-radius:6px;cursor:pointer;font-size:13px"><input type="checkbox" data-bp-sede="'+ s.id +'" onchange="bpUpdatePreview()"> '+ escapeHtml(s.name) +'</label>';
+    }).join('');
+  }
+  function bpRenderDevicesList() {
+    const el = document.getElementById('bpDevicesList');
+    const proOnly = _bpState.type === 'schedule';
+    const list = proOnly ? _bpState.devices.filter(function(d){ return _bpState.proDevices.indexOf(d.device_id) >= 0; }) : _bpState.devices;
+    if (!list.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px">'+ (proOnly ? 'No tienes dispositivos PRO.' : 'No tienes dispositivos.') +'</div>'; return; }
+    el.innerHTML = list.map(function(d){
+      const dot = d.status === 'online' ? '#3fd37a' : '#777';
+      return '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface);border-radius:6px;cursor:pointer;font-size:13px"><input type="checkbox" data-bp-dev="'+ escapeHtml(d.device_id) +'" onchange="bpUpdatePreview()"><span style="width:8px;height:8px;border-radius:50%;background:'+ dot +'"></span>'+ escapeHtml(d.name || d.device_id) +'</label>';
+    }).join('');
+  }
+  window.bpOnScopeChange = function() {
+    const scope = document.querySelector('input[name="bpScope"]:checked').value;
+    document.getElementById('bpSedesWrap').style.display   = scope === 'sedes'   ? '' : 'none';
+    document.getElementById('bpDevicesWrap').style.display = scope === 'devices' ? '' : 'none';
+    bpUpdatePreview();
+  };
+  function bpCollectParams() {
+    const scope = document.querySelector('input[name="bpScope"]:checked').value;
+    const sedeIds   = Array.from(document.querySelectorAll('input[data-bp-sede]:checked')).map(function(c){ return c.getAttribute('data-bp-sede'); });
+    const deviceIds = Array.from(document.querySelectorAll('input[data-bp-dev]:checked')).map(function(c){ return c.getAttribute('data-bp-dev'); });
+    return { scope: scope, sede_ids: sedeIds, device_ids: deviceIds };
+  }
+  window.bpUpdatePreview = function() {
+    clearTimeout(_bpState.previewTimer);
+    _bpState.previewTimer = setTimeout(async function(){
+      const p = bpCollectParams();
+      const mainVal = document.getElementById('bpMainSelect').value;
+      const btn = document.getElementById('bpSubmitBtn');
+      const prevEl = document.getElementById('bpPreview');
+      if (!mainVal) { prevEl.innerHTML = '<span style="color:var(--text-muted)">Selecciona '+ (_bpState.type==='playlist'?'una playlist':'una programación') +'.</span>'; btn.disabled = true; return; }
+      if ((p.scope === 'sedes' && !p.sede_ids.length) || (p.scope === 'devices' && !p.device_ids.length)) {
+        prevEl.innerHTML = '<span style="color:var(--text-muted)">Marca al menos un elemento del destino.</span>'; btn.disabled = true; return;
+      }
+      const qs = new URLSearchParams({ scope: p.scope });
+      if (p.sede_ids.length)   qs.set('sede_ids',   p.sede_ids.join(','));
+      if (p.device_ids.length) qs.set('device_ids', p.device_ids.join(','));
+      try {
+        const r = await fetch('/api/bulk/preview?' + qs.toString(), { headers: msAuthHeaders() });
+        if (!r.ok) throw new Error('preview_failed');
+        const j = await r.json();
+        _bpState.lastPreview = j;
+        const schedPart = j.scheduled ? ' · <span style="color:#ffcc66">'+ j.scheduled +' con programación activa</span>' : '';
+        prevEl.innerHTML = '<b>'+ j.total +'</b> dispositivos destino · '+ j.online +' online · '+ j.offline +' offline' + schedPart;
+        btn.disabled = j.total === 0;
+      } catch(e) { prevEl.innerHTML = '<span style="color:#ff6a6a">Error al calcular preview</span>'; btn.disabled = true; }
+    }, 150);
+  };
+  window.bpSubmit = function() {
+    const prev = _bpState.lastPreview || { total: 0, scheduled: 0 };
+    const typeLabel = _bpState.type === 'playlist' ? 'playlist' : 'programación';
+    const mainName  = document.getElementById('bpMainSelect').selectedOptions[0].textContent;
+    const body = document.getElementById('bpConfirmBody');
+    body.innerHTML = 'Vas a enviar la '+ typeLabel +' <b>'+ escapeHtml(mainName) +'</b> a <b>'+ prev.total +'</b> dispositivos ('+ prev.online +' online, '+ prev.offline +' aplicarán al reconectar).';
+    const warn = document.getElementById('bpConfirmSchedWarn');
+    const confirmBtn = document.getElementById('bpConfirmBtn');
+    if (_bpState.type === 'playlist' && prev.scheduled > 0) {
+      const names = (prev.scheduled_devices||[]).slice(0,5).map(function(s){ return s.template_name; }).join(', ');
+      warn.style.display = '';
+      warn.innerHTML = '<b>'+ prev.scheduled +' dispositivo(s) tienen programación activa</b> ('+ escapeHtml(names) + (prev.scheduled>5?'…':'') +'). Por defecto se omiten y conservan su programación. Marca "Reemplazar programación" para sobrescribir.<br><label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer"><input type="checkbox" id="bpForceOverride"> Reemplazar programación en esos dispositivos</label>';
+      confirmBtn.textContent = 'Enviar ('+ (prev.total - prev.scheduled) +' por defecto)';
+    } else {
+      warn.style.display = 'none';
+      confirmBtn.textContent = 'Enviar ('+ prev.total +')';
+    }
+    document.getElementById('bpConfirmModal').style.display = 'flex';
+  };
+  window.bpCloseConfirm = function() { document.getElementById('bpConfirmModal').style.display = 'none'; };
+  window.bpDoSubmit = async function() {
+    const p = bpCollectParams();
+    const mainVal = document.getElementById('bpMainSelect').value;
+    const force = !!(document.getElementById('bpForceOverride') && document.getElementById('bpForceOverride').checked);
+    const endpoint = _bpState.type === 'playlist' ? '/api/bulk/playlist' : '/api/bulk/schedule';
+    const payload = _bpState.type === 'playlist'
+      ? { playlist_id: Number(mainVal), scope: p.scope, sede_ids: p.sede_ids.map(Number), device_ids: p.device_ids, force_override_schedule: force }
+      : { template_id: Number(mainVal), scope: p.scope, sede_ids: p.sede_ids.map(Number), device_ids: p.device_ids };
+    const btn = document.getElementById('bpConfirmBtn'); btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      const r = await fetch(endpoint, { method: 'POST', headers: Object.assign({'Content-Type':'application/json'}, msAuthHeaders()), body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'bulk_failed');
+      bpCloseConfirm();
+      const skipped = (j.skipped_scheduled && j.skipped_scheduled.length) ? ' · '+ j.skipped_scheduled.length +' omitidos (con programación)' : '';
+      showStatus('Envío masivo OK: '+ j.updated +' dispositivos actualizados ('+ j.offline +' offline)'+ skipped, 'success');
+    } catch(e) {
+      showStatus('Error: '+ e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
   };
 
   window.loadSedesGrid = async function() {
@@ -11723,20 +12038,27 @@ async function tplLoadList() {
     }
     emptyEl.style.display = 'none';
     listEl.style.display = '';
-    listEl.innerHTML = list.map(t => `
+    listEl.innerHTML = list.map(t => {
+      const unassigned = (t.device_count|0) === 0;
+      const assignBadge = unassigned
+        ? '<span style="font-size:10px;background:var(--bg);border:1px solid var(--border);color:var(--text-muted);padding:2px 7px;border-radius:3px;letter-spacing:.3px;">Sin asignar</span>'
+        : '<span style="font-size:10px;background:#1a3a2a;border:1px solid #2f6b45;color:#8ae0b0;padding:2px 7px;border-radius:3px;letter-spacing:.3px;">'+ t.device_count +' asignado'+ (t.device_count==1?'':'s') +'</span>';
+      return `
       <div class="lic-kpi-card" style="cursor:pointer;text-align:left;" onclick="tplOpenEditor(${t.id})">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <div style="font-weight:700;font-size:14px;color:var(--text);">${tplEsc(t.name)}</div>
-          <span style="font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;">PRO</span>
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${tplEsc(t.timezone)} · modo ${tplEsc(t.mode)}</div>
-        <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-muted);">
+        <div style="display:flex;gap:10px;margin-top:10px;font-size:11px;color:var(--text-muted);align-items:center;flex-wrap:wrap;">
           <span><strong style="color:var(--text);">${t.block_count}</strong> bloque${t.block_count==1?'':'s'}</span>
-          <span><strong style="color:var(--text);">${t.device_count}</strong> dispositivo${t.device_count==1?'':'s'}</span>
+          ${assignBadge}
           <span>v${t.version}</span>
         </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();tplSendToDevices(${t.id})" style="font-size:11px;padding:4px 10px;">Enviar a dispositivos</button>
+        </div>
       </div>
-    `).join('');
+    `;}).join('');
   } catch (e) {
     console.error('tplLoadList:', e);
     showStatus('Error cargando programaciones: ' + e.message, 'error');
@@ -11744,6 +12066,20 @@ async function tplLoadList() {
 }
 
 function tplEsc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Entry point: desde la grid de templates → Multi-sede > Envío masivo, con template preseleccionado.
+window.tplSendToDevices = async function(templateId) {
+  // Switch al tab Multi-sede > Bulk
+  if (typeof switchTab === 'function') switchTab('multisede');
+  if (typeof switchMultisedeSub === 'function') switchMultisedeSub('bulk');
+  // Esperar init
+  await new Promise(r => setTimeout(r, 50));
+  if (typeof bpInit === 'function') await bpInit();
+  if (typeof bpSetType === 'function') bpSetType('schedule');
+  const sel = document.getElementById('bpMainSelect');
+  if (sel) { sel.value = String(templateId); sel.dispatchEvent(new Event('change')); }
+  if (typeof bpUpdatePreview === 'function') bpUpdatePreview();
+};
 
 // ===== Programaciones v2 — Canvas 7×48 (port S199 1:1 a nivel template) =====
 const TPL_DOW_LABELS = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];

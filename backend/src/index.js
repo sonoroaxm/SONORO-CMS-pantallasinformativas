@@ -2030,6 +2030,187 @@ app.delete('/api/schedule/templates/:id/assign/:deviceId', authenticateToken, as
   }
 });
 
+// ========================================
+// BULK PUSH — Playlist a N dispositivos (S208d)
+// ========================================
+// POST /api/bulk/playlist
+// Body: { playlist_id, scope: 'all'|'sedes'|'devices', sede_ids?: [], device_ids?: [] }
+// Resuelve lista de devices filtrados por user_id (poka-yoke tenant).
+// Devices con schedule_assignments activa → skipped_scheduled (no sobrescribe).
+// Resto: UPDATE devices.hdmi0_playlist_id + cmd_refresh_playlist.
+// Devuelve {updated, offline, skipped_scheduled, device_ids}.
+app.post('/api/bulk/playlist', authenticateToken, async (req, res) => {
+  try {
+    const { playlist_id, scope, sede_ids, device_ids, force_override_schedule } = req.body || {};
+    if (!playlist_id) return res.status(400).json({ error: 'playlist_id requerido' });
+    if (!['all','sedes','devices'].includes(scope)) return res.status(400).json({ error: 'scope inválido' });
+    // Verificar ownership de la playlist
+    const plOwn = await pool.query('SELECT id FROM playlists WHERE id=$1 AND user_id=$2', [playlist_id, req.user.id]);
+    if (!plOwn.rowCount) return res.status(404).json({ error: 'playlist no encontrada' });
+    // Resolver target devices
+    let devRows = [];
+    if (scope === 'all') {
+      const r = await pool.query('SELECT device_id, status FROM devices WHERE user_id=$1', [req.user.id]);
+      devRows = r.rows;
+    } else if (scope === 'sedes') {
+      if (!Array.isArray(sede_ids) || sede_ids.length === 0) return res.status(400).json({ error: 'sede_ids requerido' });
+      const r = await pool.query(
+        'SELECT device_id, status FROM devices WHERE user_id=$1 AND location_id = ANY($2::int[])',
+        [req.user.id, sede_ids.map(Number)]
+      );
+      devRows = r.rows;
+    } else {
+      if (!Array.isArray(device_ids) || device_ids.length === 0) return res.status(400).json({ error: 'device_ids requerido' });
+      const r = await pool.query(
+        'SELECT device_id, status FROM devices WHERE user_id=$1 AND device_id = ANY($2::text[])',
+        [req.user.id, device_ids.map(String)]
+      );
+      devRows = r.rows;
+    }
+    if (!devRows.length) return res.json({ updated: 0, offline: 0, skipped_scheduled: [], device_ids: [] });
+    // Detectar devices con programación activa
+    const schR = await pool.query(
+      'SELECT device_id FROM schedule_assignments WHERE device_id = ANY($1::text[])',
+      [devRows.map(d => d.device_id)]
+    );
+    const scheduledSet = new Set(schR.rows.map(r => r.device_id));
+    const toUpdate = force_override_schedule ? devRows : devRows.filter(d => !scheduledSet.has(d.device_id));
+    const skipped  = force_override_schedule ? [] : devRows.filter(d => scheduledSet.has(d.device_id)).map(d => d.device_id);
+    if (toUpdate.length === 0) {
+      return res.json({ updated: 0, offline: 0, skipped_scheduled: skipped, device_ids: [] });
+    }
+    // Si override: limpiar assignments antes del update
+    if (force_override_schedule && skipped.length === 0 && scheduledSet.size > 0) {
+      const overrideIds = [...scheduledSet];
+      await pool.query('DELETE FROM schedule_assignments WHERE device_id = ANY($1::text[])', [overrideIds]);
+      for (const did of overrideIds) io.to(`device_${did}`).emit('cmd_clear_schedule', {});
+    }
+    const targetIds = toUpdate.map(d => d.device_id);
+    await pool.query(
+      'UPDATE devices SET hdmi0_playlist_id=$1 WHERE device_id = ANY($2::text[]) AND user_id=$3',
+      [playlist_id, targetIds, req.user.id]
+    );
+    for (const d of toUpdate) io.to(`device_${d.device_id}`).emit('cmd_refresh_playlist');
+    const offline = toUpdate.filter(d => d.status !== 'online').length;
+    res.json({
+      updated: toUpdate.length,
+      offline,
+      skipped_scheduled: skipped,
+      device_ids: targetIds
+    });
+  } catch (err) {
+    console.error('❌ Error bulk playlist:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/bulk/schedule
+// Body: { template_id, scope, sede_ids?, device_ids? }
+// Resuelve devices y filtra a los que son PRO (licenses.tier='pro').
+// Crea/actualiza schedule_assignments atómico + cmd_apply_schedule.
+// Devuelve {assigned, rejected_non_pro, offline}.
+app.post('/api/bulk/schedule', authenticateToken, async (req, res) => {
+  try {
+    const { template_id, scope, sede_ids, device_ids } = req.body || {};
+    if (!template_id) return res.status(400).json({ error: 'template_id requerido' });
+    if (!['all','sedes','devices'].includes(scope)) return res.status(400).json({ error: 'scope inválido' });
+    const own = await pool.query('SELECT id, version FROM schedule_templates WHERE id=$1 AND user_id=$2', [template_id, req.user.id]);
+    if (!own.rowCount) return res.status(404).json({ error: 'template no encontrado' });
+    // Resolver target devices (misma lógica que bulk/playlist)
+    let devRows = [];
+    if (scope === 'all') {
+      const r = await pool.query('SELECT device_id, status FROM devices WHERE user_id=$1', [req.user.id]);
+      devRows = r.rows;
+    } else if (scope === 'sedes') {
+      if (!Array.isArray(sede_ids) || sede_ids.length === 0) return res.status(400).json({ error: 'sede_ids requerido' });
+      const r = await pool.query('SELECT device_id, status FROM devices WHERE user_id=$1 AND location_id = ANY($2::int[])', [req.user.id, sede_ids.map(Number)]);
+      devRows = r.rows;
+    } else {
+      if (!Array.isArray(device_ids) || device_ids.length === 0) return res.status(400).json({ error: 'device_ids requerido' });
+      const r = await pool.query('SELECT device_id, status FROM devices WHERE user_id=$1 AND device_id = ANY($2::text[])', [req.user.id, device_ids.map(String)]);
+      devRows = r.rows;
+    }
+    if (!devRows.length) return res.json({ assigned: [], rejected_non_pro: [], offline: 0 });
+    // Filtrar a devices PRO
+    const proR = await pool.query(
+      `SELECT DISTINCT d.device_id FROM devices d
+         WHERE d.device_id = ANY($1::text[])
+           AND EXISTS (SELECT 1 FROM licenses l
+                        WHERE l.user_id = $2 AND l.tier = 'pro'
+                          AND (l.device_id = d.device_id OR l.device_id IS NULL))`,
+      [devRows.map(d => d.device_id), req.user.id]
+    );
+    const proSet = new Set(proR.rows.map(r => r.device_id));
+    const toAssign = devRows.filter(d => proSet.has(d.device_id));
+    const rejected = devRows.filter(d => !proSet.has(d.device_id)).map(d => d.device_id);
+    const assigned = [];
+    for (const d of toAssign) {
+      await pool.query(
+        `INSERT INTO schedule_assignments (template_id, device_id, schedule_version)
+           VALUES ($1, $2, $3)
+         ON CONFLICT (device_id) DO UPDATE
+           SET template_id = EXCLUDED.template_id,
+               schedule_version = EXCLUDED.schedule_version,
+               assigned_at = NOW()`,
+        [template_id, d.device_id, own.rows[0].version]
+      );
+      assigned.push(d.device_id);
+      io.to(`device_${d.device_id}`).emit('cmd_apply_schedule', { template_id });
+    }
+    const offline = toAssign.filter(d => d.status !== 'online').length;
+    res.json({ assigned, rejected_non_pro: rejected, offline, updated: assigned.length });
+  } catch (err) {
+    console.error('❌ Error bulk schedule:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/bulk/preview?scope=&sede_ids=&device_ids=
+// Devuelve conteos sin aplicar. Para el contador live y el modal de confirmación.
+app.get('/api/bulk/preview', authenticateToken, async (req, res) => {
+  try {
+    const scope = String(req.query.scope || '');
+    if (!['all','sedes','devices'].includes(scope)) return res.status(400).json({ error: 'scope inválido' });
+    const sedeIds = String(req.query.sede_ids || '').split(',').filter(Boolean).map(Number);
+    const devIds  = String(req.query.device_ids || '').split(',').filter(Boolean);
+    let devRows = [];
+    if (scope === 'all') {
+      const r = await pool.query('SELECT device_id, status, name FROM devices WHERE user_id=$1', [req.user.id]);
+      devRows = r.rows;
+    } else if (scope === 'sedes') {
+      if (!sedeIds.length) return res.json({ total: 0, online: 0, offline: 0, scheduled: 0, scheduled_device_ids: [] });
+      const r = await pool.query(
+        'SELECT device_id, status, name FROM devices WHERE user_id=$1 AND location_id = ANY($2::int[])',
+        [req.user.id, sedeIds]
+      );
+      devRows = r.rows;
+    } else {
+      if (!devIds.length) return res.json({ total: 0, online: 0, offline: 0, scheduled: 0, scheduled_device_ids: [] });
+      const r = await pool.query(
+        'SELECT device_id, status, name FROM devices WHERE user_id=$1 AND device_id = ANY($2::text[])',
+        [req.user.id, devIds]
+      );
+      devRows = r.rows;
+    }
+    const total   = devRows.length;
+    const online  = devRows.filter(d => d.status === 'online').length;
+    const offline = total - online;
+    let scheduled = 0, scheduledIds = [];
+    if (total > 0) {
+      const sr = await pool.query(
+        'SELECT sa.device_id, t.name AS template_name FROM schedule_assignments sa JOIN schedule_templates t ON t.id = sa.template_id WHERE sa.device_id = ANY($1::text[])',
+        [devRows.map(d => d.device_id)]
+      );
+      scheduled = sr.rowCount;
+      scheduledIds = sr.rows.map(r => ({ device_id: r.device_id, template_name: r.template_name }));
+    }
+    res.json({ total, online, offline, scheduled, scheduled_devices: scheduledIds });
+  } catch (err) {
+    console.error('❌ Error bulk preview:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // ADMIN ROUTES (NUEVO)
 // ========================================
 // ========================================
