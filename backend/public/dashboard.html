@@ -11750,6 +11750,23 @@ const TPL_DOW_LABELS = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
 window._tplEditingBlock = { tplId: null, blockId: null, dow: null };
 window._tplCopySrc = { tplId: null, dow: null };
 
+// Devuelve array[0..6] con "DD MMM" (Lun..Dom) de la semana actual en la TZ dada.
+function tplWeekDatesInTz(tz) {
+  try {
+    const now = new Date();
+    const nowInTz = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const jsDow = nowInTz.getDay(); // 0=Dom..6=Sáb
+    const diffToMon = (jsDow + 6) % 7; // 0=Lun..6=Dom
+    const monday = new Date(nowInTz); monday.setDate(nowInTz.getDate() - diffToMon);
+    const fmt = new Intl.DateTimeFormat('es-CO', { timeZone: tz, day: '2-digit', month: 'short' });
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      out.push(fmt.format(d).replace('.', ''));
+    }
+    return out;
+  } catch (_) { return ['','','','','','','']; }
+}
 function tplTimeToIdx(t){ const m=(t||'').match(/^(\d{2}):(\d{2})/); return m?(+m[1])*2+(+m[2]>=30?1:0):0; }
 function tplIdxToTime(i){ const h=Math.floor(i/2),m=(i%2)*30; return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':00'; }
 function tplIdxToHHMM(i){ return tplIdxToTime(i).slice(0,5); }
@@ -11833,8 +11850,9 @@ function tplSchedRender() {
 
   const paletteHtml = tplRenderPaletteHtml();
   host.innerHTML =
-    '<div class="stv-editor-toolbar">'+
+    '<div class="stv-editor-toolbar" style="justify-content:space-between;">'+
       `<button class="stv-tbtn" onclick="tplSchedClearWeek()">Vaciar semana</button>`+
+      `<div style="font-size:11px;color:var(--text-muted);">Programación semanal recurrente — las fechas muestran la semana en curso en la zona horaria configurada.</div>`+
     '</div>'+
     '<div class="stv-prog-grid">'+
       '<div>'+
@@ -11923,9 +11941,13 @@ function tplSchedRenderCanvas() {
   const paletteHost = document.getElementById('tpl_palette_host');
   if (paletteHost) paletteHost.innerHTML = tplRenderPaletteHtml();
   const ohByDow = {}; (data.operating_hours || []).forEach(h => { ohByDow[h.dow] = h; });
+  // Fechas de la semana actual en la TZ del template (Lun..Dom).
+  const tz = data.timezone || document.getElementById('tplEdTz')?.value || 'America/Bogota';
+  const weekDates = tplWeekDatesInTz(tz);
   let html = '<div class="stv-canvas-corner"></div>';
   for (let d = 0; d < 7; d++) {
-    html += `<div class="stv-day-head">${TPL_DOW_LABELS[d]}<div class="stv-day-actions"><button class="stv-day-mini-btn" title="Copiar día" onclick="tplCopyOpen(${d})">⎘</button></div></div>`;
+    const dateLbl = weekDates[d] || '';
+    html += `<div class="stv-day-head">${TPL_DOW_LABELS[d]} <span style="opacity:.7;font-weight:600;font-size:10px;">${dateLbl}</span><div class="stv-day-actions"><button class="stv-day-mini-btn" title="Copiar día" onclick="tplCopyOpen(${d})">⎘</button></div></div>`;
   }
   const isOhOff = (dow, idx) => { const h = ohByDow[dow]; if (!h || !h.is_open) return true; return idx < tplTimeToIdx(h.open_time) || idx >= tplTimeToIdx(h.close_time); };
   for (let idx = 0; idx < 48; idx++) {
