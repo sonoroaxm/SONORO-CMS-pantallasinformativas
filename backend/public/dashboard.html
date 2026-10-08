@@ -4520,14 +4520,25 @@ async function loadDevices(silent = false) {
     // Dashboard usuario = per-tenant siempre, incluso siendo admin (admin ve flota completa en /admin-dashboard.html).
     const _uid = currentUser && currentUser.id;
     if (_uid && Array.isArray(devices)) devices = devices.filter(function(d){ return d.user_id === _uid; });
-    const [plRes, brRes] = await Promise.all([
+    const [plRes, brRes, schedRes] = await Promise.all([
       fetch(`${API_URL}/api/playlists`,       { headers: { 'Authorization': `Bearer ${authToken}` } }),
       fetch(`${API_URL}/api/queue/branches`,  { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/schedule/pro-devices`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null),
     ]);
     const plData   = await plRes.json();
     const playlists = plData.playlists || plData || [];
     const brData   = await brRes.json().catch(() => []);
     const branches = Array.isArray(brData) ? brData : (brData.branches || []);
+    // Mapa device_id → programación asignada (template_id/name) para badge en card.
+    window._tplAssignByDevice = {};
+    if (schedRes && schedRes.ok) {
+      try {
+        const sd = await schedRes.json();
+        (sd.devices || []).forEach(x => {
+          if (x.assigned_template_id) window._tplAssignByDevice[x.device_id] = { template_id: x.assigned_template_id, template_name: x.assigned_template_name || ('Programación #' + x.assigned_template_id) };
+        });
+      } catch(_){}
+    }
     if (!devices.length) { container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">No hay dispositivos registrados.</p>'; return; }
 
     const modeLabels = { single: 'Una pantalla', mirror: 'Mirror', dual: 'Dual', videowall: 'Videowall' };
@@ -4792,6 +4803,7 @@ async function loadDevices(silent = false) {
             <div class="dc-stat">
               <div class="dc-stat-label">Playlist activa</div>
               <div class="dc-stat-val ${playlistName ? 'accent' : 'muted'}">${playlistName || 'Sin playlist'}</div>
+              ${(window._tplAssignByDevice && window._tplAssignByDevice[d.device_id]) ? `<div style="margin-top:4px;display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(123,97,255,.18);color:#7b61ff;border:1px solid rgba(123,97,255,.4);cursor:pointer;" title="La playlist activa cambia según la programación asignada. Click para ver." onclick="event.stopPropagation();document.getElementById('btn-tab-multiplaylist').click();setTimeout(()=>tplOpenEditor(${window._tplAssignByDevice[d.device_id].template_id}),180);">Programación: ${(window._tplAssignByDevice[d.device_id].template_name||'').replace(/[<>&]/g,'')}</div>` : ''}
             </div>
             <div class="dc-stat">
               <div class="dc-stat-label">Modo</div>
@@ -12164,6 +12176,7 @@ async function tplDoAssign() {
     showStatus('Asignación actualizada', 'success');
     tplCloseAssign();
     tplLoadList();
+    if (typeof loadDevices === 'function') loadDevices(true);
   } catch(e) {
     showStatus('Error asignando: ' + e.message, 'error');
   }

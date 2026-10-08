@@ -1678,9 +1678,11 @@ app.get('/api/schedule/pro-devices', authenticateToken, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT d.device_id, d.name, d.status, d.platform,
-              sa.template_id AS assigned_template_id
+              sa.template_id AS assigned_template_id,
+              t.name         AS assigned_template_name
          FROM devices d
     LEFT JOIN schedule_assignments sa ON sa.device_id = d.device_id
+    LEFT JOIN schedule_templates   t  ON t.id = sa.template_id
         WHERE d.user_id = $1
           AND EXISTS (
             SELECT 1 FROM licenses l
