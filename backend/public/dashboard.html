@@ -4606,9 +4606,12 @@ async function loadDevices(silent = false) {
             </select>
           </div>` : ''}
           <div>
-            <label class="dc-field-label">${isDual ? 'Playlist HDMI 1' : 'Playlist'}</label>
-            <select id="playlist0_${d.device_id}"
-              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;">
+            <label class="dc-field-label" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span>${isDual ? 'Playlist HDMI 1' : 'Playlist'}</span>
+              ${(window._tplAssignByDevice && window._tplAssignByDevice[d.device_id]) ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(123,97,255,.18);color:#7b61ff;border:1px solid rgba(123,97,255,.4);cursor:pointer;text-transform:none;letter-spacing:0;" title="Este dispositivo usa una programación — la playlist cambia según el horario. Click para editarla." onclick="event.stopPropagation();document.getElementById('btn-tab-multiplaylist').click();setTimeout(()=>tplOpenEditor(${window._tplAssignByDevice[d.device_id].template_id}),180);">Programación: ${(window._tplAssignByDevice[d.device_id].template_name||'').replace(/[<>&]/g,'')}</span>` : ''}
+            </label>
+            <select id="playlist0_${d.device_id}" ${(window._tplAssignByDevice && window._tplAssignByDevice[d.device_id]) ? 'disabled title="Desasigna la programación para cambiar la playlist base"' : ''}
+              style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Montserrat',sans-serif;font-size:12px;${(window._tplAssignByDevice && window._tplAssignByDevice[d.device_id]) ? 'opacity:.55;cursor:not-allowed;' : ''}">
               ${playlistOpts('hdmi0')}
             </select>
           </div>
@@ -4803,7 +4806,6 @@ async function loadDevices(silent = false) {
             <div class="dc-stat">
               <div class="dc-stat-label">Playlist activa</div>
               <div class="dc-stat-val ${playlistName ? 'accent' : 'muted'}">${playlistName || 'Sin playlist'}</div>
-              ${(window._tplAssignByDevice && window._tplAssignByDevice[d.device_id]) ? `<div style="margin-top:4px;display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(123,97,255,.18);color:#7b61ff;border:1px solid rgba(123,97,255,.4);cursor:pointer;" title="La playlist activa cambia según la programación asignada. Click para ver." onclick="event.stopPropagation();document.getElementById('btn-tab-multiplaylist').click();setTimeout(()=>tplOpenEditor(${window._tplAssignByDevice[d.device_id].template_id}),180);">Programación: ${(window._tplAssignByDevice[d.device_id].template_name||'').replace(/[<>&]/g,'')}</div>` : ''}
             </div>
             <div class="dc-stat">
               <div class="dc-stat-label">Modo</div>

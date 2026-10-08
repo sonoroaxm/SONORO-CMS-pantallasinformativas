@@ -1699,6 +1699,92 @@ app.get('/api/schedule/pro-devices', authenticateToken, async (req, res) => {
   }
 });
 
+// GET resolver — qué playlist debería estar sonando ahora y cuándo cambia.
+// Lista para que RPi/Windows player (lab) la consulte cada N segundos y
+// override la base devices.playlist_id cuando haya template asignado.
+// Autenticación: igual que otros /api/schedule/* (JWT user). Para los
+// players reales usar la variante /api/schedule/active/by-device (futura,
+// con auth de device HMAC). Fallback: si no hay template, devuelve
+// {source:'base', playlist_id: devices.hdmi0_playlist_id}.
+app.get('/api/schedule/active/:device_id', authenticateToken, async (req, res) => {
+  try {
+    const did = String(req.params.device_id || '');
+    const dr = await pool.query(
+      `SELECT d.device_id, d.name, d.user_id, d.hdmi0_playlist_id,
+              p.name AS hdmi0_playlist_name
+         FROM devices d
+    LEFT JOIN playlists p ON p.id = d.hdmi0_playlist_id
+        WHERE d.device_id = $1 AND d.user_id = $2`,
+      [did, req.user.id]
+    );
+    if (!dr.rowCount) return res.status(404).json({ error: 'device_not_found' });
+    const dev = dr.rows[0];
+    const ar = await pool.query(
+      `SELECT sa.template_id, sa.schedule_version, t.name AS template_name, t.timezone
+         FROM schedule_assignments sa
+         JOIN schedule_templates t ON t.id = sa.template_id
+        WHERE sa.device_id = $1`,
+      [did]
+    );
+    if (!ar.rowCount) {
+      return res.json({
+        source: 'base',
+        device_id: did,
+        active_playlist_id: dev.hdmi0_playlist_id,
+        active_playlist_name: dev.hdmi0_playlist_name,
+        template: null, current_block: null, next_change: null,
+        resolved_at: new Date().toISOString()
+      });
+    }
+    const tpl = ar.rows[0];
+    const tz = tpl.timezone || 'America/Bogota';
+    // "Ahora" en TZ del template
+    const nowStr = new Date().toLocaleString('en-US', { timeZone: tz, hour12: false });
+    const now = new Date(nowStr);
+    const jsDow = now.getDay(); // 0=Dom..6=Sáb
+    const dow = (jsDow + 6) % 7; // 0=Lun..6=Dom (convención backend)
+    const hhmm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':00';
+    const br = await pool.query(
+      `SELECT b.id, b.dow, b.start_time::text AS start_time, b.end_time::text AS end_time,
+              b.playlist_id, p.name AS playlist_name
+         FROM schedule_template_blocks b
+    LEFT JOIN playlists p ON p.id = b.playlist_id
+        WHERE b.template_id = $1
+     ORDER BY b.dow, b.start_time`,
+      [tpl.template_id]
+    );
+    const blocks = br.rows;
+    // Current block
+    const current = blocks.find(b => b.dow === dow && b.start_time <= hhmm && b.end_time > hhmm) || null;
+    // Next change: próximo block hoy > ahora, o próximo día con blocks.
+    let next = blocks.find(b => b.dow === dow && b.start_time > hhmm) || null;
+    if (!next) {
+      for (let i = 1; i <= 7 && !next; i++) {
+        const d = (dow + i) % 7;
+        const first = blocks.filter(b => b.dow === d).sort((a,b)=> a.start_time < b.start_time ? -1 : 1)[0];
+        if (first) next = Object.assign({}, first, { in_days: i });
+      }
+    }
+    // Si no hay current block → fallback a base playlist (ventana sin franja).
+    const activePlId   = current ? current.playlist_id   : dev.hdmi0_playlist_id;
+    const activePlName = current ? current.playlist_name : dev.hdmi0_playlist_name;
+    res.json({
+      source: current ? 'template' : 'base_fallback',
+      device_id: did,
+      active_playlist_id: activePlId,
+      active_playlist_name: activePlName,
+      template: { id: tpl.template_id, name: tpl.template_name, timezone: tz, version: tpl.schedule_version },
+      current_block: current ? { id: current.id, dow: current.dow, start: current.start_time.slice(0,5), end: current.end_time.slice(0,5), playlist_id: current.playlist_id, playlist_name: current.playlist_name } : null,
+      next_change: next ? { dow: next.dow, start: next.start_time.slice(0,5), playlist_id: next.playlist_id, playlist_name: next.playlist_name, in_days: next.in_days || 0 } : null,
+      now: { tz, dow, hhmm: hhmm.slice(0,5) },
+      resolved_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('❌ Error active resolver:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET templates — lista con contadores
 app.get('/api/schedule/templates', authenticateToken, async (req, res) => {
   try {
