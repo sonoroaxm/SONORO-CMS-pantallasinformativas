@@ -1724,7 +1724,7 @@
         <div class="section-header">
           <div>
             <div class="section-title">Programaciones</div>
-            <div style="color:var(--text-muted);font-size:13px;margin-top:2px">Varias playlists por franja horaria, aplicadas a los dispositivos PRO que elijas.</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:2px">Varias playlists por franja horaria, aplicadas a los dispositivos que elijas.</div>
           </div>
           <button class="btn btn-grad" id="tplNewBtn" onclick="tplOpenEditor(null)" style="display:none;">+ Nueva programación</button>
         </div>
@@ -1733,14 +1733,14 @@
         <div id="tplNoPro" style="display:none;background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:12px;padding:32px 28px;margin:20px 0;text-align:center">
           <div style="display:inline-block;font-size:10px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:3px 10px;border-radius:4px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 12px rgba(123,97,255,.6);margin-bottom:14px">PLAN PRO</div>
           <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent">Programa varias playlists por franja horaria</h3>
-          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5">Activa el plan PRO en al menos un dispositivo (Smart TV, RPi o Windows) para crear programaciones multiplaylist y asignarlas a tu flota.</div>
+          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5">Activa el plan PRO en al menos un dispositivo (Smart TV, RPi o Windows) para crear programaciones multiplaylist y asignarlas a tus dispositivos.</div>
           <a href="mailto:comercial@sonoro.com.co?subject=Quiero%20activar%20Plan%20PRO%20Programaciones" style="display:inline-block;padding:11px 22px;border-radius:8px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 12px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;box-shadow:0 4px 20px rgba(123,97,255,.35)">Contactar a comercial →</a>
         </div>
 
         <!-- Empty state: tiene PRO pero sin programaciones -->
         <div id="tplEmpty" class="card" style="display:none;text-align:center;padding:36px 24px;">
           <div style="font-size:14px;color:var(--text);margin-bottom:6px;font-weight:700;">Aún no has creado programaciones</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;max-width:460px;margin-left:auto;margin-right:auto;">Crea una programación, define los horarios y asignala a los dispositivos PRO de tu cuenta.</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;max-width:460px;margin-left:auto;margin-right:auto;">Crea una programación, define los horarios y asignala a los dispositivos de tu cuenta.</div>
           <button class="btn btn-grad btn-sm" onclick="tplOpenEditor(null)">+ Crear primera programación</button>
         </div>
 
@@ -1750,57 +1750,70 @@
 
       <!-- Modal editor de programación -->
       <div class="stv-modal-overlay" id="tplEditorOverlay" onclick="if(event.target===this)tplCloseEditor()">
-        <div class="modal-content" style="max-width:720px;">
+        <div class="modal-content" style="max-width:1140px;padding:28px 32px;">
           <button class="modal-close" onclick="tplCloseEditor()">×</button>
           <div class="modal-title" id="tplEditorTitle">Nueva programación</div>
-          <div class="modal-subtitle">Define nombre, zona horaria, horarios de operación y bloques de playlist por día.</div>
+          <div class="modal-subtitle" style="margin-bottom:18px;">Define el horario de operación y arrastra playlists a la grilla para programar por franja.</div>
 
-          <div class="form-group">
-            <label class="form-label">Nombre</label>
-            <input type="text" class="form-input" id="tplEdName" placeholder="Ej. Horario tienda centro" />
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="form-group">
+          <!-- Encabezado: nombre + zona horaria -->
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label">Nombre</label>
+              <input type="text" class="form-input" id="tplEdName" placeholder="Ej. Horario tienda centro" />
+            </div>
+            <div class="form-group" style="margin:0;">
               <label class="form-label">Zona horaria</label>
               <input type="text" class="form-input" id="tplEdTz" value="America/Bogota" />
             </div>
-            <div class="form-group">
-              <label class="form-label">Modo</label>
-              <select class="form-input" id="tplEdMode">
-                <option value="always">Siempre encendido</option>
-                <option value="operating_hours" selected>Solo en horario</option>
-                <option value="custom">Personalizado (bloques)</option>
-              </select>
-            </div>
           </div>
 
-          <!-- Operating hours 7 filas -->
-          <div class="form-group">
-            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
-              <span>Horarios de operación</span>
-              <span style="font-size:11px;color:var(--text-muted);font-weight:400;">Lun — Dom</span>
-            </label>
-            <div id="tplEdHours" style="display:flex;flex-direction:column;gap:6px;"></div>
-          </div>
+          <!-- Canvas S199 1:1: operating hours + palette + canvas 7x48 -->
+          <div id="tplCanvasHost"></div>
 
-          <!-- Bloques playlist -->
-          <div class="form-group">
-            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
-              <span>Bloques de playlist</span>
-              <button type="button" class="btn btn-outline btn-sm" onclick="tplEdAddBlock()">+ Agregar bloque</button>
-            </label>
-            <div id="tplEdBlocks" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-muted);"></div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Cada bloque define día, hora de inicio/fin y playlist. Si no agregas bloques, se reproduce la playlist default del dispositivo durante el horario.</div>
-          </div>
-
-          <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:20px;">
             <button type="button" class="btn btn-danger btn-sm" id="tplEdDeleteBtn" onclick="tplDelete()" style="display:none;">Eliminar</button>
             <div style="display:flex;gap:8px;margin-left:auto;">
               <button class="btn btn-outline btn-sm" onclick="tplCloseEditor()">Cerrar</button>
               <button class="btn btn-grad btn-sm" id="tplEdAssignBtn" onclick="tplOpenAssign()" style="display:none;">Asignar a dispositivos</button>
-              <button class="btn btn-grad btn-sm" onclick="tplSave()">Guardar</button>
+              <button class="btn btn-grad btn-sm" onclick="tplSaveMeta()">Guardar</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modales reutilizados S199 renombrados para templates -->
+      <div class="stv-modal-overlay" id="tplBlockModalOverlay" onclick="if(event.target===this)tplBlockClose()">
+        <div class="modal-content" style="max-width:480px;padding:24px 28px;">
+          <button class="modal-close" onclick="tplBlockClose()">×</button>
+          <div class="modal-title">Editar franja</div>
+          <div class="modal-subtitle" style="margin-bottom:16px;">Ajusta la playlist y las horas de la franja seleccionada.</div>
+          <div class="form-group">
+            <label class="form-label">Playlist</label>
+            <select class="form-input" id="tplBmPlaylist"></select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group"><label class="form-label">Inicio</label><input type="time" step="1800" class="form-input" id="tplBmStart"></div>
+            <div class="form-group"><label class="form-label">Fin</label><input type="time" step="1800" class="form-input" id="tplBmEnd"></div>
+          </div>
+          <div class="modal-actions" style="display:flex;justify-content:space-between;gap:8px;">
+            <button class="btn btn-danger btn-sm" onclick="tplBlockDelete()">Eliminar</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="tplBlockClose()">Cancelar</button>
+              <button class="btn btn-grad btn-sm" onclick="tplBlockSave()">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stv-modal-overlay" id="tplCopyModalOverlay" onclick="if(event.target===this)tplCopyClose()">
+        <div class="modal-content" style="max-width:480px;padding:24px 28px;">
+          <button class="modal-close" onclick="tplCopyClose()">×</button>
+          <div class="modal-title">Copiar día a otros días</div>
+          <div class="modal-subtitle" style="margin-bottom:16px;">Se copiarán todas las franjas del día seleccionado a los días marcados (se reemplaza el contenido existente).</div>
+          <div class="form-group"><label class="form-label">Días destino</label><div class="dow-picker" id="tplCdPicker" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
+          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="tplCopyClose()">Cancelar</button>
+            <button class="btn btn-grad btn-sm" onclick="tplCopyDo()">Copiar</button>
           </div>
         </div>
       </div>
@@ -11697,126 +11710,370 @@ async function tplLoadList() {
 
 function tplEsc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// ===== Programaciones v2 — Canvas 7×48 (port S199 1:1 a nivel template) =====
+const TPL_DOW_LABELS = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+window._tplEditingBlock = { tplId: null, blockId: null, dow: null };
+window._tplCopySrc = { tplId: null, dow: null };
+
+function tplTimeToIdx(t){ const m=(t||'').match(/^(\d{2}):(\d{2})/); return m?(+m[1])*2+(+m[2]>=30?1:0):0; }
+function tplIdxToTime(i){ const h=Math.floor(i/2),m=(i%2)*30; return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':00'; }
+function tplIdxToHHMM(i){ return tplIdxToTime(i).slice(0,5); }
+
+// Normaliza respuesta backend (hours[].enabled) → shape S199 (operating_hours[].is_open)
+function tplNormalize(tpl) {
+  return {
+    id: tpl.id,
+    name: tpl.name,
+    timezone: tpl.timezone,
+    version: tpl.version,
+    operating_hours: (tpl.hours || []).map(h => ({
+      dow: h.dow, is_open: !!h.enabled,
+      open_time: h.open_time, close_time: h.close_time
+    })),
+    blocks: (tpl.blocks || []).map(b => ({
+      id: b.id, dow: b.dow,
+      start_time: b.start_time, end_time: b.end_time,
+      playlist_id: b.playlist_id, playlist_name: b.playlist_name
+    }))
+  };
+}
+
 async function tplOpenEditor(id) {
   document.getElementById('tplEditorTitle').textContent = id ? 'Editar programación' : 'Nueva programación';
   document.getElementById('tplEdDeleteBtn').style.display = id ? '' : 'none';
   document.getElementById('tplEdAssignBtn').style.display = id ? '' : 'none';
-  if (!_tplPlaylists.length) {
+  // Playlists cache (reuso del cache S199 si ya está cargado)
+  if (!window._stvPlCache) {
     try {
       const r = await fetch(API_URL + '/api/playlists', { headers: { 'Authorization': 'Bearer ' + authToken } });
-      _tplPlaylists = await r.json();
-    } catch(e) { _tplPlaylists = []; }
+      window._stvPlCache = r.ok ? await r.json() : [];
+    } catch(e) { window._stvPlCache = []; }
   }
+  _tplPlaylists = window._stvPlCache;
   if (!id) {
     _tplCache.editing = null;
-    _tplCache.hours = DOW_NAMES.map((_, dow) => ({ dow, open_time: '08:00', close_time: '20:00', enabled: dow < 5 }));
-    _tplCache.blocks = [];
+    _tplCache.data = {
+      id: null, name: '', timezone: 'America/Bogota', version: 1,
+      operating_hours: [0,1,2,3,4,5,6].map(dow => ({ dow, is_open: dow < 5, open_time: '08:00:00', close_time: '20:00:00' })),
+      blocks: []
+    };
     document.getElementById('tplEdName').value = '';
     document.getElementById('tplEdTz').value = 'America/Bogota';
-    document.getElementById('tplEdMode').value = 'operating_hours';
   } else {
     try {
       const tpl = await tplApi('GET', '/templates/' + id);
       _tplCache.editing = tpl;
-      _tplCache.hours = DOW_NAMES.map((_, dow) => {
-        const h = (tpl.hours || []).find(x => x.dow === dow) || { dow, open_time: null, close_time: null, enabled: false };
-        return { dow, open_time: (h.open_time || '').slice(0,5), close_time: (h.close_time || '').slice(0,5), enabled: !!h.enabled };
-      });
-      _tplCache.blocks = (tpl.blocks || []).map(b => ({
-        id: b.id, dow: b.dow, start_time: (b.start_time||'').slice(0,5), end_time: (b.end_time||'').slice(0,5),
-        playlist_id: b.playlist_id, playlist_name: b.playlist_name
-      }));
+      _tplCache.data = tplNormalize(tpl);
       document.getElementById('tplEdName').value = tpl.name;
       document.getElementById('tplEdTz').value = tpl.timezone;
-      document.getElementById('tplEdMode').value = tpl.mode;
     } catch(e) {
       showStatus('Error cargando: ' + e.message, 'error');
       return;
     }
   }
-  tplRenderHours();
-  tplRenderBlocks();
+  tplSchedRender();
   document.getElementById('tplEditorOverlay').classList.add('active');
 }
 
 function tplCloseEditor() { document.getElementById('tplEditorOverlay').classList.remove('active'); }
 
-function tplRenderHours() {
-  const el = document.getElementById('tplEdHours');
-  el.innerHTML = _tplCache.hours.map((h, i) => `
-    <div style="display:grid;grid-template-columns:50px 90px 1fr 1fr;gap:8px;align-items:center;padding:6px 10px;background:var(--bg-elev);border-radius:6px;">
-      <div style="font-size:12px;font-weight:700;color:var(--text);">${DOW_NAMES[h.dow]}</div>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);">
-        <input type="checkbox" ${h.enabled?'checked':''} onchange="_tplCache.hours[${i}].enabled=this.checked;tplRenderHours()" />
-        <span>${h.enabled?'Abierto':'Cerrado'}</span>
-      </label>
-      <input type="time" class="form-input" style="padding:5px 8px;font-size:12px;" value="${h.open_time||''}" ${h.enabled?'':'disabled'} onchange="_tplCache.hours[${i}].open_time=this.value" />
-      <input type="time" class="form-input" style="padding:5px 8px;font-size:12px;" value="${h.close_time||''}" ${h.enabled?'':'disabled'} onchange="_tplCache.hours[${i}].close_time=this.value" />
-    </div>
-  `).join('');
+// Render columna izquierda (OH + palette) + derecha (toolbar + canvas 7x48)
+function tplSchedRender() {
+  const host = document.getElementById('tplCanvasHost');
+  const data = _tplCache.data || {};
+  const ohByDow = {}; (data.operating_hours || []).forEach(h => { ohByDow[h.dow] = h; });
+
+  const ohRowsHtml = TPL_DOW_LABELS.map((lbl, dow) => {
+    const h = ohByDow[dow];
+    const isOpen = !!(h && h.is_open);
+    const openTime  = (h && h.open_time)  ? h.open_time.slice(0,5)  : '08:00';
+    const closeTime = (h && h.close_time) ? h.close_time.slice(0,5) : '20:00';
+    return `<div class="stv-oh-row ${isOpen?'':'closed'}">`+
+      `<div class="stv-oh-dow-toggle" title="Clic para ${isOpen?'cerrar':'abrir'} día" onclick="tplSchedToggleDow(${dow})">${lbl}</div>`+
+      `<input type="time" step="1800" class="stv-oh-time" value="${openTime}"  onchange="tplSchedSetOhTime(${dow},'open',this.value)"  ${isOpen?'':'disabled'}>`+
+      `<span class="stv-oh-sep">–</span>`+
+      `<input type="time" step="1800" class="stv-oh-time" value="${closeTime}" onchange="tplSchedSetOhTime(${dow},'close',this.value)" ${isOpen?'':'disabled'}>`+
+    `</div>`;
+  }).join('');
+
+  const paletteHtml = tplRenderPaletteHtml();
+  host.innerHTML =
+    '<div class="stv-editor-toolbar">'+
+      `<button class="stv-tbtn" onclick="tplSchedClearWeek()">Vaciar semana</button>`+
+    '</div>'+
+    '<div class="stv-prog-grid">'+
+      '<div>'+
+        '<div class="stv-oh-title">Horario de operación</div>'+
+        ohRowsHtml +
+        '<div class="stv-pl-title">Tus playlists</div>'+
+        '<div class="stv-pl-help">Selecciona una y arrastra sobre la grilla para crear una franja (mínimo 30 min).</div>'+
+        `<div id="tpl_palette_host">${paletteHtml}</div>`+
+      '</div>'+
+      '<div>'+
+        `<div class="stv-canvas-wrap"><div class="stv-canvas" id="tpl_canvas_host"></div></div>`+
+        '<div class="stv-hint" style="margin-top:14px;max-width:460px"><b>Cómo usar:</b> arrastra una playlist desde la izquierda hasta el día y hora donde quieras. Click en una franja para ajustar horas o eliminarla.</div>'+
+      '</div>'+
+    '</div>';
+  tplSchedRenderCanvas();
 }
 
-function tplRenderBlocks() {
-  const el = document.getElementById('tplEdBlocks');
-  if (!_tplCache.blocks.length) {
-    el.innerHTML = '<div style="padding:8px 10px;background:var(--bg-elev);border-radius:6px;font-size:12px;color:var(--text-muted);text-align:center;">Sin bloques. Agrega uno para programar playlists específicas por franja.</div>';
+function tplRenderPaletteHtml() {
+  const pls = _tplPlaylists || [];
+  if (!pls.length) return '<div class="stv-pl-help">No tienes playlists. Créalas en la pestaña Listas.</div>';
+  return pls.map(p => {
+    const col = (typeof stvPlColor==='function') ? stvPlColor(p.id) : { c:'#7b61ff' };
+    return `<div class="stv-pl-item" draggable="true" ondragstart="tplSchedPlDragStart(event,${p.id})"><span class="stv-pl-swatch" style="background:${col.c}"></span>${tplEsc(p.name || ('Playlist '+p.id))}</div>`;
+  }).join('');
+}
+function tplSchedPlDragStart(e, playlistId) {
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', String(playlistId));
+}
+
+function tplSchedToggleDow(dow) {
+  const data = _tplCache.data; if (!data) return;
+  const h = (data.operating_hours || []).find(x => x.dow === dow);
+  const wasOpen = !!(h && h.is_open);
+  tplSaveOh(dow, { is_open: !wasOpen, open_time: '08:00:00', close_time: '20:00:00' });
+}
+function tplSchedSetOhTime(dow, field, value) {
+  tplSaveOh(dow, { [field+'_time']: value+':00' });
+}
+
+// Reconstruye array 7-day + PUT bulk-replace. Optimistic update local primero.
+async function tplSaveOh(targetDow, patch) {
+  if (!_tplCache.editing && !_tplCache.data.id) {
+    // Template todavía no persistido → aplicar localmente, se guarda con Guardar.
+    const h = _tplCache.data.operating_hours.find(x => x.dow === targetDow);
+    Object.assign(h, patch);
+    tplSchedRender();
     return;
   }
-  el.innerHTML = _tplCache.blocks.map((b, i) => `
-    <div style="display:grid;grid-template-columns:70px 80px 80px 1fr 32px;gap:8px;align-items:center;padding:6px 10px;background:var(--bg-elev);border-radius:6px;">
-      <select class="form-input" style="padding:5px 6px;font-size:11px;" onchange="_tplCache.blocks[${i}].dow=parseInt(this.value,10)">
-        ${DOW_NAMES.map((n, d) => `<option value="${d}" ${b.dow===d?'selected':''}>${n}</option>`).join('')}
-      </select>
-      <input type="time" class="form-input" style="padding:5px 6px;font-size:11px;" value="${b.start_time||''}" onchange="_tplCache.blocks[${i}].start_time=this.value" />
-      <input type="time" class="form-input" style="padding:5px 6px;font-size:11px;" value="${b.end_time||''}" onchange="_tplCache.blocks[${i}].end_time=this.value" />
-      <select class="form-input" style="padding:5px 6px;font-size:11px;" onchange="_tplCache.blocks[${i}].playlist_id=parseInt(this.value,10)">
-        <option value="">— Playlist —</option>
-        ${_tplPlaylists.map(p => `<option value="${p.id}" ${b.playlist_id==p.id?'selected':''}>${tplEsc(p.name)}</option>`).join('')}
-      </select>
-      <button type="button" class="btn btn-outline btn-sm" style="padding:4px 6px;font-size:11px;" onclick="_tplCache.blocks.splice(${i},1);tplRenderBlocks()">×</button>
-    </div>
-  `).join('');
+  const tplId = _tplCache.data.id;
+  const current = {}; (_tplCache.data.operating_hours || []).forEach(h => { current[h.dow] = h; });
+  const row = Object.assign({ dow: targetDow, is_open: false, open_time: null, close_time: null }, current[targetDow] || {});
+  Object.assign(row, patch);
+  current[targetDow] = row;
+  const hours = [];
+  for (let d = 0; d < 7; d++) {
+    const r = current[d] || { dow: d, is_open: false };
+    hours.push({
+      dow: d, enabled: !!r.is_open,
+      open_time:  r.is_open ? (r.open_time  || '08:00:00') : null,
+      close_time: r.is_open ? (r.close_time || '20:00:00') : null,
+    });
+  }
+  _tplCache.data.operating_hours = hours.map(h => ({ dow: h.dow, is_open: h.enabled, open_time: h.open_time, close_time: h.close_time }));
+  tplSchedRender();
+  try {
+    await tplApi('PUT', '/templates/' + tplId + '/hours', { hours });
+  } catch(e) { showStatus('Error guardando horario: ' + e.message, 'error'); }
 }
 
-function tplEdAddBlock() {
-  _tplCache.blocks.push({ dow: 0, start_time: '09:00', end_time: '12:00', playlist_id: null });
-  tplRenderBlocks();
+function tplSchedRenderCanvas() {
+  const data = _tplCache.data || {};
+  const c = document.getElementById('tpl_canvas_host');
+  if (!c) return;
+  const paletteHost = document.getElementById('tpl_palette_host');
+  if (paletteHost) paletteHost.innerHTML = tplRenderPaletteHtml();
+  const ohByDow = {}; (data.operating_hours || []).forEach(h => { ohByDow[h.dow] = h; });
+  let html = '<div class="stv-canvas-corner"></div>';
+  for (let d = 0; d < 7; d++) {
+    html += `<div class="stv-day-head">${TPL_DOW_LABELS[d]}<div class="stv-day-actions"><button class="stv-day-mini-btn" title="Copiar día" onclick="tplCopyOpen(${d})">⎘</button></div></div>`;
+  }
+  const isOhOff = (dow, idx) => { const h = ohByDow[dow]; if (!h || !h.is_open) return true; return idx < tplTimeToIdx(h.open_time) || idx >= tplTimeToIdx(h.close_time); };
+  for (let idx = 0; idx < 48; idx++) {
+    const hh = Math.floor(idx/2), isHour = idx % 2 === 0;
+    html += `<div class="stv-hr-label ${isHour?'hh':''}">${isHour?`<span>${String(hh).padStart(2,'0')}:00</span>`:''}</div>`;
+    const zebra = (Math.floor(idx/2) % 2 === 1) ? 'zebra' : '';
+    const isHourEnd = idx % 2 === 1;
+    for (let d = 0; d < 7; d++) { const off = isOhOff(d, idx); html += `<div class="stv-slot ${off?'oh-off':''} ${isHourEnd?'hourline':''} ${zebra}" data-dow="${d}" data-idx="${idx}"></div>`; }
+  }
+  c.innerHTML = html;
+  tplSchedLayoutBlocks();
+  tplSchedAttachCanvasEvents();
+}
+function tplSchedLayoutBlocks() {
+  const data = _tplCache.data || {};
+  const pls = _tplPlaylists || [];
+  const plName = {}; pls.forEach(p => { plName[p.id] = p.name || 'Playlist '+p.id; });
+  (data.blocks || []).forEach(b => {
+    const startIdx = tplTimeToIdx(b.start_time), endIdx = tplTimeToIdx(b.end_time);
+    const s = document.querySelector(`#tpl_canvas_host .stv-slot[data-dow="${b.dow}"][data-idx="${startIdx}"]`);
+    if (!s) return;
+    const col = (typeof stvPlColor==='function') ? stvPlColor(b.playlist_id) : { c:'#7b61ff', b:'#5c3fcc' };
+    const el = document.createElement('div');
+    el.className = 'stv-block';
+    el.style.background = col.c; el.style.borderColor = col.b;
+    const hpx = (endIdx - startIdx) * 22;
+    el.style.top = '0px'; el.style.height = hpx + 'px';
+    if (hpx < 50) el.classList.add('stv-block-compact');
+    const nm = (b.playlist_name || plName[b.playlist_id] || ('Playlist '+b.playlist_id));
+    el.title = `${nm} · ${tplIdxToHHMM(startIdx)}–${tplIdxToHHMM(endIdx)}`;
+    el.innerHTML = `<div>${tplEsc(nm)}</div><div class="stv-b-time">${tplIdxToHHMM(startIdx)}–${tplIdxToHHMM(endIdx)}</div>`;
+    el.onclick = (e) => { e.stopPropagation(); tplBlockOpen(b); };
+    s.appendChild(el); s.style.position = 'relative';
+  });
+}
+function tplSchedAttachCanvasEvents() {
+  document.querySelectorAll('#tpl_canvas_host .stv-slot').forEach(s => {
+    s.addEventListener('dragover', e => { if (s.classList.contains('oh-off')) return; e.preventDefault(); s.classList.add('hover'); });
+    s.addEventListener('dragleave', () => s.classList.remove('hover'));
+    s.addEventListener('drop', async e => {
+      e.preventDefault(); s.classList.remove('hover');
+      if (s.classList.contains('oh-off')) return;
+      const pl = +e.dataTransfer.getData('text/plain'); if (!pl) return;
+      const dow = +s.dataset.dow, start = +s.dataset.idx, end = Math.min(48, start + 2);
+      await tplSchedTryCreateBlock(dow, start, end, pl);
+    });
+  });
+}
+async function tplEnsurePersisted() {
+  if (_tplCache.data.id) return _tplCache.data.id;
+  const name = document.getElementById('tplEdName').value.trim();
+  if (!name) { showStatus('Ingresa un nombre para la programación primero', 'error'); return null; }
+  const timezone = document.getElementById('tplEdTz').value.trim() || 'America/Bogota';
+  try {
+    const r = await tplApi('POST', '/templates', { name, timezone, mode: 'operating_hours' });
+    _tplCache.data.id = r.id;
+    _tplCache.editing = { id: r.id, name, timezone, blocks: [] };
+    document.getElementById('tplEdDeleteBtn').style.display = '';
+    document.getElementById('tplEdAssignBtn').style.display = '';
+    document.getElementById('tplEditorTitle').textContent = 'Editar programación';
+    // Push operating hours iniciales
+    const hours = _tplCache.data.operating_hours.map(h => ({
+      dow: h.dow, enabled: !!h.is_open,
+      open_time: h.is_open ? (h.open_time||'08:00:00') : null,
+      close_time: h.is_open ? (h.close_time||'20:00:00') : null,
+    }));
+    await tplApi('PUT', '/templates/' + r.id + '/hours', { hours });
+    return r.id;
+  } catch(e) { showStatus('Error creando: ' + e.message, 'error'); return null; }
+}
+async function tplSchedTryCreateBlock(dow, startIdx, endIdx, playlistId) {
+  const tplId = await tplEnsurePersisted();
+  if (!tplId) return;
+  try {
+    const r = await tplApi('POST', '/templates/' + tplId + '/blocks', {
+      dow, start_time: tplIdxToTime(startIdx), end_time: tplIdxToTime(endIdx), playlist_id: playlistId
+    });
+    const pl = (_tplPlaylists || []).find(p => p.id === playlistId);
+    _tplCache.data.blocks.push({ id: r.id, dow, start_time: tplIdxToTime(startIdx), end_time: tplIdxToTime(endIdx), playlist_id: playlistId, playlist_name: pl ? pl.name : null });
+    tplSchedRenderCanvas();
+  } catch(e) {
+    const msgMap = { overlap:'Esa franja se solapa con otra', too_short_min_30min:'Mínimo 30 minutos', cross_midnight_or_empty:'Rango inválido', playlist_not_owned:'Playlist no válida' };
+    showStatus(msgMap[e.message] || ('No se pudo crear: ' + e.message), 'error');
+  }
+}
+function tplBlockOpen(b) {
+  window._tplEditingBlock = { tplId: _tplCache.data.id, blockId: b.id, dow: b.dow };
+  const sel = document.getElementById('tplBmPlaylist');
+  const pls = _tplPlaylists || [];
+  sel.innerHTML = pls.map(p => `<option value="${p.id}" ${p.id===b.playlist_id?'selected':''}>${tplEsc(p.name || ('Playlist '+p.id))}</option>`).join('');
+  document.getElementById('tplBmStart').value = (b.start_time||'').slice(0,5);
+  document.getElementById('tplBmEnd').value   = (b.end_time||'').slice(0,5);
+  document.getElementById('tplBlockModalOverlay').classList.add('active');
+}
+function tplBlockClose() {
+  document.getElementById('tplBlockModalOverlay').classList.remove('active');
+  window._tplEditingBlock = { tplId: null, blockId: null, dow: null };
+}
+async function tplBlockSave() {
+  const { tplId, blockId, dow } = window._tplEditingBlock;
+  if (!tplId || !blockId) return;
+  const pl = +document.getElementById('tplBmPlaylist').value;
+  const start = document.getElementById('tplBmStart').value, end = document.getElementById('tplBmEnd').value;
+  if (!start || !end || !pl) { showStatus('Datos incompletos', 'error'); return; }
+  try {
+    await tplApi('PUT', '/templates/' + tplId + '/blocks/' + blockId, { dow, start_time: start+':00', end_time: end+':00', playlist_id: pl });
+    const b = _tplCache.data.blocks.find(x => x.id === blockId);
+    if (b) {
+      b.start_time = start+':00'; b.end_time = end+':00'; b.playlist_id = pl;
+      const plObj = (_tplPlaylists||[]).find(p => p.id === pl); if (plObj) b.playlist_name = plObj.name;
+    }
+    tplBlockClose(); tplSchedRenderCanvas();
+  } catch(e) {
+    const msgMap = { overlap:'Esa franja se solapa con otra', too_short_min_30min:'Mínimo 30 minutos', cross_midnight_or_empty:'Rango inválido' };
+    showStatus(msgMap[e.message] || ('No se pudo guardar: '+e.message), 'error');
+  }
+}
+async function tplBlockDelete() {
+  const { tplId, blockId } = window._tplEditingBlock;
+  if (!tplId || !blockId) return;
+  if (!confirm('¿Eliminar esta franja?')) return;
+  try {
+    await tplApi('DELETE', '/templates/' + tplId + '/blocks/' + blockId);
+    _tplCache.data.blocks = _tplCache.data.blocks.filter(x => x.id !== blockId);
+    tplBlockClose(); tplSchedRenderCanvas();
+  } catch(e) { showStatus('Error eliminando: ' + e.message, 'error'); }
+}
+async function tplSchedClearWeek() {
+  const tplId = _tplCache.data.id;
+  if (!tplId) { _tplCache.data.blocks = []; tplSchedRenderCanvas(); return; }
+  const blocks = _tplCache.data.blocks || [];
+  if (!blocks.length) return;
+  if (!confirm(`¿Eliminar todas las franjas (${blocks.length}) de la semana?`)) return;
+  for (const b of blocks) { try { await tplApi('DELETE', '/templates/' + tplId + '/blocks/' + b.id); } catch(e){} }
+  _tplCache.data.blocks = []; tplSchedRenderCanvas();
+  showStatus('Semana vaciada', 'success');
+}
+function tplCopyOpen(dow) {
+  window._tplCopySrc = { tplId: _tplCache.data.id, dow };
+  const picker = document.getElementById('tplCdPicker');
+  const dowLong = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+  picker.innerHTML = dowLong.map((n, i) => i===dow ? '' : `<div class="stv-dow-chip" data-dow="${i}" onclick="this.classList.toggle('selected')">${n}</div>`).join('');
+  document.getElementById('tplCopyModalOverlay').classList.add('active');
+}
+function tplCopyClose() { document.getElementById('tplCopyModalOverlay').classList.remove('active'); }
+async function tplCopyDo() {
+  const { tplId, dow: srcDow } = window._tplCopySrc;
+  if (!tplId) { tplCopyClose(); return; }
+  const targets = [...document.querySelectorAll('#tplCdPicker .stv-dow-chip.selected')].map(el => +el.dataset.dow);
+  if (!targets.length) { tplCopyClose(); return; }
+  const srcBlocks = (_tplCache.data.blocks || []).filter(b => b.dow === srcDow);
+  for (const t of targets) {
+    const existing = (_tplCache.data.blocks || []).filter(b => b.dow === t);
+    for (const b of existing) { try { await tplApi('DELETE', '/templates/' + tplId + '/blocks/' + b.id); } catch(e){} }
+    for (const b of srcBlocks) {
+      try {
+        const r = await tplApi('POST', '/templates/' + tplId + '/blocks', { dow: t, start_time: b.start_time, end_time: b.end_time, playlist_id: b.playlist_id });
+        _tplCache.data.blocks.push({ id: r.id, dow: t, start_time: b.start_time, end_time: b.end_time, playlist_id: b.playlist_id, playlist_name: b.playlist_name });
+      } catch(e){}
+    }
+    _tplCache.data.blocks = _tplCache.data.blocks.filter(b => !(b.dow === t && !targets.includes(b.dow) ? false : existing.find(x => x.id === b.id)));
+  }
+  // Reload clean para evitar divergencia
+  try {
+    const tpl = await tplApi('GET', '/templates/' + tplId);
+    _tplCache.data = tplNormalize(tpl);
+  } catch(e){}
+  tplCopyClose(); tplSchedRenderCanvas();
+  showStatus('Día copiado', 'success');
 }
 
-async function tplSave() {
+async function tplSaveMeta() {
   const name = document.getElementById('tplEdName').value.trim();
   if (!name) { showStatus('Ingresa un nombre', 'error'); return; }
   const timezone = document.getElementById('tplEdTz').value.trim() || 'America/Bogota';
-  const mode = document.getElementById('tplEdMode').value;
   try {
-    let tplId;
-    if (!_tplCache.editing) {
-      const r = await tplApi('POST', '/templates', { name, timezone, mode });
-      tplId = r.id;
+    if (!_tplCache.data.id) {
+      const r = await tplApi('POST', '/templates', { name, timezone, mode: 'operating_hours' });
+      _tplCache.data.id = r.id;
+      _tplCache.editing = { id: r.id, name, timezone, blocks: [] };
+      // Push OH iniciales
+      const hours = _tplCache.data.operating_hours.map(h => ({
+        dow: h.dow, enabled: !!h.is_open,
+        open_time: h.is_open ? (h.open_time||'08:00:00') : null,
+        close_time: h.is_open ? (h.close_time||'20:00:00') : null,
+      }));
+      await tplApi('PUT', '/templates/' + r.id + '/hours', { hours });
     } else {
-      tplId = _tplCache.editing.id;
-      await tplApi('PUT', '/templates/' + tplId, { name, timezone, mode });
-    }
-    await tplApi('PUT', '/templates/' + tplId + '/hours', {
-      hours: _tplCache.hours.map(h => ({ dow: h.dow, enabled: h.enabled, open_time: h.enabled ? h.open_time : null, close_time: h.enabled ? h.close_time : null }))
-    });
-    if (_tplCache.editing && _tplCache.editing.blocks) {
-      for (const b of _tplCache.editing.blocks) {
-        await tplApi('DELETE', '/templates/' + tplId + '/blocks/' + b.id);
-      }
-    }
-    for (const b of _tplCache.blocks) {
-      if (!b.playlist_id) continue;
-      await tplApi('POST', '/templates/' + tplId + '/blocks', {
-        dow: b.dow, start_time: b.start_time, end_time: b.end_time, playlist_id: b.playlist_id
-      });
+      await tplApi('PUT', '/templates/' + _tplCache.data.id, { name, timezone, mode: 'operating_hours' });
     }
     showStatus('Programación guardada', 'success');
     tplCloseEditor();
     tplLoadList();
-  } catch(e) {
-    showStatus('Error guardando: ' + e.message, 'error');
-  }
+  } catch(e) { showStatus('Error guardando: ' + e.message, 'error'); }
 }
 
 async function tplDelete() {
@@ -11850,7 +12107,7 @@ async function tplOpenAssign() {
         </div>
       </label>
     `;
-  }).join('') : '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px;">No tienes dispositivos PRO.</div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px;">No tienes dispositivos disponibles.</div>';
   document.getElementById('tplAssignOverlay').classList.add('active');
 }
 
