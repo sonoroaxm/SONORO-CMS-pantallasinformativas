@@ -1367,6 +1367,10 @@
   body.light-mode .stv-slot.zebra { background-color: rgba(0,0,0,.03); }
   .stv-slot.zebra.oh-off { background: repeating-linear-gradient(45deg,rgba(128,128,128,.05) 0 4px,rgba(128,128,128,.10) 4px 8px); }
   .stv-slot { height: 22px; border-bottom: 1px dashed rgba(128,128,128,.20); border-right: 1px solid var(--border); cursor: crosshair; position: relative; }
+  /* Programaciones v2 (template editor): slots no sugieren interacción directa — solo drop target. */
+  #tplCanvasHost .stv-slot { cursor: default; }
+  #tplCanvasHost .stv-slot.hover { cursor: copy; }
+  #tplCanvasHost .stv-slot.oh-off { cursor: not-allowed; }
   .stv-slot[data-dow="6"] { border-right: none; }
   .stv-slot.hourline { border-bottom: 2px solid rgba(128,128,128,.65); }
   .stv-slot.oh-off { background: repeating-linear-gradient(45deg,transparent 0 4px,rgba(128,128,128,.05) 4px 8px); cursor: not-allowed; }
@@ -1750,10 +1754,15 @@
 
       <!-- Modal editor de programación -->
       <div class="stv-modal-overlay" id="tplEditorOverlay" onclick="if(event.target===this)tplCloseEditor()">
-        <div class="modal-content" style="max-width:1140px;padding:28px 32px;">
-          <button class="modal-close" onclick="tplCloseEditor()">×</button>
-          <div class="modal-title" id="tplEditorTitle">Nueva programación</div>
-          <div class="modal-subtitle" style="margin-bottom:18px;">Define el horario de operación y arrastra playlists a la grilla para programar por franja.</div>
+        <div class="modal-content" style="max-width:1140px;padding:24px 32px 28px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:4px;">
+            <div style="flex:1;min-width:0;">
+              <div class="modal-title" id="tplEditorTitle" style="font-size:18px;font-weight:700;color:var(--text);">Nueva programación</div>
+              <div class="modal-subtitle" style="margin-top:4px;color:var(--text-muted);font-size:13px;">Define el horario de operación y arrastra playlists a la grilla para programar por franja.</div>
+            </div>
+            <button class="modal-close" onclick="tplCloseEditor()" style="font-size:24px;line-height:1;flex-shrink:0;">×</button>
+          </div>
+          <div style="height:14px;"></div>
 
           <!-- Encabezado: nombre + zona horaria -->
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px;">
@@ -1784,9 +1793,13 @@
       <!-- Modales reutilizados S199 renombrados para templates -->
       <div class="stv-modal-overlay" id="tplBlockModalOverlay" onclick="if(event.target===this)tplBlockClose()">
         <div class="modal-content" style="max-width:480px;padding:24px 28px;">
-          <button class="modal-close" onclick="tplBlockClose()">×</button>
-          <div class="modal-title">Editar franja</div>
-          <div class="modal-subtitle" style="margin-bottom:16px;">Ajusta la playlist y las horas de la franja seleccionada.</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;">
+            <div style="flex:1;min-width:0;">
+              <div class="modal-title" style="font-size:17px;font-weight:700;color:var(--text);">Editar franja</div>
+              <div class="modal-subtitle" style="margin-top:4px;color:var(--text-muted);font-size:13px;">Ajusta la playlist y las horas de la franja seleccionada.</div>
+            </div>
+            <button class="modal-close" onclick="tplBlockClose()" style="font-size:24px;line-height:1;flex-shrink:0;">×</button>
+          </div>
           <div class="form-group">
             <label class="form-label">Playlist</label>
             <select class="form-input" id="tplBmPlaylist"></select>
@@ -1807,9 +1820,13 @@
 
       <div class="stv-modal-overlay" id="tplCopyModalOverlay" onclick="if(event.target===this)tplCopyClose()">
         <div class="modal-content" style="max-width:480px;padding:24px 28px;">
-          <button class="modal-close" onclick="tplCopyClose()">×</button>
-          <div class="modal-title">Copiar día a otros días</div>
-          <div class="modal-subtitle" style="margin-bottom:16px;">Se copiarán todas las franjas del día seleccionado a los días marcados (se reemplaza el contenido existente).</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;">
+            <div style="flex:1;min-width:0;">
+              <div class="modal-title" style="font-size:17px;font-weight:700;color:var(--text);">Copiar día a otros días</div>
+              <div class="modal-subtitle" style="margin-top:4px;color:var(--text-muted);font-size:13px;">Se copiarán todas las franjas del día seleccionado a los días marcados (se reemplaza el contenido existente).</div>
+            </div>
+            <button class="modal-close" onclick="tplCopyClose()" style="font-size:24px;line-height:1;flex-shrink:0;">×</button>
+          </div>
           <div class="form-group"><label class="form-label">Días destino</label><div class="dow-picker" id="tplCdPicker" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
           <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
             <button class="btn btn-outline btn-sm" onclick="tplCopyClose()">Cancelar</button>
@@ -1820,12 +1837,16 @@
 
       <!-- Modal asignar -->
       <div class="stv-modal-overlay" id="tplAssignOverlay" onclick="if(event.target===this)tplCloseAssign()">
-        <div class="modal-content" style="max-width:560px;">
-          <button class="modal-close" onclick="tplCloseAssign()">×</button>
-          <div class="modal-title">Asignar programación a dispositivos</div>
-          <div class="modal-subtitle">Solo tus dispositivos PRO aparecen aquí. Un dispositivo con otra programación la reemplazará.</div>
-          <div id="tplAssignList" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;"></div>
-          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+        <div class="modal-content" style="max-width:560px;padding:24px 28px 24px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:4px;">
+            <div style="flex:1;min-width:0;">
+              <div class="modal-title" style="font-size:17px;font-weight:700;color:var(--text);">Asignar programación a dispositivos</div>
+              <div class="modal-subtitle" style="margin-top:4px;color:var(--text-muted);font-size:13px;">Un dispositivo con otra programación la reemplazará.</div>
+            </div>
+            <button class="modal-close" onclick="tplCloseAssign()" style="font-size:24px;line-height:1;flex-shrink:0;">×</button>
+          </div>
+          <div id="tplAssignList" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;margin-top:16px;"></div>
+          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
             <button class="btn btn-outline btn-sm" onclick="tplCloseAssign()">Cancelar</button>
             <button class="btn btn-grad btn-sm" onclick="tplDoAssign()">Aplicar</button>
           </div>
@@ -11828,6 +11849,17 @@ function tplRenderPaletteHtml() {
 function tplSchedPlDragStart(e, playlistId) {
   e.dataTransfer.effectAllowed = 'copy';
   e.dataTransfer.setData('text/plain', String(playlistId));
+  // Ghost estrecho: ~1 día de ancho (~90px) para no abarcar 2 columnas al soltar.
+  try {
+    const src = e.currentTarget;
+    const name = src.textContent.trim();
+    const ghost = document.createElement('div');
+    ghost.textContent = name.length > 14 ? name.slice(0, 13) + '…' : name;
+    ghost.style.cssText = 'position:absolute;top:-1000px;left:-1000px;background:#7b61ff;color:#fff;padding:4px 8px;border-radius:5px;font-size:11px;font-weight:700;max-width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 44, 10);
+    setTimeout(() => ghost.remove(), 0);
+  } catch(_){}
 }
 
 function tplSchedToggleDow(dow) {
