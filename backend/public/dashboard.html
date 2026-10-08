@@ -11524,7 +11524,7 @@ document.addEventListener('change', function(e){
       const list = document.getElementById('msCityList');
       if (!arr.length) { list.style.display='none'; return; }
       list.innerHTML = arr.map(function(c){
-        return '<div style="padding:10px 12px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" onclick="msPickCity('+ c.id +','+ JSON.stringify(c.name) +')">'+ escapeHtml(c.name) +'</div>';
+        return '<div data-city-id="'+ c.id +'" data-city-name="'+ escapeHtml(c.name) +'" style="padding:10px 12px;cursor:pointer;font-size:13px" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'" onclick="msPickCity(this.dataset.cityId, this.dataset.cityName)">'+ escapeHtml(c.name) +'</div>';
       }).join('');
       list.style.display = 'block';
     }, 200);
