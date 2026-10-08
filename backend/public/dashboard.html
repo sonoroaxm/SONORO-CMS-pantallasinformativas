@@ -1723,15 +1723,99 @@
       <div id="multiplaylist-tab" class="container hidden">
         <div class="section-header">
           <div>
-            <div class="section-title" data-i18n="mp.title">Multi-playlist</div>
-            <div style="color:var(--text-muted);font-size:13px;margin-top:2px" data-i18n="mp.subtitle">Programa varias listas por franja horaria en un mismo dispositivo.</div>
+            <div class="section-title">Programaciones</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:2px">Varias playlists por franja horaria, aplicadas a los dispositivos PRO que elijas.</div>
+          </div>
+          <button class="btn btn-grad" id="tplNewBtn" onclick="tplOpenEditor(null)" style="display:none;">+ Nueva programación</button>
+        </div>
+
+        <!-- Empty state: sin devices PRO -->
+        <div id="tplNoPro" style="display:none;background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:12px;padding:32px 28px;margin:20px 0;text-align:center">
+          <div style="display:inline-block;font-size:10px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:3px 10px;border-radius:4px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 12px rgba(123,97,255,.6);margin-bottom:14px">PLAN PRO</div>
+          <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent">Programa varias playlists por franja horaria</h3>
+          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5">Activa el plan PRO en al menos un dispositivo (Smart TV, RPi o Windows) para crear programaciones multiplaylist y asignarlas a tu flota.</div>
+          <a href="mailto:comercial@sonoro.com.co?subject=Quiero%20activar%20Plan%20PRO%20Programaciones" style="display:inline-block;padding:11px 22px;border-radius:8px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 12px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;box-shadow:0 4px 20px rgba(123,97,255,.35)">Contactar a comercial →</a>
+        </div>
+
+        <!-- Empty state: tiene PRO pero sin programaciones -->
+        <div id="tplEmpty" class="card" style="display:none;text-align:center;padding:36px 24px;">
+          <div style="font-size:14px;color:var(--text);margin-bottom:6px;font-weight:700;">Aún no has creado programaciones</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;max-width:460px;margin-left:auto;margin-right:auto;">Crea una programación, define los horarios y asignala a los dispositivos PRO de tu cuenta.</div>
+          <button class="btn btn-grad btn-sm" onclick="tplOpenEditor(null)">+ Crear primera programación</button>
+        </div>
+
+        <!-- Lista de templates -->
+        <div id="tplList" class="lic-cards-grid" style="display:none;"></div>
+      </div>
+
+      <!-- Modal editor de programación -->
+      <div class="stv-modal-overlay" id="tplEditorOverlay" onclick="if(event.target===this)tplCloseEditor()">
+        <div class="modal-content" style="max-width:720px;">
+          <button class="modal-close" onclick="tplCloseEditor()">×</button>
+          <div class="modal-title" id="tplEditorTitle">Nueva programación</div>
+          <div class="modal-subtitle">Define nombre, zona horaria, horarios de operación y bloques de playlist por día.</div>
+
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input type="text" class="form-input" id="tplEdName" placeholder="Ej. Horario tienda centro" />
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Zona horaria</label>
+              <input type="text" class="form-input" id="tplEdTz" value="America/Bogota" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modo</label>
+              <select class="form-input" id="tplEdMode">
+                <option value="always">Siempre encendido</option>
+                <option value="operating_hours" selected>Solo en horario</option>
+                <option value="custom">Personalizado (bloques)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Operating hours 7 filas -->
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>Horarios de operación</span>
+              <span style="font-size:11px;color:var(--text-muted);font-weight:400;">Lun — Dom</span>
+            </label>
+            <div id="tplEdHours" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+
+          <!-- Bloques playlist -->
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+              <span>Bloques de playlist</span>
+              <button type="button" class="btn btn-outline btn-sm" onclick="tplEdAddBlock()">+ Agregar bloque</button>
+            </label>
+            <div id="tplEdBlocks" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-muted);"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Cada bloque define día, hora de inicio/fin y playlist. Si no agregas bloques, se reproduce la playlist default del dispositivo durante el horario.</div>
+          </div>
+
+          <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <button type="button" class="btn btn-danger btn-sm" id="tplEdDeleteBtn" onclick="tplDelete()" style="display:none;">Eliminar</button>
+            <div style="display:flex;gap:8px;margin-left:auto;">
+              <button class="btn btn-outline btn-sm" onclick="tplCloseEditor()">Cerrar</button>
+              <button class="btn btn-grad btn-sm" id="tplEdAssignBtn" onclick="tplOpenAssign()" style="display:none;">Asignar a dispositivos</button>
+              <button class="btn btn-grad btn-sm" onclick="tplSave()">Guardar</button>
+            </div>
           </div>
         </div>
-        <div style="background:linear-gradient(135deg,rgba(123,97,255,.10),rgba(0,245,212,.06));border:1px solid rgba(123,97,255,.4);border-radius:12px;padding:32px 28px;margin:20px 0;text-align:center">
-          <div style="display:inline-block;font-size:10px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:3px 10px;border-radius:4px;letter-spacing:.5px;font-weight:800;box-shadow:0 0 12px rgba(123,97,255,.6);margin-bottom:14px">PLAN PRO</div>
-          <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;background:linear-gradient(135deg,#7b61ff,#00f5d4);-webkit-background-clip:text;color:transparent" data-i18n="mp.upsell_title">Programa varias playlists por franja horaria</h3>
-          <div style="color:var(--text-muted);font-size:13px;max-width:520px;margin:0 auto 20px;line-height:1.5" data-i18n="mp.upsell_desc">Asigna distintas listas a la misma pantalla según hora del día — mañana promoción, tarde menú, noche marca. Ideal para restaurantes, retail y espacios con audiencias que cambian.</div>
-          <a href="mailto:comercial@sonoro.com.co?subject=Quiero%20activar%20Plan%20Pro%20Multi-playlist" style="display:inline-block;padding:11px 22px;border-radius:8px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;font:800 12px 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.5px;text-decoration:none;box-shadow:0 4px 20px rgba(123,97,255,.35)" data-i18n="mp.upsell_cta">Contactar a comercial →</a>
+      </div>
+
+      <!-- Modal asignar -->
+      <div class="stv-modal-overlay" id="tplAssignOverlay" onclick="if(event.target===this)tplCloseAssign()">
+        <div class="modal-content" style="max-width:560px;">
+          <button class="modal-close" onclick="tplCloseAssign()">×</button>
+          <div class="modal-title">Asignar programación a dispositivos</div>
+          <div class="modal-subtitle">Solo tus dispositivos PRO aparecen aquí. Un dispositivo con otra programación la reemplazará.</div>
+          <div id="tplAssignList" style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;"></div>
+          <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="tplCloseAssign()">Cancelar</button>
+            <button class="btn btn-grad btn-sm" onclick="tplDoAssign()">Aplicar</button>
+          </div>
         </div>
       </div>
 
@@ -3610,6 +3694,7 @@ function setupTabs() {
       if (tabName === 'ev-proveedores') { evGlobalSupLoaded = false; evLoadGlobalSuppliers(); }
       if (tabName === 'licencias') loadLicencias();
       if (tabName === 'micuenta') loadMiCuenta();
+      if (tabName === 'multiplaylist') tplLoadList();
     });
   });
 }
@@ -11546,6 +11631,255 @@ document.addEventListener('change', function(e){
     </div>
   </div>
 </div>
+
+<script>
+// ============================================================
+// Programaciones v2 — gestor template-level (S208b)
+// Backend: /api/schedule/* (ver backend/src/index.js)
+// ============================================================
+const DOW_NAMES = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+let _tplCache = { templates: [], proDevices: [], editing: null, blocks: [], hours: [] };
+let _tplPlaylists = [];
+
+async function tplApi(method, path, body) {
+  const opts = { method, headers: { 'Authorization': 'Bearer ' + authToken } };
+  if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const r = await fetch(API_URL + '/api/schedule' + path, opts);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: 'HTTP ' + r.status }));
+    throw new Error(err.error || 'HTTP ' + r.status);
+  }
+  return r.json();
+}
+
+async function tplLoadList() {
+  try {
+    const pro = await tplApi('GET', '/pro-devices');
+    _tplCache.proDevices = pro.devices || [];
+    const hasPro = !!pro.has_pro;
+    document.getElementById('tplNoPro').style.display = hasPro ? 'none' : 'block';
+    document.getElementById('tplNewBtn').style.display = hasPro ? '' : 'none';
+    if (!hasPro) {
+      document.getElementById('tplEmpty').style.display = 'none';
+      document.getElementById('tplList').style.display = 'none';
+      return;
+    }
+    const list = await tplApi('GET', '/templates');
+    _tplCache.templates = list;
+    const listEl = document.getElementById('tplList');
+    const emptyEl = document.getElementById('tplEmpty');
+    if (!list.length) {
+      emptyEl.style.display = 'block';
+      listEl.style.display = 'none';
+      return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.style.display = '';
+    listEl.innerHTML = list.map(t => `
+      <div class="lic-kpi-card" style="cursor:pointer;text-align:left;" onclick="tplOpenEditor(${t.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-weight:700;font-size:14px;color:var(--text);">${tplEsc(t.name)}</div>
+          <span style="font-size:9px;background:linear-gradient(135deg,#7b61ff,#00f5d4);color:#000;padding:2px 7px;border-radius:3px;letter-spacing:.5px;font-weight:800;">PRO</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">${tplEsc(t.timezone)} · modo ${tplEsc(t.mode)}</div>
+        <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-muted);">
+          <span><strong style="color:var(--text);">${t.block_count}</strong> bloque${t.block_count==1?'':'s'}</span>
+          <span><strong style="color:var(--text);">${t.device_count}</strong> dispositivo${t.device_count==1?'':'s'}</span>
+          <span>v${t.version}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('tplLoadList:', e);
+    showStatus('Error cargando programaciones: ' + e.message, 'error');
+  }
+}
+
+function tplEsc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function tplOpenEditor(id) {
+  document.getElementById('tplEditorTitle').textContent = id ? 'Editar programación' : 'Nueva programación';
+  document.getElementById('tplEdDeleteBtn').style.display = id ? '' : 'none';
+  document.getElementById('tplEdAssignBtn').style.display = id ? '' : 'none';
+  if (!_tplPlaylists.length) {
+    try {
+      const r = await fetch(API_URL + '/api/playlists', { headers: { 'Authorization': 'Bearer ' + authToken } });
+      _tplPlaylists = await r.json();
+    } catch(e) { _tplPlaylists = []; }
+  }
+  if (!id) {
+    _tplCache.editing = null;
+    _tplCache.hours = DOW_NAMES.map((_, dow) => ({ dow, open_time: '08:00', close_time: '20:00', enabled: dow < 5 }));
+    _tplCache.blocks = [];
+    document.getElementById('tplEdName').value = '';
+    document.getElementById('tplEdTz').value = 'America/Bogota';
+    document.getElementById('tplEdMode').value = 'operating_hours';
+  } else {
+    try {
+      const tpl = await tplApi('GET', '/templates/' + id);
+      _tplCache.editing = tpl;
+      _tplCache.hours = DOW_NAMES.map((_, dow) => {
+        const h = (tpl.hours || []).find(x => x.dow === dow) || { dow, open_time: null, close_time: null, enabled: false };
+        return { dow, open_time: (h.open_time || '').slice(0,5), close_time: (h.close_time || '').slice(0,5), enabled: !!h.enabled };
+      });
+      _tplCache.blocks = (tpl.blocks || []).map(b => ({
+        id: b.id, dow: b.dow, start_time: (b.start_time||'').slice(0,5), end_time: (b.end_time||'').slice(0,5),
+        playlist_id: b.playlist_id, playlist_name: b.playlist_name
+      }));
+      document.getElementById('tplEdName').value = tpl.name;
+      document.getElementById('tplEdTz').value = tpl.timezone;
+      document.getElementById('tplEdMode').value = tpl.mode;
+    } catch(e) {
+      showStatus('Error cargando: ' + e.message, 'error');
+      return;
+    }
+  }
+  tplRenderHours();
+  tplRenderBlocks();
+  document.getElementById('tplEditorOverlay').classList.add('active');
+}
+
+function tplCloseEditor() { document.getElementById('tplEditorOverlay').classList.remove('active'); }
+
+function tplRenderHours() {
+  const el = document.getElementById('tplEdHours');
+  el.innerHTML = _tplCache.hours.map((h, i) => `
+    <div style="display:grid;grid-template-columns:50px 90px 1fr 1fr;gap:8px;align-items:center;padding:6px 10px;background:var(--bg-elev);border-radius:6px;">
+      <div style="font-size:12px;font-weight:700;color:var(--text);">${DOW_NAMES[h.dow]}</div>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);">
+        <input type="checkbox" ${h.enabled?'checked':''} onchange="_tplCache.hours[${i}].enabled=this.checked;tplRenderHours()" />
+        <span>${h.enabled?'Abierto':'Cerrado'}</span>
+      </label>
+      <input type="time" class="form-input" style="padding:5px 8px;font-size:12px;" value="${h.open_time||''}" ${h.enabled?'':'disabled'} onchange="_tplCache.hours[${i}].open_time=this.value" />
+      <input type="time" class="form-input" style="padding:5px 8px;font-size:12px;" value="${h.close_time||''}" ${h.enabled?'':'disabled'} onchange="_tplCache.hours[${i}].close_time=this.value" />
+    </div>
+  `).join('');
+}
+
+function tplRenderBlocks() {
+  const el = document.getElementById('tplEdBlocks');
+  if (!_tplCache.blocks.length) {
+    el.innerHTML = '<div style="padding:8px 10px;background:var(--bg-elev);border-radius:6px;font-size:12px;color:var(--text-muted);text-align:center;">Sin bloques. Agrega uno para programar playlists específicas por franja.</div>';
+    return;
+  }
+  el.innerHTML = _tplCache.blocks.map((b, i) => `
+    <div style="display:grid;grid-template-columns:70px 80px 80px 1fr 32px;gap:8px;align-items:center;padding:6px 10px;background:var(--bg-elev);border-radius:6px;">
+      <select class="form-input" style="padding:5px 6px;font-size:11px;" onchange="_tplCache.blocks[${i}].dow=parseInt(this.value,10)">
+        ${DOW_NAMES.map((n, d) => `<option value="${d}" ${b.dow===d?'selected':''}>${n}</option>`).join('')}
+      </select>
+      <input type="time" class="form-input" style="padding:5px 6px;font-size:11px;" value="${b.start_time||''}" onchange="_tplCache.blocks[${i}].start_time=this.value" />
+      <input type="time" class="form-input" style="padding:5px 6px;font-size:11px;" value="${b.end_time||''}" onchange="_tplCache.blocks[${i}].end_time=this.value" />
+      <select class="form-input" style="padding:5px 6px;font-size:11px;" onchange="_tplCache.blocks[${i}].playlist_id=parseInt(this.value,10)">
+        <option value="">— Playlist —</option>
+        ${_tplPlaylists.map(p => `<option value="${p.id}" ${b.playlist_id==p.id?'selected':''}>${tplEsc(p.name)}</option>`).join('')}
+      </select>
+      <button type="button" class="btn btn-outline btn-sm" style="padding:4px 6px;font-size:11px;" onclick="_tplCache.blocks.splice(${i},1);tplRenderBlocks()">×</button>
+    </div>
+  `).join('');
+}
+
+function tplEdAddBlock() {
+  _tplCache.blocks.push({ dow: 0, start_time: '09:00', end_time: '12:00', playlist_id: null });
+  tplRenderBlocks();
+}
+
+async function tplSave() {
+  const name = document.getElementById('tplEdName').value.trim();
+  if (!name) { showStatus('Ingresa un nombre', 'error'); return; }
+  const timezone = document.getElementById('tplEdTz').value.trim() || 'America/Bogota';
+  const mode = document.getElementById('tplEdMode').value;
+  try {
+    let tplId;
+    if (!_tplCache.editing) {
+      const r = await tplApi('POST', '/templates', { name, timezone, mode });
+      tplId = r.id;
+    } else {
+      tplId = _tplCache.editing.id;
+      await tplApi('PUT', '/templates/' + tplId, { name, timezone, mode });
+    }
+    await tplApi('PUT', '/templates/' + tplId + '/hours', {
+      hours: _tplCache.hours.map(h => ({ dow: h.dow, enabled: h.enabled, open_time: h.enabled ? h.open_time : null, close_time: h.enabled ? h.close_time : null }))
+    });
+    if (_tplCache.editing && _tplCache.editing.blocks) {
+      for (const b of _tplCache.editing.blocks) {
+        await tplApi('DELETE', '/templates/' + tplId + '/blocks/' + b.id);
+      }
+    }
+    for (const b of _tplCache.blocks) {
+      if (!b.playlist_id) continue;
+      await tplApi('POST', '/templates/' + tplId + '/blocks', {
+        dow: b.dow, start_time: b.start_time, end_time: b.end_time, playlist_id: b.playlist_id
+      });
+    }
+    showStatus('Programación guardada', 'success');
+    tplCloseEditor();
+    tplLoadList();
+  } catch(e) {
+    showStatus('Error guardando: ' + e.message, 'error');
+  }
+}
+
+async function tplDelete() {
+  if (!_tplCache.editing) return;
+  if (!confirm('¿Eliminar la programación "' + _tplCache.editing.name + '"? Se desasignará de los dispositivos.')) return;
+  try {
+    await tplApi('DELETE', '/templates/' + _tplCache.editing.id);
+    showStatus('Programación eliminada', 'success');
+    tplCloseEditor();
+    tplLoadList();
+  } catch(e) {
+    showStatus('Error eliminando: ' + e.message, 'error');
+  }
+}
+
+async function tplOpenAssign() {
+  if (!_tplCache.editing) { showStatus('Guarda primero la programación', 'error'); return; }
+  const pro = await tplApi('GET', '/pro-devices');
+  _tplCache.proDevices = pro.devices || [];
+  const tplId = _tplCache.editing.id;
+  const list = document.getElementById('tplAssignList');
+  list.innerHTML = _tplCache.proDevices.length ? _tplCache.proDevices.map(d => {
+    const assignedHere = d.assigned_template_id == tplId;
+    const assignedOther = d.assigned_template_id && !assignedHere;
+    return `
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-elev);border-radius:8px;cursor:pointer;">
+        <input type="checkbox" data-did="${tplEsc(d.device_id)}" ${assignedHere?'checked':''} />
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:13px;color:var(--text);">${tplEsc(d.name || d.device_id)}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${tplEsc(d.platform || '')} · ${d.status==='online'?'online':'offline'}${assignedOther?' · tiene otra programación':''}</div>
+        </div>
+      </label>
+    `;
+  }).join('') : '<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:20px;">No tienes dispositivos PRO.</div>';
+  document.getElementById('tplAssignOverlay').classList.add('active');
+}
+
+function tplCloseAssign() { document.getElementById('tplAssignOverlay').classList.remove('active'); }
+
+async function tplDoAssign() {
+  if (!_tplCache.editing) return;
+  const tplId = _tplCache.editing.id;
+  const checks = document.querySelectorAll('#tplAssignList input[type=checkbox]');
+  const toAssign = [];
+  const toUnassign = [];
+  checks.forEach(c => {
+    const did = c.dataset.did;
+    const dev = _tplCache.proDevices.find(x => x.device_id === did);
+    const wasHere = dev && dev.assigned_template_id == tplId;
+    if (c.checked && !wasHere) toAssign.push(did);
+    if (!c.checked && wasHere) toUnassign.push(did);
+  });
+  try {
+    if (toAssign.length) await tplApi('POST', '/templates/' + tplId + '/assign', { device_ids: toAssign });
+    for (const did of toUnassign) await tplApi('DELETE', '/templates/' + tplId + '/assign/' + encodeURIComponent(did));
+    showStatus('Asignación actualizada', 'success');
+    tplCloseAssign();
+    tplLoadList();
+  } catch(e) {
+    showStatus('Error asignando: ' + e.message, 'error');
+  }
+}
+</script>
 
 </body>
 </html>
