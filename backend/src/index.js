@@ -1622,6 +1622,326 @@ app.put('/api/playlists/:playlistId/reorder', authenticateToken, async (req, res
   }
 });
 
+// ========================================
+// SCHEDULE TEMPLATES — Programaciones v2 (add-on PRO cross-device)
+// Cierra deuda S207. Gate: licenses.tier='pro' por device.
+// Migración: migrations/20261008_1200__programaciones_v2_pro.sql
+// ========================================
+
+async function userHasAnyProDevice(userId) {
+  const r = await pool.query(
+    `SELECT 1 FROM licenses WHERE user_id = $1 AND tier = 'pro' LIMIT 1`,
+    [userId]
+  );
+  return r.rowCount > 0;
+}
+
+async function deviceIsProAndOwned(deviceId, userId) {
+  // PRO si (a) licencia device-level tier='pro' O (b) licencia account-level
+  // tier='pro' que matchee el product del device (legacy pre-S192 account licenses).
+  const r = await pool.query(
+    `SELECT 1
+       FROM devices d
+      WHERE d.device_id = $1 AND d.user_id = $2
+        AND EXISTS (
+          SELECT 1 FROM licenses l
+           WHERE l.user_id = $2 AND l.tier = 'pro'
+             AND (l.device_id = d.device_id OR l.device_id IS NULL)
+        )
+      LIMIT 1`,
+    [deviceId, userId]
+  );
+  return r.rowCount > 0;
+}
+
+async function ownsTemplate(templateId, userId) {
+  const r = await pool.query(
+    `SELECT 1 FROM schedule_templates WHERE id = $1 AND user_id = $2`,
+    [templateId, userId]
+  );
+  return r.rowCount > 0;
+}
+
+async function bumpTemplateVersion(templateId) {
+  await pool.query(
+    `UPDATE schedule_templates SET version = version + 1, updated_at = NOW() WHERE id = $1`,
+    [templateId]
+  );
+  await pool.query(
+    `UPDATE schedule_assignments SET schedule_version = schedule_version + 1 WHERE template_id = $1`,
+    [templateId]
+  );
+}
+
+// GET pro-devices — gate del sidebar tab + UI asignación
+app.get('/api/schedule/pro-devices', authenticateToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT d.device_id, d.name, d.status, d.platform,
+              sa.template_id AS assigned_template_id
+         FROM devices d
+    LEFT JOIN schedule_assignments sa ON sa.device_id = d.device_id
+        WHERE d.user_id = $1
+          AND EXISTS (
+            SELECT 1 FROM licenses l
+             WHERE l.user_id = $1 AND l.tier = 'pro'
+               AND (l.device_id = d.device_id OR l.device_id IS NULL)
+          )
+     ORDER BY d.name`,
+      [req.user.id]
+    );
+    res.json({ has_pro: r.rowCount > 0, devices: r.rows });
+  } catch (err) {
+    console.error('❌ Error pro-devices:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET templates — lista con contadores
+app.get('/api/schedule/templates', authenticateToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT t.*,
+              (SELECT COUNT(*) FROM schedule_template_blocks b WHERE b.template_id = t.id) AS block_count,
+              (SELECT COUNT(*) FROM schedule_assignments sa WHERE sa.template_id = t.id) AS device_count
+         FROM schedule_templates t
+        WHERE t.user_id = $1
+     ORDER BY t.updated_at DESC`,
+      [req.user.id]
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error('❌ Error listando templates:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST template — crear
+app.post('/api/schedule/templates', authenticateToken, async (req, res) => {
+  try {
+    if (!(await userHasAnyProDevice(req.user.id))) {
+      return res.status(403).json({ error: 'Requiere al menos un dispositivo PRO' });
+    }
+    const { name, timezone, mode } = req.body || {};
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+    const r = await pool.query(
+      `INSERT INTO schedule_templates (user_id, name, timezone, mode)
+       VALUES ($1, $2, COALESCE($3,'America/Bogota'), COALESCE($4,'always'))
+       RETURNING *`,
+      [req.user.id, name.trim(), timezone, mode]
+    );
+    // Seed operating_hours vacío para los 7 días (cerrado) — simplifica UI.
+    for (let dow = 0; dow < 7; dow++) {
+      await pool.query(
+        `INSERT INTO schedule_template_hours (template_id, dow, enabled) VALUES ($1,$2,false)`,
+        [r.rows[0].id, dow]
+      );
+    }
+    res.json(r.rows[0]);
+    console.log(`✅ Template creado: ${r.rows[0].id} user=${req.user.id}`);
+  } catch (err) {
+    console.error('❌ Error creando template:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET template detail — con hours + blocks + assignments
+app.get('/api/schedule/templates/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const [tpl, hours, blocks, assigns] = await Promise.all([
+      pool.query(`SELECT * FROM schedule_templates WHERE id = $1`, [id]),
+      pool.query(`SELECT dow, open_time, close_time, enabled FROM schedule_template_hours WHERE template_id = $1 ORDER BY dow`, [id]),
+      pool.query(`SELECT b.*, p.name AS playlist_name FROM schedule_template_blocks b JOIN playlists p ON p.id = b.playlist_id WHERE b.template_id = $1 ORDER BY b.dow, b.start_time`, [id]),
+      pool.query(`SELECT sa.device_id, sa.schedule_version, d.name, d.status FROM schedule_assignments sa JOIN devices d ON d.device_id = sa.device_id WHERE sa.template_id = $1`, [id]),
+    ]);
+    res.json({ ...tpl.rows[0], hours: hours.rows, blocks: blocks.rows, assignments: assigns.rows });
+  } catch (err) {
+    console.error('❌ Error template detail:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT template — rename / mode / timezone
+app.put('/api/schedule/templates/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const { name, timezone, mode } = req.body || {};
+    await pool.query(
+      `UPDATE schedule_templates
+          SET name = COALESCE($2, name),
+              timezone = COALESCE($3, timezone),
+              mode = COALESCE($4, mode),
+              updated_at = NOW()
+        WHERE id = $1`,
+      [id, name, timezone, mode]
+    );
+    await bumpTemplateVersion(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error update template:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE template
+app.delete('/api/schedule/templates/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(`DELETE FROM schedule_templates WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error delete template:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT hours — bulk upsert (array 7 filas)
+app.put('/api/schedule/templates/:id/hours', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const { hours } = req.body || {};
+    if (!Array.isArray(hours)) return res.status(400).json({ error: 'hours array requerido' });
+    for (const h of hours) {
+      await pool.query(
+        `INSERT INTO schedule_template_hours (template_id, dow, open_time, close_time, enabled)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (template_id, dow) DO UPDATE
+           SET open_time = EXCLUDED.open_time,
+               close_time = EXCLUDED.close_time,
+               enabled = EXCLUDED.enabled`,
+        [id, h.dow, h.open_time || null, h.close_time || null, h.enabled !== false]
+      );
+    }
+    await bumpTemplateVersion(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error update hours:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST block
+app.post('/api/schedule/templates/:id/blocks', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const { dow, start_time, end_time, playlist_id, priority } = req.body || {};
+    if (dow == null || !start_time || !end_time || !playlist_id) {
+      return res.status(400).json({ error: 'dow, start_time, end_time, playlist_id requeridos' });
+    }
+    // Playlist debe ser del usuario
+    const own = await pool.query(`SELECT 1 FROM playlists WHERE id = $1 AND user_id = $2`, [playlist_id, req.user.id]);
+    if (own.rowCount === 0) return res.status(403).json({ error: 'Playlist no pertenece al usuario' });
+    const r = await pool.query(
+      `INSERT INTO schedule_template_blocks (template_id, dow, start_time, end_time, playlist_id, priority)
+       VALUES ($1,$2,$3,$4,$5,COALESCE($6,0)) RETURNING *`,
+      [id, dow, start_time, end_time, playlist_id, priority]
+    );
+    await bumpTemplateVersion(id);
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('❌ Error add block:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT block
+app.put('/api/schedule/templates/:id/blocks/:blockId', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const blockId = parseInt(req.params.blockId, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const { dow, start_time, end_time, playlist_id, priority } = req.body || {};
+    await pool.query(
+      `UPDATE schedule_template_blocks
+          SET dow = COALESCE($3, dow),
+              start_time = COALESCE($4, start_time),
+              end_time = COALESCE($5, end_time),
+              playlist_id = COALESCE($6, playlist_id),
+              priority = COALESCE($7, priority)
+        WHERE id = $2 AND template_id = $1`,
+      [id, blockId, dow, start_time, end_time, playlist_id, priority]
+    );
+    await bumpTemplateVersion(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error update block:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE block
+app.delete('/api/schedule/templates/:id/blocks/:blockId', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const blockId = parseInt(req.params.blockId, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(`DELETE FROM schedule_template_blocks WHERE id = $1 AND template_id = $2`, [blockId, id]);
+    await bumpTemplateVersion(id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error delete block:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST assign — body {device_ids:[...]}
+app.post('/api/schedule/templates/:id/assign', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    const { device_ids } = req.body || {};
+    if (!Array.isArray(device_ids) || device_ids.length === 0) {
+      return res.status(400).json({ error: 'device_ids array requerido' });
+    }
+    const assigned = [];
+    const rejected = [];
+    for (const did of device_ids) {
+      if (!(await deviceIsProAndOwned(did, req.user.id))) {
+        rejected.push({ device_id: did, reason: 'no_pro_or_not_owned' });
+        continue;
+      }
+      await pool.query(
+        `INSERT INTO schedule_assignments (template_id, device_id, schedule_version)
+           VALUES ($1, $2, (SELECT version FROM schedule_templates WHERE id = $1))
+         ON CONFLICT (device_id) DO UPDATE
+           SET template_id = EXCLUDED.template_id,
+               schedule_version = EXCLUDED.schedule_version,
+               assigned_at = NOW()`,
+        [id, did]
+      );
+      assigned.push(did);
+      // Push al device — Smart TV browser lee por websocket smarttvsignage;
+      // RPi/Windows: cmd_apply_schedule via sala device_${device_id}.
+      io.to(`device_${did}`).emit('cmd_apply_schedule', { template_id: id });
+    }
+    res.json({ success: true, assigned, rejected });
+  } catch (err) {
+    console.error('❌ Error assign:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE assign — un device
+app.delete('/api/schedule/templates/:id/assign/:deviceId', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const deviceId = req.params.deviceId;
+    if (!(await ownsTemplate(id, req.user.id))) return res.status(404).json({ error: 'No encontrado' });
+    await pool.query(`DELETE FROM schedule_assignments WHERE template_id = $1 AND device_id = $2`, [id, deviceId]);
+    io.to(`device_${deviceId}`).emit('cmd_clear_schedule', {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error unassign:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // ADMIN ROUTES (NUEVO)
 // ========================================
 // ========================================
