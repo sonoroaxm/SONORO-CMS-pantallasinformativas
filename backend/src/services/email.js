@@ -1001,4 +1001,252 @@ async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = 
   console.log(`✅ Email invitación pendiente enviado a ${attendee.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, verifyConnection };
+// ── TEMPLATES FIJOS DE RESPONSABILIDADES POR ROL (S208j) ─────────────────────
+const STAFF_ROLE_TEMPLATES = {
+  coordinator: {
+    label: 'Coordinador general',
+    bullets: [
+      'Supervisar al equipo durante el evento.',
+      'Resolver imprevistos operativos.',
+      'Servir de puente entre staff y productor.',
+      'Verificar que cada área esté funcionando.',
+      'Firmar el checklist de cierre.',
+    ],
+  },
+  registration: {
+    label: 'Registro / recepción',
+    bullets: [
+      'Recibir asistentes en la entrada principal y confirmar su registro.',
+      'Escanear códigos QR de los pases con la app de staff.',
+      'Entregar material impreso o acreditaciones físicas si el evento las usa.',
+      'Resolver dudas básicas de los invitados y escalarlas al coordinador si es necesario.',
+      'Mantener el flujo de ingreso ordenado y evitar aglomeraciones.',
+    ],
+  },
+  tech: {
+    label: 'Técnico (AV / IT)',
+    bullets: [
+      'Verificar funcionamiento de audio, video y pantallas antes del inicio.',
+      'Tener cables y adaptadores de respaldo.',
+      'Estar atento a la señal durante el evento.',
+      'Coordinar con conferencistas por sonido o proyección.',
+      'Apagar y guardar equipos al finalizar.',
+    ],
+  },
+  host: {
+    label: 'Anfitrión / hostess',
+    bullets: [
+      'Dar la bienvenida a invitados importantes.',
+      'Guiar asistentes a sus zonas asignadas.',
+      'Mantener la atmósfera cálida y profesional.',
+      'Colaborar con registro cuando haya aglomeración.',
+      'Representar al evento con amabilidad.',
+    ],
+  },
+  security: {
+    label: 'Seguridad',
+    bullets: [
+      'Controlar accesos y evitar entradas no autorizadas.',
+      'Validar listas de invitados.',
+      'Monitorear áreas restringidas.',
+      'Coordinar con el equipo del venue.',
+      'Reportar cualquier incidente al coordinador.',
+    ],
+  },
+  catering: {
+    label: 'Catering / bebidas',
+    bullets: [
+      'Montaje de la estación de catering antes del inicio.',
+      'Reponer insumos durante el evento.',
+      'Mantener la zona limpia y presentable.',
+      'Atender restricciones alimentarias comunicadas.',
+      'Desmontaje al finalizar.',
+    ],
+  },
+  artistic_entertainment: {
+    label: 'Artístico / entretenimiento',
+    bullets: [
+      'Llegar con tiempo para prueba de sonido.',
+      'Coordinar entradas y salidas con el productor.',
+      'Respetar los tiempos del rundown.',
+      'Estar en el camerino asignado antes de su turno.',
+      'Entregar el espacio limpio al terminar.',
+    ],
+  },
+  other: {
+    label: 'Otro',
+    bullets: [],
+  },
+};
+
+// ── EMAIL #1 STAFF — CREDENCIALES DE ACCESO (S208j) ──────────────────────────
+async function sendStaffCredentialsEmail(staff, event, producer) {
+  if (!staff || !staff.email) {
+    console.log('⚠️ Staff sin email, skip credentials');
+    return;
+  }
+  const tpl = STAFF_ROLE_TEMPLATES[staff.role] || STAFF_ROLE_TEMPLATES.other;
+  const roleLabel = tpl.label;
+  const opts = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr = new Date(event.starts_at).toLocaleString('es-CO', opts);
+  const producerName  = (producer && producer.name)  || 'el productor';
+  const producerEmail = (producer && producer.email) || 'cms@sonoro.com.co';
+  const venueLine = event.venue_name
+    ? (event.venue_address ? `${event.venue_name} · ${event.venue_address}` : event.venue_name)
+    : '—';
+  const panelUrl = `${CMS_URL}/evento/${event.slug}/staff`;
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;line-height:1.25;">
+      Bienvenido al equipo
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${staff.name}</strong>, <strong style="color:#0f0f0f;">${producerName}</strong> te acaba de registrar como parte del equipo del evento <strong style="color:#0f0f0f;">${event.name}</strong>. Rol asignado: <strong style="color:#0f0f0f;">${roleLabel}</strong>.
+    </p>
+
+    <div style="background:#0f0f0f;border-radius:10px;padding:22px;text-align:center;margin:0 0 24px;">
+      <div style="font-size:10px;letter-spacing:3px;color:#b0b0b0;font-weight:700;margin-bottom:10px;text-transform:uppercase;">Tu PIN de acceso</div>
+      <div style="font-family:ui-monospace,monospace;font-weight:900;font-size:36px;line-height:1;color:#FFE566;letter-spacing:8px;">${staff.pin}</div>
+    </div>
+
+    <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">
+      Guárdalo seguro — lo necesitarás para iniciar sesión en el panel del evento. Si necesitas renovarlo, pídele al productor que lo regenere.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${panelUrl}" style="display:inline-block;padding:14px 26px;background:#0f0f0f;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Abrir panel del evento
+        </a>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Evento</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${event.name}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${startStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Lugar</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${venueLine}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Productor responsable</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${producerName} · ${producerEmail}</p>
+      </td></tr>
+    </table>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:0 0 8px;">
+      <p style="margin:0;font-size:13px;color:#1e3a8a;line-height:1.55;">
+        Pronto recibirás un segundo correo con el briefing detallado de tus responsabilidades para el día del evento.
+      </p>
+    </div>
+  `, { tagline: 'Software de gestión de eventos' });
+
+  await transporter.sendMail({
+    from: FROM,
+    to: staff.email,
+    subject: `Credenciales de acceso · ${event.name}`,
+    html
+  });
+  console.log(`✅ Credenciales staff enviadas a ${staff.email} (${event.name})`);
+}
+
+// ── EMAIL #2 STAFF — BRIEFING DE RESPONSABILIDADES (S208j) ───────────────────
+async function sendStaffBriefingEmail(staff, event, producer) {
+  if (!staff || !staff.email) {
+    console.log('⚠️ Staff sin email, skip briefing');
+    return;
+  }
+  const tpl = STAFF_ROLE_TEMPLATES[staff.role] || STAFF_ROLE_TEMPLATES.other;
+  const roleLabel = tpl.label;
+  const opts = { timeZone: event.timezone || 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+  const startStr   = new Date(event.starts_at).toLocaleString('es-CO', opts);
+  const arrivalAt  = new Date(new Date(event.starts_at).getTime() - 60 * 60 * 1000);
+  const arrivalStr = arrivalAt.toLocaleString('es-CO', opts);
+  const producerName  = (producer && producer.name)  || 'el productor';
+  const producerEmail = (producer && producer.email) || 'cms@sonoro.com.co';
+  const venueLine = event.venue_name
+    ? (event.venue_address ? `${event.venue_name} · ${event.venue_address}` : event.venue_name)
+    : '—';
+  const panelUrl = `${CMS_URL}/evento/${event.slug}/staff`;
+
+  const hasBullets = Array.isArray(tpl.bullets) && tpl.bullets.length > 0 && staff.role !== 'other';
+  const bulletsHtml = hasBullets ? `
+    <p style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:#999;text-transform:uppercase;margin:28px 0 10px;">Responsabilidades del rol</p>
+    <ul style="margin:0 0 20px;padding:0;list-style:none;">
+      ${tpl.bullets.map(b => `
+        <li style="position:relative;padding:0 0 10px 24px;font-size:14px;color:#444;line-height:1.55;">
+          <span style="position:absolute;left:0;top:5px;display:inline-block;width:8px;height:8px;background:#FF1B8D;border-radius:50%;"></span>
+          ${b}
+        </li>`).join('')}
+    </ul>
+  ` : '';
+
+  const customText = (staff.custom_briefing || '').trim();
+  const customHtml = customText ? `
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;margin:0 0 24px;">
+      <p style="margin:0 0 6px;font-size:13px;color:#9a3412;font-weight:700;">Mensaje del productor</p>
+      <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.6;white-space:pre-wrap;">${customText}</p>
+    </div>
+  ` : '';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;line-height:1.25;">
+      Tu briefing para el evento
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${staff.name}</strong>, aquí están tus responsabilidades para <strong style="color:#0f0f0f;">${event.name}</strong>. Léelo con calma antes del día del evento.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Rol</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${roleLabel}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Fecha y hora</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${startStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Llegada sugerida</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">1 hora antes · ${arrivalStr}</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Lugar</p>
+        <p style="margin:0;font-size:15px;color:#0f0f0f;font-weight:600;">${venueLine}</p>
+      </td></tr>
+    </table>
+
+    ${bulletsHtml}
+    ${customHtml}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${panelUrl}" style="display:inline-block;padding:14px 26px;background:#0f0f0f;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Abrir panel del evento
+        </a>
+      </td></tr>
+    </table>
+
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 18px;margin:0 0 8px;">
+      <p style="margin:0;font-size:13px;color:#1e3a8a;line-height:1.55;">
+        Si tienes alguna duda sobre tus responsabilidades, contacta al productor <strong>${producerName}</strong> en <a href="mailto:${producerEmail}" style="color:#1e3a8a;">${producerEmail}</a>.
+      </p>
+    </div>
+  `, { tagline: 'Software de gestión de eventos' });
+
+  await transporter.sendMail({
+    from: FROM,
+    to: staff.email,
+    subject: `Briefing · ${event.name}`,
+    html
+  });
+  console.log(`✅ Briefing staff enviado a ${staff.email} (${event.name})`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, verifyConnection };

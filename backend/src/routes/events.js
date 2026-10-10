@@ -8,7 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
-const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail } = require('../services/email');
+const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail } = require('../services/email');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 
@@ -644,7 +644,7 @@ router.get('/:id/staff', auth, async (req, res) => {
     const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const { rows } = await pool.query(
-      `SELECT id, name, email, phone, role, pin, created_at
+      `SELECT id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, created_at
        FROM events.event_staff
        WHERE event_id = $1 AND user_id = $2
        ORDER BY role, name`,
@@ -659,7 +659,7 @@ const VALID_STAFF_ROLES = ['coordinator','registration','tech','host','security'
 
 router.post('/:id/staff', auth, async (req, res) => {
   const pool = global.pool;
-  const { name, email, phone, role, pin } = req.body;
+  const { name, email, phone, role, pin, custom_briefing } = req.body;
   if (!name || !role) return res.status(400).json({ error: 'name y role son requeridos' });
   if (!VALID_STAFF_ROLES.includes(role)) return res.status(400).json({ error: 'rol inválido' });
   const staffPin = pin ? String(pin).replace(/\D/g, '').slice(0, 6).padStart(6, '0')
@@ -668,12 +668,63 @@ router.post('/:id/staff', auth, async (req, res) => {
     const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const { rows } = await pool.query(
-      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id, name, email, phone, role, pin, created_at`,
-      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin]
+      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin, custom_briefing)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, created_at`,
+      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin, (custom_briefing||null)]
     );
+
+    // Fire-and-forget: credenciales por email si tiene email (S208j)
+    if (rows[0].email) {
+      pool.query(
+        `SELECT e.id, e.name, e.slug, e.starts_at, e.timezone, e.venue_name, e.venue_address,
+                u.name AS producer_name, u.email AS producer_email
+         FROM events.events e
+         JOIN public.users u ON u.id = e.user_id
+         WHERE e.id = $1`,
+        [req.params.id]
+      ).then(ctx => {
+        if (!ctx.rowCount) return;
+        const ev2 = ctx.rows[0];
+        const producer = { name: ev2.producer_name, email: ev2.producer_email };
+        sendStaffCredentialsEmail(rows[0], ev2, producer).catch(err =>
+          console.error('❌ sendStaffCredentialsEmail:', err.message)
+        );
+      }).catch(err => console.error('❌ staff ctx query:', err.message));
+    } else {
+      console.log('⚠️ Staff creado sin email, skip credentials:', rows[0].id);
+    }
+
     res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── PATCH STAFF (S208j) ───────────────────────────────────────────────────────
+router.patch('/:id/staff/:staffId', auth, async (req, res) => {
+  const pool = global.pool;
+  const { name, email, phone, role, custom_briefing } = req.body;
+  if (role !== undefined && !VALID_STAFF_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'rol inválido' });
+  }
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  if (name !== undefined)            { sets.push(`name = $${i++}`);            vals.push(String(name).trim()); }
+  if (email !== undefined)           { sets.push(`email = $${i++}`);           vals.push(email || null); }
+  if (phone !== undefined)           { sets.push(`phone = $${i++}`);           vals.push(phone || null); }
+  if (role !== undefined)            { sets.push(`role = $${i++}`);            vals.push(role); }
+  if (custom_briefing !== undefined) { sets.push(`custom_briefing = $${i++}`); vals.push(custom_briefing || null); }
+  if (!sets.length) return res.status(400).json({ error: 'nada que actualizar' });
+  vals.push(req.params.staffId, req.params.id, req.user.id);
+  try {
+    const { rows } = await pool.query(
+      `UPDATE events.event_staff SET ${sets.join(', ')}
+       WHERE id = $${i++} AND event_id = $${i++} AND user_id = $${i++}
+       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, created_at`,
+      vals
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Staff no encontrado' });
+    res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -688,6 +739,80 @@ router.delete('/:id/staff/:staffId', auth, async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── REENVIAR CREDENCIALES STAFF (S208j) ───────────────────────────────────────
+router.post('/:id/staff/:staffId/resend-credentials', auth, async (req, res) => {
+  const pool = global.pool;
+  const rotate = req.query.rotate === '1';
+  try {
+    const ctx = await pool.query(
+      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at,
+              e.id AS event_id, e.name AS event_name, e.slug, e.starts_at, e.timezone, e.venue_name, e.venue_address,
+              u.name AS producer_name, u.email AS producer_email
+       FROM events.event_staff s
+       JOIN events.events e ON e.id = s.event_id
+       JOIN public.users u  ON u.id = e.user_id
+       WHERE s.id = $1 AND s.event_id = $2 AND s.user_id = $3`,
+      [req.params.staffId, req.params.id, req.user.id]
+    );
+    if (!ctx.rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
+    const row = ctx.rows[0];
+    if (!row.email) return res.status(400).json({ error: 'staff sin email' });
+
+    let pin = row.pin;
+    if (rotate) {
+      pin = String(Math.floor(100000 + Math.random() * 900000));
+      await pool.query(`UPDATE events.event_staff SET pin = $1 WHERE id = $2`, [pin, row.id]);
+    }
+
+    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, pin };
+    const event = { id: row.event_id, name: row.event_name, slug: row.slug, starts_at: row.starts_at, timezone: row.timezone, venue_name: row.venue_name, venue_address: row.venue_address };
+    const producer = { name: row.producer_name, email: row.producer_email };
+    await sendStaffCredentialsEmail(staff, event, producer);
+    res.json({ ok: true, pin_rotated: rotate });
+  } catch (err) {
+    console.error('❌ resend-credentials:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ENVIAR BRIEFING STAFF (S208j) ─────────────────────────────────────────────
+router.post('/:id/staff/:staffId/send-briefing', auth, async (req, res) => {
+  const pool = global.pool;
+  const force = req.query.force === '1';
+  try {
+    const ctx = await pool.query(
+      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at,
+              e.id AS event_id, e.name AS event_name, e.slug, e.starts_at, e.timezone, e.venue_name, e.venue_address,
+              u.name AS producer_name, u.email AS producer_email
+       FROM events.event_staff s
+       JOIN events.events e ON e.id = s.event_id
+       JOIN public.users u  ON u.id = e.user_id
+       WHERE s.id = $1 AND s.event_id = $2 AND s.user_id = $3`,
+      [req.params.staffId, req.params.id, req.user.id]
+    );
+    if (!ctx.rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
+    const row = ctx.rows[0];
+    if (!row.email) return res.status(400).json({ error: 'staff sin email' });
+    if (row.briefing_sent_at && !force) {
+      return res.status(409).json({ error: 'briefing_already_sent', sent_at: row.briefing_sent_at });
+    }
+
+    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, custom_briefing: row.custom_briefing };
+    const event = { id: row.event_id, name: row.event_name, slug: row.slug, starts_at: row.starts_at, timezone: row.timezone, venue_name: row.venue_name, venue_address: row.venue_address };
+    const producer = { name: row.producer_name, email: row.producer_email };
+    await sendStaffBriefingEmail(staff, event, producer);
+
+    const upd = await pool.query(
+      `UPDATE events.event_staff SET briefing_sent_at = NOW() WHERE id = $1 RETURNING briefing_sent_at`,
+      [row.id]
+    );
+    res.json({ ok: true, sent_at: upd.rows[0].briefing_sent_at });
+  } catch (err) {
+    console.error('❌ send-briefing:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── CONFIRMAR / RECHAZAR REGISTRO ─────────────────────────────────────────────
