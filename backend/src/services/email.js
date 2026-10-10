@@ -26,7 +26,10 @@ const CMS_URL  = process.env.CMS_URL  || 'https://cms.sonoro.com.co';
 const FROM     = process.env.SMTP_FROM || 'SONORO CMS <cms@sonoro.com.co>';
 
 // ── ESTILOS BASE DEL EMAIL ────────────────────────────────────
-function baseTemplate(content) {
+// opts.tagline permite override del subtítulo del header (ej. "Software de gestión de eventos" para Events).
+// Default preserva comportamiento legacy "CMS · Pantallas Informativas" para signage/licencias.
+function baseTemplate(content, opts = {}) {
+  const tagline = opts.tagline || 'CMS &nbsp;·&nbsp; Pantallas Informativas';
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -39,7 +42,7 @@ function baseTemplate(content) {
     <tr>
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-          
+
           <!-- HEADER -->
           <tr>
             <td style="background:#0f0f0f;padding:34px 40px 30px;text-align:center;">
@@ -47,7 +50,7 @@ function baseTemplate(content) {
                 SONORO<span style="color:#FF1B8D;">.</span>
               </div>
               <div style="font-size:10px;color:#b0b0b0;letter-spacing:3px;text-transform:uppercase;margin-top:10px;font-weight:600;">
-                CMS &nbsp;·&nbsp; Pantallas Informativas
+                ${tagline}
               </div>
             </td>
           </tr>
@@ -570,7 +573,7 @@ async function sendEventPendingEmail(attendee, event, emailConfig = {}) {
 
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
-      ¡Inscripción recibida!
+      Inscripción recibida
     </h1>
     <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
       Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
@@ -603,7 +606,7 @@ async function sendEventPendingEmail(attendee, event, emailConfig = {}) {
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       Si no te registraste en este evento, ignora este mensaje.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
 
   const _fromPend = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moP = { from: _fromPend, to: attendee.email, subject: `Inscripción recibida — ${event.name}`, html };
@@ -633,7 +636,7 @@ async function sendEventRegistrationEmail(attendee, event, registration, emailCo
 
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;">
-      ¡Tu registro está confirmado!
+      Tu registro está confirmado
     </h1>
     <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
       Hola <strong style="color:#0f0f0f;">${attendee.name}</strong>,
@@ -682,7 +685,7 @@ async function sendEventRegistrationEmail(attendee, event, registration, emailCo
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       Si no te registraste en este evento, ignora este mensaje.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
 
   const _fromReg = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moR = { from: _fromReg, to: attendee.email, subject: `Tu pase para ${event.name}`, html, attachments };
@@ -723,7 +726,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td align="center">
         <a href="${quoteUrl}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:700;">
-          Enviar mi cotización →
+          Enviar mi cotización <svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" style="vertical-align:middle;margin-left:6px;"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg>
         </a>
       </td></tr>
     </table>
@@ -731,7 +734,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       Este enlace es de uso único para ${supplier_name}. No reenvíes este correo.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
   const _fromQ = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moQ = { from: _fromQ, to: contact_email, subject: `Solicitud de cotización — ${event_name}`, html };
   if (emailConfig.reply_to) moQ.replyTo = emailConfig.reply_to;
@@ -760,9 +763,9 @@ async function sendSupplierAcceptedEmail({ supplier_name, contact_email, event_n
       </td></tr>
     </table>
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
-      El equipo de producción se comunicará contigo para coordinar los próximos pasos. ¡Gracias por tu propuesta!
+      El equipo de producción se comunicará contigo para coordinar los próximos pasos. Gracias por tu propuesta.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
   const _fromA = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moA = { from: _fromA, to: contact_email, subject: `Cotización aceptada — ${event_name}`, html };
   if (emailConfig.reply_to) moA.replyTo = emailConfig.reply_to;
@@ -798,7 +801,7 @@ async function sendSupplierDepositEmail({ supplier_name, contact_email, event_na
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       Ante cualquier consulta, responde este correo y nuestro equipo te atenderá.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: `Abono registrado — ${event_name}`, html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -832,9 +835,9 @@ async function sendSupplierPaidEmail({ supplier_name, contact_email, event_name,
     </table>
     ${proofLine}
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
-      ¡Gracias por tu excelente trabajo! Esperamos contar contigo en futuros eventos.
+      Gracias por tu trabajo. Esperamos contar contigo en futuros eventos.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: `Pago completado — ${event_name}`, html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -929,7 +932,7 @@ async function sendInvitationConfirmedEmail(attendee, event, registration, batch
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       Si no esperabas esta invitación, ignora este mensaje.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: `Acreditación confirmada — ${event.name}`, html, attachments };
@@ -989,7 +992,7 @@ async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = 
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       Si no esperabas esta invitación, ignora este mensaje.
     </p>
-  `);
+  `, { tagline: 'Software de gestión de eventos' });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: `Acreditación pendiente — ${event.name}`, html };

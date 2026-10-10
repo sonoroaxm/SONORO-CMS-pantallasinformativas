@@ -466,14 +466,14 @@ function showResult(type, name, sub, durationMs) {
   const resultEl    = document.getElementById('s-result');
 
   const config = {
-    success: { icon: '✓', label: '¡Bienvenido!', cls: 'success' },
-    already: { icon: '◷', label: 'Ya estás dentro', cls: 'already' },
-    fail:    { icon: '✕', label: 'No encontrado',  cls: 'fail'    },
+    success: { icon: '<svg viewBox="0 0 256 256" width="72" height="72" fill="currentColor"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>', label: 'Bienvenido', cls: 'success' },
+    already: { icon: '<svg viewBox="0 0 256 256" width="68" height="68" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg>', label: 'Ya estás dentro', cls: 'already' },
+    fail:    { icon: '<svg viewBox="0 0 256 256" width="60" height="60" fill="currentColor"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>', label: 'No encontrado',  cls: 'fail'    },
   };
   const c = config[type] || config.fail;
 
   iconEl.className     = `result-icon ${c.cls}`;
-  iconEl.textContent   = c.icon;
+  iconEl.innerHTML     = c.icon;
   headlineEl.className = `result-headline ${c.cls}`;
   headlineEl.textContent = c.label;
   nameEl.textContent   = name;
