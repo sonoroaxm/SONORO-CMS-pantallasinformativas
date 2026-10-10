@@ -60,7 +60,7 @@
     /* States */
     #loading-view { text-align: center; padding: 64px 24px; color: #888; font-size: 14px; }
     #submitted-view { display: none; text-align: center; padding: 48px 24px; }
-    #submitted-view .check { font-size: 56px; margin-bottom: 16px; }
+    #submitted-view .check { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg,#FF1B8D,#FF8C00); display: inline-flex; align-items: center; justify-content: center; color: #fff; margin: 0 auto 18px; box-shadow: 0 10px 40px rgba(255,27,141,.35); }
     #submitted-view h2 { font-size: 22px; font-weight: 800; color: #166534; margin-bottom: 8px; }
     #submitted-view p { font-size: 14px; color: #555; line-height: 1.6; }
     #error-view { display: none; text-align: center; padding: 64px 24px; }
@@ -174,13 +174,13 @@
           Opcionalmente, adjunta tu cotización en PDF membretada con el detalle completo.
         </p>
         <div class="pdf-zone" id="pdf-zone" onclick="document.getElementById('pdf-input').click()">
-          <div class="pdf-zone-icon">📎</div>
+          <div class="pdf-zone-icon"><svg viewBox="0 0 256 256" width="32" height="32" fill="currentColor"><path d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,37.21a40,40,0,1,1,56.61,56.57L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,82.44a24,24,0,1,0-33.94-33.93L59.74,147.68a40,40,0,1,0,56.61,56.56l82-82A8,8,0,0,1,209.66,122.34Z"/></svg></div>
           <div class="pdf-zone-text">Haz clic para adjuntar PDF</div>
           <div class="pdf-zone-hint">Máximo 10 MB · Solo archivos PDF</div>
         </div>
         <div class="pdf-selected" id="pdf-selected" style="display:none">
           <span id="pdf-name"></span>
-          <button type="button" class="pdf-remove" onclick="evRemovePdf()">✕</button>
+          <button type="button" class="pdf-remove" onclick="evRemovePdf()"><svg viewBox="0 0 256 256" width="16" height="16" fill="currentColor"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg></button>
         </div>
         <input type="file" id="pdf-input" name="pdf" accept=".pdf,application/pdf" onchange="evPdfSelected(this)">
       </div>
@@ -190,8 +190,8 @@
   </div>
 
   <div id="submitted-view">
-    <div class="check">✅</div>
-    <h2>¡Cotización enviada!</h2>
+    <div class="check"><svg viewBox="0 0 256 256" width="52" height="52" fill="currentColor"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg></div>
+    <h2>Cotización enviada</h2>
     <p>Hemos recibido tu cotización. El equipo de SONORO la revisará y se pondrá en contacto contigo.</p>
   </div>
 

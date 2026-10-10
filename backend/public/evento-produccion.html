@@ -483,7 +483,7 @@ function connectSocket() {
   socket.on('screen.broadcast', (data) => {
     if (data.event_id !== eventId) return;
     const fb = document.getElementById('screen-feedback');
-    if (fb) { fb.textContent = '✓ Enviado'; setTimeout(() => { fb.textContent = ''; }, 3000); }
+    if (fb) { fb.innerHTML = '<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Enviado'; setTimeout(() => { fb.innerHTML = ''; }, 3000); }
   });
 
   socket.on('disconnect', () => console.log('socket desconectado'));
@@ -752,7 +752,7 @@ function renderRundown() {
       } else if (state === 'current' && s.status !== 'in_progress') {
         actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
       } else if (state === 'current' && s.status === 'in_progress') {
-        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')">&#10003; Cerrar sesion</button>`;
+        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Cerrar sesion</button>`;
       } else if (state === 'done') {
         actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">&#8634; Reabrir</button>`;
       }
@@ -764,7 +764,7 @@ function renderRundown() {
         </div>
         <div class="sess-badges">
           ${state === 'current' ? '<span class="badge current">&#9654; En curso</span>' : ''}
-          ${state === 'done'    ? '<span class="badge done">&#10003; Finalizado</span>'  : ''}
+          ${state === 'done'    ? '<span class="badge done"><svg viewBox="0 0 256 256" width="10" height="10" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Finalizado</span>'  : ''}
           ${endDelayMin > 0 ? `<span class="badge delay">ATRASO +${endDelayMin}m</span>` : ''}
           ${startDelayMin > 0 && state === 'upcoming' ? `<span class="badge delay">&#9654; ATRASO +${startDelayMin}m</span>` : ''}
           ${cap ? `<span class="badge ${full?'warn':almst?'warn':'cap'}">${reg}/${cap}${full?' · LLENO':almst?' · Casi lleno':''}</span>` : ''}
@@ -855,8 +855,8 @@ async function sendBroadcast() {
     if (res.ok) {
       input.value = '';
       const fb = document.getElementById('screen-feedback');
-      fb.textContent = '✓ Enviado a pantallas';
-      setTimeout(() => { fb.textContent = ''; }, 3000);
+      fb.innerHTML = '<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Enviado a pantallas';
+      setTimeout(() => { fb.innerHTML = ''; }, 3000);
     }
   } catch (err) {
     console.error('sendBroadcast:', err);
@@ -929,17 +929,17 @@ function renderCues() {
     const st = c.status || 'pending';
     const delayBadge = (c.delay_minutes !== null && c.delay_minutes !== undefined && (st === 'in_progress' || st === 'done' || st === 'delayed'))
       ? (c.delay_minutes === 0
-          ? '<span style="font-size:10px;font-weight:700;color:#22c55e;flex-shrink:0;">&#10003; A tiempo</span>'
+          ? '<span style="font-size:10px;font-weight:700;color:#22c55e;flex-shrink:0;"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> A tiempo</span>'
           : `<span style="font-size:10px;font-weight:700;color:${c.delay_minutes > 5 ? '#ef4444' : '#f59e0b'};flex-shrink:0;">+${c.delay_minutes} min</span>`)
       : '';
     let actionBtn = '';
     if (st === 'pending' || st === 'delayed') {
-      actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')">▶ Iniciar</button>`;
+      actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg> Iniciar</button>`;
     } else if (st === 'in_progress') {
-      actionBtn = `<button class="action-btn done-btn" onclick="markCue('${c.id}','done')">✓ Cerrar</button>
-                   <button class="action-btn" style="background:rgba(107,114,128,.15);color:var(--muted);border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" onclick="markCue('${c.id}','skipped')">⊘ Omitir</button>`;
+      actionBtn = `<button class="action-btn done-btn" onclick="markCue('${c.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Cerrar</button>
+                   <button class="action-btn" style="background:rgba(107,114,128,.15);color:var(--muted);border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" onclick="markCue('${c.id}','skipped')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a87.56,87.56,0,0,1,22.24-58.41L186.41,193.76A88,88,0,0,1,40,128Zm153.76,58.41L69.59,62.24A88,88,0,0,1,193.76,186.41Z"/></svg> Omitir</button>`;
     } else if (st === 'done' || st === 'skipped') {
-      actionBtn = `<button class="action-btn reopen-btn" onclick="markCue('${c.id}','pending')">↺ Reabrir</button>`;
+      actionBtn = `<button class="action-btn reopen-btn" onclick="markCue('${c.id}','pending')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64h0a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,88.42V56a8,8,0,1,1,16,0Z"/></svg> Reabrir</button>`;
     }
 
     return `<div class="sess-card ${st === 'in_progress' ? 'current' : st === 'done' ? 'done' : ''}" id="cue-${c.id}" style="margin-bottom:0;border-radius:0;border-bottom:1px solid var(--border);">
@@ -952,8 +952,8 @@ function renderCues() {
         </div>
         <span style="font-size:10px;font-weight:700;color:${statusColor[st]};flex-shrink:0;margin-left:8px;">${statusLabel[st] || st}</span>
       </div>
-      ${c.technical_notes || c.location ? `<div style="padding:0 14px 8px;font-size:11px;color:var(--muted);">${c.location ? '📍 ' + c.location + ' ' : ''}${c.technical_notes || ''}</div>` : ''}
-      ${c.responsible_name ? `<div style="padding:0 14px 4px;font-size:11px;color:var(--muted);font-style:italic;">👤 ${c.responsible_name}</div>` : ''}
+      ${c.technical_notes || c.location ? `<div style="padding:0 14px 8px;font-size:11px;color:var(--muted);">${c.location ? '<svg viewBox="0 0 256 256" width="12" height="12" fill="currentColor" style="vertical-align:middle"><path d="M128,16a88.1,88.1,0,0,0-88,88c0,75.3,80,132.17,83.41,134.55a8,8,0,0,0,9.18,0C136,236.17,216,179.3,216,104A88.1,88.1,0,0,0,128,16Zm0,56a32,32,0,1,1-32,32A32,32,0,0,1,128,72Z"/></svg> ' + c.location + ' ' : ''}${c.technical_notes || ''}</div>` : ''}
+      ${c.responsible_name ? `<div style="padding:0 14px 4px;font-size:11px;color:var(--muted);font-style:italic;"><svg viewBox="0 0 256 256" width="12" height="12" fill="currentColor" style="vertical-align:middle"><path d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z"/></svg> ${c.responsible_name}</div>` : ''}
       ${actionBtn ? `<div class="sess-actions" style="padding:0 14px 10px;">${actionBtn}</div>` : ''}
     </div>`;
   }).join('');
