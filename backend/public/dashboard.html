@@ -2918,6 +2918,11 @@
                     <input type="text" id="ev-staff-pin" placeholder="6 dígitos — se genera automáticamente" maxlength="6" pattern="[0-9]{6}" style="font-family:monospace;letter-spacing:4px;font-size:15px;">
                   </div>
                 </div>
+                <div class="form-group" style="margin:12px 0 0;">
+                  <label>Mensaje personal (opcional)</label>
+                  <textarea id="ev-staff-custom-briefing" rows="3" placeholder="Ej: María, llega a las 5:45 PM para coordinar las acreditaciones VIP…" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;"></textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Este texto se añade al email de briefing como "Mensaje del productor".</div>
+                </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
                   <button class="btn btn-outline btn-sm" onclick="evCloseAddStaff()">Cancelar</button>
                   <button class="btn btn-primary btn-sm" onclick="evSaveStaff()">Guardar</button>
@@ -9842,19 +9847,44 @@ function evRenderStaff() {
   el.innerHTML = evStaffList.map(s => {
     const color = EV_ROLE_COLORS[s.role] || '#94a3b8';
     const label = EV_ROLE_LABELS[s.role] || s.role;
+    const sentAt = s.briefing_sent_at ? new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="Enviar briefing por email" onclick="evSendBriefing('${s.id}','${escOnclick(s.name||'')}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>Enviar briefing</button>` : '';
+    const sentBadge = s.briefing_sent_at ? `<div style="font-size:11px;color:#86efac;margin-top:4px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-check-circle"/></svg> Briefing enviado el ${sentAt}</div>` : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="width:36px;height:36px;border-radius:50%;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${color};flex-shrink:0;">${(s.name||'?')[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name}</div>
         <div style="font-size:11px;color:${color};font-weight:600;">${label}</div>
         ${s.email ? `<div style="font-size:11px;color:var(--text-muted);">${s.email}</div>` : ''}
+        ${sentBadge}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
         <div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--surface2);padding:4px 10px;border-radius:6px;color:var(--text);" title="PIN de check-in">${s.pin}</div>
+        ${briefingBtn}
         <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;" onclick="evDeleteStaff('${s.id}','${escOnclick(s.name||'')}')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-x"/></svg></button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function evSendBriefing(staffId, staffName, force) {
+  try {
+    const qs = force ? '?force=1' : '';
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${staffId}/send-briefing${qs}`, {
+      method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 && data.error === 'briefing_already_sent') {
+      const prev = data.sent_at ? new Date(data.sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      if (confirm(`Ya se envió el briefing el ${prev}. ¿Reenviar?`)) {
+        return evSendBriefing(staffId, staffName, true);
+      }
+      return;
+    }
+    if (!res.ok) { showStatus(data.error || 'Error al enviar briefing', 'error'); return; }
+    showStatus(`Briefing enviado a ${staffName}`, 'success');
+    await evLoadStaff();
+  } catch(e) { showStatus('Error al enviar briefing', 'error'); }
 }
 
 function evOpenAddStaff() {
@@ -9865,7 +9895,7 @@ function evOpenAddStaff() {
 
 function evCloseAddStaff() {
   document.getElementById('ev-add-staff-form').classList.add('hidden');
-  ['ev-staff-name','ev-staff-email','ev-staff-phone','ev-staff-pin'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['ev-staff-name','ev-staff-email','ev-staff-phone','ev-staff-pin','ev-staff-custom-briefing'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const role = document.getElementById('ev-staff-role'); if(role) role.value = '';
 }
 
@@ -9881,13 +9911,14 @@ async function evSaveStaff() {
   const email = document.getElementById('ev-staff-email')?.value.trim();
   const phone = document.getElementById('ev-staff-phone')?.value.trim();
   const pin = document.getElementById('ev-staff-pin')?.value.trim();
+  const customBriefing = document.getElementById('ev-staff-custom-briefing')?.value.trim();
   if (!name) { showStatus('El nombre es requerido', 'error'); return; }
   if (!role) { showStatus('Selecciona un rol', 'error'); return; }
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, role, email: email||undefined, phone: phone||undefined, pin: pin||undefined })
+      body: JSON.stringify({ name, role, email: email||undefined, phone: phone||undefined, pin: pin||undefined, custom_briefing: customBriefing||undefined })
     });
     const data = await res.json();
     if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }

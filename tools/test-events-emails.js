@@ -62,6 +62,16 @@ const tests = [
   ['sendSupplierPaidEmail',       () => E.sendSupplierPaidEmail(supplier)],
   ['sendInvitationConfirmedEmail',() => E.sendInvitationConfirmedEmail(attendee, event, registration, batch)],
   ['sendInvitationPendingEmail',  () => E.sendInvitationPendingEmail(attendee, event, batch)],
+  ['sendStaffCredentialsEmail',   () => E.sendStaffCredentialsEmail(
+    { id: 'uuid-x', name: 'María Pérez (smoke)', email: TO, role: 'registration', pin: '472918' },
+    event,
+    { name: 'Daniel Soriano', email: TO }
+  )],
+  ['sendStaffBriefingEmail',      () => E.sendStaffBriefingEmail(
+    { id: 'uuid-x', name: 'María Pérez (smoke)', email: TO, role: 'registration', custom_briefing: 'María, por favor llega a las 5:45 PM para que te muestre la ubicación de las acreditaciones VIP. Guarda mi número para WhatsApp.' },
+    event,
+    { name: 'Daniel Soriano', email: TO }
+  )],
 ];
 
 (async () => {
