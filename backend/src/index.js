@@ -8864,12 +8864,56 @@ app.use('/api', licensesAdminRouter);
 app.get('/evento/invitacion/:code', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
 });
-app.get('/evento/:slug', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+app.get('/evento/:slug', async (req, res) => {
+  await renderEventoWithOG(req, res, req.params.slug);
 });
-app.get('/evento/:slug/mi-registro/:qr', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
+app.get('/evento/:slug/mi-registro/:qr', async (req, res) => {
+  await renderEventoWithOG(req, res, req.params.slug);
 });
+
+// Render evento.html con OG tags dinámicos (Open Graph + Twitter cards)
+async function renderEventoWithOG(req, res, slug) {
+  const filePath = path.join(__dirname, '..', 'public', 'evento.html');
+  const escapeHtml = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fallback = {
+    title: 'Registro al evento',
+    description: 'Regístrate al evento',
+    image: `${req.protocol}://${req.get('host')}/logo-sonoro.png`,
+    url: `${req.protocol}://${req.get('host')}${req.originalUrl}`
+  };
+  try {
+    const r = await global.pool.query(
+      `SELECT name, venue_name, venue_address, cover_image_url, starts_at, timezone, config
+       FROM events.events WHERE slug = $1 LIMIT 1`, [slug]);
+    const ev = r.rows[0];
+    let og = { ...fallback };
+    if (ev) {
+      const dateStr = ev.starts_at
+        ? new Date(ev.starts_at).toLocaleDateString('es-CO',
+            { timeZone: ev.timezone || 'America/Bogota', day: 'numeric', month: 'long', year: 'numeric' })
+        : '';
+      const venue = ev.venue_name || '';
+      const descParts = [venue, dateStr].filter(Boolean);
+      og.title = ev.name || fallback.title;
+      og.description = descParts.length ? descParts.join(' · ') : (ev.config?.tagline || 'Regístrate al evento');
+      og.image = ev.cover_image_url || fallback.image;
+      og.url = `${req.protocol}://${req.get('host')}/evento/${slug}`;
+    }
+    const fs = require('fs');
+    const html = fs.readFileSync(filePath, 'utf-8')
+      .replace(/\{\{OG_TITLE\}\}/g, escapeHtml(og.title))
+      .replace(/\{\{OG_DESCRIPTION\}\}/g, escapeHtml(og.description))
+      .replace(/\{\{OG_IMAGE\}\}/g, escapeHtml(og.image))
+      .replace(/\{\{OG_URL\}\}/g, escapeHtml(og.url));
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('evento OG render:', err);
+    res.sendFile(filePath);
+  }
+}
 app.get('/evento/:slug/staff', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-staff.html'));
 });

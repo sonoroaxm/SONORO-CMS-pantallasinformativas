@@ -11,6 +11,7 @@ const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail } = require('../services/email');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
+const XLSX = require('xlsx');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -551,10 +552,86 @@ router.post('/:id/registrations/:regId/resend-email', auth, async (req, res) => 
 
 // ── IMPORTAR CSV ──────────────────────────────────────────────────────────────
 // Columnas requeridas: nombre,email  |  Opcionales: telefono,cedula,empresa,cargo,tipo_ticket
+// ── PLANTILLA XLSX DINÁMICA (híbrida: estándar + custom del evento) ──────────
+router.get('/:id/registrations/template.xlsx', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const r = await pool.query(
+      `SELECT id, name, slug, config FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.id] : [req.params.id, req.user.id]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const ev = r.rows[0];
+    const cfg = ev.config || {};
+    const customFields = Array.isArray(cfg.registration_fields) ? cfg.registration_fields : [];
+
+    // Columnas estándar que el backend reconoce (coinciden con STD_KEYS del import)
+    const stdHeaders = ['nombre','email','telefono','tipo_documento','cedula','empresa','cargo','tipo_ticket'];
+    const stdExample = ['Juan Pérez','juan@ejemplo.com','3001234567','CC','1012345678','Empresa SAS','Gerente','general'];
+
+    // Agregar campos custom del formulario del evento (keys slug-safe)
+    const slugify = (s) => String(s || '').toLowerCase().normalize('NFD')
+      .replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0, 40);
+    const customHeaders = [];
+    const customExample = [];
+    for (const f of customFields) {
+      if (!f || !f.label || stdHeaders.includes(slugify(f.label))) continue;
+      const k = f.key || slugify(f.label);
+      if (!k || stdHeaders.includes(k)) continue;
+      customHeaders.push(k);
+      customExample.push(f.type === 'select' && Array.isArray(f.options) && f.options[0] ? f.options[0] : '');
+    }
+
+    const headers = [...stdHeaders, ...customHeaders];
+    const example = [...stdExample, ...customExample];
+    const emptyRow = headers.map(() => '');
+
+    const wb = XLSX.utils.book_new();
+    const wsAsistentes = XLSX.utils.aoa_to_sheet([headers, example, emptyRow, emptyRow, emptyRow]);
+    wsAsistentes['!cols'] = headers.map(h => ({ wch: Math.max(14, h.length + 2) }));
+    XLSX.utils.book_append_sheet(wb, wsAsistentes, 'Asistentes');
+
+    const instrucciones = [
+      [`Plantilla de importación — ${ev.name}`],
+      [],
+      ['Columnas obligatorias:'],
+      ['  • nombre'],
+      ['  • email (debe ser válido y único por evento)'],
+      [],
+      ['Columnas opcionales estándar:'],
+      ['  • telefono, tipo_documento (CC/CE/PP/TI), cedula, empresa, cargo, tipo_ticket'],
+      [],
+      ['Campos custom del formulario (' + customHeaders.length + '):'],
+      ...(customHeaders.length ? customHeaders.map(k => ['  • ' + k]) : [['  (ninguno configurado en este evento)']]),
+      [],
+      ['Reglas:'],
+      ['  • La fila 2 es un ejemplo — reemplácela o elimínela.'],
+      ['  • Columnas extra no listadas se guardan como custom_fields.'],
+      ['  • Formato aceptado: .xlsx, .xls o .csv (UTF-8).'],
+      ['  • Si un email ya existe para este evento, se omite (no duplica).'],
+      [],
+      [`Evento: ${ev.name}  |  Slug: ${ev.slug}  |  Generado: ${new Date().toISOString().slice(0,10)}`]
+    ];
+    const wsInstr = XLSX.utils.aoa_to_sheet(instrucciones);
+    wsInstr['!cols'] = [{ wch: 70 }];
+    XLSX.utils.book_append_sheet(wb, wsInstr, 'Instrucciones');
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const safeName = (ev.slug || 'evento').replace(/[^a-z0-9-]/gi, '-');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="plantilla-asistentes-${safeName}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('❌ GET /registrations/template.xlsx:', err);
+    res.status(500).json({ error: 'Error generando plantilla' });
+  }
+});
+
 router.post('/:id/registrations/import', auth, upload.single('file'), async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
-  if (!req.file) return res.status(400).json({ error: 'Se requiere archivo CSV (campo: file)' });
+  if (!req.file) return res.status(400).json({ error: 'Se requiere archivo CSV/XLSX (campo: file)' });
 
   const evCheck = await pool.query(
     `SELECT id, user_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -563,7 +640,29 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
   if (!evCheck.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
   const userId = evCheck.rows[0].user_id;
 
-  const rows = parseCSV(req.file.buffer.toString('utf-8'));
+  // Detectar formato por extensión del archivo subido
+  const fname = (req.file.originalname || '').toLowerCase();
+  const isXlsx = fname.endsWith('.xlsx') || fname.endsWith('.xls');
+  let rows;
+  try {
+    if (isXlsx) {
+      const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+      // Preferir hoja "Asistentes", si no existe tomar la primera
+      const sheetName = wb.SheetNames.includes('Asistentes') ? 'Asistentes' : wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+      // Normalizar keys a minúsculas (igual que parseCSV)
+      rows = raw.map(r => {
+        const o = {};
+        for (const k of Object.keys(r)) o[String(k).toLowerCase().trim()] = r[k];
+        return o;
+      });
+    } else {
+      rows = parseCSV(req.file.buffer.toString('utf-8'));
+    }
+  } catch (err) {
+    return res.status(400).json({ error: 'No se pudo parsear el archivo: ' + err.message });
+  }
   let created = 0, skipped = 0;
   const errors = [];
 

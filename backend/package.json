@@ -37,7 +37,8 @@
     "pm2": "^6.0.14",
     "qrcode": "^1.5.4",
     "rrule": "^2.8.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "country-state-city": "^3.2.1",

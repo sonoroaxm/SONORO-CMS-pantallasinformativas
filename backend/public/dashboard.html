@@ -2663,56 +2663,6 @@
                 </div>
               </div>
             </div>
-            <!-- Links del evento -->
-            <div class="card" style="margin-top:16px;background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2);">
-              <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:14px;">Enlaces del evento</div>
-              <div style="display:flex;flex-direction:column;gap:10px;">
-                <!-- Registro público -->
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="12" height="12" fill="#f59e0b"><use href="#ph-users"/></svg>
-                  </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Registro público</div>
-                    <div id="ev-public-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                  </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-public-url')" style="border-color:#f59e0b;color:#f59e0b;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-public-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
-                  </div>
-                </div>
-                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
-                <!-- App Staff -->
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="12" height="12" fill="#60a5fa"><use href="#ph-device-mobile"/></svg>
-                  </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">App Staff (tablet)</div>
-                    <div id="ev-staff-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                  </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-staff-url')" style="border-color:#60a5fa;color:#60a5fa;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-staff-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
-                  </div>
-                </div>
-                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
-                <!-- Kiosko -->
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(0,230,118,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="12" height="12" fill="#00e676"><use href="#ph-monitor"/></svg>
-                  </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Kiosko check-in</div>
-                    <div id="ev-kiosko-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                  </div>
-                  <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <!-- Configuración de correos -->
             <div class="card" style="margin-top:16px;">
@@ -2849,6 +2799,56 @@
 
           <!-- SUB-TAB: Registros -->
           <div id="ev-sub-regs" class="ev-sub-panel hidden">
+            <!-- Links del evento -->
+            <div class="card" style="margin-bottom:16px;background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2);">
+              <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:14px;">Enlaces del evento</div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <!-- Registro público -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" fill="#f59e0b"><use href="#ph-users"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Registro público</div>
+                    <div id="ev-public-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-public-url')" style="border-color:#f59e0b;color:#f59e0b;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-public-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                  </div>
+                </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- App Staff -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(96,165,250,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" fill="#60a5fa"><use href="#ph-device-mobile"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">App Check-in</div>
+                    <div id="ev-staff-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-staff-url')" style="border-color:#60a5fa;color:#60a5fa;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-staff-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                  </div>
+                </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- Kiosko -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(0,230,118,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" fill="#00e676"><use href="#ph-monitor"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Kiosko check-in</div>
+                    <div id="ev-kiosko-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;">Copiar</button>
+                    <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                  </div>
+                </div>
+              </div>
+            </div>
             <!-- Stat cards -->
             <div id="ev-regs-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:12px;"></div>
             <div id="ev-regs-chart" style="margin-bottom:20px;"></div>
@@ -2856,10 +2856,10 @@
             <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
               <input type="text" id="ev-regs-search" placeholder="Buscar por nombre o email..." style="flex:1;min-width:200px;" oninput="evRegsSearchInput()">
               <label class="btn btn-outline btn-sm" style="cursor:pointer;">
-                Importar CSV
-                <input type="file" accept=".csv" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
+                Importar CSV/XLSX
+                <input type="file" accept=".csv,.xlsx,.xls" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
               </label>
-              <a href="/plantilla-asistentes.xlsx" download class="btn btn-outline btn-sm" title="Descargar plantilla Excel con instrucciones (incluye validaciones y guía para exportar a CSV)">Plantilla Excel</a>
+              <button type="button" class="btn btn-outline btn-sm" onclick="evDownloadTemplate()" title="Plantilla XLSX con las columnas del formulario de este evento + instrucciones">Plantilla</button>
               <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()">Exportar CSV</button>
               <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()">Exportar PDF</button>
               <button class="btn btn-outline btn-sm" onclick="evPrintAllLabels()" title="Imprimir etiquetas QR de todos los registros"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg> Imprimir todos</button>
@@ -9564,24 +9564,41 @@ function evRenderRegsPagination(total) {
   pag.innerHTML = html;
 }
 
+async function evDownloadTemplate() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/template.xlsx`,
+      { headers: { 'Authorization': `Bearer ${authToken}` } });
+    if (!r.ok) { showStatus('Error generando plantilla', 'error'); return; }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `plantilla-asistentes-${evCurrentEventId}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { showStatus('Error descargando plantilla', 'error'); }
+}
+
 async function evImportCSV(input) {
   const file = input.files[0];
   if (!file) return;
   const formData = new FormData();
   formData.append('file', file);
   try {
-    showStatus('Importando CSV...', 'info');
+    showStatus('Importando archivo...', 'info');
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/import`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` },
       body: formData
     });
     const data = await res.json();
-    if (data.imported !== undefined) {
-      showStatus(`CSV importado: ${data.imported} nuevos, ${data.skipped || 0} omitidos`, 'success');
+    const created = data.created !== undefined ? data.created : data.imported;
+    if (created !== undefined) {
+      const errs = Array.isArray(data.errors) && data.errors.length ? `, ${data.errors.length} con error` : '';
+      showStatus(`Importado: ${created} nuevos, ${data.skipped || 0} omitidos${errs}`, 'success');
       evLoadRegistrations();
     } else { showStatus(data.error || 'Error en importación', 'error'); }
-  } catch(e) { showStatus('Error importando CSV', 'error'); }
+  } catch(e) { showStatus('Error importando archivo', 'error'); }
   input.value = '';
 }
 
