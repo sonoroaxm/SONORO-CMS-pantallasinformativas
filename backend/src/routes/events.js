@@ -228,6 +228,124 @@ router.post('/suppliers/:supId/documents/:docType', auth, async (req, res) => {
   }
 });
 
+// ── CATÁLOGO TENANT DE STAFF (S208n — reciclable entre eventos) ──────────────
+// Rutas aditivas que deben estar ANTES de /:id para no ser capturadas
+
+router.get('/staff-catalog', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.*,
+              COUNT(DISTINCT es.event_id)::int AS event_count,
+              (SELECT e2.name
+               FROM events.event_staff es2
+               JOIN events.events e2 ON e2.id = es2.event_id
+               WHERE es2.catalog_id = c.id
+               ORDER BY e2.starts_at DESC NULLS LAST
+               LIMIT 1) AS last_event_name
+       FROM events.staff_catalog c
+       LEFT JOIN events.event_staff es ON es.catalog_id = c.id
+       WHERE c.user_id = $1
+       GROUP BY c.id
+       ORDER BY c.name`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /staff-catalog:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.post('/staff-catalog', auth, async (req, res) => {
+  const pool = global.pool;
+  const { name, email, phone, default_role, notes } = req.body;
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'name requerido' });
+  const validRoles = ['coordinator','registration','tech','host','security','catering','artistic_entertainment','other'];
+  if (default_role && !validRoles.includes(default_role)) {
+    return res.status(400).json({ error: 'default_role inválido' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO events.staff_catalog (user_id, name, email, phone, default_role, notes)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.user.id, String(name).trim(), email || null, phone || null, default_role || null, notes || null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Ya existe staff con ese email' });
+    console.error('❌ POST /staff-catalog:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.patch('/staff-catalog/:catId', auth, async (req, res) => {
+  const pool = global.pool;
+  const fields = ['name','email','phone','default_role','notes'];
+  const sets = [], params = [];
+  for (const f of fields) {
+    if (req.body[f] !== undefined) {
+      params.push(req.body[f] === '' ? null : req.body[f]);
+      sets.push(`${f} = $${params.length}`);
+    }
+  }
+  if (!sets.length) return res.status(400).json({ error: 'Nada que actualizar' });
+  sets.push(`updated_at = NOW()`);
+  params.push(req.params.catId, req.user.id);
+  try {
+    const { rows } = await pool.query(
+      `UPDATE events.staff_catalog SET ${sets.join(', ')}
+       WHERE id = $${params.length - 1} AND user_id = $${params.length} RETURNING *`,
+      params
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Staff no encontrado' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Ya existe staff con ese email' });
+    console.error('❌ PATCH /staff-catalog:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/staff-catalog/:catId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM events.staff_catalog WHERE id = $1 AND user_id = $2',
+      [req.params.catId, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Staff no encontrado' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ DELETE /staff-catalog:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── INVITACIONES TENANT (S208n — vista agregada cross-events) ────────────────
+router.get('/invitation-batches', auth, async (req, res) => {
+  const pool = global.pool;
+  const { event_id } = req.query;
+  try {
+    const params = [req.user.id];
+    let where = `e.user_id = $1`;
+    if (event_id) { params.push(event_id); where += ` AND b.event_id = $${params.length}`; }
+    const { rows } = await pool.query(
+      `SELECT b.*,
+              e.id AS event_id, e.name AS event_name, e.slug AS event_slug, e.starts_at AS event_starts_at
+         FROM events.registration_invitation_batches b
+         JOIN events.events e ON e.id = b.event_id
+        WHERE ${where}
+        ORDER BY b.created_at DESC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /invitation-batches (tenant):', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 // ── OBTENER EVENTO ────────────────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
   const pool = global.pool;
@@ -758,7 +876,24 @@ const VALID_STAFF_ROLES = ['coordinator','registration','tech','host','security'
 
 router.post('/:id/staff', auth, async (req, res) => {
   const pool = global.pool;
-  const { name, email, phone, role, pin, custom_briefing } = req.body;
+  let { name, email, phone, role, pin, custom_briefing, catalog_id } = req.body;
+  // S208n — si viene catalog_id, prellenar desde el catálogo tenant (sin pisar lo enviado)
+  if (catalog_id) {
+    try {
+      const cat = await pool.query(
+        `SELECT name, email, phone, default_role FROM events.staff_catalog
+         WHERE id = $1 AND user_id = $2`, [catalog_id, req.user.id]
+      );
+      if (!cat.rowCount) return res.status(404).json({ error: 'Staff del catálogo no encontrado' });
+      name  = name  || cat.rows[0].name;
+      email = email || cat.rows[0].email;
+      phone = phone || cat.rows[0].phone;
+      role  = role  || cat.rows[0].default_role;
+    } catch (err) {
+      console.error('❌ staff catalog prefill:', err);
+      return res.status(500).json({ error: 'Error leyendo catálogo' });
+    }
+  }
   if (!name || !role) return res.status(400).json({ error: 'name y role son requeridos' });
   if (!VALID_STAFF_ROLES.includes(role)) return res.status(400).json({ error: 'rol inválido' });
   const staffPin = pin ? String(pin).replace(/\D/g, '').slice(0, 6).padStart(6, '0')
@@ -767,10 +902,10 @@ router.post('/:id/staff', auth, async (req, res) => {
     const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const { rows } = await pool.query(
-      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin, custom_briefing)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, created_at`,
-      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin, (custom_briefing||null)]
+      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin, custom_briefing, catalog_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, catalog_id, created_at`,
+      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin, (custom_briefing||null), catalog_id || null]
     );
 
     // Fire-and-forget: credenciales por email si tiene email (S208j)

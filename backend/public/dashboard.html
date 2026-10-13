@@ -1707,6 +1707,7 @@
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="events">Mis Eventos</button>
             <button class="tab-btn" data-tab="ev-proveedores">Proveedores</button>
+            <button class="tab-btn" data-tab="ev-staff">Staff</button>
           </div>
         </div>
       </div>
@@ -2580,7 +2581,6 @@
             <button class="ev-sub-tab" data-evtab="form" onclick="evSwitchSubTab('form')">Formulario</button>
             <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
             <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
-            <button class="ev-sub-tab" data-evtab="invitations" onclick="evSwitchSubTab('invitations')">Invitaciones</button>
             <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
             <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Producción</button>
           </div>
@@ -3107,22 +3107,8 @@
 
           </div><!-- /ev-sub-suppliers -->
 
-          <!-- SUB-TAB: Invitaciones (batches de talento / cortesías) -->
-          <div id="ev-sub-invitations" class="ev-sub-panel hidden">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-              <div>
-                <h3 style="margin:0 0 4px;">Batches de invitaciones</h3>
-                <p style="margin:0;color:var(--muted);font-size:13px;">Cupos reservados para talento, cortesías o invitados especiales. No descuentan de la capacidad pública del evento.</p>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="invOpenModal()">+ Nuevo batch</button>
-            </div>
-            <div id="inv-batches-list" style="display:flex;flex-direction:column;gap:12px;"></div>
-            <div id="inv-batches-empty" class="hidden" style="padding:40px;text-align:center;color:var(--muted);background:var(--bg-alt);border-radius:10px;">
-              Aún no hay batches de invitaciones. Crea uno para compartir un link con cupos a un proveedor de talento o un grupo de invitados.
-            </div>
-          </div>
-
-          <!-- Modal: nueva / editar invitación (v2 — individual / grupo) -->
+          <!-- S208n: panel sub-tab eliminado; modales relocalizados fuera de ev-detail-view (ver después de ev-proveedores-tab) -->
+          <!-- INV-MODALS-RELOCATED-S208N -->
           <div id="inv-modal" class="modal" onclick="if(event.target.id==='inv-modal') invCloseModal()">
             <div class="modal-content" style="max-width:560px;">
               <div class="modal-header">
@@ -3130,6 +3116,13 @@
                 <button class="modal-close" onclick="invCloseModal()">&times;</button>
               </div>
               <div class="modal-body inv-form" style="display:grid;gap:18px;">
+
+                <!-- 0. EVENTO (modo tenant) -->
+                <div class="form-group" id="inv-f-event-wrap" style="margin:0;display:none;">
+                  <label>Evento <span style="color:#c33;">*</span></label>
+                  <select id="inv-f-event-tenant"></select>
+                  <small style="color:var(--muted);">La invitación se asocia a este evento.</small>
+                </div>
 
                 <!-- 1. TIPO -->
                 <div class="form-group" style="margin:0;">
@@ -3440,6 +3433,96 @@
           <div id="ev-gsup-list" style="display:flex;flex-direction:column;gap:0;"></div>
       </div><!-- /ev-proveedores-tab -->
 
+      <!-- STAFF TAB (tenant · S208n) -->
+      <div id="ev-staff-tab" class="container hidden">
+        <div class="section-header" style="margin-bottom:16px;">
+          <div class="section-title">Staff</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-grad" onclick="evOpenStaffCatForm(null)">+ Nuevo</button>
+          </div>
+        </div>
+
+        <!-- Sub-tabs internos Catálogo / Invitaciones -->
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;" id="ev-stf-subtabs">
+          <button class="ev-stf-subtab active" data-stab="catalog" onclick="evSwitchStaffSubtab('catalog')" style="padding:10px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Catálogo</button>
+          <button class="ev-stf-subtab" data-stab="invitations" onclick="evSwitchStaffSubtab('invitations')" style="padding:10px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;">Invitaciones</button>
+        </div>
+
+        <!-- Panel: Catálogo -->
+        <div id="ev-stf-panel-catalog">
+          <input type="text" id="ev-stf-search" placeholder="Buscar por nombre, email o rol..."
+            style="margin-bottom:16px;width:100%;max-width:380px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"
+            oninput="evFilterStaffCat()">
+          <!-- Formulario inline -->
+          <div id="ev-stf-form" style="display:none;background:var(--surface2);border-radius:8px;padding:16px;margin-bottom:20px;border:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:700;margin-bottom:12px;" id="ev-stf-form-title">Nuevo staff</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre *</label>
+                <input id="ev-stf-name" type="text" placeholder="Nombre completo"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Rol por defecto</label>
+                <select id="ev-stf-role" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                  <option value="">(sin rol)</option>
+                  <option value="coordinator">Coordinador</option>
+                  <option value="registration">Registro</option>
+                  <option value="tech">Técnico</option>
+                  <option value="host">Host/Anfitrión</option>
+                  <option value="security">Seguridad</option>
+                  <option value="catering">Catering</option>
+                  <option value="artistic_entertainment">Talento artístico</option>
+                  <option value="other">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
+                <input id="ev-stf-email" type="email" placeholder="staff@ejemplo.com"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Teléfono</label>
+                <input id="ev-stf-phone" type="text" placeholder="+57 300 0000000"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+              </div>
+              <div style="grid-column:1/-1;">
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Notas (opcional)</label>
+                <textarea id="ev-stf-notes" rows="2" placeholder="Agencia, referidos, disponibilidad, tarifa habitual..."
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+              <button class="btn btn-outline btn-sm" onclick="evCloseStaffCatForm()">Cancelar</button>
+              <button class="btn btn-primary btn-sm" onclick="evSaveStaffCat()">Guardar</button>
+            </div>
+          </div>
+          <!-- Lista -->
+          <div id="ev-stf-list" style="display:flex;flex-direction:column;gap:0;"></div>
+        </div>
+
+        <!-- Panel: Invitaciones (vista tenant cross-events) -->
+        <div id="ev-stf-panel-invitations" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0 0 4px;">Invitaciones a talento y staff</h3>
+              <p style="margin:0;color:var(--muted);font-size:13px;">Cupos reservados por evento. No descuentan de la capacidad pública.</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="ev-stf-inv-event-filter" onchange="evLoadTenantInvitations()"
+                style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                <option value="">Todos los eventos</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="invOpenModalTenant()">+ Nueva invitación</button>
+            </div>
+          </div>
+          <div id="ev-stf-inv-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+          <div id="ev-stf-inv-empty" class="hidden" style="padding:40px;text-align:center;color:var(--muted);background:var(--bg-alt);border-radius:10px;">
+            Aún no hay invitaciones. Crea una para compartir un link con cupos reservados a talento o invitados especiales.
+          </div>
+        </div>
+      </div><!-- /ev-staff-tab -->
+
     </div><!-- /main -->
   </div><!-- /layout -->
 
@@ -3691,6 +3774,12 @@ function _smartTvReturnTo() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // S208n — reparentar modales de invitaciones a <body> para que funcionen
+  // desde el tab tenant Staff (ancestro ev-detail-view se oculta con .hidden)
+  ['inv-modal','inv-detail-modal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.parentElement !== document.body) document.body.appendChild(el);
+  });
   // Restaurar tema guardado
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-mode');
@@ -3915,6 +4004,7 @@ function setupTabs() {
       if (tabName === 'appointments') loadAppointmentsTab();
       if (tabName === 'events') loadEventsTab();
       if (tabName === 'ev-proveedores') { evGlobalSupLoaded = false; evLoadGlobalSuppliers(); }
+      if (tabName === 'ev-staff') { evLoadStaffCatalog(); evLoadTenantInvitations(); }
       if (tabName === 'licencias') loadLicencias();
       if (tabName === 'micuenta') loadMiCuenta();
       if (tabName === 'multiplaylist') tplLoadList();
@@ -8338,6 +8428,258 @@ async function evGlobalDeleteSupplier(supId, supName) {
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// S208n — STAFF CATALOG (tenant-level, reciclable) + INVITACIONES TENANT
+// ═══════════════════════════════════════════════════════════════════════════
+let evStaffCatList = [];
+let evStaffCatEditingId = null;
+let evTenantEventsCache = [];
+
+function evSwitchStaffSubtab(stab) {
+  document.querySelectorAll('.ev-stf-subtab').forEach(b => {
+    const active = b.dataset.stab === stab;
+    b.classList.toggle('active', active);
+    b.style.color = active ? 'var(--text)' : 'var(--text-muted)';
+    b.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+  });
+  document.getElementById('ev-stf-panel-catalog').style.display      = stab === 'catalog'     ? '' : 'none';
+  document.getElementById('ev-stf-panel-invitations').style.display  = stab === 'invitations' ? '' : 'none';
+  if (stab === 'invitations') evLoadTenantInvitations();
+}
+
+async function evLoadStaffCatalog() {
+  const el = document.getElementById('ev-stf-list');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events/staff-catalog`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    evStaffCatList = res.ok ? await res.json() : [];
+    evRenderStaffCat();
+  } catch(e) {
+    el.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:16px 0;">Error cargando catálogo.</div>';
+  }
+}
+
+function evFilterStaffCat() {
+  evRenderStaffCat((document.getElementById('ev-stf-search')?.value || '').trim().toLowerCase());
+}
+
+const ROLE_LABELS = {
+  coordinator:'Coordinador', registration:'Registro', tech:'Técnico', host:'Anfitrión',
+  security:'Seguridad', catering:'Catering', artistic_entertainment:'Artístico', other:'Otro'
+};
+
+function evRenderStaffCat(filter) {
+  filter = filter || '';
+  const el = document.getElementById('ev-stf-list');
+  if (!el) return;
+  const list = filter
+    ? evStaffCatList.filter(s => (s.name||'').toLowerCase().includes(filter) || (s.email||'').toLowerCase().includes(filter) || (s.default_role||'').toLowerCase().includes(filter))
+    : evStaffCatList;
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">${filter ? 'Sin resultados.' : 'No hay staff todavía. Crea el primero con + Nuevo Staff.'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const roleLbl = s.default_role ? (ROLE_LABELS[s.default_role] || s.default_role) : '';
+    const evInfo = s.last_event_name
+      ? `<span style="font-size:11px;color:var(--text-muted);">↳ ${invEscape(s.last_event_name)}${s.event_count > 1 ? ` +${s.event_count - 1} más` : ''}</span>`
+      : `<span style="font-size:11px;color:var(--text-muted);">Sin eventos</span>`;
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:var(--accent);flex-shrink:0;">${(s.name||'?').charAt(0).toUpperCase()}</div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:13px;font-weight:700;">${invEscape(s.name)}${roleLbl ? ` <span style="font-size:11px;font-weight:400;color:var(--text-muted);">· ${roleLbl}</span>` : ''}</div>
+        ${s.email || s.phone ? `<div style="font-size:11px;color:var(--text-muted);">${invEscape(s.email||'')}${s.phone ? ` · ${invEscape(s.phone)}` : ''}</div>` : ''}
+        ${evInfo}
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="evOpenStaffCatForm('${s.id}')">Editar</button>
+        <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,.4);color:#ef4444;" onclick="evDeleteStaffCat('${s.id}','${escOnclick(s.name||'')}')">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function evOpenStaffCatForm(id) {
+  evStaffCatEditingId = id || null;
+  document.getElementById('ev-stf-form-title').textContent = id ? 'Editar staff' : 'Nuevo staff';
+  ['ev-stf-name','ev-stf-email','ev-stf-phone','ev-stf-notes'].forEach(f => { const el = document.getElementById(f); if (el) el.value = ''; });
+  const roleEl = document.getElementById('ev-stf-role'); if (roleEl) roleEl.value = '';
+  if (id) {
+    const s = evStaffCatList.find(x => String(x.id) === String(id));
+    if (s) {
+      document.getElementById('ev-stf-name').value  = s.name || '';
+      document.getElementById('ev-stf-email').value = s.email || '';
+      document.getElementById('ev-stf-phone').value = s.phone || '';
+      document.getElementById('ev-stf-notes').value = s.notes || '';
+      if (roleEl) roleEl.value = s.default_role || '';
+    }
+  }
+  const form = document.getElementById('ev-stf-form');
+  form.style.display = '';
+  form.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  document.getElementById('ev-stf-name').focus();
+}
+function evCloseStaffCatForm() {
+  document.getElementById('ev-stf-form').style.display = 'none';
+  evStaffCatEditingId = null;
+}
+
+async function evSaveStaffCat() {
+  const name = document.getElementById('ev-stf-name').value.trim();
+  if (!name) { showStatus('Nombre requerido','error'); return; }
+  const body = {
+    name,
+    email:        document.getElementById('ev-stf-email').value.trim() || null,
+    phone:        document.getElementById('ev-stf-phone').value.trim() || null,
+    default_role: document.getElementById('ev-stf-role').value || null,
+    notes:        document.getElementById('ev-stf-notes').value.trim() || null,
+  };
+  try {
+    const url    = evStaffCatEditingId ? `${API_URL}/api/events/staff-catalog/${evStaffCatEditingId}` : `${API_URL}/api/events/staff-catalog`;
+    const method = evStaffCatEditingId ? 'PATCH' : 'POST';
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error al guardar','error'); return; }
+    evCloseStaffCatForm();
+    await evLoadStaffCatalog();
+    showStatus(evStaffCatEditingId ? 'Staff actualizado' : 'Staff creado','success');
+  } catch(e) { showStatus('Error al guardar','error'); }
+}
+
+async function evDeleteStaffCat(id, name) {
+  if (!confirm(`¿Eliminar a "${name}" del catálogo? Las asignaciones a eventos pasados se conservan.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/staff-catalog/${id}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); showStatus(d.error || 'Error','error'); return; }
+    evStaffCatList = evStaffCatList.filter(s => String(s.id) !== String(id));
+    evRenderStaffCat();
+    showStatus('Staff eliminado','success');
+  } catch(e) { showStatus('Error al eliminar','error'); }
+}
+
+// ── INVITACIONES TENANT ─────────────────────────────────────────
+async function evLoadTenantEventsCache() {
+  if (evTenantEventsCache.length) return evTenantEventsCache;
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    evTenantEventsCache = res.ok ? await res.json() : [];
+  } catch(e) { evTenantEventsCache = []; }
+  return evTenantEventsCache;
+}
+
+async function evLoadTenantInvitations() {
+  const list = document.getElementById('ev-stf-inv-list');
+  const empty = document.getElementById('ev-stf-inv-empty');
+  if (!list) return;
+
+  // Poblar filtro de eventos (una sola vez)
+  const filterEl = document.getElementById('ev-stf-inv-event-filter');
+  if (filterEl && filterEl.options.length <= 1) {
+    const events = await evLoadTenantEventsCache();
+    events.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id; opt.textContent = e.name;
+      filterEl.appendChild(opt);
+    });
+  }
+
+  const eventFilter = filterEl?.value || '';
+  const url = eventFilter
+    ? `${API_URL}/api/events/invitation-batches?event_id=${encodeURIComponent(eventFilter)}`
+    : `${API_URL}/api/events/invitation-batches`;
+  list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0;">Cargando...</div>';
+  try {
+    const res = await fetch(url, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    invBatches = res.ok ? await res.json() : [];
+    if (!invBatches.length) {
+      list.innerHTML = '';
+      if (empty) {
+        empty.classList.remove('hidden');
+        empty.textContent = eventFilter ? 'Sin invitaciones para este evento.' : 'No hay invitaciones todavía. Crea la primera con + Nueva invitación.';
+      }
+      return;
+    }
+    if (empty) empty.classList.add('hidden');
+    list.innerHTML = invBatches.map(b => {
+      const revoked = !!b.revoked_at;
+      const expired = b.expires_at && new Date(b.expires_at) < new Date();
+      const status  = revoked ? 'Revocado' : expired ? 'Expirado' : 'Activo';
+      const statusPill = revoked
+        ? 'background:rgba(150,150,150,.15);border:1px solid rgba(150,150,150,.35);color:#aaa;'
+        : expired
+          ? 'background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b;'
+          : 'background:rgba(0,230,118,.12);border:1px solid rgba(0,230,118,.35);color:#00e676;';
+      const claimUrl = `${window.location.origin}/evento/invitacion/${b.claim_code}`;
+      const pending  = parseInt(b.pending_count || 0);
+      const kind = b.kind || 'individual';
+      const kindLabel = kind === 'group' ? `Grupo · ${b.quota}` : 'Individual';
+      const pfLine = b.prefill?.name ? `<div style="font-size:11px;color:var(--text-muted);">${invEscape(b.prefill.name)}${b.prefill.email ? ' · ' + invEscape(b.prefill.email) : ''}</div>` : '';
+      const evName = b.event_name ? `<div style="font-size:11px;color:var(--accent);font-weight:600;">${invEscape(b.event_name)}</div>` : '';
+      const disabledBtn = (revoked || expired) ? 'opacity:.5;pointer-events:none;' : '';
+      const pendingBtn = pending > 0 ? `<button class="btn btn-sm" onclick="invApprovePending('${b.id}')" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b;">Aprobar ${pending}</button>` : '';
+      return `<div class="card" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;">
+            ${evName}
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;">
+              <strong style="font-size:14px;">${invEscape(b.label)}</strong>
+              <span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;background:rgba(0,176,255,.12);border:1px solid rgba(0,176,255,.35);color:#5cc6ff;">${kindLabel}</span>
+              <span style="padding:2px 8px;border-radius:20px;${statusPill}font-size:10px;font-weight:600;text-transform:uppercase;">${status}</span>
+            </div>
+            <div style="margin-top:4px;font-size:12px;color:var(--text-muted);">Cupo: ${b.claimed_count}/${b.quota}${pending>0?` · ${pending} pendientes`:''}</div>
+            ${pfLine}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-outline btn-sm" onclick="invCopyLink('${b.claim_code}')" style="${disabledBtn}">Copiar link</button>
+            <button class="btn btn-outline btn-sm" onclick="invOpenDetail('${b.id}')">Ver</button>
+            ${pendingBtn}
+            ${revoked ? '' : `<button class="btn btn-danger btn-sm" onclick="invRevoke('${b.id}')">Revocar</button>`}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:16px 0;">Error cargando invitaciones.</div>';
+  }
+}
+
+async function invOpenModalTenant() {
+  // Preparar modal en modo tenant (selector de evento visible)
+  invEditingId = null;
+  const events = await evLoadTenantEventsCache();
+  const sel = document.getElementById('inv-f-event-tenant');
+  const presetEvent = document.getElementById('ev-stf-inv-event-filter')?.value || '';
+  sel.innerHTML = '<option value="">— Selecciona evento —</option>' +
+    events.map(e => `<option value="${e.id}" ${String(e.id)===String(presetEvent)?'selected':''}>${invEscape(e.name)}</option>`).join('');
+  document.getElementById('inv-f-event-wrap').style.display = '';
+  sel.onchange = () => { invCurrentEventId = sel.value || null; };
+  invCurrentEventId = presetEvent || null;
+
+  // Resetear campos
+  document.getElementById('inv-modal-title').textContent = 'Nueva invitación';
+  document.getElementById('inv-save-btn').textContent = 'Crear y obtener link';
+  document.getElementById('inv-f-pf-name').value = '';
+  document.getElementById('inv-f-pf-email').value = '';
+  document.getElementById('inv-f-pf-phone').value = '';
+  document.getElementById('inv-f-quota').value = 5;
+  document.getElementById('inv-f-expires').value = '';
+  document.querySelectorAll('input[name="inv-f-scope"]').forEach(r => r.checked = (r.value === 'event_wide'));
+  // En modo tenant: forzar event_wide (sin picker de sesiones; evCurrentEvent no está cargado)
+  document.getElementById('inv-f-sessions-list').innerHTML = '<div style="font-size:12px;color:var(--muted);">El picker de sesiones específicas solo está disponible dentro del evento. Esta invitación cubrirá todo el evento.</div>';
+  invOnScopeChange();
+  invSetKind('individual', true);
+  document.querySelectorAll('#inv-f-kind-group .inv-kind-card').forEach(c => {
+    c.style.pointerEvents = ''; c.style.opacity = '1';
+  });
+  document.getElementById('inv-modal').classList.add('active');
+}
+
 // ── LISTA ──────────────────────────────────────────────────────
 async function evLoadList() {
   const grid = document.getElementById('ev-list-grid');
@@ -8436,6 +8778,15 @@ function evSwitchSubTab(tab) {
 // ═══════════════════════════════════════════════════════════════════════════
 let invBatches = [];
 let invEditingId = null;
+let invCurrentEventId = null; // S208n: event_id activo para operaciones (tenant o legacy)
+
+function invResolveEventId(batchId) {
+  if (batchId) {
+    const b = invBatches.find(x => String(x.id) === String(batchId));
+    if (b && b.event_id) return b.event_id;
+  }
+  return invCurrentEventId || evCurrentEventId;
+}
 
 function invEscape(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -8529,6 +8880,10 @@ function invRenderList() {
 
 function invOpenModal(batch) {
   invEditingId = batch ? batch.id : null;
+  // S208n: en edición, bloquear/ocultar selector de evento (el evento del batch es fijo)
+  const evWrap = document.getElementById('inv-f-event-wrap');
+  if (evWrap) evWrap.style.display = 'none';
+  if (batch?.event_id) invCurrentEventId = batch.event_id;
   const kind = batch?.kind || 'individual';
   document.getElementById('inv-modal-title').textContent = batch
     ? 'Editar invitación'
@@ -8653,10 +9008,12 @@ async function invSaveBatch() {
   };
   if (body.expires_at) body.expires_at = new Date(body.expires_at).toISOString();
 
+  const eid = invResolveEventId(invEditingId);
+  if (!eid) { alert('Selecciona un evento'); return; }
   try {
     const url    = invEditingId
-      ? `${API_URL}/api/events/${evCurrentEventId}/invitation-batches/${invEditingId}`
-      : `${API_URL}/api/events/${evCurrentEventId}/invitation-batches`;
+      ? `${API_URL}/api/events/${eid}/invitation-batches/${invEditingId}`
+      : `${API_URL}/api/events/${eid}/invitation-batches`;
     const method = invEditingId ? 'PATCH' : 'POST';
     const res = await fetch(url, {
       method,
@@ -8685,7 +9042,8 @@ function invCopyLink(claimCode) {
 async function invRevoke(id) {
   if (!confirm('¿Revocar este batch? El link dejará de funcionar para nuevos claims. Los registros ya creados se conservan.')) return;
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/invitation-batches/${id}/revoke`, {
+    const eid = invResolveEventId(id); if (!eid) return;
+    const res = await fetch(`${API_URL}/api/events/${eid}/invitation-batches/${id}/revoke`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -8698,7 +9056,8 @@ async function invRevoke(id) {
 async function invApprovePending(id) {
   if (!confirm('¿Aprobar todos los registros pendientes de este batch? Se enviará el email con QR a cada persona.')) return;
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/invitation-batches/${id}/approve-pending`, {
+    const eid = invResolveEventId(id); if (!eid) return;
+    const res = await fetch(`${API_URL}/api/events/${eid}/invitation-batches/${id}/approve-pending`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -8711,7 +9070,8 @@ async function invApprovePending(id) {
 
 async function invOpenDetail(id) {
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/invitation-batches/${id}`, {
+    const eid = invResolveEventId(id); if (!eid) { alert('Evento no encontrado'); return; }
+    const res = await fetch(`${API_URL}/api/events/${eid}/invitation-batches/${id}`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     if (!res.ok) { alert('Error cargando registros'); return; }
@@ -8755,7 +9115,8 @@ function invCloseDetail() {
 
 async function invApproveOne(regId, batchId) {
   try {
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/approve`, {
+    const eid = invResolveEventId(batchId); if (!eid) return;
+    const res = await fetch(`${API_URL}/api/events/${eid}/registrations/${regId}/approve`, {
       method: 'PATCH',
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
