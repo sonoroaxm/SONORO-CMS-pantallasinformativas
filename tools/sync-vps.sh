@@ -57,6 +57,7 @@ TRACKED=(
   "backend/src/routes/events-staff.js"
   "backend/src/routes/events-calendar.js"
   "backend/src/routes/admin.js"
+  "backend/src/middleware/requireEventsAccess.js"
   "backend/src/queues/videoConversionQueue.js"
 )
 

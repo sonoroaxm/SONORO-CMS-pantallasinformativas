@@ -8849,11 +8849,15 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // R1.5 §1 — GET /agendar/:slug  →  booking.html
 // ─────────────────────────────────────────────────────────────
 // ── Events v1 — Routers (E0) ────────────────────────────────────────────
+// S210-exec #3: gate dual (features.events_v1 + events.licenses activa).
+// Aplica a endpoints autenticados (organizador + calendar). Público/staff
+// usan tokens propios (slug, PIN, production token) → no se gatean.
+const requireEventsAccess = require('./middleware/requireEventsAccess')(pool);
 app.use('/api/events/public', eventsProductionPublicRouter);
 app.use('/api/events/public', eventsPublicRouter);
 app.use('/api/events/staff',  eventsStaffRouter);
-app.use('/api/events/calendar', eventsCalendarRouter);
-app.use('/api/events',        eventsRouter);
+app.use('/api/events/calendar', requireEventsAccess, eventsCalendarRouter);
+app.use('/api/events',          requireEventsAccess, eventsRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
 app.use('/api', licensesRouter);
