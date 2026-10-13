@@ -2936,6 +2936,22 @@
               <!-- Tabla staff -->
               <div id="ev-staff-list" style="display:flex;flex-direction:column;gap:0;"></div>
             </div>
+
+            <!-- CATÁLOGO DE STAFF (tenant, reciclable) -->
+            <div class="card" style="margin-top:16px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <h3 style="margin:0;font-size:15px;">Catálogo de staff</h3>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Reciclable entre eventos. Agrega aquí para no volver a escribir los datos.</div>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="text" id="ev-stf-pool-search" placeholder="Buscar..." oninput="evRenderStaffPool()"
+                    style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;max-width:200px;">
+                  <button class="btn btn-outline btn-sm" onclick="switchTab('ev-staff')">Gestionar catálogo →</button>
+                </div>
+              </div>
+              <div id="ev-stf-pool-list" style="display:flex;flex-direction:column;gap:0;"></div>
+            </div>
           </div>
 
           <!-- SUB-TAB: Proveedores -->
@@ -8563,6 +8579,61 @@ async function evDeleteStaffCat(id, name) {
   } catch(e) { showStatus('Error al eliminar','error'); }
 }
 
+// ── POOL DEL CATÁLOGO EN SUB-TAB STAFF DEL EVENTO ───────────────
+async function evLoadStaffPool() {
+  const el = document.getElementById('ev-stf-pool-list');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events/staff-catalog`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    evStaffCatList = res.ok ? await res.json() : [];
+    evRenderStaffPool();
+  } catch(e) {
+    el.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:12px 0;">Error cargando catálogo.</div>';
+  }
+}
+
+function evRenderStaffPool() {
+  const el = document.getElementById('ev-stf-pool-list');
+  if (!el) return;
+  const q = (document.getElementById('ev-stf-pool-search')?.value || '').trim().toLowerCase();
+  const list = q
+    ? evStaffCatList.filter(s => (s.name||'').toLowerCase().includes(q) || (s.email||'').toLowerCase().includes(q) || (s.default_role||'').toLowerCase().includes(q))
+    : evStaffCatList;
+  if (!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${q ? 'Sin resultados.' : 'Catálogo vacío. Crea staff reciclable en la pestaña Staff del sidebar.'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const roleLbl = s.default_role ? (ROLE_LABELS[s.default_role] || s.default_role) : '';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--accent);flex-shrink:0;">${(s.name||'?').charAt(0).toUpperCase()}</div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:13px;font-weight:700;">${invEscape(s.name)}${roleLbl ? ` <span style="font-size:11px;font-weight:400;color:var(--text-muted);">· ${roleLbl}</span>` : ''}</div>
+        ${s.email || s.phone ? `<div style="font-size:11px;color:var(--text-muted);">${invEscape(s.email||'')}${s.phone ? ` · ${invEscape(s.phone)}` : ''}</div>` : ''}
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="evAddStaffFromCatalog('${s.id}','${escOnclick(s.name||'')}')">+ Agregar al evento</button>
+    </div>`;
+  }).join('');
+}
+
+async function evAddStaffFromCatalog(catalogId, name) {
+  if (!evCurrentEventId) { showStatus('Abre un evento primero','error'); return; }
+  if (!confirm(`¿Agregar a "${name}" como staff de este evento? Se enviará automáticamente el email con PIN.`)) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ catalog_id: catalogId })
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error','error'); return; }
+    showStatus(`"${name}" agregado al evento`,'success');
+    evLoadStaff();
+    evLoadStaffPool();
+  } catch(e) { showStatus('Error al agregar','error'); }
+}
+
 // ── INVITACIONES TENANT ─────────────────────────────────────────
 async function evLoadTenantEventsCache() {
   if (evTenantEventsCache.length) return evTenantEventsCache;
@@ -8764,7 +8835,7 @@ function evSwitchSubTab(tab) {
   if (tab === 'info') evLoadSessions(evCurrentEventId);
   if (tab === 'form') { evRenderActive(); evRenderCatalog(); }
   if (tab === 'regs') { evRegsPage = 1; evLoadRegistrations(); }
-  if (tab === 'staff') evLoadStaff();
+  if (tab === 'staff') { evLoadStaff(); evLoadStaffPool(); }
   if (tab === 'invitations') {
     if (!Array.isArray(evSessionsList) || !evSessionsList.length) evLoadSessions(evCurrentEventId);
     invLoadBatches();
