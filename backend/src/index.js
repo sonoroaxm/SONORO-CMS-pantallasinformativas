@@ -10721,6 +10721,14 @@ setInterval(async () => {
   }
 }, 6 * 60 * 60 * 1000);
 
+// S210-exec #6 + #7 — Cron Events licenses (reset mensual + grace/readonly/archive/wipe)
+try {
+  const eventsLicenseCron = require('./jobs/eventsLicenseCron');
+  eventsLicenseCron.start(pool);
+  console.log('✅ cron.events_license iniciado (tick cada 1h)');
+} catch (e) {
+  console.error('❌ cron.events_license init:', e.message);
+}
 
 
 // ══════════════════════════════════════════════════════════════

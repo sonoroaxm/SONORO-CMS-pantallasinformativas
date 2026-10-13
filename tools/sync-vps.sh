@@ -59,6 +59,7 @@ TRACKED=(
   "backend/src/routes/admin.js"
   "backend/src/middleware/requireEventsAccess.js"
   "backend/src/queues/videoConversionQueue.js"
+  "backend/src/jobs/eventsLicenseCron.js"
 )
 
 # ── Colores ───────────────────────────────────────────────────────────────────
