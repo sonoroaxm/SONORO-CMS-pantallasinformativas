@@ -611,6 +611,11 @@ app.get('/dashboard.html', (req, res) => {
 app.post('/api/auth/register', registerLimiter, async (req, res) => {
   try {
     const { email, password, name } = req.body;
+    // S210-exec #4: product routing (signage default = retrocompat; events = trial Events v1)
+    const product = (req.body.product || 'signage').toString().toLowerCase().trim();
+    if (!['signage', 'events'].includes(product)) {
+      return res.status(400).json({ error: 'product debe ser signage o events', code: 'INVALID_PRODUCT' });
+    }
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email y password requeridos' });
@@ -625,9 +630,54 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     // Hash de contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insertar usuario — features vacías por defecto (admin las asigna luego)
+    // ─────────────────────────────────────────────────────────────
+    // RAMA EVENTS (S210-exec #4) — trial 30d / 150 asistentes / 1 evento
+    // Aislamiento: NO toca public.licenses. Fila va a events.licenses.
+    // ─────────────────────────────────────────────────────────────
+    if (product === 'events') {
+      const eventsFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, events_v1: true };
+      let user;
+      try {
+        user = await withTransaction(pool, async (client) => {
+          const ins = await client.query(
+            `INSERT INTO users (email, password, name, features, smarttv_enabled)
+             VALUES ($1, $2, $3, $4, false)
+             RETURNING id, email, name, features, smarttv_enabled, role, currency`,
+            [email, hashedPassword, name || email, JSON.stringify(eventsFeatures)]
+          );
+          const u = ins.rows[0];
+          await client.query(
+            `INSERT INTO events.licenses
+               (user_id, tier, status, currency, billing_period, start_date, end_date, trial_days, metadata, created_by)
+             VALUES ($1, 'trial', 'active', $2, 'trial', NOW(), NOW() + INTERVAL '30 days', 30,
+                     '{"usage":{"attendees":0,"events":0}}'::jsonb, $1)`,
+            [u.id, u.currency || 'COP']
+          );
+          return u;
+        });
+      } catch (err) {
+        console.error('❌ Register events TX error:', err);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+      }
+
+      const regFeatures = user.features || eventsFeatures;
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, features: regFeatures },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+      );
+      console.log(`✅ Usuario registrado (events): ${email}`);
+      return res.json({
+        success: true,
+        token,
+        user: { id: user.id, email: user.email, name: user.name, role: user.role, features: regFeatures, smarttv_enabled: user.smarttv_enabled, product: 'events' }
+      });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // RAMA SIGNAGE (default, retrocompat S197j) — trial 15d / 150 MB smart_tv
+    // ─────────────────────────────────────────────────────────────
     const defaultFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false };
-    // S197j: register nace en trial 15d / 150 MB (no heredar defaults RPi 1 año / 500 MB)
     const result = await pool.query(
       `INSERT INTO users (email, password, name, features, smarttv_enabled, smarttv_enabled_at,
                           license_type, license_status, license_start, license_end, storage_limit_mb)
