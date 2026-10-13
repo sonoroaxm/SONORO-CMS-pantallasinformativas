@@ -2954,6 +2954,60 @@
             </div>
           </div>
 
+          <!-- MODAL: Preview briefing (S208n) -->
+          <div id="ev-briefing-modal" class="modal" onclick="if(event.target.id==='ev-briefing-modal') evCloseBriefingPreview()">
+            <div class="modal-content" style="max-width:620px;">
+              <div class="modal-header">
+                <h3 id="ev-briefing-title">Enviar briefing por email</h3>
+                <button class="modal-close" onclick="evCloseBriefingPreview()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:16px;">
+                <!-- Event info -->
+                <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;">
+                  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Evento</div>
+                  <div style="font-size:14px;font-weight:700;" id="ev-briefing-event-name">—</div>
+                  <div style="font-size:12px;color:var(--text-muted);" id="ev-briefing-event-when">—</div>
+                  <div style="font-size:12px;color:var(--text-muted);" id="ev-briefing-event-venue"></div>
+                </div>
+
+                <!-- Staff info + PIN -->
+                <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;">
+                  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Destinatario</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div>
+                      <div style="font-size:14px;font-weight:700;" id="ev-briefing-staff-name">—</div>
+                      <div style="font-size:12px;color:var(--text-muted);" id="ev-briefing-staff-meta">—</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">PIN check-in</div>
+                      <div style="font-family:monospace;font-size:22px;font-weight:800;letter-spacing:6px;color:#FFE566;" id="ev-briefing-pin">——————</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Role responsabilities preview -->
+                <div>
+                  <div style="font-size:12px;font-weight:700;margin-bottom:6px;">Responsabilidades del rol <span id="ev-briefing-role-label" style="color:var(--text-muted);font-weight:400;"></span></div>
+                  <ul id="ev-briefing-bullets" style="margin:0;padding-left:20px;font-size:13px;line-height:1.5;color:var(--text);"></ul>
+                </div>
+
+                <!-- Custom message (editable) -->
+                <div>
+                  <label style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;">Mensaje personal del productor <span style="color:var(--text-muted);font-weight:400;">(opcional)</span></label>
+                  <textarea id="ev-briefing-custom" rows="3" placeholder="Ej: Llega a las 5:45 PM para coordinar las acreditaciones VIP…"
+                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+                  <small style="color:var(--text-muted);">Se guardará y se incluirá en el email.</small>
+                </div>
+
+                <div id="ev-briefing-already" style="display:none;background:rgba(134,239,172,.1);border:1px solid rgba(134,239,172,.35);color:#86efac;padding:10px 12px;border-radius:8px;font-size:12px;"></div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evCloseBriefingPreview()">Cancelar</button>
+                <button class="btn btn-grad" id="ev-briefing-send-btn" onclick="evConfirmSendBriefing()">Enviar ahora</button>
+              </div>
+            </div>
+          </div>
+
           <!-- SUB-TAB: Proveedores -->
           <div id="ev-sub-suppliers" class="ev-sub-panel hidden">
 
@@ -3792,7 +3846,7 @@ function _smartTvReturnTo() {
 window.addEventListener('DOMContentLoaded', async () => {
   // S208n — reparentar modales de invitaciones a <body> para que funcionen
   // desde el tab tenant Staff (ancestro ev-detail-view se oculta con .hidden)
-  ['inv-modal','inv-detail-modal'].forEach(id => {
+  ['inv-modal','inv-detail-modal','ev-briefing-modal'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.parentElement !== document.body) document.body.appendChild(el);
   });
@@ -10294,14 +10348,14 @@ function evRenderStaff() {
   const el = document.getElementById('ev-staff-list');
   if (!el) return;
   if (!evStaffList.length) {
-    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Sin staff registrado aún. Agrega el equipo del evento.</div>`;
+    el.innerHTML = '';
     return;
   }
   el.innerHTML = evStaffList.map(s => {
     const color = EV_ROLE_COLORS[s.role] || '#94a3b8';
     const label = EV_ROLE_LABELS[s.role] || s.role;
     const sentAt = s.briefing_sent_at ? new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="Enviar briefing por email" onclick="evSendBriefing('${s.id}','${escOnclick(s.name||'')}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>Enviar briefing</button>` : '';
+    const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="Enviar briefing por email" onclick="evOpenBriefingPreview('${s.id}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>Enviar briefing</button>` : '';
     const sentBadge = s.briefing_sent_at ? `<div style="font-size:11px;color:#86efac;margin-top:4px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-check-circle"/></svg> Briefing enviado el ${sentAt}</div>` : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="width:36px;height:36px;border-radius:50%;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${color};flex-shrink:0;">${(s.name||'?')[0].toUpperCase()}</div>
@@ -10320,24 +10374,98 @@ function evRenderStaff() {
   }).join('');
 }
 
-async function evSendBriefing(staffId, staffName, force) {
+// S208n — Preview modal antes de enviar briefing
+const STAFF_ROLE_BULLETS = {
+  coordinator: ['Supervisar al equipo durante el evento.','Resolver imprevistos operativos.','Servir de puente entre staff y productor.','Verificar que cada área esté funcionando.','Firmar el checklist de cierre.'],
+  registration: ['Recibir asistentes en la entrada principal y confirmar su registro.','Escanear códigos QR de los pases con la app de staff.','Entregar material impreso o acreditaciones físicas si el evento las usa.','Resolver dudas básicas de los invitados y escalarlas al coordinador si es necesario.','Mantener el flujo de ingreso ordenado y evitar aglomeraciones.'],
+  tech: ['Verificar funcionamiento de audio, video y pantallas antes del inicio.','Tener cables y adaptadores de respaldo.','Estar atento a la señal durante el evento.','Coordinar con conferencistas por sonido o proyección.','Apagar y guardar equipos al finalizar.'],
+  host: ['Dar la bienvenida a invitados importantes.','Guiar asistentes a sus zonas asignadas.','Mantener la atmósfera cálida y profesional.','Colaborar con registro cuando haya aglomeración.','Representar al evento con amabilidad.'],
+  security: ['Controlar accesos y evitar entradas no autorizadas.','Validar listas de invitados.','Monitorear áreas restringidas.','Coordinar con el equipo del venue.','Reportar cualquier incidente al coordinador.'],
+  catering: ['Montaje de la estación de catering antes del inicio.','Reponer insumos durante el evento.','Mantener la zona limpia y presentable.','Atender restricciones alimentarias comunicadas.','Desmontaje al finalizar.'],
+  artistic_entertainment: ['Llegar con tiempo para prueba de sonido.','Coordinar entradas y salidas con el productor.','Respetar los tiempos del rundown.','Estar en el camerino asignado antes de su turno.','Entregar el espacio limpio al terminar.'],
+  other: [],
+};
+let evBriefingStaff = null;
+
+function evOpenBriefingPreview(staffId) {
+  const s = evStaffList.find(x => String(x.id) === String(staffId));
+  if (!s) { showStatus('Staff no encontrado','error'); return; }
+  if (!s.email) { showStatus('Este staff no tiene email','error'); return; }
+  evBriefingStaff = s;
+
+  const ev = evCurrentEvent || {};
+  const tz = ev.timezone || 'America/Bogota';
+  const starts = ev.starts_at ? new Date(ev.starts_at).toLocaleString('es-CO', { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+  const ends   = ev.ends_at   ? new Date(ev.ends_at).toLocaleString('es-CO',   { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+
+  document.getElementById('ev-briefing-event-name').textContent  = ev.name || '—';
+  document.getElementById('ev-briefing-event-when').textContent  = starts ? `${starts}${ends ? ' → ' + ends : ''} · ${tz}` : '—';
+  document.getElementById('ev-briefing-event-venue').textContent = ev.venue_name || '';
+
+  document.getElementById('ev-briefing-staff-name').textContent  = s.name;
+  const roleLbl = EV_ROLE_LABELS[s.role] || s.role || '';
+  document.getElementById('ev-briefing-staff-meta').textContent  = `${s.email}${s.phone ? ' · ' + s.phone : ''}${roleLbl ? ' · ' + roleLbl : ''}`;
+  document.getElementById('ev-briefing-pin').textContent         = s.pin || '——————';
+
+  document.getElementById('ev-briefing-role-label').textContent  = roleLbl ? `(${roleLbl})` : '';
+  const bullets = STAFF_ROLE_BULLETS[s.role] || [];
+  document.getElementById('ev-briefing-bullets').innerHTML = bullets.length
+    ? bullets.map(b => `<li>${invEscape(b)}</li>`).join('')
+    : '<li style="color:var(--text-muted);">Sin plantilla de responsabilidades para este rol.</li>';
+
+  document.getElementById('ev-briefing-custom').value = s.custom_briefing || '';
+
+  const alreadyEl = document.getElementById('ev-briefing-already');
+  const sendBtn = document.getElementById('ev-briefing-send-btn');
+  if (s.briefing_sent_at) {
+    const prev = new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    alreadyEl.textContent = `Briefing ya enviado el ${prev}. Si envías ahora, se reenviará.`;
+    alreadyEl.style.display = '';
+    sendBtn.textContent = 'Reenviar briefing';
+  } else {
+    alreadyEl.style.display = 'none';
+    sendBtn.textContent = 'Enviar ahora';
+  }
+
+  document.getElementById('ev-briefing-modal').classList.add('active');
+}
+
+function evCloseBriefingPreview() {
+  document.getElementById('ev-briefing-modal').classList.remove('active');
+  evBriefingStaff = null;
+}
+
+async function evConfirmSendBriefing() {
+  if (!evBriefingStaff) return;
+  const s = evBriefingStaff;
+  const btn = document.getElementById('ev-briefing-send-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  const newCustom = document.getElementById('ev-briefing-custom').value;
   try {
-    const qs = force ? '?force=1' : '';
-    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${staffId}/send-briefing${qs}`, {
-      method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
+    // 1) Guardar custom_briefing si cambió
+    if ((newCustom || '') !== (s.custom_briefing || '')) {
+      const pr = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${s.id}`, {
+        method:'PATCH',
+        headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+        body: JSON.stringify({ custom_briefing: newCustom })
+      });
+      if (!pr.ok) { const d = await pr.json().catch(()=>({})); throw new Error(d.error || 'Error guardando mensaje'); }
+    }
+    // 2) Enviar (force=1 si ya fue enviado antes)
+    const force = s.briefing_sent_at ? '?force=1' : '';
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${s.id}/send-briefing${force}`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${authToken}` }
     });
     const data = await res.json().catch(() => ({}));
-    if (res.status === 409 && data.error === 'briefing_already_sent') {
-      const prev = data.sent_at ? new Date(data.sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-      if (confirm(`Ya se envió el briefing el ${prev}. ¿Reenviar?`)) {
-        return evSendBriefing(staffId, staffName, true);
-      }
-      return;
-    }
-    if (!res.ok) { showStatus(data.error || 'Error al enviar briefing', 'error'); return; }
-    showStatus(`Briefing enviado a ${staffName}`, 'success');
+    if (!res.ok) throw new Error(data.error || 'Error al enviar briefing');
+    showStatus(`Briefing enviado a ${s.name}`, 'success');
+    evCloseBriefingPreview();
     await evLoadStaff();
-  } catch(e) { showStatus('Error al enviar briefing', 'error'); }
+  } catch(e) {
+    showStatus(e.message || 'Error al enviar briefing', 'error');
+    btn.disabled = false; btn.textContent = originalText;
+  }
 }
 
 function evOpenAddStaff() {
