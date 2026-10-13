@@ -17,6 +17,7 @@ const eventsRouter       = require('./routes/events');
 const eventsPublicRouter = require('./routes/events-public');
 const eventsProductionPublicRouter = require('./routes/events-production-public');
 const eventsStaffRouter  = require('./routes/events-staff');
+const eventsCalendarRouter = require('./routes/events-calendar');
 const licensesRouter     = require('./routes/licenses');
 const licensesAdminRouter = require('./routes/licenses-admin');
 const licensesApprovalRouter = require('./routes/licenses-approval');
@@ -8851,6 +8852,7 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 app.use('/api/events/public', eventsProductionPublicRouter);
 app.use('/api/events/public', eventsPublicRouter);
 app.use('/api/events/staff',  eventsStaffRouter);
+app.use('/api/events/calendar', eventsCalendarRouter);
 app.use('/api/events',        eventsRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)

@@ -380,14 +380,24 @@ router.post('/', auth, async (req, res) => {
   }
   const slug = buildSlug(name);
   try {
-    const { rows } = await pool.query(
-      `INSERT INTO events.events
-         (user_id, name, slug, starts_at, ends_at, timezone, venue_name, venue_address, cover_image_url, config)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [req.user.id, name.trim(), slug, starts_at, ends_at, timezone,
-       venue_name || null, venue_address || null, cover_image_url || null, JSON.stringify(config)]
-    );
-    const event = rows[0];
+    const event = await withTransaction(pool, async (client) => {
+      const ins = await client.query(
+        `INSERT INTO events.events
+           (user_id, name, slug, starts_at, ends_at, timezone, venue_name, venue_address, cover_image_url, config)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [req.user.id, name.trim(), slug, starts_at, ends_at, timezone,
+         venue_name || null, venue_address || null, cover_image_url || null, JSON.stringify(config)]
+      );
+      // Autoprovision owner staff_catalog (idempotente vía partial unique is_owner)
+      await client.query(
+        `INSERT INTO events.staff_catalog (user_id, name, email, default_role, is_owner)
+         SELECT u.id, u.name, u.email, 'coordinator', TRUE
+         FROM users u WHERE u.id = $1
+         ON CONFLICT (user_id) WHERE is_owner = true DO NOTHING`,
+        [req.user.id]
+      );
+      return ins.rows[0];
+    });
     global.io?.to(`user_${req.user.id}`).emit('event.created', {
       user_id: req.user.id, event_id: event.id, starts_at: event.starts_at
     });
