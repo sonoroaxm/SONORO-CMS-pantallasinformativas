@@ -2611,6 +2611,14 @@
                       <option value="UTC">UTC</option>
                     </select>
                   </div>
+                  <!-- Publicar en calendario externo del productor -->
+                  <div class="form-group" style="margin:0;padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+                      <input type="checkbox" id="ev-edit-publish-cal" style="width:16px;height:16px;cursor:pointer;">
+                      <span style="font-weight:500;">Publicar en mi calendario externo</span>
+                    </label>
+                    <div id="ev-edit-publish-cal-status" style="font-size:12px;color:var(--muted);margin-top:8px;margin-left:26px;"></div>
+                  </div>
                   <!-- Acceso y confirmación viven en la pestaña Formulario -->
                   <div class="form-group" style="margin:0;">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -3609,7 +3617,13 @@
                   style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
               </div>
             </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <!-- Calendario personal (solo al editar) -->
+            <div id="ev-stf-calendar-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+              <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Calendario personal</div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Al conectar, los eventos donde participe este staff se publicarán automáticamente en su calendario.</div>
+              <div id="ev-stf-calendar-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
               <button class="btn btn-outline btn-sm" onclick="evCloseStaffCatForm()">Cancelar</button>
               <button class="btn btn-primary btn-sm" onclick="evSaveStaffCat()">Guardar</button>
             </div>
@@ -8632,6 +8646,11 @@ function evOpenStaffCatForm(id) {
       if (roleEl) roleEl.value = s.default_role || '';
     }
   }
+  const calSection = document.getElementById('ev-stf-calendar-section');
+  if (calSection) {
+    if (id) { calSection.style.display = ''; evLoadStaffIntegrations(id); }
+    else    { calSection.style.display = 'none'; }
+  }
   const form = document.getElementById('ev-stf-form');
   form.style.display = '';
   form.scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -8639,7 +8658,64 @@ function evOpenStaffCatForm(id) {
 }
 function evCloseStaffCatForm() {
   document.getElementById('ev-stf-form').style.display = 'none';
+  const calSection = document.getElementById('ev-stf-calendar-section');
+  if (calSection) calSection.style.display = 'none';
   evStaffCatEditingId = null;
+}
+
+// ── Calendario personal del staff (S209c) ──────────────────────
+async function evLoadStaffIntegrations(catId) {
+  const container = document.getElementById('ev-stf-calendar-cards');
+  if (!container) return;
+  container.innerHTML = '<div style="color:var(--muted);font-size:12px;grid-column:1/-1;">Cargando...</div>';
+  try {
+    const res = await fetch(`${API_URL}/api/events/calendar/integrations?staff_catalog_id=${catId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const list = res.ok ? await res.json() : [];
+    const by = { google:null, outlook:null };
+    for (const r of list) by[r.provider] = r;
+    container.innerHTML = ['google','outlook'].map(p => {
+      const r = by[p];
+      const label = p === 'google' ? 'Google Calendar' : 'Outlook / Microsoft 365';
+      if (r) {
+        const email = (r.connected_email || 'conectado').replace(/[<>&"]/g,'');
+        return `<div style="padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);">
+          <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${label}</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;word-break:break-all;">${email}</div>
+          <button class="btn btn-outline btn-sm" style="width:100%;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evDisconnectIntegration(${r.id}, ${catId})">Desconectar</button>
+        </div>`;
+      }
+      return `<div style="padding:12px;border:1px dashed var(--border);border-radius:6px;background:var(--surface);">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${label}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Sin conectar</div>
+        <button class="btn btn-outline btn-sm" style="width:100%;font-size:11px;" onclick="evGenerateCalendarLink(${catId}, '${p}')">Generar link</button>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:#ef4444;font-size:12px;grid-column:1/-1;">Error cargando integraciones.</div>';
+  }
+}
+async function evGenerateCalendarLink(catId, provider) {
+  try {
+    const res = await fetch(`${API_URL}/api/events/calendar/staff/${catId}/generate-link`, {
+      method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ provider })
+    });
+    const data = await res.json();
+    if (!res.ok) { showStatus(data.error || 'Error generando link','error'); return; }
+    try { await navigator.clipboard.writeText(data.url); showStatus('Link copiado — válido 24h. Envíaselo al staff.','success'); }
+    catch(_) { prompt('Copia este link (válido 24h):', data.url); }
+  } catch(e) { showStatus('Error de conexión','error'); }
+}
+async function evDisconnectIntegration(id, catId) {
+  if (!confirm('¿Desconectar este calendario?')) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/calendar/integrations/${id}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!res.ok) { showStatus('Error desconectando','error'); return; }
+    showStatus('Calendario desconectado','success');
+    await evLoadStaffIntegrations(catId);
+  } catch(e) { showStatus('Error de conexión','error'); }
 }
 
 async function evSaveStaffCat() {
@@ -9481,6 +9557,45 @@ function evPopulateInfo(ev) {
     pubBtn.style.borderColor = '';
     pubBtn.style.color = '';
   }
+  const pubCalEl = document.getElementById('ev-edit-publish-cal');
+  if (pubCalEl) {
+    pubCalEl.checked = !!ev.publish_to_external_calendar;
+    evRefreshCalendarSyncStatus(ev.id);
+  }
+}
+
+async function evRefreshCalendarSyncStatus(eventId) {
+  const el = document.getElementById('ev-edit-publish-cal-status');
+  if (!el) return;
+  const pubEl = document.getElementById('ev-edit-publish-cal');
+  try {
+    const res = await fetch(`${API_URL}/api/events/calendar/events/${eventId}/sync-status`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    if (!res.ok) { el.textContent=''; return; }
+    const d = await res.json();
+    if (!d.owner) {
+      el.textContent = 'No encontramos tu ficha de staff como productor.';
+      if (pubEl) pubEl.disabled = true;
+      return;
+    }
+    if (!d.owner_integrations.length) {
+      el.innerHTML = 'Conectá tu calendario en la ficha de staff <strong>'+ (d.owner.name||'') +'</strong> para activar esta opción.';
+      if (pubEl) pubEl.disabled = true;
+      return;
+    }
+    if (pubEl) pubEl.disabled = false;
+    const providers = d.owner_integrations.map(i => (i.provider==='google'?'Google':'Outlook') + ' ('+ (i.connected_email||'') +')').join(', ');
+    if (!d.publish_to_external_calendar) {
+      el.innerHTML = 'Al activar: se publicará en ' + providers + '.';
+      return;
+    }
+    const errors = d.sync.filter(s => s.sync_error);
+    const ok    = d.sync.filter(s => !s.sync_error && s.last_synced_at);
+    let html = '';
+    if (ok.length)     html += '<span style="color:#10b981;">&check; Sincronizado:</span> ' + ok.map(s => s.provider==='google'?'Google':'Outlook').join(', ');
+    if (errors.length) html += (html?' · ':'') + '<span style="color:#ef4444;">&#9888; Error:</span> ' + errors.map(s => (s.provider==='google'?'Google':'Outlook') + ' — ' + (s.sync_error||'').slice(0,80)).join('; ');
+    if (!html) html = 'Guarda cambios para sincronizar en ' + providers + '.';
+    el.innerHTML = html;
+  } catch(e) { el.textContent=''; }
 }
 
 async function evTogglePublish() {
@@ -9513,6 +9628,7 @@ async function evSaveInfo() {
     starts_at: document.getElementById('ev-edit-start').value,
     ends_at: document.getElementById('ev-edit-end').value,
     timezone: document.getElementById('ev-edit-tz').value,
+    publish_to_external_calendar: !!document.getElementById('ev-edit-publish-cal')?.checked,
     config: {
       ...(evCurrentEvent.config || {}),
       max_capacity: capVal ? parseInt(capVal) : null,

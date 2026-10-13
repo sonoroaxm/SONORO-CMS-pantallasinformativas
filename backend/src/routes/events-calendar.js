@@ -408,6 +408,56 @@ router.post('/events/:eventId/resync', auth, async (req, res) => {
   }
 });
 
+// GET /api/events/calendar/events/:eventId/sync-status
+// Consolida staff asignados + integraciones + estado sync para la UI del evento.
+router.get('/events/:eventId/sync-status', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await pool.query(
+      `SELECT id, user_id, publish_to_external_calendar
+       FROM events.events WHERE id = $1 AND user_id = $2`,
+      [req.params.eventId, req.user.id]
+    );
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+
+    // Owner integrations (lo que recibirá sync en modo S209c = solo productor)
+    const ownerRow = await pool.query(
+      `SELECT sc.id AS staff_catalog_id, sc.name
+       FROM events.staff_catalog sc
+       WHERE sc.user_id = $1 AND sc.is_owner = TRUE
+       LIMIT 1`,
+      [req.user.id]
+    );
+    const owner = ownerRow.rows[0] || null;
+
+    const integrations = owner ? (await pool.query(
+      `SELECT ci.id, ci.provider, ci.connected_email
+       FROM events.calendar_integrations ci
+       WHERE ci.staff_catalog_id = $1`,
+      [owner.staff_catalog_id]
+    )).rows : [];
+
+    const syncRows = (await pool.query(
+      `SELECT ecs.staff_catalog_id, ecs.provider, ecs.external_event_id,
+              ecs.last_synced_at, ecs.sync_error, sc.name AS staff_name
+       FROM events.event_calendar_sync ecs
+       JOIN events.staff_catalog sc ON sc.id = ecs.staff_catalog_id
+       WHERE ecs.event_id = $1 AND ecs.user_id = $2`,
+      [req.params.eventId, req.user.id]
+    )).rows;
+
+    res.json({
+      publish_to_external_calendar: ev.rows[0].publish_to_external_calendar,
+      owner,
+      owner_integrations: integrations,
+      sync: syncRows,
+    });
+  } catch (err) {
+    console.error('❌ GET /api/events/calendar/events/:eventId/sync-status:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
 module.exports.syncEventToCalendars    = syncEventToCalendars;
 module.exports.deleteEventFromCalendars = deleteEventFromCalendars;

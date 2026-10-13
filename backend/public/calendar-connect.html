@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conectar calendario · SONORO</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#0b0f1a; color:#e5e7eb; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:32px; max-width:420px; width:100%; text-align:center; }
+  .logo { font-size:14px; letter-spacing:4px; color:#9ca3af; margin-bottom:24px; }
+  h1 { font-size:22px; margin-bottom:8px; font-weight:600; }
+  .staff { color:#9ca3af; font-size:14px; margin-bottom:4px; }
+  .provider { color:#60a5fa; font-size:13px; font-weight:500; margin-bottom:28px; text-transform:uppercase; letter-spacing:1px; }
+  p { color:#9ca3af; font-size:14px; margin-bottom:28px; line-height:1.5; }
+  .btn { display:inline-block; background:#2563eb; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:15px; font-weight:500; cursor:pointer; text-decoration:none; transition:background .15s; }
+  .btn:hover { background:#1d4ed8; }
+  .btn:disabled { background:#374151; cursor:not-allowed; }
+  .error { color:#ef4444; font-size:14px; }
+  .loading { color:#9ca3af; font-size:14px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">SONORO</div>
+    <div id="content" class="loading">Cargando...</div>
+  </div>
+<script>
+(async function() {
+  const content = document.getElementById('content');
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+  if (!token) { content.className='error'; content.textContent='Link inválido.'; return; }
+  try {
+    const r = await fetch('/api/events/calendar/connect-info/' + encodeURIComponent(token));
+    if (!r.ok) { content.className='error'; content.textContent='Link inválido o expirado. Pedí uno nuevo al productor del evento.'; return; }
+    const d = await r.json();
+    const providerLabel = d.provider === 'outlook' ? 'Outlook / Microsoft 365' : 'Google Calendar';
+    content.className = '';
+    content.innerHTML =
+      '<h1>Conectar calendario</h1>' +
+      '<div class="staff">' + (d.staff_name || 'Staff') + '</div>' +
+      '<div class="provider">' + providerLabel + '</div>' +
+      '<p>Al conectar, los eventos donde participes se publicarán en tu calendario personal.</p>' +
+      '<a class="btn" href="/api/events/calendar/connect-link/' + encodeURIComponent(token) + '/auth">Conectar</a>';
+  } catch (e) {
+    content.className='error'; content.textContent='Error de conexión.';
+  }
+})();
+</script>
+</body>
+</html>
