@@ -9,6 +9,8 @@ const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
 const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail } = require('../services/email');
+const calendarRouter = require('./events-calendar');
+const { syncEventToCalendars, deleteEventFromCalendars } = calendarRouter;
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
 const XLSX = require('xlsx');
@@ -414,7 +416,8 @@ router.patch('/:id', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
-                   'venue_name', 'venue_address', 'cover_image_url', 'config'];
+                   'venue_name', 'venue_address', 'cover_image_url', 'config',
+                   'publish_to_external_calendar'];
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   const hasConfigPatch = req.body.config_patch !== undefined;
   if (!fields.length && !hasConfigPatch) return res.status(400).json({ error: 'Nada que actualizar' });
@@ -447,6 +450,13 @@ router.patch('/:id', auth, async (req, res) => {
   if (!isAdmin) { params.push(req.user.id); where += ` AND user_id = $${params.length}`; }
 
   try {
+    // Snapshot flag previo para detectar "publish=true → false"
+    const prev = await pool.query(
+      `SELECT publish_to_external_calendar FROM events.events WHERE id = $1`,
+      [req.params.id]
+    );
+    const wasPublish = prev.rows[0]?.publish_to_external_calendar === true;
+
     const { rows } = await pool.query(
       `UPDATE events.events SET ${sets}, updated_at = NOW() WHERE ${where} RETURNING *`,
       params
@@ -456,6 +466,16 @@ router.patch('/:id', auth, async (req, res) => {
       global.io?.to(`user_${rows[0].user_id}`).emit('event.published', {
         user_id: rows[0].user_id, event_id: rows[0].id
       });
+    }
+
+    // Calendar sync non-fatal
+    const isPublish = rows[0].publish_to_external_calendar === true;
+    if (wasPublish && !isPublish) {
+      deleteEventFromCalendars(pool, rows[0].id, { purgeRows: true }).catch(e =>
+        console.error('⚠️ cal.delete on toggle-off:', e.message));
+    } else if (isPublish) {
+      syncEventToCalendars(pool, rows[0]).catch(e =>
+        console.error('⚠️ cal.sync on patch:', e.message));
     }
     res.json(rows[0]);
   } catch (err) {
@@ -2193,6 +2213,9 @@ router.delete('/:id', auth, async (req, res) => {
       isAdmin ? [req.params.id] : [req.params.id, req.user.id]
     );
     if (!evCheck.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    // Borrar eventos externos antes del CASCADE (non-fatal)
+    try { await deleteEventFromCalendars(pool, req.params.id, { purgeRows: false }); }
+    catch (e) { console.error('⚠️ cal.delete on event-delete:', e.message); }
     await withTransaction(pool, async (client) => {
       // Limpiar FKs sin CASCADE antes de borrar el evento
       await client.query(`DELETE FROM events.service_redemptions WHERE event_id = $1`, [req.params.id]);

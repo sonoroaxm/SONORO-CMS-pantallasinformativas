@@ -143,6 +143,93 @@ async function fetchOutlookPrimaryCalendar(accessToken) {
   return { id, email };
 }
 
+// ── Event upsert / delete ────────────────────────────────────────────────────
+// Body shape (provider-neutral):
+//   { summary, description, location, startISO, endISO, timezone }
+// startISO/endISO = UTC ISO. timezone = IANA (ej. 'America/Bogota').
+
+// Convierte un Date → "YYYY-MM-DDTHH:mm:ss" en la IANA tz dada (sin offset).
+function _toLocalNaive(date, timezone) {
+  const parts = {};
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).formatToParts(date).forEach(({ type, value }) => { parts[type] = value; });
+  const hh = parts.hour === '24' ? '00' : parts.hour;
+  return `${parts.year}-${parts.month}-${parts.day}T${hh}:${parts.minute}:${parts.second}`;
+}
+
+async function googleUpsertEvent(accessToken, calendarId, body, externalEventId) {
+  const calId = encodeURIComponent(calendarId || 'primary');
+  const payload = {
+    summary:     body.summary || 'Evento',
+    description: body.description || '',
+    location:    body.location || undefined,
+    start: { dateTime: new Date(body.startISO).toISOString(), timeZone: body.timezone || 'UTC' },
+    end:   { dateTime: new Date(body.endISO).toISOString(),   timeZone: body.timezone || 'UTC' },
+  };
+  const method = externalEventId ? 'PUT' : 'POST';
+  const url = externalEventId
+    ? `https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${encodeURIComponent(externalEventId)}`
+    : `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`;
+  const r = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`google.upsert ${r.status}: ${await r.text()}`);
+  const ev = await r.json();
+  return ev.id;
+}
+
+async function googleDeleteEvent(accessToken, calendarId, externalEventId) {
+  if (!externalEventId) return;
+  const calId = encodeURIComponent(calendarId || 'primary');
+  const r = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${calId}/events/${encodeURIComponent(externalEventId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!r.ok && r.status !== 404 && r.status !== 410) {
+    throw new Error(`google.delete ${r.status}: ${await r.text()}`);
+  }
+}
+
+async function outlookUpsertEvent(accessToken, body, externalEventId) {
+  const tz = body.timezone || 'UTC';
+  const payload = {
+    subject: body.summary || 'Evento',
+    body:    { contentType: 'text', content: body.description || '' },
+    start:   { dateTime: _toLocalNaive(new Date(body.startISO), tz), timeZone: tz },
+    end:     { dateTime: _toLocalNaive(new Date(body.endISO), tz),   timeZone: tz },
+    location: body.location ? { displayName: body.location } : undefined,
+  };
+  const method = externalEventId ? 'PATCH' : 'POST';
+  const url = externalEventId
+    ? `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(externalEventId)}`
+    : 'https://graph.microsoft.com/v1.0/me/events';
+  const r = await fetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(`outlook.upsert ${r.status}: ${await r.text()}`);
+  if (method === 'PATCH') return externalEventId;
+  const ev = await r.json();
+  return ev.id;
+}
+
+async function outlookDeleteEvent(accessToken, externalEventId) {
+  if (!externalEventId) return;
+  const r = await fetch(
+    `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(externalEventId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!r.ok && r.status !== 404 && r.status !== 410) {
+    throw new Error(`outlook.delete ${r.status}: ${await r.text()}`);
+  }
+}
+
 // ── OAuth state cache (in-memory, 10 min TTL) ────────────────────────────────
 
 const _states = new Map();
@@ -166,6 +253,10 @@ module.exports = {
   outlookTokenExchange,
   outlookRefreshToken,
   fetchOutlookPrimaryCalendar,
+  googleUpsertEvent,
+  googleDeleteEvent,
+  outlookUpsertEvent,
+  outlookDeleteEvent,
   putState,
   takeState,
 };

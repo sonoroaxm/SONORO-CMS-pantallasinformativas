@@ -238,4 +238,176 @@ router.delete('/integrations/:id', auth, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════
+// S209b-2 — Push-side sync (CMS → Google/Outlook)
+// ══════════════════════════════════════════════════════════════
+
+// Fetch integration + refresh si expira en <5min. Devuelve { id, calendar_id, access_token } o null.
+async function getFreshIntegration(pool, staffCatalogId, provider) {
+  const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+  if (!encKey) return null;
+  const row = await pool.query(
+    `SELECT id, calendar_id,
+            pgp_sym_decrypt(access_token,  $2) AS access_token,
+            pgp_sym_decrypt(refresh_token, $2) AS refresh_token,
+            token_expiry
+     FROM events.calendar_integrations
+     WHERE staff_catalog_id = $1 AND provider = $3`,
+    [staffCatalogId, encKey, provider]
+  );
+  if (!row.rowCount) return null;
+  const ci = row.rows[0];
+  if (ci.token_expiry && new Date(ci.token_expiry) < new Date(Date.now() + 5 * 60 * 1000)) {
+    try {
+      const refreshed = provider === 'google'
+        ? await oauth.googleRefreshToken(ci.refresh_token)
+        : await oauth.outlookRefreshToken(ci.refresh_token);
+      const newExpiry = refreshed.expires_in
+        ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString() : null;
+      await pool.query(
+        `UPDATE events.calendar_integrations
+           SET access_token = pgp_sym_encrypt($1, $3), token_expiry = $2
+         WHERE staff_catalog_id = $4 AND provider = $5`,
+        [refreshed.access_token, newExpiry, encKey, staffCatalogId, provider]
+      );
+      ci.access_token = refreshed.access_token;
+    } catch (e) {
+      console.error(`⚠️ events.cal refresh staff=${staffCatalogId} provider=${provider}:`, e.message);
+      return null;
+    }
+  }
+  return ci;
+}
+
+function _eventPayload(event) {
+  const venue = [event.venue_name, event.venue_address].filter(Boolean).join(' · ');
+  return {
+    summary:     event.name,
+    description: event.venue_name ? `${event.name}\n${venue}` : event.name,
+    location:    venue || undefined,
+    startISO:    new Date(event.starts_at).toISOString(),
+    endISO:      new Date(event.ends_at).toISOString(),
+    timezone:    event.timezone || 'America/Bogota',
+  };
+}
+
+// Bootstrap: si publish=true y no hay rows en event_calendar_sync, auto-popular con integraciones del owner.
+async function _bootstrapOwnerSync(pool, event) {
+  const owner = await pool.query(
+    `SELECT sc.id AS staff_catalog_id, ci.provider
+     FROM events.staff_catalog sc
+     JOIN events.calendar_integrations ci ON ci.staff_catalog_id = sc.id
+     WHERE sc.user_id = $1 AND sc.is_owner = TRUE`,
+    [event.user_id]
+  );
+  for (const r of owner.rows) {
+    await pool.query(
+      `INSERT INTO events.event_calendar_sync
+         (event_id, staff_catalog_id, user_id, provider, external_event_id)
+       VALUES ($1, $2, $3, $4, '')
+       ON CONFLICT (event_id, staff_catalog_id, provider) DO NOTHING`,
+      [event.id, r.staff_catalog_id, event.user_id, r.provider]
+    );
+  }
+  return owner.rowCount;
+}
+
+// Sync un evento a todos los calendarios declarados en event_calendar_sync.
+// Non-fatal: errores quedan en sync_error.
+async function syncEventToCalendars(pool, event) {
+  if (!event.publish_to_external_calendar) return { skipped: 'disabled' };
+
+  // Bootstrap owner si está vacío
+  const existing = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM events.event_calendar_sync WHERE event_id = $1`,
+    [event.id]
+  );
+  if (existing.rows[0].n === 0) await _bootstrapOwnerSync(pool, event);
+
+  const targets = await pool.query(
+    `SELECT ecs.id, ecs.staff_catalog_id, ecs.provider, ecs.external_event_id
+     FROM events.event_calendar_sync ecs
+     WHERE ecs.event_id = $1`,
+    [event.id]
+  );
+  const payload = _eventPayload(event);
+  const results = [];
+  for (const t of targets.rows) {
+    try {
+      const ci = await getFreshIntegration(pool, t.staff_catalog_id, t.provider);
+      if (!ci) throw new Error('integration_missing_or_refresh_failed');
+      let newExtId;
+      if (t.provider === 'google') {
+        newExtId = await oauth.googleUpsertEvent(ci.access_token, ci.calendar_id, payload, t.external_event_id || null);
+      } else {
+        newExtId = await oauth.outlookUpsertEvent(ci.access_token, payload, t.external_event_id || null);
+      }
+      await pool.query(
+        `UPDATE events.event_calendar_sync
+           SET external_event_id = $1, last_synced_at = NOW(), sync_error = NULL
+         WHERE id = $2`,
+        [newExtId, t.id]
+      );
+      results.push({ provider: t.provider, staff_catalog_id: t.staff_catalog_id, external_event_id: newExtId, ok: true });
+      console.log(`✅ events.cal.upsert event=${event.id} staff=${t.staff_catalog_id} provider=${t.provider} ext=${newExtId}`);
+    } catch (e) {
+      await pool.query(
+        `UPDATE events.event_calendar_sync SET sync_error = $1 WHERE id = $2`,
+        [String(e.message || e).slice(0, 500), t.id]
+      );
+      results.push({ provider: t.provider, staff_catalog_id: t.staff_catalog_id, ok: false, error: e.message });
+      console.error(`❌ events.cal.upsert event=${event.id} staff=${t.staff_catalog_id} provider=${t.provider}:`, e.message);
+    }
+  }
+  return { results };
+}
+
+// Borra eventos externos (antes de CASCADE wipe cuando se borra el evento, o cuando publish se apaga).
+async function deleteEventFromCalendars(pool, eventId, { purgeRows = true } = {}) {
+  const targets = await pool.query(
+    `SELECT ecs.id, ecs.staff_catalog_id, ecs.provider, ecs.external_event_id
+     FROM events.event_calendar_sync ecs
+     WHERE ecs.event_id = $1 AND ecs.external_event_id <> ''`,
+    [eventId]
+  );
+  for (const t of targets.rows) {
+    try {
+      const ci = await getFreshIntegration(pool, t.staff_catalog_id, t.provider);
+      if (!ci) continue;
+      if (t.provider === 'google') {
+        await oauth.googleDeleteEvent(ci.access_token, ci.calendar_id, t.external_event_id);
+      } else {
+        await oauth.outlookDeleteEvent(ci.access_token, t.external_event_id);
+      }
+      console.log(`✅ events.cal.delete event=${eventId} staff=${t.staff_catalog_id} provider=${t.provider}`);
+    } catch (e) {
+      console.error(`⚠️ events.cal.delete event=${eventId} staff=${t.staff_catalog_id}:`, e.message);
+    }
+  }
+  if (purgeRows) {
+    await pool.query(`DELETE FROM events.event_calendar_sync WHERE event_id = $1`, [eventId]);
+  }
+}
+
+// POST /api/events/calendar/events/:eventId/resync — fuerza resync manual
+router.post('/events/:eventId/resync', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM events.events
+       WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [req.params.eventId] : [req.params.eventId, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Evento no encontrado' });
+    const result = await syncEventToCalendars(pool, rows[0]);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('❌ POST /api/events/calendar/events/:eventId/resync:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
+module.exports.syncEventToCalendars    = syncEventToCalendars;
+module.exports.deleteEventFromCalendars = deleteEventFromCalendars;
