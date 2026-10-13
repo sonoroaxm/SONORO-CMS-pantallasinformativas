@@ -3433,4 +3433,71 @@ router.post('/:eventId/invitation-batches/:batchId/roster', auth, async (req, re
   }
 });
 
+// S210-exec #5 — Billing upgrade (events.licenses only, NUNCA public.licenses)
+// Aislamiento duro: ver docs/CLAUDE.md §Regla dura + docs/EVENTS-FRAMEWORK.md §0.1
+const TIER_RANK_EV = { trial: 0, lite: 1, pro: 2, masivo: 3 };
+const PAID_TIERS_EV = new Set(['lite', 'pro', 'masivo']);
+const BILLING_PERIODS_EV = new Set(['monthly', 'annual']);
+
+router.post('/billing/upgrade', auth, async (req, res) => {
+  try {
+    const pool = global.pool;
+    const { target_tier, billing_period, payment_method, payment_reference } = req.body || {};
+
+    if (!PAID_TIERS_EV.has(target_tier)) {
+      return res.status(400).json({ error: 'target_tier inválido', code: 'INVALID_TIER' });
+    }
+    if (!BILLING_PERIODS_EV.has(billing_period)) {
+      return res.status(400).json({ error: 'billing_period inválido', code: 'INVALID_PERIOD' });
+    }
+
+    const result = await withTransaction(pool, async (client) => {
+      const cur = await client.query(
+        `SELECT id, tier, status, currency FROM events.licenses
+          WHERE user_id = $1 AND status IN ('active','grace','readonly')
+          ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+        [req.user.id]
+      );
+      if (!cur.rows.length) {
+        const e = new Error('No hay licencia Events activa para convertir'); e.httpStatus = 404; throw e;
+      }
+      const current = cur.rows[0];
+
+      if (current.tier === target_tier && current.status === 'active') {
+        const e = new Error('Ya estás en ese tier'); e.httpStatus = 409; throw e;
+      }
+      if (current.tier !== 'trial' && TIER_RANK_EV[target_tier] <= TIER_RANK_EV[current.tier]) {
+        const e = new Error('Downgrade no soportado en este endpoint'); e.httpStatus = 400; throw e;
+      }
+
+      await client.query(
+        `UPDATE events.licenses SET status='converted', end_date=NOW(), updated_at=NOW() WHERE id=$1`,
+        [current.id]
+      );
+
+      const interval = billing_period === 'annual' ? "INTERVAL '365 days'" : "INTERVAL '30 days'";
+      const currency = current.currency || 'COP';
+      const metadata = {
+        usage: { attendees: 0, events: 0 },
+        payment: { method: payment_method || 'manual', reference: payment_reference || null, converted_from: current.id }
+      };
+
+      const ins = await client.query(
+        `INSERT INTO events.licenses
+           (user_id, tier, status, currency, billing_period, start_date, end_date, trial_days, metadata, created_by)
+         VALUES ($1, $2, 'active', $3, $4, NOW(), NOW() + ${interval}, 0, $5::jsonb, $1)
+         RETURNING *`,
+        [req.user.id, target_tier, currency, billing_period, JSON.stringify(metadata)]
+      );
+      return { previous_id: current.id, license: ins.rows[0] };
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message, code: err.code });
+    console.error('❌ POST /billing/upgrade:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
