@@ -636,6 +636,11 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
     // ─────────────────────────────────────────────────────────────
     if (product === 'events') {
       const eventsFeatures = { turnos: false, analytics: false, dual_hdmi: false, onpremise: false, events_v1: true };
+      // S210-exec #8: intended_tier opcional (hint del landing para upgrade post-trial)
+      const rawTier = (req.body.tier || '').toString().toLowerCase().trim();
+      const intendedTier = ['lite','pro','masivo'].includes(rawTier) ? rawTier : null;
+      const metadata = { usage: { attendees: 0, events: 0 } };
+      if (intendedTier) metadata.intended_tier = intendedTier;
       let user;
       try {
         user = await withTransaction(pool, async (client) => {
@@ -650,8 +655,8 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
             `INSERT INTO events.licenses
                (user_id, tier, status, currency, billing_period, start_date, end_date, trial_days, metadata, created_by)
              VALUES ($1, 'trial', 'active', $2, 'trial', NOW(), NOW() + INTERVAL '30 days', 30,
-                     '{"usage":{"attendees":0,"events":0}}'::jsonb, $1)`,
-            [u.id, u.currency || 'COP']
+                     $3::jsonb, $1)`,
+            [u.id, u.currency || 'COP', JSON.stringify(metadata)]
           );
           return u;
         });

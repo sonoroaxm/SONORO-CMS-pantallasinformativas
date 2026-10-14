@@ -3950,6 +3950,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
   setupTabs();
+  // S210-exec #8: honor ?signup=1&product=X[&tier=Y] desde landings (/eventos/)
+  try {
+    var _qs = new URLSearchParams(location.search);
+    if (_qs.get('signup') === '1') {
+      var _prod = (_qs.get('product') || '').toLowerCase();
+      var _tier = (_qs.get('tier') || '').toLowerCase();
+      window._signupProduct = ['signage','events'].includes(_prod) ? _prod : 'signage';
+      window._signupTier = ['lite','pro','masivo'].includes(_tier) ? _tier : null;
+      // Activar tab "Registrarse" en el modal login
+      setTimeout(function(){
+        var regTab = document.querySelector('.form-tab[data-tab="register"]');
+        if (regTab) regTab.click();
+      }, 50);
+    }
+  } catch(e) { console.warn('signup query parse:', e); }
   // S205: honor ?tab= query param (usado por /c/:uuid post-pair para saltar a Dispositivos)
   try {
     var _tp = new URLSearchParams(location.search).get("tab");
@@ -4234,7 +4249,11 @@ async function register() {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({
+        name, email, password,
+        product: window._signupProduct || 'signage',
+        tier: window._signupTier || undefined
+      })
     });
     const data = await response.json();
     if (!response.ok) { showAuthStatus(`${data.error}`, 'error'); return; }
