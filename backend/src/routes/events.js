@@ -134,14 +134,15 @@ router.get('/suppliers', auth, async (req, res) => {
 
 router.post('/suppliers', auth, async (req, res) => {
   const pool = global.pool;
-  const { name, category, contact_name, contact_email, contact_phone, notes } = req.body;
+  const { name, category, contact_name, contact_email, contact_phone, notes, locale: rawLocale } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  const locale = ['es','en','pt-BR'].includes(rawLocale) ? rawLocale : 'es';
   try {
     const { rows } = await pool.query(
-      `INSERT INTO events.suppliers (user_id, name, category, contact_name, contact_email, contact_phone, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO events.suppliers (user_id, name, category, contact_name, contact_email, contact_phone, notes, locale)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [req.user.id, name.trim(), category || null, contact_name || null,
-       contact_email || null, contact_phone || null, notes || null]
+       contact_email || null, contact_phone || null, notes || null, locale]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -152,7 +153,8 @@ router.post('/suppliers', auth, async (req, res) => {
 
 router.patch('/suppliers/:supId', auth, async (req, res) => {
   const pool = global.pool;
-  const { name, category, contact_name, contact_email, contact_phone, notes } = req.body;
+  const { name, category, contact_name, contact_email, contact_phone, notes, locale: rawLocale } = req.body;
+  const locale = ['es','en','pt-BR'].includes(rawLocale) ? rawLocale : null;
   try {
     const { rows } = await pool.query(
       `UPDATE events.suppliers SET
@@ -161,11 +163,12 @@ router.patch('/suppliers/:supId', auth, async (req, res) => {
          contact_name  = COALESCE($3, contact_name),
          contact_email = COALESCE($4, contact_email),
          contact_phone = COALESCE($5, contact_phone),
-         notes         = COALESCE($6, notes)
+         notes         = COALESCE($6, notes),
+         locale        = COALESCE($9, locale)
        WHERE id = $7 AND user_id = $8 RETURNING *`,
       [name || null, category || null, contact_name || null,
        contact_email || null, contact_phone || null, notes || null,
-       req.params.supId, req.user.id]
+       req.params.supId, req.user.id, locale]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Proveedor no encontrado' });
     res.json(rows[0]);
@@ -906,7 +909,8 @@ const VALID_STAFF_ROLES = ['coordinator','registration','tech','host','security'
 
 router.post('/:id/staff', auth, async (req, res) => {
   const pool = global.pool;
-  let { name, email, phone, role, pin, custom_briefing, catalog_id } = req.body;
+  let { name, email, phone, role, pin, custom_briefing, catalog_id, locale: rawLocale } = req.body;
+  const locale = ['es','en','pt-BR'].includes(rawLocale) ? rawLocale : 'es';
   // S208n — si viene catalog_id, prellenar desde el catálogo tenant (sin pisar lo enviado)
   if (catalog_id) {
     try {
@@ -932,10 +936,10 @@ router.post('/:id/staff', auth, async (req, res) => {
     const ev = await pool.query('SELECT id FROM events.events WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
     const { rows } = await pool.query(
-      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin, custom_briefing, catalog_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, catalog_id, created_at`,
-      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin, (custom_briefing||null), catalog_id || null]
+      `INSERT INTO events.event_staff (event_id, user_id, name, email, phone, role, pin, custom_briefing, catalog_id, locale)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING id, name, email, phone, role, pin, custom_briefing, briefing_sent_at, catalog_id, locale, created_at`,
+      [req.params.id, req.user.id, name.trim(), email||null, phone||null, role, staffPin, (custom_briefing||null), catalog_id || null, locale]
     );
 
     // Fire-and-forget: credenciales por email si tiene email (S208j)
@@ -1011,7 +1015,7 @@ router.post('/:id/staff/:staffId/resend-credentials', auth, async (req, res) => 
   const rotate = req.query.rotate === '1';
   try {
     const ctx = await pool.query(
-      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at,
+      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at, s.locale,
               e.id AS event_id, e.name AS event_name, e.slug, e.starts_at, e.timezone, e.venue_name, e.venue_address,
               u.name AS producer_name, u.email AS producer_email
        FROM events.event_staff s
@@ -1030,7 +1034,7 @@ router.post('/:id/staff/:staffId/resend-credentials', auth, async (req, res) => 
       await pool.query(`UPDATE events.event_staff SET pin = $1 WHERE id = $2`, [pin, row.id]);
     }
 
-    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, pin };
+    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, pin, locale: row.locale };
     const event = { id: row.event_id, name: row.event_name, slug: row.slug, starts_at: row.starts_at, timezone: row.timezone, venue_name: row.venue_name, venue_address: row.venue_address };
     const producer = { name: row.producer_name, email: row.producer_email };
     await sendStaffCredentialsEmail(staff, event, producer);
@@ -1047,7 +1051,7 @@ router.post('/:id/staff/:staffId/send-briefing', auth, async (req, res) => {
   const force = req.query.force === '1';
   try {
     const ctx = await pool.query(
-      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at,
+      `SELECT s.id, s.name, s.email, s.phone, s.role, s.pin, s.custom_briefing, s.briefing_sent_at, s.locale,
               e.id AS event_id, e.name AS event_name, e.slug, e.starts_at, e.timezone, e.venue_name, e.venue_address,
               u.name AS producer_name, u.email AS producer_email
        FROM events.event_staff s
@@ -1063,7 +1067,7 @@ router.post('/:id/staff/:staffId/send-briefing', auth, async (req, res) => {
       return res.status(409).json({ error: 'briefing_already_sent', sent_at: row.briefing_sent_at });
     }
 
-    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, custom_briefing: row.custom_briefing };
+    const staff = { id: row.id, name: row.name, email: row.email, role: row.role, custom_briefing: row.custom_briefing, locale: row.locale };
     const event = { id: row.event_id, name: row.event_name, slug: row.slug, starts_at: row.starts_at, timezone: row.timezone, venue_name: row.venue_name, venue_address: row.venue_address };
     const producer = { name: row.producer_name, email: row.producer_email };
     await sendStaffBriefingEmail(staff, event, producer);
@@ -1985,7 +1989,7 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
     }
     if (payment_status === 'accepted' && rows[0].supplier_id) {
       pool.query(
-        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name, e.config AS event_config
+        `SELECT s.name AS supplier_name, s.contact_email, s.locale, e.name AS event_name, e.config AS event_config
          FROM events.suppliers s
          JOIN events.events e ON e.id = $1
          WHERE s.id = $2 AND s.user_id = $3`,
@@ -1998,13 +2002,14 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
             contact_email: supR.rows[0].contact_email,
             event_name:    supR.rows[0].event_name,
             contracted_amount: rows[0].contracted_amount,
+            locale: supR.rows[0].locale,
           }, eCfgAcc).catch(e => console.error('⚠️ Email aceptación proveedor:', e.message));
         }
       }).catch(() => {});
     }
     if ((payment_status === 'partial' || payment_status === 'paid') && rows[0].supplier_id) {
       pool.query(
-        `SELECT s.name AS supplier_name, s.contact_email, e.name AS event_name, e.config AS event_config
+        `SELECT s.name AS supplier_name, s.contact_email, s.locale, e.name AS event_name, e.config AS event_config
          FROM events.suppliers s
          JOIN events.events e ON e.id = $1
          WHERE s.id = $2 AND s.user_id = $3`,
@@ -2020,6 +2025,7 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
               deposit_amount:    rows[0].deposit_amount,
               contracted_amount: rows[0].contracted_amount,
               payment_proof_url: rows[0].payment_proof_url,
+              locale:            supR.rows[0].locale,
             }, eCfg).catch(e => console.error('⚠️ Email abono proveedor:', e.message));
           } else {
             sendSupplierPaidEmail({
@@ -2028,6 +2034,7 @@ router.patch('/:id/suppliers/:contractId', auth, async (req, res) => {
               event_name:        supR.rows[0].event_name,
               contracted_amount: rows[0].contracted_amount,
               payment_proof_url: rows[0].payment_proof_url,
+              locale:            supR.rows[0].locale,
             }, eCfg).catch(e => console.error('⚠️ Email pago completo proveedor:', e.message));
           }
         }
@@ -2150,7 +2157,7 @@ router.post('/:id/suppliers/:contractId/send-quote', auth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT es.id, es.service_description, es.contracted_amount,
-              s.name AS supplier_name, s.contact_email,
+              s.name AS supplier_name, s.contact_email, s.locale,
               e.name AS event_name, e.starts_at, e.timezone, e.config AS event_config
        FROM events.event_suppliers es
        JOIN events.suppliers s ON s.id = es.supplier_id

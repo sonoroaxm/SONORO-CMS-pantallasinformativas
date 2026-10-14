@@ -699,7 +699,7 @@ async function doRegisterGroup() {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       alert(`Fila ${i+1}: email inválido`); btn.disabled = false; btn.textContent = 'Enviar registro del grupo'; return;
     }
-    attendees.push({ name, email, phone: phone || null, id_number: id || null, id_type: 'CC' });
+    attendees.push({ name, email, phone: phone || null, id_number: id || null, id_type: 'CC', locale: (LANG === 'en' ? 'en' : 'es') });
   }
   try {
     const res = await fetch(`${API_URL}/api/events/public/invitation/${CLAIM_CODE}/register`, {
@@ -1104,6 +1104,7 @@ async function doRegister() {
     ticket_type:   document.getElementById('f-ticket-type').value,
     session_ids:   [...selectedSessions],
     custom_fields,
+    locale:        (LANG === 'en' ? 'en' : 'es'),
   };
   // Endpoint público de invitación ahora espera { attendees: [...] }
   const body = IS_INVITATION

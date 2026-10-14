@@ -2931,6 +2931,14 @@
                   </div>
                 </div>
                 <div class="form-group" style="margin:12px 0 0;">
+                  <label>Idioma del staff (emails)</label>
+                  <select id="ev-staff-locale" style="width:100%;">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="pt-BR">Português (BR)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:12px 0 0;">
                   <label>Mensaje personal (opcional)</label>
                   <textarea id="ev-staff-custom-briefing" rows="3" placeholder="Ej: María, llega a las 5:45 PM para coordinar las acreditaciones VIP…" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;"></textarea>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Este texto se añade al email de briefing como "Mensaje del productor".</div>
@@ -3199,6 +3207,15 @@
                     <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">N° identificación</label>
                     <input id="ev-sup-id-number" type="text" placeholder="900.123.456-7"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div style="grid-column:1/-1;">
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Idioma del proveedor (emails)</label>
+                    <select id="ev-sup-locale"
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                      <option value="es">Español</option>
+                      <option value="en">English</option>
+                      <option value="pt-BR">Português (BR)</option>
+                    </select>
                   </div>
                 </div>
                 <div id="ev-sup-docs-section" style="display:none;margin-bottom:8px;">
@@ -10696,6 +10713,7 @@ function evCloseAddStaff() {
   document.getElementById('ev-add-staff-form').classList.add('hidden');
   ['ev-staff-name','ev-staff-email','ev-staff-phone','ev-staff-pin','ev-staff-custom-briefing'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const role = document.getElementById('ev-staff-role'); if(role) role.value = '';
+  const loc = document.getElementById('ev-staff-locale'); if(loc) loc.value = 'es';
 }
 
 function evGenPin() {
@@ -10711,13 +10729,14 @@ async function evSaveStaff() {
   const phone = document.getElementById('ev-staff-phone')?.value.trim();
   const pin = document.getElementById('ev-staff-pin')?.value.trim();
   const customBriefing = document.getElementById('ev-staff-custom-briefing')?.value.trim();
+  const locale = document.getElementById('ev-staff-locale')?.value || 'es';
   if (!name) { showStatus('El nombre es requerido', 'error'); return; }
   if (!role) { showStatus('Selecciona un rol', 'error'); return; }
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, role, email: email||undefined, phone: phone||undefined, pin: pin||undefined, custom_briefing: customBriefing||undefined })
+      body: JSON.stringify({ name, role, email: email||undefined, phone: phone||undefined, pin: pin||undefined, custom_briefing: customBriefing||undefined, locale })
     });
     const data = await res.json();
     if (!res.ok) { showStatus(data.error || 'Error al guardar', 'error'); return; }
@@ -11070,6 +11089,7 @@ function evEditSupplier(supId) {
   const idTypeEl = document.getElementById('ev-sup-id-type');
   if (idTypeEl) idTypeEl.value = s.id_type || 'NIT';
   document.getElementById('ev-sup-id-number').value = s.id_number || '';
+  const locEl = document.getElementById('ev-sup-locale'); if (locEl) locEl.value = s.locale || 'es';
   document.getElementById('ev-sup-docs-section').style.display = '';
   const rutBtn = document.getElementById('ev-sup-rut-btn');
   const certBtn = document.getElementById('ev-sup-cert-btn');
@@ -11088,6 +11108,7 @@ function evCloseAddSupplier() {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   const idTypeEl = document.getElementById('ev-sup-id-type'); if(idTypeEl) idTypeEl.value = 'NIT';
+  const locEl = document.getElementById('ev-sup-locale'); if (locEl) locEl.value = 'es';
   document.getElementById('ev-sup-docs-section').style.display = 'none';
 }
 
@@ -11101,7 +11122,8 @@ async function evSaveSupplier() {
     contact_phone: document.getElementById('ev-sup-phone').value.trim() || undefined,
     contact_email: document.getElementById('ev-sup-email').value.trim() || undefined,
     id_type: document.getElementById('ev-sup-id-type').value || undefined,
-    id_number: document.getElementById('ev-sup-id-number').value.trim() || undefined
+    id_number: document.getElementById('ev-sup-id-number').value.trim() || undefined,
+    locale: document.getElementById('ev-sup-locale')?.value || 'es'
   };
   try {
     const isEdit = !!evEditingSupplierId;

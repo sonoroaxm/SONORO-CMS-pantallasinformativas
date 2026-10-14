@@ -99,7 +99,9 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     custom_fields = {},
     hp_field = '',
     accepted_terms,
+    locale: rawLocale,
   } = req.body;
+  const locale = ['es','en','pt-BR'].includes(rawLocale) ? rawLocale : 'es';
 
   // Anti-bot: honeypot
   if (hp_field !== '') {
@@ -146,18 +148,19 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
       // Upsert attendee — CRM persistente por tenant (P-2: user_id del organizador)
       const attRes = await client.query(
         `INSERT INTO events.attendees
-           (user_id, email, name, phone, id_number, id_type, organization, job_title)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           (user_id, email, name, phone, id_number, id_type, organization, job_title, locale)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (user_id, email) DO UPDATE SET
            name         = EXCLUDED.name,
            phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
            id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
            organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
            job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
+           locale       = EXCLUDED.locale,
            updated_at   = NOW()
          RETURNING id`,
         [event.user_id, cleanEmail, name.trim(), phone || null,
-         id_number || null, id_type, organization || null, job_title || null]
+         id_number || null, id_type, organization || null, job_title || null, locale]
       );
       const attendee_id = attRes.rows[0].id;
 
@@ -207,14 +210,14 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     const emailConfig = { from_name: event.config?.email_from_name || null, reply_to: event.config?.email_reply_to || null };
     if (autoConfirm) {
       sendEventRegistrationEmail(
-        { name: name.trim(), email: cleanEmail },
+        { name: name.trim(), email: cleanEmail, locale },
         event,
         registration,
         emailConfig
       ).catch(e => console.error('⚠️ Email confirmación evento fallido:', e.message));
     } else {
       sendEventPendingEmail(
-        { name: name.trim(), email: cleanEmail },
+        { name: name.trim(), email: cleanEmail, locale },
         event,
         emailConfig
       ).catch(e => console.error('⚠️ Email inscripción pendiente fallido:', e.message));
@@ -571,21 +574,23 @@ router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (r
         const cleanEmail = a.email.trim().toLowerCase();
         const name = a.name.trim();
 
+        const attLocale = ['es','en','pt-BR'].includes(a.locale) ? a.locale : 'es';
         const attRes = await client.query(
           `INSERT INTO events.attendees
-             (user_id, email, name, phone, id_number, id_type, organization, job_title)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+             (user_id, email, name, phone, id_number, id_type, organization, job_title, locale)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
            ON CONFLICT (user_id, email) DO UPDATE SET
              name         = EXCLUDED.name,
              phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
              id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
              organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
              job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
+             locale       = EXCLUDED.locale,
              updated_at   = NOW()
            RETURNING id`,
           [b.ev_user_id, cleanEmail, name, a.phone || null,
            a.id_number || null, a.id_type || 'CC',
-           a.organization || null, a.job_title || null]
+           a.organization || null, a.job_title || null, attLocale]
         );
         const attendee_id = attRes.rows[0].id;
 
@@ -612,7 +617,7 @@ router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (r
           );
         }
 
-        created.push({ name, email: cleanEmail, registration: regRes.rows[0] });
+        created.push({ name, email: cleanEmail, locale: attLocale, registration: regRes.rows[0] });
       }
 
       await client.query(
@@ -638,7 +643,7 @@ router.post('/invitation/:claim_code/register', invitationClaimLimiter, async (r
 
     for (const c of created) {
       sendInvitationConfirmedEmail(
-        { name: c.name, email: c.email }, event, c.registration, batch, emailConfig
+        { name: c.name, email: c.email, locale: c.locale }, event, c.registration, batch, emailConfig
       ).catch(e => console.error('⚠️ Email confirmación invitación fallido:', e.message));
     }
 
