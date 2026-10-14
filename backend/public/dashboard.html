@@ -4360,6 +4360,15 @@ function showDashboard() {
   // Asegurar que el tab inicial este visible
   const firstTab = document.querySelector('.tab-btn.active');
   if (firstTab) firstTab.click();
+  // S210-exec #8: events-only users abren en tab "Mis Eventos" (no Contenido)
+  try {
+    const isEventsOnly = features.events_v1 === true &&
+      !currentUser.smarttv_enabled && !features.turnos && !features.multisede;
+    if (isEventsOnly) {
+      const evTab = document.querySelector('.tab-btn[data-tab="events"]');
+      if (evTab) setTimeout(() => evTab.click(), 100);
+    }
+  } catch(e) { console.warn('events-only tab switch:', e); }
   // LICENSES-V1 Fase 4 — first-time country prompt
   try { licCheckFirstTimeCountry(); } catch(e) {}
 }
