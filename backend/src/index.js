@@ -672,6 +672,13 @@ app.post('/api/auth/register', registerLimiter, async (req, res) => {
         { expiresIn: JWT_EXPIRES_IN }
       );
       console.log(`✅ Usuario registrado (events): ${email}`);
+      // Welcome email (best-effort, no bloquea respuesta)
+      (async () => {
+        try {
+          const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          await emailService.sendEventsWelcomeEmail({ email: user.email, name: user.name }, trialEnd);
+        } catch (e) { console.error('[events welcome email]', e.message); }
+      })();
       return res.json({
         success: true,
         token,

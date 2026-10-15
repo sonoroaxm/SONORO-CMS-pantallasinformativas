@@ -39,7 +39,7 @@ router.get('/:slug', eventPublicReadLimiter, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, slug, status, starts_at, ends_at, timezone,
-              venue_name, venue_address, cover_image_url, config
+              venue_name, venue_address, cover_image_url, config, registration_mode
        FROM events.events
        WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.slug]
@@ -47,12 +47,14 @@ router.get('/:slug', eventPublicReadLimiter, async (req, res) => {
     if (!rows[0]) return res.status(404).json({ error: 'Evento no encontrado o no disponible' });
     const event = rows[0];
 
+    // E3.5: solo exponer sesiones visibility='public' en el flujo público general.
+    // Sesiones private/invite_only se manejan vía productor o vía flujo de invitación con token.
     const { rows: sessions } = await pool.query(
       `SELECT id, name, description, session_type, venue_zone, starts_at, ends_at,
-              capacity, requires_registration,
+              capacity, requires_registration, visibility,
               (SELECT COUNT(*) FROM events.registration_sessions rs WHERE rs.session_id = es.id) AS registered_count
        FROM events.event_sessions es
-       WHERE event_id = $1 AND status != 'cancelled'
+       WHERE event_id = $1 AND status != 'cancelled' AND visibility = 'public'
        ORDER BY starts_at`,
       [event.id]
     );
@@ -121,12 +123,34 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
 
   try {
     const { rows: evRows } = await pool.query(
-      `SELECT id, name, slug, user_id, timezone, starts_at, ends_at, venue_name, config
+      `SELECT id, name, slug, user_id, timezone, starts_at, ends_at, venue_name, config, registration_mode
        FROM events.events WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.slug]
     );
     if (!evRows[0]) return res.status(404).json({ error: 'Evento no encontrado o no disponible' });
     const event = evRows[0];
+
+    // E3.5: resolver qué sesiones registrar
+    //   - full_event: ignorar session_ids del body, inscribir a TODAS las visibility='public'
+    //   - per_session: aceptar session_ids del body pero filtrar a visibility='public' únicamente
+    //     (private/invite_only solo las asigna el productor vía endpoint autenticado)
+    let effectiveSessionIds = [];
+    if (event.registration_mode === 'full_event') {
+      const { rows: allPub } = await pool.query(
+        `SELECT id FROM events.event_sessions
+         WHERE event_id = $1 AND status != 'cancelled' AND visibility = 'public'`,
+        [event.id]
+      );
+      effectiveSessionIds = allPub.map(r => r.id);
+    } else if (Array.isArray(session_ids) && session_ids.length) {
+      const { rows: okSess } = await pool.query(
+        `SELECT id FROM events.event_sessions
+         WHERE event_id = $1 AND status != 'cancelled' AND visibility = 'public'
+           AND id = ANY($2::int[])`,
+        [event.id, session_ids]
+      );
+      effectiveSessionIds = okSess.map(r => r.id);
+    }
 
     // Verificar capacidad máxima (si aplica)
     const maxCap = event.config?.max_capacity;
@@ -188,8 +212,8 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
 
       const reg = regRes.rows[0];
 
-      // Insert sesiones seleccionadas
-      for (const sid of session_ids) {
+      // Insert sesiones efectivas (E3.5 ya resolvió full_event vs per_session)
+      for (const sid of effectiveSessionIds) {
         await client.query(
           `INSERT INTO events.registration_sessions (registration_id, session_id)
            VALUES ($1,$2) ON CONFLICT DO NOTHING`,
@@ -226,7 +250,8 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     // Telemetría: emit al dashboard de producción (si ya está abierto)
     global.io?.to(`event_${event.id}`).emit('attendee.registered', {
       user_id: event.user_id, event_id: event.id,
-      origin: 'web_form', session_count: session_ids.length,
+      origin: 'web_form', session_count: effectiveSessionIds.length,
+      registration_mode: event.registration_mode,
     });
 
     res.status(201).json({

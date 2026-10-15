@@ -1155,10 +1155,15 @@ async function sendEventRegistrationEmail(attendee, event, registration, emailCo
         <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">${EVTT(loc, 'registration.lbl_venue')}</p>
         <p style="margin:0;font-size:14px;color:#0f0f0f;">${event.venue_name}</p>
       </td></tr>` : ''}
-      <tr><td style="padding:16px 24px;">
+      <tr><td style="padding:16px 24px;${event.registration_mode === 'full_event' ? 'border-bottom:1px solid #eee;' : ''}">
         <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">${EVTT(loc, 'registration.lbl_ticket')}</p>
         <p style="margin:0;font-size:14px;color:#0f0f0f;">${ticketLabel}</p>
       </td></tr>
+      ${event.registration_mode === 'full_event' ? `
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">${loc === 'en' ? 'Sessions' : (loc === 'pt-BR' ? 'Sessões' : 'Sesiones')}</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${loc === 'en' ? 'All event sessions' : (loc === 'pt-BR' ? 'Todas as sessões do evento' : 'Todas las sesiones del evento')}</p>
+      </td></tr>` : ''}
     </table>
 
     <div style="text-align:center;margin:24px 0;background:#fff;border:1px solid #eee;border-radius:8px;padding:20px;">
@@ -1746,4 +1751,56 @@ async function sendStaffBriefingEmail(staff, event, producer) {
   console.log(`✅ Briefing staff enviado a ${staff.email} (${event.name}) [${loc}]`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, verifyConnection };
+// ─────────────────────────────────────────────────────────────────────────
+// Events — welcome email trial (post register con product=events) · 15-oct-2026
+// ─────────────────────────────────────────────────────────────────────────
+async function sendEventsWelcomeEmail(user, trialEndDate) {
+  const endStr = trialEndDate
+    ? new Date(trialEndDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '30 días desde hoy';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;">
+      Bienvenido a SONORO Events
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${user.name || 'de nuevo'}</strong>, tu cuenta ya está activa con el plan Trial.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Plan</p>
+        <p style="margin:0;font-size:16px;color:#0f0f0f;font-weight:700;">Trial — 30 días</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;border-bottom:1px solid #eee;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Incluye</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;line-height:1.6;">1 evento activo · hasta 150 asistentes · check-in QR · formulario público · emails transaccionales</p>
+      </td></tr>
+      <tr><td style="padding:16px 24px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#999;">Vence</p>
+        <p style="margin:0;font-size:14px;color:#0f0f0f;">${endStr}</p>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${CMS_URL}/dashboard.html" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Crear mi primer evento
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:24px 0 0;font-size:13px;color:#666;line-height:1.6;">
+      Al terminar el trial podés pasar a un plan pago desde el dashboard sin perder datos. Si necesitas ayuda, respondé este correo.
+    </p>
+  `, { tagline: 'Software de gestión de eventos' });
+
+  await transporter.sendMail({
+    from: FROM,
+    to: user.email,
+    subject: 'Bienvenido a SONORO Events — tu trial de 30 días ya está activo',
+    html
+  });
+  console.log(`✅ Welcome Events enviado a ${user.email}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, verifyConnection };

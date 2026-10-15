@@ -420,7 +420,11 @@ router.patch('/:id', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
                    'venue_name', 'venue_address', 'cover_image_url', 'config',
-                   'publish_to_external_calendar'];
+                   'publish_to_external_calendar', 'registration_mode'];
+  if (req.body.registration_mode !== undefined &&
+      !['full_event','per_session'].includes(req.body.registration_mode)) {
+    return res.status(400).json({ error: 'registration_mode inválido' });
+  }
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   const hasConfigPatch = req.body.config_patch !== undefined;
   if (!fields.length && !hasConfigPatch) return res.status(400).json({ error: 'Nada que actualizar' });
@@ -493,12 +497,15 @@ router.post('/:id/sessions', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const { name, description, session_type = 'plenary', venue_zone,
           starts_at, ends_at, capacity, requires_registration = false,
-          speaker_name = null } = req.body;
+          speaker_name = null, visibility = 'public' } = req.body;
   if (!name?.trim() || !starts_at || !ends_at) {
     return res.status(400).json({ error: 'name, starts_at y ends_at son requeridos' });
   }
   if (ends_at <= starts_at) {
     return res.status(400).json({ error: 'ends_at debe ser posterior a starts_at' });
+  }
+  if (!['public','private','invite_only'].includes(visibility)) {
+    return res.status(400).json({ error: 'visibility inválido' });
   }
   const evCheck = await pool.query(
     `SELECT id, user_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -510,14 +517,14 @@ router.post('/:id/sessions', auth, async (req, res) => {
     const { rows } = await pool.query(
       `INSERT INTO events.event_sessions
          (event_id, user_id, name, description, session_type, venue_zone,
-          starts_at, ends_at, capacity, requires_registration, speaker_name)
+          starts_at, ends_at, capacity, requires_registration, speaker_name, visibility)
        VALUES ($1,$2,$3,$4,$5,$6,
          ($7::timestamp AT TIME ZONE $11),
          ($8::timestamp AT TIME ZONE $11),
-         $9,$10,$12) RETURNING *`,
+         $9,$10,$12,$13) RETURNING *`,
       [req.params.id, evCheck.rows[0].user_id, name.trim(), description || null,
        session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz,
-       (speaker_name && String(speaker_name).trim()) || null]
+       (speaker_name && String(speaker_name).trim()) || null, visibility]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -1695,9 +1702,12 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   const { name, starts_at, ends_at, capacity, venue_zone, description, session_type,
-          assigned_staff_id, observations, speaker_name } = req.body;
+          assigned_staff_id, observations, speaker_name, visibility } = req.body;
   if (starts_at && ends_at && ends_at <= starts_at) {
     return res.status(400).json({ error: 'ends_at debe ser posterior a starts_at' });
+  }
+  if (visibility !== undefined && !['public','private','invite_only'].includes(visibility)) {
+    return res.status(400).json({ error: 'visibility inválido' });
   }
   try {
     const evCheck = await pool.query(
@@ -1716,14 +1726,16 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
          description       = COALESCE($8, description),
          assigned_staff_id = COALESCE($10, assigned_staff_id),
          observations      = COALESCE($11, observations),
-         speaker_name      = COALESCE($12, speaker_name)
+         speaker_name      = COALESCE($12, speaker_name),
+         visibility        = COALESCE($13, visibility)
        WHERE id = $1 AND event_id = $2 RETURNING *`,
       [req.params.sessionId, req.params.id,
        name?.trim() || null, starts_at || null, ends_at || null,
        capacity !== undefined ? (capacity || null) : undefined,
        venue_zone || null, description || null, tz,
        assigned_staff_id || null, observations || null,
-       (speaker_name && String(speaker_name).trim()) || null]
+       (speaker_name && String(speaker_name).trim()) || null,
+       visibility || null]
     );
     if (!rows.length) return res.status(404).json({ error: 'Sesión no encontrada' });
     res.json(rows[0]);
@@ -1750,6 +1762,73 @@ router.delete('/:id/sessions/:sessionId', auth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('\u274C DELETE /sessions/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── E3.5: asignación manual de sesión a un registro (productor) ───────────────
+// Permite al productor asignar sesiones private/invite_only a un asistente ya
+// registrado. 'public' también se acepta por conveniencia (idempotente).
+router.post('/:id/registrations/:regId/sessions', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const sessionIds = Array.isArray(req.body?.session_ids) ? req.body.session_ids : [];
+  if (!sessionIds.length) return res.status(400).json({ error: 'session_ids requerido' });
+  try {
+    const owner = isAdmin ? [req.params.id] : [req.params.id, req.user.id];
+    const ev = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      owner
+    );
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const reg = await pool.query(
+      `SELECT id FROM events.registrations WHERE id = $1 AND event_id = $2`,
+      [req.params.regId, req.params.id]
+    );
+    if (!reg.rowCount) return res.status(404).json({ error: 'Registro no encontrado' });
+    const sess = await pool.query(
+      `SELECT id FROM events.event_sessions
+       WHERE event_id = $1 AND status != 'cancelled' AND id = ANY($2::int[])`,
+      [req.params.id, sessionIds]
+    );
+    const valid = sess.rows.map(r => r.id);
+    const inserted = await withTransaction(pool, async (client) => {
+      const out = [];
+      for (const sid of valid) {
+        const r = await client.query(
+          `INSERT INTO events.registration_sessions (registration_id, session_id)
+           VALUES ($1,$2) ON CONFLICT DO NOTHING RETURNING session_id`,
+          [req.params.regId, sid]
+        );
+        if (r.rows[0]) out.push(r.rows[0].session_id);
+      }
+      return out;
+    });
+    res.json({ assigned: inserted, skipped: valid.length - inserted.length });
+  } catch (err) {
+    console.error('❌ POST /registrations/:regId/sessions:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.delete('/:id/registrations/:regId/sessions/:sessionId', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const owner = isAdmin ? [req.params.id] : [req.params.id, req.user.id];
+    const ev = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      owner
+    );
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const del = await pool.query(
+      `DELETE FROM events.registration_sessions
+       WHERE registration_id = $1 AND session_id = $2`,
+      [req.params.regId, req.params.sessionId]
+    );
+    res.json({ removed: del.rowCount });
+  } catch (err) {
+    console.error('❌ DELETE /registrations/:regId/sessions/:sessionId:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });

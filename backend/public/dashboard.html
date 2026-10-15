@@ -1580,6 +1580,23 @@
         </form>
 
         <form id="registerForm" style="display: none;">
+          <p class="reg-section-title" data-i18n="login.picker_q">¿Qué vas a usar?</p>
+          <div id="regProductPicker">
+            <label data-product="signage" class="reg-pcard">
+              <input type="radio" name="regProduct" value="signage">
+              <svg class="reg-pcard-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H88v16H72a8,8,0,0,0,0,16H184a8,8,0,0,0,0-16H168V200h40a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm-56,176H104V200h48ZM216,176a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Z"/></svg>
+              <div class="reg-pcard-title" data-i18n="login.signage_t">Pantallas informativas</div>
+              <div class="reg-pcard-desc" data-i18n="login.signage_d">Cartelería digital en TVs y pantallas</div>
+            </label>
+            <label data-product="events" class="reg-pcard">
+              <input type="radio" name="regProduct" value="events">
+              <svg class="reg-pcard-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg>
+              <div class="reg-pcard-title" data-i18n="login.events_t">Gestión de eventos</div>
+              <div class="reg-pcard-desc" data-i18n="login.events_d">Registro, check-in y staff</div>
+            </label>
+          </div>
+          <div class="reg-block-sep"></div>
+          <p class="reg-section-title" data-i18n="login.form_section">Tu cuenta</p>
           <div class="form-group">
             <label data-i18n="login.name">Nombre</label>
             <input type="text" id="registerName" placeholder="Tu nombre" required>
@@ -1594,6 +1611,42 @@
           </div>
           <button type="submit" class="submit-btn" data-i18n="login.signup_btn">Crear Cuenta</button>
         </form>
+        <style>
+          .reg-section-title { font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin:0 0 10px;text-align:center; }
+          .reg-block-sep { height:1px;background:var(--border);margin:22px 0;opacity:.6; }
+          #regProductPicker { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px; }
+          #regProductPicker .reg-pcard { display:block;padding:16px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface2);text-align:center;transition:border-color .15s, background .15s; }
+          #regProductPicker .reg-pcard input { display:none; }
+          #regProductPicker .reg-pcard:hover { border-color:var(--text-muted); }
+          #regProductPicker .reg-pcard.selected { border-color:#FF1B8D;background:rgba(255,27,141,.08); }
+          #regProductPicker .reg-pcard-icon { width:28px;height:28px;display:block;margin:0 auto 10px;color:var(--text-muted); }
+          #regProductPicker .reg-pcard.selected .reg-pcard-icon { color:#FF1B8D; }
+          #regProductPicker .reg-pcard-title { font-size:13px;font-weight:800;color:var(--text);margin-bottom:4px;letter-spacing:-.2px; }
+          #regProductPicker .reg-pcard.selected .reg-pcard-title { color:#FF1B8D; }
+          #regProductPicker .reg-pcard-desc { font-size:11px;color:var(--text-muted);line-height:1.4; }
+        </style>
+        <script>
+          (function(){
+            function selectProduct(p){
+              document.querySelectorAll('#regProductPicker label').forEach(function(l){
+                var is = l.getAttribute('data-product') === p;
+                l.classList.toggle('selected', is);
+                var r = l.querySelector('input[type=radio]');
+                if (r) r.checked = is;
+              });
+              window._signupProduct = p;
+              try { sessionStorage.setItem('_signupProduct', p); } catch(_) {}
+            }
+            document.addEventListener('DOMContentLoaded', function(){
+              document.querySelectorAll('#regProductPicker label').forEach(function(l){
+                l.addEventListener('click', function(e){ e.preventDefault(); selectProduct(l.getAttribute('data-product')); });
+              });
+              var initial = window._signupProduct;
+              if (!initial) { try { initial = sessionStorage.getItem('_signupProduct') || ''; } catch(_) {} }
+              selectProduct(['signage','events'].includes(initial) ? initial : 'signage');
+            });
+          })();
+        </script>
       </div>
     </div>
 
@@ -2638,6 +2691,21 @@
                   Sesiones / Jornadas
                   <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()">+ Agregar</button>
                 </div>
+                <!-- E3.5: modo de inscripción -->
+                <div class="form-group" style="margin:0 0 12px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);">
+                  <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Modo de inscripción</label>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                      <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" onchange="evSaveRegMode()">
+                      Dejar que el asistente elija sesiones
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                      <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" onchange="evSaveRegMode()">
+                      Inscribir automáticamente a todas las sesiones
+                    </label>
+                  </div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Las sesiones privadas o solo-invitación nunca aparecen en el formulario público.</div>
+                </div>
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
                 <div id="ev-add-session-form" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
@@ -2662,6 +2730,14 @@
                     <div class="form-group" style="margin:0;"><label>Observaciones</label>
                       <textarea id="ev-sess-obs" rows="2" placeholder="Notas o indicaciones especiales..."
                         style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin:0;"><label>Visibilidad</label>
+                      <select id="ev-sess-visibility"
+                        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                        <option value="public">Pública — todos pueden verla e inscribirse</option>
+                        <option value="private">Privada — solo el productor la asigna manualmente</option>
+                        <option value="invite_only">Solo invitados — requiere link de invitación</option>
+                      </select>
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;">
                       <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()">Cancelar</button>
@@ -3951,14 +4027,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   setupTabs();
   // S210-exec #8: honor ?signup=1&product=X[&tier=Y] desde landings (/eventos/)
+  // Fix 15-oct: parsear product aunque no venga signup=1, persistir en sessionStorage,
+  // y detectar referrer /eventos/ como refuerzo contra landing cacheada sin ?product.
   try {
     var _qs = new URLSearchParams(location.search);
-    if (_qs.get('signup') === '1') {
-      var _prod = (_qs.get('product') || '').toLowerCase();
-      var _tier = (_qs.get('tier') || '').toLowerCase();
+    var _prod = (_qs.get('product') || '').toLowerCase();
+    var _tier = (_qs.get('tier') || '').toLowerCase();
+    if (!_prod) {
+      try { _prod = sessionStorage.getItem('_signupProduct') || ''; } catch(_) {}
+    }
+    if (!_prod && document.referrer && /\/eventos\/?(\?|$|#)/.test(document.referrer)) {
+      _prod = 'events';
+    }
+    if (_prod) {
       window._signupProduct = ['signage','events'].includes(_prod) ? _prod : 'signage';
       window._signupTier = ['lite','pro','masivo'].includes(_tier) ? _tier : null;
-      // Activar tab "Registrarse" en el modal login
+      try { sessionStorage.setItem('_signupProduct', window._signupProduct); } catch(_) {}
+      if (window._signupTier) { try { sessionStorage.setItem('_signupTier', window._signupTier); } catch(_) {} }
+    }
+    if (_qs.get('signup') === '1') {
       setTimeout(function(){
         var regTab = document.querySelector('.form-tab[data-tab="register"]');
         if (regTab) regTab.click();
@@ -4143,6 +4230,11 @@ function setupTabs() {
       tab.classList.add('active');
       document.getElementById('loginForm').style.display = tabName === 'login' ? 'block' : 'none';
       document.getElementById('registerForm').style.display = tabName === 'register' ? 'block' : 'none';
+      // Fix 15-oct: "Olvidé mi contraseña" + forgot form sólo visibles en tab Ingresar
+      var _fl = document.getElementById('forgotToggleLink');
+      var _ff = document.getElementById('forgotPwForm');
+      if (_fl) _fl.parentElement.style.display = tabName === 'login' ? 'block' : 'none';
+      if (_ff && tabName !== 'login') _ff.style.display = 'none';
     });
   });
 
@@ -4245,13 +4337,16 @@ async function register() {
   const name = document.getElementById('registerName').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
+  // Fuente de verdad: radio seleccionado > window._signupProduct > sessionStorage > 'signage'
+  var selectedRadio = document.querySelector('#regProductPicker input[name=regProduct]:checked');
+  var product = (selectedRadio && selectedRadio.value) || window._signupProduct || 'signage';
   try {
     const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name, email, password,
-        product: window._signupProduct || 'signage',
+        product: product,
         tier: window._signupTier || undefined
       })
     });
@@ -4365,8 +4460,17 @@ function showDashboard() {
     const isEventsOnly = features.events_v1 === true &&
       !currentUser.smarttv_enabled && !features.turnos && !features.multisede;
     if (isEventsOnly) {
+      // Ocultar grupo Signage completo (Contenido/Listas/Dispositivos) + tabs mobile
+      const gSig = document.getElementById('group-contenido');
+      if (gSig) gSig.classList.add('hidden-feature');
+      ['mtab-content','mtab-playlists','mtab-devices'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) b.style.display = 'none';
+      });
       const evTab = document.querySelector('.tab-btn[data-tab="events"]');
       if (evTab) setTimeout(() => evTab.click(), 100);
+      const mEv = document.getElementById('mtab-events');
+      if (mEv) setTimeout(() => mEv.click && mEv.click(), 120);
     }
   } catch(e) { console.warn('events-only tab switch:', e); }
   // LICENSES-V1 Fase 4 — first-time country prompt
@@ -9607,6 +9711,29 @@ function evPopulateInfo(ev) {
     pubCalEl.checked = !!ev.publish_to_external_calendar;
     evRefreshCalendarSyncStatus(ev.id);
   }
+  // E3.5: cargar modo de inscripción
+  const mode = ev.registration_mode === 'full_event' ? 'full_event' : 'per_session';
+  const rp = document.getElementById('ev-regmode-per');
+  const rf = document.getElementById('ev-regmode-full');
+  if (rp) rp.checked = mode === 'per_session';
+  if (rf) rf.checked = mode === 'full_event';
+}
+
+async function evSaveRegMode() {
+  const mode = document.querySelector('input[name="ev-reg-mode"]:checked')?.value;
+  if (!mode || !evCurrentEventId) return;
+  try {
+    const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ registration_mode: mode })
+    });
+    const d = await res.json();
+    if (d.id) {
+      evCurrentEvent = d;
+      showStatus(mode === 'full_event' ? 'Inscripción automática a todas las sesiones' : 'Inscripción por sesión', 'success');
+    } else { showStatus(d.error || 'Error', 'error'); }
+  } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
 async function evRefreshCalendarSyncStatus(eventId) {
@@ -9734,9 +9861,14 @@ async function evLoadSessions(eventId) {
       const dateStr = startDt.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz });
       const startT = startDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
       const endT = endDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+      const visBadge = s.visibility === 'private'
+        ? '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e;margin-left:6px;">PRIVADA</span>'
+        : (s.visibility === 'invite_only'
+          ? '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:6px;">SOLO INVITADOS</span>'
+          : '');
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;">${s.name}</div>
+          <div style="font-size:13px;font-weight:700;">${s.name}${visBadge}</div>
           <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' cupos' : ''}</div>
           ${s.assigned_staff_name ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-user"/></svg> ${s.assigned_staff_name}</div>` : ''}
         </div>
@@ -9757,6 +9889,7 @@ function evCloseAddSession() {
   document.getElementById('ev-add-session-form').classList.add('hidden');
   ['ev-sess-edit-id','ev-sess-name','ev-sess-speaker','ev-sess-date','ev-sess-cap','ev-sess-start','ev-sess-end','ev-sess-obs'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   const staffSel = document.getElementById('ev-sess-staff'); if(staffSel) staffSel.value = '';
+  const visSel = document.getElementById('ev-sess-visibility'); if(visSel) visSel.value = 'public';
 }
 let evSessionsList = [];
 
@@ -9775,6 +9908,8 @@ function evEditSession(id) {
   evPopulateStaffSelect('ev-sess-staff');
   document.getElementById('ev-sess-staff').value = s.assigned_staff_id || '';
   document.getElementById('ev-sess-obs').value = s.observations || '';
+  const visSel = document.getElementById('ev-sess-visibility');
+  if (visSel) visSel.value = s.visibility || 'public';
   document.getElementById('ev-add-session-form').classList.remove('hidden');
   document.getElementById('ev-sess-name').focus();
 }
@@ -9811,7 +9946,8 @@ async function evSaveSession() {
     ends_at: `${endDate}T${endT}:00`,
     capacity: document.getElementById('ev-sess-cap').value || null,
     assigned_staff_id: document.getElementById('ev-sess-staff').value || null,
-    observations: document.getElementById('ev-sess-obs').value.trim() || null
+    observations: document.getElementById('ev-sess-obs').value.trim() || null,
+    visibility: document.getElementById('ev-sess-visibility')?.value || 'public'
   };
   try {
     const url = editId

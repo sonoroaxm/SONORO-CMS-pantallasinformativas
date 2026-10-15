@@ -922,6 +922,12 @@ function renderSessions() {
     hasSessions = false;
     return;
   }
+  // E3.5: modo full_event → el backend inscribe a todas las públicas; omitimos paso de selección
+  if (EVENT.registration_mode === 'full_event') {
+    hasSessions = false;
+    selectedSessions = new Set();
+    return;
+  }
   hasSessions = sessions.length > 0;
   if (!hasSessions) return;
   const tz = EVENT.timezone || 'UTC';
@@ -1063,6 +1069,9 @@ function buildSummary() {
   `;
   if (sessNames.length) {
     rows += `<div style="grid-column:1/-1;"><div class="summary-label">${t('sessions')}</div><div class="summary-val">${sessNames.join(' · ')}</div></div>`;
+  } else if (EVENT.registration_mode === 'full_event' && (EVENT.sessions || []).length) {
+    const label = LANG === 'en' ? 'All event sessions' : (LANG === 'pt-BR' ? 'Todas as sessões do evento' : 'Todas las sesiones del evento');
+    rows += `<div style="grid-column:1/-1;"><div class="summary-label">${t('sessions')}</div><div class="summary-val">${label}</div></div>`;
   }
   document.getElementById('summary-grid').innerHTML = rows;
   document.getElementById('l-terms').innerHTML = t('terms');
