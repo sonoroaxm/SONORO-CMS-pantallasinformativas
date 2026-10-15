@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar certificado — SONORO</title>
+<link rel="icon" href="/sonoro-icon.svg">
+<style>
+  :root { --bg:#f5f1e8; --ink:#0f0f0f; --muted:#666; --ok:#15803d; --bad:#991b1b; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+  header{padding:24px;border-bottom:1px solid #e8e3d6;background:#fff;text-align:center}
+  header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  main{max-width:560px;margin:0 auto;padding:48px 20px}
+  .status{background:#fff;border-radius:12px;padding:36px 28px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
+  .badge{display:inline-block;padding:8px 16px;border-radius:999px;font-weight:800;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:20px}
+  .badge-ok{background:#dcfce7;color:var(--ok)}
+  .badge-bad{background:#fee2e2;color:var(--bad)}
+  .big{font-size:22px;font-weight:800;margin:0 0 8px}
+  .meta{margin-top:28px;border-top:1px solid #f0ebe0;padding-top:20px;text-align:left}
+  .meta-row{display:flex;justify-content:space-between;padding:8px 0;font-size:14px}
+  .meta-row span:first-child{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.8px;font-weight:600}
+  .link{display:inline-block;margin-top:24px;color:var(--ink);text-decoration:underline;font-size:14px}
+  .loading{text-align:center;padding:40px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><h1>SONORO · Verificación</h1></header>
+<main id="main">
+  <div class="loading">Verificando...</div>
+</main>
+<script>
+const token = location.pathname.split('/').pop();
+const main = document.getElementById('main');
+
+function fmtDate(iso){
+  if(!iso) return '';
+  try { return new Date(iso).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' }); }
+  catch(_) { return iso; }
+}
+function fmtHours(n){
+  if(n == null) return '—';
+  const num = Number(n);
+  if(Math.abs(num - Math.round(num)) < 0.05) return String(Math.round(num));
+  return num.toFixed(1).replace('.', ',');
+}
+
+async function verify(){
+  try {
+    const r = await fetch(`/api/public/certificates/${token}/verify`);
+    const d = await r.json();
+    if(!r.ok || d.error){
+      main.innerHTML = `
+        <div class="status">
+          <span class="badge badge-bad">No encontrado</span>
+          <p class="big">Certificado no válido</p>
+          <p style="color:var(--muted);margin:0">El código QR o enlace no corresponde a un certificado emitido.</p>
+        </div>`;
+      return;
+    }
+    const ok = d.valid;
+    const sessionLine = d.session_name
+      ? `<div class="meta-row"><span>Sesión</span><span>${d.session_name}</span></div>` : '';
+    main.innerHTML = `
+      <div class="status">
+        <span class="badge ${ok ? 'badge-ok' : 'badge-bad'}">${ok ? 'Válido' : 'Revocado'}</span>
+        <p class="big">${ok ? 'Certificado verificado' : 'Certificado revocado'}</p>
+        <p style="color:var(--muted);margin:0">${ok
+          ? 'Este certificado fue emitido por SONORO y es auténtico.'
+          : (d.revoke_reason ? `Motivo: ${d.revoke_reason}` : 'Este certificado fue revocado por el organizador.')}</p>
+        <div class="meta">
+          <div class="meta-row"><span>Asistente</span><span>${d.attendee_name || ''}</span></div>
+          <div class="meta-row"><span>Evento</span><span>${d.event_name || ''}</span></div>
+          ${sessionLine}
+          <div class="meta-row"><span>Horas</span><span>${fmtHours(d.hours_total)}</span></div>
+          <div class="meta-row"><span>Emitido</span><span>${fmtDate(d.issued_at)}</span></div>
+        </div>
+        <a class="link" href="/cert/${token}">Ver certificado</a>
+      </div>`;
+  } catch(err){
+    main.innerHTML = `<div class="status"><p>Error de red. Intenta nuevamente.</p></div>`;
+  }
+}
+verify();
+</script>
+</body>
+</html>

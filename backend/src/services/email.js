@@ -1803,4 +1803,40 @@ async function sendEventsWelcomeEmail(user, trialEndDate) {
   console.log(`✅ Welcome Events enviado a ${user.email}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, verifyConnection };
+// ── EMAIL — CERTIFICADO EMITIDO (E4) ─────────────────────────────────────────
+async function sendCertificateEmail({ to, attendeeName, eventName, certUrl, pdfPath }) {
+  if (!to) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;line-height:1.25;">
+      Tu certificado está listo
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola ${attendeeName || ''}, gracias por participar en <strong>${eventName}</strong>.
+      Adjuntamos tu certificado en PDF. También puedes consultarlo o descargarlo desde el enlace.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${certUrl}" style="display:inline-block;padding:14px 26px;background:#0f0f0f;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          Ver certificado
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">
+      La validez puede verificarse escaneando el código QR del certificado.
+    </p>
+  `, { tagline: 'Software de gestión de eventos' });
+
+  const mailOpts = { from: FROM, to, subject: `Tu certificado — ${eventName}`, html };
+  if (pdfPath) {
+    try {
+      const fsx = require('fs');
+      if (fsx.existsSync(pdfPath)) {
+        mailOpts.attachments = [{ filename: 'certificado.pdf', path: pdfPath, contentType: 'application/pdf' }];
+      }
+    } catch (_) {}
+  }
+  await transporter.sendMail(mailOpts);
+  console.log(`✅ Certificado enviado a ${to} (${eventName})`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, verifyConnection };

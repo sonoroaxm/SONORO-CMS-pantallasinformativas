@@ -2636,6 +2636,7 @@
             <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
             <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
             <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Producción</button>
+            <button class="ev-sub-tab" data-evtab="certs" onclick="evSwitchSubTab('certs')">Certificados</button>
           </div>
 
           <!-- SUB-TAB: Información -->
@@ -3071,7 +3072,143 @@
             </div>
           </div>
 
-          <!-- MODAL: Preview briefing (S208n) -->
+          <!-- MODAL: Certificado — crear/editar plantilla -->
+          <div id="ev-cert-tpl-modal" class="modal" onclick="if(event.target.id==='ev-cert-tpl-modal') evCloseCertTplModal()">
+            <div class="modal-content" style="max-width:640px;">
+              <div class="modal-header">
+                <h3 id="ev-cert-tpl-modal-title">Nueva plantilla</h3>
+                <button class="modal-close" onclick="evCloseCertTplModal()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Nombre interno</label>
+                  <input type="text" id="ev-cert-tpl-name" placeholder="Ej. Asistencia general" style="width:100%;">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                  <div class="form-group" style="margin:0;">
+                    <label>Qué certifica</label>
+                    <select id="ev-cert-tpl-scope" onchange="evCertTplScopeChanged()" style="width:100%;">
+                      <option value="event">Evento completo (suma de horas)</option>
+                      <option value="session">Sesión específica</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label>Tamaño</label>
+                    <select id="ev-cert-tpl-page" style="width:100%;">
+                      <option value="letter">Carta (11×8.5" apaisado)</option>
+                      <option value="half_letter">Media carta (11×5.5" apaisado)</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="ev-cert-tpl-session-wrap" class="form-group" style="margin:0;display:none;">
+                  <label>Sesión</label>
+                  <select id="ev-cert-tpl-session" style="width:100%;"></select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Canvas de fondo (PNG / JPG)</label>
+                  <input type="file" id="ev-cert-tpl-canvas" accept="image/png,image/jpeg">
+                  <div id="ev-cert-tpl-canvas-current" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                    Tamaño recomendado: 3300×2550 px (carta) o 3300×1650 px (media carta) a 300 DPI.
+                    <a href="/assets/certificados/guia-certificado.html" target="_blank" style="color:var(--text);">Descargar guía</a>
+                  </div>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Texto del cuerpo</label>
+                  <textarea id="ev-cert-tpl-body" rows="3" style="width:100%;resize:vertical;font-size:13px;"></textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                    Placeholders: <code>{{nombre}}</code> <code>{{evento}}</code> <code>{{sesion}}</code> <code>{{horas}}</code> <code>{{fecha}}</code> <code>{{fechas}}</code>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:13px;">
+                    <input type="checkbox" id="ev-cert-tpl-reqchk" style="width:16px;height:16px;cursor:pointer;">
+                    Solo asistentes con check-in confirmado
+                  </label>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-size:11px;">Mín. sesiones asistidas</label>
+                    <input type="number" id="ev-cert-tpl-min" min="1" style="width:80px;" placeholder="—">
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evCloseCertTplModal()">Cancelar</button>
+                <button class="btn btn-grad" onclick="evSaveCertTpl()">Guardar plantilla</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Certificado — emisión masiva -->
+          <div id="ev-cert-bulk-modal" class="modal" onclick="if(event.target.id==='ev-cert-bulk-modal') evCloseCertBulkModal()">
+            <div class="modal-content" style="max-width:520px;">
+              <div class="modal-header">
+                <h3>Emisión masiva</h3>
+                <button class="modal-close" onclick="evCloseCertBulkModal()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Plantilla</label>
+                  <select id="ev-cert-bulk-tpl" style="width:100%;"></select>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">
+                  Se emitirán certificados a todos los registros confirmados que cumplan las reglas de la plantilla (check-in, mínimo de sesiones). Los asistentes ya certificados se omiten automáticamente.
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:13px;">
+                  <input type="checkbox" id="ev-cert-bulk-send" style="width:16px;height:16px;cursor:pointer;">
+                  Enviar por correo electrónico al emitir
+                </label>
+                <div id="ev-cert-bulk-result"></div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evCloseCertBulkModal()">Cerrar</button>
+                <button class="btn btn-grad" onclick="evRunCertBulk()">Emitir</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Certificado por registro (emitir manual / lista) -->
+          <div id="ev-reg-cert-modal" class="modal" onclick="if(event.target.id==='ev-reg-cert-modal') evCloseRegCertModal()">
+            <div class="modal-content" style="max-width:560px;">
+              <div class="modal-header">
+                <h3>Certificado del asistente</h3>
+                <button class="modal-close" onclick="evCloseRegCertModal()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">
+                  <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Asistente</div>
+                  <div style="font-size:14px;font-weight:700;" id="ev-reg-cert-name">—</div>
+                  <div style="font-size:12px;color:var(--text-muted);" id="ev-reg-cert-email"></div>
+                </div>
+
+                <div style="border-top:1px solid var(--border);padding-top:12px;">
+                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Emitir nuevo</div>
+                  <div class="form-group" style="margin:0 0 10px;">
+                    <label>Plantilla</label>
+                    <select id="ev-reg-cert-tpl" style="width:100%;"></select>
+                  </div>
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0 0 8px;font-size:12px;">
+                    <input type="checkbox" id="ev-reg-cert-manual" style="width:14px;height:14px;cursor:pointer;">
+                    Emisión manual (saltar reglas de check-in)
+                  </label>
+                  <label id="ev-reg-cert-send-wrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0 0 10px;font-size:12px;">
+                    <input type="checkbox" id="ev-reg-cert-send" style="width:14px;height:14px;cursor:pointer;">
+                    Enviar por correo al emitir
+                  </label>
+                  <button class="btn btn-grad btn-sm" onclick="evIssueRegCert()">Emitir certificado</button>
+                  <div id="ev-reg-cert-result" style="margin-top:8px;"></div>
+                </div>
+
+                <div style="border-top:1px solid var(--border);padding-top:12px;">
+                  <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Certificados existentes</div>
+                  <div id="ev-reg-cert-list" style="display:grid;gap:8px;"></div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evCloseRegCertModal()">Cerrar</button>
+              </div>
+            </div>
+          </div>
+
           <!-- E3.5: modal asignación manual de sesiones a un registro -->
           <div id="ev-assign-sess-modal" class="modal" onclick="if(event.target.id==='ev-assign-sess-modal') evCloseAssignSessions()">
             <div class="modal-content" style="max-width:520px;">
@@ -3556,6 +3693,60 @@
               <div id="ev-rundown-list"></div>
             </div>
           </div><!-- /ev-sub-rundown -->
+
+          <!-- SUB-TAB: Certificados -->
+          <div id="ev-sub-certs" class="ev-sub-panel hidden">
+            <!-- Nota introductoria + guía -->
+            <div class="card" style="margin-bottom:16px;background:rgba(184,151,95,0.06);border-color:rgba(184,151,95,0.2);">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="width:28px;height:28px;border-radius:6px;background:rgba(184,151,95,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="14" height="14" fill="#b8975f"><use href="#ph-certificate"/></svg>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:700;color:#b8975f;margin-bottom:4px;">Certificados del evento</div>
+                  <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">
+                    Diseña tu certificado como una imagen de fondo (canvas). El sistema solo superpone los datos dinámicos: nombre, evento, sesión, horas, fecha y QR de verificación.
+                    <a href="/assets/certificados/guia-certificado.html" target="_blank" style="color:#b8975f;text-decoration:underline;">Descargar guía de diseño</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Plantillas -->
+            <div class="card" style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <div class="card-title" style="margin:0;">Plantillas</div>
+                <button class="btn btn-grad btn-sm" onclick="evOpenCertTplModal()"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-plus"/></svg> Nueva plantilla</button>
+              </div>
+              <div id="ev-cert-tpls-list"></div>
+            </div>
+
+            <!-- Certificados emitidos -->
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                <div class="card-title" style="margin:0;">Emitidos</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input type="text" id="ev-cert-search" placeholder="Buscar..." style="padding:6px 10px;font-size:12px;" oninput="evRenderCertsList()">
+                  <button class="btn btn-outline btn-sm" onclick="evOpenCertBulkModal()">Emisión masiva</button>
+                </div>
+              </div>
+              <div id="ev-cert-list-wrap" style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Asistente</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Plantilla</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Horas</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Emitido</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Estado</th>
+                      <th style="padding:8px 12px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-cert-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div><!-- /ev-sub-certs -->
 
         </div><!-- /ev-detail-view -->
 
@@ -9200,6 +9391,293 @@ function evSwitchSubTab(tab) {
   }
   if (tab === 'suppliers') evLoadSuppliers();
   if (tab === 'rundown') { evLoadRundown(); evLoadProductionTokens(); }
+  if (tab === 'certs')   { evLoadCertTemplates(); evLoadCertificates(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// E4 CERTIFICADOS (sub-tab Certificados)
+// ═══════════════════════════════════════════════════════════════════════════
+let evCertTpls = [];
+let evCertsList = [];
+let evCertTplEditing = null;
+
+function evCertFmtHours(n) {
+  if (n == null) return '—';
+  const num = Number(n);
+  if (Math.abs(num - Math.round(num)) < 0.05) return String(Math.round(num));
+  return num.toFixed(1).replace('.', ',');
+}
+function evCertFmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' }); }
+  catch(_) { return iso; }
+}
+function evCertEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+async function evLoadCertTemplates() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/certificate-templates`, { headers: { Authorization: 'Bearer ' + authToken } });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    evCertTpls = d.templates || [];
+    evRenderCertTpls();
+  } catch (_) {
+    document.getElementById('ev-cert-tpls-list').innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Error cargando plantillas.</div>';
+  }
+}
+
+function evRenderCertTpls() {
+  const el = document.getElementById('ev-cert-tpls-list');
+  if (!evCertTpls.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">Aún no hay plantillas. Crea una para empezar a emitir certificados.</div>';
+    return;
+  }
+  el.innerHTML = evCertTpls.map(t => {
+    const scopeLabel = t.scope === 'session' ? 'Sesión específica' : 'Evento completo';
+    const pageLabel  = t.page_size === 'half_letter' ? 'Media carta' : 'Carta';
+    const stateBadge = t.active
+      ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Activa</span>'
+      : '<span style="padding:2px 8px;border-radius:999px;background:rgba(107,114,128,0.15);color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Inactiva</span>';
+    const canvas = t.canvas_path
+      ? '<span style="color:#10b981;font-size:11px;">Canvas cargado</span>'
+      : '<span style="color:#f59e0b;font-size:11px;">Sin canvas</span>';
+    return `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${evCertEsc(t.name)}</div>
+          <div style="font-size:11px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
+            <span>${scopeLabel}</span>
+            <span>${pageLabel}</span>
+            ${canvas}
+            <span>${t.issued_count || 0} emitidos</span>
+          </div>
+        </div>
+        ${stateBadge}
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="evCertPreview('${t.id}')">Vista previa</button>
+          <button class="btn btn-outline btn-sm" onclick="evOpenCertTplModal('${t.id}')">Editar</button>
+          <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evDeleteCertTpl('${t.id}')">Eliminar</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function evLoadCertificates() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/certificates`, { headers: { Authorization: 'Bearer ' + authToken } });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    evCertsList = d.certificates || [];
+    evRenderCertsList();
+  } catch (_) {
+    document.getElementById('ev-cert-tbody').innerHTML = '<tr><td colspan="6" style="padding:14px;color:var(--text-muted);text-align:center;">Error cargando certificados.</td></tr>';
+  }
+}
+
+function evRenderCertsList() {
+  const tbody = document.getElementById('ev-cert-tbody');
+  const q = (document.getElementById('ev-cert-search')?.value || '').toLowerCase().trim();
+  const items = q
+    ? evCertsList.filter(c => (c.attendee_name||'').toLowerCase().includes(q) || (c.attendee_email||'').toLowerCase().includes(q))
+    : evCertsList;
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:14px;color:var(--text-muted);text-align:center;">Aún no hay certificados emitidos.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(c => {
+    const state = c.revoked_at
+      ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Revocado</span>'
+      : c.email_sent_at
+        ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Enviado</span>'
+        : '<span style="padding:2px 8px;border-radius:999px;background:rgba(96,165,250,0.15);color:#60a5fa;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Emitido</span>';
+    const sessionLine = c.session_name ? `<div style="font-size:11px;color:var(--text-muted);">${evCertEsc(c.session_name)}</div>` : '';
+    return `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px 12px;">
+          <div style="font-weight:600;">${evCertEsc(c.attendee_name)}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${evCertEsc(c.attendee_email || '')}</div>
+        </td>
+        <td style="padding:10px 12px;">
+          <div>${evCertEsc(c.template_name)}</div>
+          ${sessionLine}
+        </td>
+        <td style="padding:10px 12px;">${evCertFmtHours(c.hours_total)}</td>
+        <td style="padding:10px 12px;color:var(--text-muted);">${evCertFmtDate(c.issued_at)}</td>
+        <td style="padding:10px 12px;">${state}</td>
+        <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
+          ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-outline btn-sm" href="/api/events/certificates/${c.id}/pdf" target="_blank" style="margin-right:4px;">PDF</a>` : ''}
+          ${c.attendee_email && !c.revoked_at ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}')" style="margin-right:4px;">Reenviar</button>` : ''}
+          ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}')">Revocar</button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function evOpenCertTplModal(id) {
+  evCertTplEditing = id || null;
+  const t = id ? evCertTpls.find(x => x.id === id) : null;
+  document.getElementById('ev-cert-tpl-modal-title').textContent = t ? 'Editar plantilla' : 'Nueva plantilla';
+  document.getElementById('ev-cert-tpl-name').value       = t?.name || '';
+  document.getElementById('ev-cert-tpl-scope').value      = t?.scope || 'event';
+  document.getElementById('ev-cert-tpl-page').value       = t?.page_size || 'letter';
+  document.getElementById('ev-cert-tpl-body').value       = t?.body_text || 'Certificamos que {{nombre}} asistió al evento {{evento}}, con una duración total de {{horas}} horas, los días {{fechas}}.';
+  document.getElementById('ev-cert-tpl-reqchk').checked   = t ? t.requires_checkin : true;
+  document.getElementById('ev-cert-tpl-min').value        = t?.min_sessions_attended || '';
+  document.getElementById('ev-cert-tpl-canvas').value     = '';
+  document.getElementById('ev-cert-tpl-canvas-current').textContent = t?.canvas_path ? 'Canvas actual cargado. Sube uno nuevo para reemplazarlo.' : 'Sin canvas aún. Usa la guía descargable para diseñarlo.';
+  evCertTplRefreshSessions();
+  if (t?.session_id) setTimeout(() => { document.getElementById('ev-cert-tpl-session').value = t.session_id; }, 50);
+  evCertTplScopeChanged();
+  document.getElementById('ev-cert-tpl-modal').classList.add('active');
+}
+
+function evCertTplRefreshSessions() {
+  const sel = document.getElementById('ev-cert-tpl-session');
+  const sessions = Array.isArray(evSessionsList) ? evSessionsList : [];
+  sel.innerHTML = '<option value="">Seleccionar sesión...</option>' +
+    sessions.map(s => `<option value="${s.id}">${evCertEsc(s.name)}</option>`).join('');
+}
+
+function evCertTplScopeChanged() {
+  const scope = document.getElementById('ev-cert-tpl-scope').value;
+  document.getElementById('ev-cert-tpl-session-wrap').style.display = (scope === 'session') ? 'block' : 'none';
+}
+
+function evCloseCertTplModal() {
+  document.getElementById('ev-cert-tpl-modal').classList.remove('active');
+  evCertTplEditing = null;
+}
+
+async function evSaveCertTpl() {
+  const name  = document.getElementById('ev-cert-tpl-name').value.trim();
+  if (!name) { showStatus('Nombre requerido', 'error'); return; }
+  const scope = document.getElementById('ev-cert-tpl-scope').value;
+  const sessionId = document.getElementById('ev-cert-tpl-session').value;
+  if (scope === 'session' && !sessionId) { showStatus('Selecciona la sesión', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('scope', scope);
+  if (sessionId) fd.append('session_id', sessionId);
+  fd.append('page_size', document.getElementById('ev-cert-tpl-page').value);
+  fd.append('body_text', document.getElementById('ev-cert-tpl-body').value);
+  fd.append('requires_checkin', document.getElementById('ev-cert-tpl-reqchk').checked ? 'true' : 'false');
+  const min = document.getElementById('ev-cert-tpl-min').value;
+  if (min) fd.append('min_sessions_attended', min);
+  const canvasFile = document.getElementById('ev-cert-tpl-canvas').files[0];
+  if (canvasFile) fd.append('canvas', canvasFile);
+
+  const url = evCertTplEditing
+    ? `/api/events/certificate-templates/${evCertTplEditing}`
+    : `/api/events/${evCurrentEventId}/certificate-templates`;
+  const method = evCertTplEditing ? 'PATCH' : 'POST';
+  try {
+    const r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + authToken }, body: fd });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Error'); }
+    showStatus(evCertTplEditing ? 'Plantilla actualizada' : 'Plantilla creada', 'success');
+    evCloseCertTplModal();
+    evLoadCertTemplates();
+  } catch (e) {
+    showStatus(e.message || 'Error al guardar', 'error');
+  }
+}
+
+async function evDeleteCertTpl(id) {
+  if (!confirm('¿Eliminar esta plantilla? Si ya tiene certificados emitidos, se marcará como inactiva.')) return;
+  try {
+    const r = await fetch(`/api/events/certificate-templates/${id}`, {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + authToken }
+    });
+    if (!r.ok) throw 0;
+    showStatus('Plantilla eliminada', 'success');
+    evLoadCertTemplates();
+  } catch (_) { showStatus('Error al eliminar', 'error'); }
+}
+
+async function evCertPreview(tplId) {
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/certificate-templates/${tplId}/preview`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sample_name: 'Nombre del Asistente', sample_hours: 8 })
+    });
+    if (!r.ok) throw 0;
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (_) { showStatus('Error generando vista previa', 'error'); }
+}
+
+async function evCertRevoke(certId) {
+  const reason = prompt('Motivo de la revocación (opcional):') || '';
+  if (reason === null) return;
+  try {
+    const r = await fetch(`/api/events/certificates/${certId}/revoke`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    if (!r.ok) throw 0;
+    showStatus('Certificado revocado', 'success');
+    evLoadCertificates();
+  } catch (_) { showStatus('Error al revocar', 'error'); }
+}
+
+async function evCertResend(certId) {
+  try {
+    const r = await fetch(`/api/events/certificates/${certId}/resend-email`, {
+      method: 'POST', headers: { Authorization: 'Bearer ' + authToken }
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    showStatus('Correo reenviado', 'success');
+    evLoadCertificates();
+  } catch (e) { showStatus(e.message || 'Error al reenviar', 'error'); }
+}
+
+function evOpenCertBulkModal() {
+  if (!evCertTpls.length) { showStatus('Primero crea una plantilla', 'error'); return; }
+  const sel = document.getElementById('ev-cert-bulk-tpl');
+  sel.innerHTML = evCertTpls.filter(t=>t.active).map(t => `<option value="${t.id}">${evCertEsc(t.name)}</option>`).join('');
+  document.getElementById('ev-cert-bulk-send').checked = true;
+  document.getElementById('ev-cert-bulk-result').innerHTML = '';
+  document.getElementById('ev-cert-bulk-modal').classList.add('active');
+}
+function evCloseCertBulkModal() {
+  document.getElementById('ev-cert-bulk-modal').classList.remove('active');
+}
+
+async function evRunCertBulk() {
+  const tplId = document.getElementById('ev-cert-bulk-tpl').value;
+  const sendEmail = document.getElementById('ev-cert-bulk-send').checked;
+  const resultEl = document.getElementById('ev-cert-bulk-result');
+  resultEl.innerHTML = '<div style="color:var(--text-muted);">Procesando...</div>';
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/certificates/issue`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: tplId, send_email: sendEmail })
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||'Error'); }
+    const d = await r.json();
+    resultEl.innerHTML = `
+      <div style="padding:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:6px;margin-bottom:8px;">
+        <strong>${d.issued.length}</strong> certificados emitidos.
+      </div>
+      ${d.skipped.length ? `<div style="padding:10px;background:rgba(107,114,128,0.08);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;font-size:12px;color:var(--text-muted);">${d.skipped.length} omitidos (ya emitidos).</div>` : ''}
+      ${d.errors.length ? `<div style="padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;font-size:12px;">
+        ${d.errors.length} no se pudieron emitir:
+        <ul style="margin:6px 0 0 18px;padding:0;">${d.errors.slice(0,10).map(e=>`<li>${evCertEsc(e.reason)}</li>`).join('')}</ul>
+      </div>` : ''}
+    `;
+    evLoadCertificates();
+    evLoadCertTemplates();
+  } catch (e) {
+    resultEl.innerHTML = `<div style="color:#ef4444;">${evCertEsc(e.message || 'Error')}</div>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -10319,8 +10797,10 @@ async function evLoadRegistrations() {
             ${actionBtns}
             ${cancelBtn}
             <button class="btn btn-sm" style="background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:4px 10px;border-radius:6px;" title="Asignar o quitar sesiones (incluye privadas)" onclick="event.stopPropagation();evOpenAssignSessions('${r.id}')">Asignar sesión</button>
+            <button class="btn btn-sm" style="background:transparent;color:#b8975f;border:1px solid rgba(184,151,95,0.4);padding:4px 10px;border-radius:6px;" title="Emitir / gestionar certificado" onclick="event.stopPropagation();evOpenRegCertModal('${r.id}','${(r.attendee_name||'').replace(/'/g,'&apos;')}','${(r.email||'')}')">Certificado</button>
             <button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid rgba(255,68,68,0.4);padding:4px 10px;border-radius:6px;margin-left:auto;" onclick="event.stopPropagation();evDeleteRegistration('${r.id}')">Eliminar</button>
           </div>
+          <div id="reg-certs-${r.id}" style="margin-top:12px;"></div>
         </td>
       </tr>`;
     }).join('');
@@ -10377,6 +10857,122 @@ function evToggleRegDetail(detailRowId) {
   const isHidden = row.classList.contains('hidden');
   row.classList.toggle('hidden', !isHidden);
   if (chevron) chevron.textContent = isHidden ? '▾' : '▸';
+  if (isHidden) evLoadRegCerts(regId);
+}
+
+async function evLoadRegCerts(regId) {
+  const el = document.getElementById(`reg-certs-${regId}`);
+  if (!el) return;
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/registrations/${regId}/certificates`, {
+      headers: { Authorization: 'Bearer ' + authToken }
+    });
+    if (!r.ok) throw 0;
+    const d = await r.json();
+    const items = d.certificates || [];
+    if (!items.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">Certificados</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${items.map(c => {
+          const state = c.revoked_at ? 'revocado' : (c.email_sent_at ? 'enviado' : 'emitido');
+          const color = c.revoked_at ? '#ef4444' : (c.email_sent_at ? '#10b981' : '#60a5fa');
+          const bg    = c.revoked_at ? 'rgba(239,68,68,0.1)' : (c.email_sent_at ? 'rgba(16,185,129,0.1)' : 'rgba(96,165,250,0.1)');
+          const action = c.revoked_at ? '' :
+            `<a href="/api/events/certificates/${c.id}/pdf" target="_blank" style="color:${color};text-decoration:underline;margin-left:6px;font-size:10px;">PDF</a>`;
+          return `<span style="font-size:11px;font-weight:600;color:${color};background:${bg};border:1px solid ${color}55;padding:3px 9px;border-radius:6px;">
+            ${evCertEsc(c.template_name)} · ${evCertFmtHours(c.hours_total)}h · ${state}${action}
+          </span>`;
+        }).join('')}
+      </div>`;
+  } catch (_) { el.innerHTML = ''; }
+}
+
+// ── Modal por-registro: emisión manual + lista certs del asistente ──────────
+let evRegCertTarget = null;
+async function evOpenRegCertModal(regId, name, email) {
+  evRegCertTarget = { regId, name, email };
+  document.getElementById('ev-reg-cert-name').textContent  = name || '';
+  document.getElementById('ev-reg-cert-email').textContent = email || '';
+  // Asegurar plantillas cargadas
+  if (!evCertTpls.length) await evLoadCertTemplates();
+  const sel = document.getElementById('ev-reg-cert-tpl');
+  const active = evCertTpls.filter(t => t.active);
+  sel.innerHTML = active.length
+    ? active.map(t => `<option value="${t.id}">${evCertEsc(t.name)}</option>`).join('')
+    : '<option value="">— No hay plantillas activas —</option>';
+  document.getElementById('ev-reg-cert-manual').checked = false;
+  document.getElementById('ev-reg-cert-send').checked = !!email;
+  document.getElementById('ev-reg-cert-send-wrap').style.display = email ? 'flex' : 'none';
+  document.getElementById('ev-reg-cert-result').innerHTML = '';
+  await evRenderRegCertModalList(regId);
+  document.getElementById('ev-reg-cert-modal').classList.add('active');
+}
+function evCloseRegCertModal() {
+  document.getElementById('ev-reg-cert-modal').classList.remove('active');
+  evRegCertTarget = null;
+}
+
+async function evRenderRegCertModalList(regId) {
+  const el = document.getElementById('ev-reg-cert-list');
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/registrations/${regId}/certificates`, {
+      headers: { Authorization: 'Bearer ' + authToken }
+    });
+    const d = await r.json();
+    const items = d.certificates || [];
+    if (!items.length) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Este asistente aún no tiene certificados emitidos.</div>';
+      return;
+    }
+    el.innerHTML = items.map(c => {
+      const stateLabel = c.revoked_at ? 'Revocado' : (c.email_sent_at ? 'Enviado' : 'Emitido');
+      const stateColor = c.revoked_at ? '#ef4444' : (c.email_sent_at ? '#10b981' : '#60a5fa');
+      return `
+        <div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;">
+            <div style="font-weight:600;font-size:13px;">${evCertEsc(c.template_name)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">
+              ${c.session_name ? evCertEsc(c.session_name) + ' · ' : ''}${evCertFmtHours(c.hours_total)} h · ${evCertFmtDate(c.issued_at)}
+            </div>
+          </div>
+          <span style="font-size:10px;font-weight:700;color:${stateColor};text-transform:uppercase;letter-spacing:.5px;">${stateLabel}</span>
+          <div style="display:flex;gap:6px;">
+            ${c.pdf_path !== false && !c.revoked_at ? `<a class="btn btn-outline btn-sm" href="/api/events/certificates/${c.id}/pdf" target="_blank">PDF</a>` : ''}
+            ${!c.revoked_at && evRegCertTarget?.email ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">Reenviar</button>` : ''}
+            ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">Revocar</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (_) { el.innerHTML = '<div style="color:#ef4444;">Error cargando certificados.</div>'; }
+}
+
+async function evIssueRegCert() {
+  if (!evRegCertTarget) return;
+  const tplId = document.getElementById('ev-reg-cert-tpl').value;
+  if (!tplId) { showStatus('Selecciona una plantilla', 'error'); return; }
+  const manual = document.getElementById('ev-reg-cert-manual').checked;
+  const sendEmail = document.getElementById('ev-reg-cert-send').checked;
+  const resultEl = document.getElementById('ev-reg-cert-result');
+  resultEl.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Emitiendo...</div>';
+  try {
+    const r = await fetch(`/api/events/${evCurrentEventId}/certificates/issue-one`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: tplId, registration_id: evRegCertTarget.regId, manual, send_email: sendEmail })
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Error'); }
+    const d = await r.json();
+    resultEl.innerHTML = d.created
+      ? `<div style="color:#10b981;font-size:12px;">Certificado emitido correctamente.</div>`
+      : `<div style="color:#f59e0b;font-size:12px;">Ya existía un certificado activo con esta plantilla.</div>`;
+    await evRenderRegCertModalList(evRegCertTarget.regId);
+    evLoadRegCerts(evRegCertTarget.regId);
+    evLoadCertificates();
+    evLoadCertTemplates();
+  } catch (e) {
+    resultEl.innerHTML = `<div style="color:#ef4444;font-size:12px;">${evCertEsc(e.message || 'Error al emitir')}</div>`;
+  }
 }
 
 async function evSetRegStatus(regId, status) {

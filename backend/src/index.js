@@ -18,6 +18,7 @@ const eventsPublicRouter = require('./routes/events-public');
 const eventsProductionPublicRouter = require('./routes/events-production-public');
 const eventsStaffRouter  = require('./routes/events-staff');
 const eventsCalendarRouter = require('./routes/events-calendar');
+const eventsCertificatesRouter = require('./routes/events-certificates');
 const licensesRouter     = require('./routes/licenses');
 const licensesAdminRouter = require('./routes/licenses-admin');
 const licensesApprovalRouter = require('./routes/licenses-approval');
@@ -8915,10 +8916,98 @@ function localHHMMtoUTCHHMM(timeStr, dateStr, tzName) {
 // Aplica a endpoints autenticados (organizador + calendar). Público/staff
 // usan tokens propios (slug, PIN, production token) → no se gatean.
 const requireEventsAccess = require('./middleware/requireEventsAccess')(pool);
+
+// E4 Certificados — endpoints públicos (sin auth) — DEBEN ir antes de cualquier
+// router.use(auth) global en /api/* (p.ej. licensesAdminRouter).
+const fsCertPub = require('fs');
+app.get('/cert/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'certificado.html'));
+});
+app.get('/verify/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'certificado-verify.html'));
+});
+app.get('/api/public/certificates/:token', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT c.id, c.token, c.hours_total, c.issued_at, c.revoked_at,
+              c.pdf_path IS NOT NULL AS has_pdf,
+              e.name AS event_name, e.timezone AS event_tz,
+              e.starts_at AS event_starts_at, e.ends_at AS event_ends_at,
+              a.name AS attendee_name,
+              s.name AS session_name, s.starts_at AS session_starts_at, s.ends_at AS session_ends_at,
+              t.scope, t.page_size
+         FROM events.certificates c
+         JOIN events.events e        ON e.id = c.event_id
+         JOIN events.registrations r ON r.id = c.registration_id
+         JOIN events.attendees a     ON a.id = r.attendee_id
+         JOIN events.certificate_templates t ON t.id = c.template_id
+    LEFT JOIN events.event_sessions s        ON s.id = c.session_id
+        WHERE c.token = $1`,
+      [req.params.token]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Certificado no encontrado' });
+    res.json({ certificate: r.rows[0] });
+  } catch (err) {
+    console.error('[cert public]', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+app.get('/api/public/certificates/:token/pdf', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT pdf_path, revoked_at FROM events.certificates WHERE token=$1`,
+      [req.params.token]
+    );
+    const row = r.rows[0];
+    if (!row) return res.status(404).json({ error: 'No encontrado' });
+    if (row.revoked_at) return res.status(410).json({ error: 'Certificado revocado' });
+    if (!row.pdf_path || !fsCertPub.existsSync(row.pdf_path)) return res.status(404).json({ error: 'PDF no disponible' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="certificado-${req.params.token}.pdf"`);
+    fsCertPub.createReadStream(row.pdf_path).pipe(res);
+  } catch (err) {
+    console.error('[cert public pdf]', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+app.get('/api/public/certificates/:token/verify', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE events.certificates SET verified_count = verified_count + 1
+        WHERE token=$1
+      RETURNING id, token, hours_total, issued_at, revoked_at, revoke_reason, verified_count`,
+      [req.params.token]
+    );
+    if (!r.rows[0]) return res.status(404).json({ valid: false, error: 'Certificado no encontrado' });
+    const cert = r.rows[0];
+    const meta = await pool.query(
+      `SELECT a.name AS attendee_name, e.name AS event_name, s.name AS session_name
+         FROM events.certificates c
+         JOIN events.events e        ON e.id = c.event_id
+         JOIN events.registrations r ON r.id = c.registration_id
+         JOIN events.attendees a     ON a.id = r.attendee_id
+    LEFT JOIN events.event_sessions s ON s.id = c.session_id
+        WHERE c.id = $1`, [cert.id]);
+    res.json({
+      valid: !cert.revoked_at,
+      revoked: !!cert.revoked_at,
+      revoke_reason: cert.revoke_reason,
+      hours_total: cert.hours_total,
+      issued_at: cert.issued_at,
+      verified_count: cert.verified_count,
+      ...meta.rows[0],
+    });
+  } catch (err) {
+    console.error('[cert verify]', err);
+    res.status(500).json({ valid: false, error: 'Error interno' });
+  }
+});
+
 app.use('/api/events/public', eventsProductionPublicRouter);
 app.use('/api/events/public', eventsPublicRouter);
 app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events/calendar', requireEventsAccess, eventsCalendarRouter);
+app.use('/api/events',          requireEventsAccess, eventsCertificatesRouter);
 app.use('/api/events',          requireEventsAccess, eventsRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
@@ -8997,6 +9086,7 @@ app.get('/evento/:slug/kiosko', (req, res) => {
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
 });
+
 app.get('/proveedor-registro/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'proveedor-registro.html'));
 });

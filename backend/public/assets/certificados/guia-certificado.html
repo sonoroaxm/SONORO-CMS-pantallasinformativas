@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía de diseño del certificado — SONORO</title>
+<style>
+  @page { size: letter; margin: 1cm; }
+  :root { --bg:#f5f1e8; --ink:#0f0f0f; --muted:#666; --accent:#b8975f; --zone:rgba(184,151,95,0.9); --zone-bg:rgba(184,151,95,0.12); }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',sans-serif;line-height:1.55}
+  header{padding:24px 28px;background:#fff;border-bottom:1px solid #e8e3d6}
+  header h1{margin:0;font-size:14px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+  header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+  main{max-width:960px;margin:0 auto;padding:24px}
+  section{background:#fff;border-radius:10px;padding:24px;margin-bottom:20px;box-shadow:0 2px 10px rgba(0,0,0,0.04)}
+  h2{margin:0 0 10px;font-size:16px;letter-spacing:.5px}
+  p{color:var(--ink);font-size:13px;margin:0 0 10px}
+  ul{margin:0 0 10px 18px;padding:0;font-size:13px}
+  li{margin-bottom:4px}
+  .specs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .spec-card{background:var(--bg);border-radius:8px;padding:14px 16px}
+  .spec-card h3{margin:0 0 6px;font-size:13px;letter-spacing:.3px}
+  .spec-card .kv{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #e0d8c3}
+  .spec-card .kv:last-child{border-bottom:none}
+  .diagram{display:flex;justify-content:center;margin:16px 0}
+  svg{width:100%;max-width:720px;height:auto;border:1px dashed #d0c8b0;border-radius:6px;background:#fafafa}
+  .legend{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:8px;flex-wrap:wrap;justify-content:center}
+  .swatch{display:inline-block;width:12px;height:12px;background:var(--zone-bg);border:1px solid var(--zone);border-radius:3px;vertical-align:middle;margin-right:4px}
+  code{background:#f0ebe0;padding:1px 6px;border-radius:3px;font-size:11px}
+  .note{background:#fff8e8;border:1px solid #e8d9a8;border-radius:6px;padding:10px 14px;font-size:12px;color:#6b5a28}
+  @media print { body{background:#fff} section{box-shadow:none;border:1px solid #e8e3d6} }
+</style>
+</head>
+<body>
+<header>
+  <h1>SONORO · Guía de diseño del certificado</h1>
+  <p>Diseña una sola imagen de fondo (canvas). El sistema superpone nombre, evento, horas, fecha y QR en zonas fijas.</p>
+</header>
+<main>
+
+<section>
+  <h2>Especificaciones</h2>
+  <div class="specs">
+    <div class="spec-card">
+      <h3>Carta apaisada</h3>
+      <div class="kv"><span>Formato</span><strong>Letter horizontal</strong></div>
+      <div class="kv"><span>Tamaño físico</span><strong>11 × 8,5 pulg</strong></div>
+      <div class="kv"><span>Puntos (PDF)</span><strong>792 × 612 pt</strong></div>
+      <div class="kv"><span>Resolución recomendada</span><strong>3300 × 2550 px · 300 DPI</strong></div>
+      <div class="kv"><span>Formato de archivo</span><strong>PNG o JPG</strong></div>
+      <div class="kv"><span>Peso máximo</span><strong>10 MB</strong></div>
+    </div>
+    <div class="spec-card">
+      <h3>Media carta apaisada</h3>
+      <div class="kv"><span>Formato</span><strong>Half Letter horizontal</strong></div>
+      <div class="kv"><span>Tamaño físico</span><strong>11 × 5,5 pulg</strong></div>
+      <div class="kv"><span>Puntos (PDF)</span><strong>792 × 396 pt</strong></div>
+      <div class="kv"><span>Resolución recomendada</span><strong>3300 × 1650 px · 300 DPI</strong></div>
+      <div class="kv"><span>Formato de archivo</span><strong>PNG o JPG</strong></div>
+      <div class="kv"><span>Peso máximo</span><strong>10 MB</strong></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Zonas reservadas — Carta</h2>
+  <p>Las áreas sombreadas son zonas donde el sistema imprime texto o el QR. Deja esos espacios libres en tu diseño (sin elementos sobre los que vaya a escribir el sistema).</p>
+  <div class="diagram">
+    <svg viewBox="0 0 792 612" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="792" height="612" fill="#fdfbf5" stroke="#b8975f" stroke-width="2"/>
+      <!-- name 0.15,0.36,0.70,0.14 -->
+      <rect x="118.8" y="220.3" width="554.4" height="85.7" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="268" text-anchor="middle" font-size="18" fill="#8a6b3c" font-family="sans-serif">NOMBRE DEL ASISTENTE</text>
+      <!-- event 0.20,0.54,0.60,0.07 -->
+      <rect x="158.4" y="330.5" width="475.2" height="42.8" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="357" text-anchor="middle" font-size="13" fill="#8a6b3c" font-family="sans-serif">Nombre del evento · Sesión (si aplica)</text>
+      <!-- body 0.18,0.63,0.64,0.11 -->
+      <rect x="142.6" y="385.6" width="506.9" height="67.3" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="422" text-anchor="middle" font-size="11" fill="#8a6b3c" font-family="sans-serif">Cuerpo del certificado (horas, fechas)</text>
+      <!-- qr 0.07,0.80,0.10,0.14 -->
+      <rect x="55.4" y="489.6" width="79.2" height="85.7" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="95" y="536" text-anchor="middle" font-size="11" fill="#8a6b3c" font-family="sans-serif">QR</text>
+      <!-- date 0.40,0.90,0.20,0.05 -->
+      <rect x="316.8" y="550.8" width="158.4" height="30.6" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="570" text-anchor="middle" font-size="10" fill="#8a6b3c" font-family="sans-serif">Fecha de emisión</text>
+    </svg>
+  </div>
+  <div class="legend"><span><span class="swatch"></span>Zonas superpuestas por el sistema</span></div>
+</section>
+
+<section>
+  <h2>Zonas reservadas — Media carta</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 792 396" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="792" height="396" fill="#fdfbf5" stroke="#b8975f" stroke-width="2"/>
+      <!-- name 0.15,0.30,0.70,0.18 -->
+      <rect x="118.8" y="118.8" width="554.4" height="71.3" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="160" text-anchor="middle" font-size="16" fill="#8a6b3c" font-family="sans-serif">NOMBRE DEL ASISTENTE</text>
+      <!-- event 0.24,0.50,0.52,0.09 -->
+      <rect x="190.1" y="198" width="411.8" height="35.6" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="221" text-anchor="middle" font-size="11" fill="#8a6b3c" font-family="sans-serif">Nombre del evento · Sesión</text>
+      <!-- body 0.24,0.62,0.52,0.12 -->
+      <rect x="190.1" y="245.5" width="411.8" height="47.5" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="272" text-anchor="middle" font-size="10" fill="#8a6b3c" font-family="sans-serif">Cuerpo del certificado</text>
+      <!-- qr 0.04,0.78,0.11,0.17 -->
+      <rect x="31.7" y="308.9" width="87.1" height="67.3" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="75" y="347" text-anchor="middle" font-size="10" fill="#8a6b3c" font-family="sans-serif">QR</text>
+      <!-- date 0.38,0.86,0.24,0.06 -->
+      <rect x="301" y="340.6" width="190.1" height="23.8" fill="rgba(184,151,95,0.12)" stroke="rgba(184,151,95,0.9)" stroke-dasharray="4,3"/>
+      <text x="396" y="356" text-anchor="middle" font-size="9" fill="#8a6b3c" font-family="sans-serif">Fecha de emisión</text>
+    </svg>
+  </div>
+</section>
+
+<section>
+  <h2>Buenas prácticas</h2>
+  <ul>
+    <li>Usa colores de fondo claros detrás del nombre y del cuerpo (el texto se imprime en gris oscuro).</li>
+    <li>Deja la zona del QR con fondo plano (blanco o muy claro) para asegurar lectura.</li>
+    <li>No incluyas texto placeholder como "Nombre:" o "Horas:" en tu canvas — el sistema ya lo imprime en el cuerpo.</li>
+    <li>Exporta en PNG si tu diseño tiene zonas sólidas; usa JPG de alta calidad para fotografías.</li>
+    <li>Si vas a imprimir físicamente, mantén márgenes de seguridad de 1 cm en todos los bordes.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Placeholders disponibles en el cuerpo</h2>
+  <p>En el texto del cuerpo (editable desde la plantilla), puedes usar estos marcadores — el sistema los reemplaza al emitir:</p>
+  <ul>
+    <li><code>{{nombre}}</code> — nombre del asistente</li>
+    <li><code>{{evento}}</code> — nombre del evento</li>
+    <li><code>{{sesion}}</code> — nombre de la sesión (si la plantilla certifica una sesión específica)</li>
+    <li><code>{{horas}}</code> — horas certificadas, calculadas automáticamente</li>
+    <li><code>{{fecha}}</code> — fecha de la sesión o del evento</li>
+    <li><code>{{fechas}}</code> — rango de fechas del evento</li>
+  </ul>
+  <p class="note">El cuerpo tiene un espacio limitado (ver zona reservada arriba). Mantén el texto en 2–3 líneas para que no se recorte.</p>
+</section>
+
+<section>
+  <h2>Cómo generar un PDF de esta guía</h2>
+  <p>Desde el navegador: menú → Imprimir → Destino: Guardar como PDF → Tamaño: Carta. Para usar como plantilla en Photoshop o Illustrator, crea un documento con las dimensiones indicadas y exporta tu diseño final como PNG a 300 DPI.</p>
+</section>
+
+</main>
+</body>
+</html>
