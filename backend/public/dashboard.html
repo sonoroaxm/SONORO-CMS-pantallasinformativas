@@ -2692,19 +2692,15 @@
                   <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()">+ Agregar</button>
                 </div>
                 <!-- E3.5: modo de inscripción -->
-                <div class="form-group" style="margin:0 0 12px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);">
-                  <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Modo de inscripción</label>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                      <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" onchange="evSaveRegMode()">
-                      Dejar que el asistente elija sesiones
-                    </label>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                      <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" onchange="evSaveRegMode()">
-                      Inscribir automáticamente a todas las sesiones
-                    </label>
-                  </div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Las sesiones privadas o solo-invitación nunca aparecen en el formulario público.</div>
+                <div style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;">
+                  <span style="color:var(--text-muted);">Tipo de inscripción:</span>
+                  <select id="ev-regmode-select" onchange="evSaveRegMode()" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;">
+                    <option value="full_event">Inscripción general (todas las sesiones)</option>
+                    <option value="per_session">Multisesiones (inscripción a sesiones específicas)</option>
+                  </select>
+                  <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" style="display:none;">
+                  <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" style="display:none;">
+                  <span title="Las sesiones privadas o solo-invitación nunca aparecen en el formulario público." style="color:var(--text-muted);cursor:help;">ⓘ</span>
                 </div>
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
@@ -3076,6 +3072,29 @@
           </div>
 
           <!-- MODAL: Preview briefing (S208n) -->
+          <!-- E3.5: modal asignación manual de sesiones a un registro -->
+          <div id="ev-assign-sess-modal" class="modal" onclick="if(event.target.id==='ev-assign-sess-modal') evCloseAssignSessions()">
+            <div class="modal-content" style="max-width:520px;">
+              <div class="modal-header">
+                <h3>Sesiones del asistente</h3>
+                <button class="modal-close" onclick="evCloseAssignSessions()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:12px;">
+                <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">
+                  <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Asistente</div>
+                  <div style="font-size:14px;font-weight:700;" id="ev-assign-sess-attendee">—</div>
+                  <div style="font-size:11px;color:var(--text-muted);" id="ev-assign-sess-email">—</div>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);">Marca las sesiones a las que debe tener acceso. Puedes asignar sesiones <b style="color:#f59e0b;">privadas</b> o <b style="color:#60a5fa;">solo invitados</b> que no aparecen en el formulario público.</div>
+                <div id="ev-assign-sess-list" style="display:grid;gap:8px;max-height:45vh;overflow-y:auto;"></div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline btn-sm" onclick="evCloseAssignSessions()">Cancelar</button>
+                <button class="btn btn-grad btn-sm" onclick="evSaveAssignSessions()">Guardar</button>
+              </div>
+            </div>
+          </div>
+
           <div id="ev-briefing-modal" class="modal" onclick="if(event.target.id==='ev-briefing-modal') evCloseBriefingPreview()">
             <div class="modal-content" style="max-width:620px;">
               <div class="modal-header">
@@ -9713,6 +9732,8 @@ function evPopulateInfo(ev) {
   }
   // E3.5: cargar modo de inscripción
   const mode = ev.registration_mode === 'full_event' ? 'full_event' : 'per_session';
+  const sel = document.getElementById('ev-regmode-select');
+  if (sel) sel.value = mode;
   const rp = document.getElementById('ev-regmode-per');
   const rf = document.getElementById('ev-regmode-full');
   if (rp) rp.checked = mode === 'per_session';
@@ -9720,7 +9741,12 @@ function evPopulateInfo(ev) {
 }
 
 async function evSaveRegMode() {
-  const mode = document.querySelector('input[name="ev-reg-mode"]:checked')?.value;
+  const sel = document.getElementById('ev-regmode-select');
+  const mode = sel?.value || document.querySelector('input[name="ev-reg-mode"]:checked')?.value;
+  const rp = document.getElementById('ev-regmode-per');
+  const rf = document.getElementById('ev-regmode-full');
+  if (rp) rp.checked = mode === 'per_session';
+  if (rf) rf.checked = mode === 'full_event';
   if (!mode || !evCurrentEventId) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
@@ -10292,6 +10318,7 @@ async function evLoadRegistrations() {
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${actionBtns}
             ${cancelBtn}
+            <button class="btn btn-sm" style="background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:4px 10px;border-radius:6px;" title="Asignar o quitar sesiones (incluye privadas)" onclick="event.stopPropagation();evOpenAssignSessions('${r.id}')">Asignar sesión</button>
             <button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid rgba(255,68,68,0.4);padding:4px 10px;border-radius:6px;margin-left:auto;" onclick="event.stopPropagation();evDeleteRegistration('${r.id}')">Eliminar</button>
           </div>
         </td>
@@ -10370,6 +10397,79 @@ async function evSetRegStatus(regId, status) {
       evLoadRegistrations();
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+// E3.5: asignar/quitar sesiones manualmente (incluye privadas e invite_only)
+let evAssignRegId = null;
+async function evOpenAssignSessions(regId) {
+  evAssignRegId = regId;
+  const modal = document.getElementById('ev-assign-sess-modal');
+  const list  = document.getElementById('ev-assign-sess-list');
+  const reg   = evRegsCache[regId];
+  document.getElementById('ev-assign-sess-attendee').textContent = reg?.attendee_name || '—';
+  document.getElementById('ev-assign-sess-email').textContent = reg?.email || '';
+  list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px;">Cargando...</div>';
+  modal.classList.add('active');
+  try {
+    const [sessRes, assignedRes] = await Promise.all([
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, { headers:{ 'Authorization':`Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/sessions`, { headers:{ 'Authorization':`Bearer ${authToken}` } })
+    ]);
+    const sessions = await sessRes.json();
+    const assigned = new Set((await assignedRes.json()).session_ids || []);
+    if (!Array.isArray(sessions) || !sessions.length) {
+      list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px;">Este evento no tiene sesiones configuradas.</div>';
+      return;
+    }
+    const tz = evCurrentEvent?.timezone || 'America/Bogota';
+    list.innerHTML = sessions.map(s => {
+      const vis = s.visibility || 'public';
+      const badge = vis === 'private'
+        ? '<span style="font-size:9px;font-weight:700;background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.4);padding:1px 6px;border-radius:4px;margin-left:6px;">PRIVADA</span>'
+        : vis === 'invite_only'
+          ? '<span style="font-size:9px;font-weight:700;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.4);padding:1px 6px;border-radius:4px;margin-left:6px;">SOLO INVITADOS</span>'
+          : '';
+      const date = s.starts_at ? new Date(s.starts_at).toLocaleString('es-CO', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+      const isOn = assigned.has(s.id);
+      return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);">
+        <input type="checkbox" data-sess-id="${s.id}" data-was="${isOn ? '1':'0'}" ${isOn ? 'checked':''}>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;">${s.name || 'Sesión'}${badge}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${date}</div>
+        </div>
+      </label>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ff4444;font-size:12px;padding:12px;">Error cargando sesiones.</div>';
+  }
+}
+function evCloseAssignSessions() {
+  document.getElementById('ev-assign-sess-modal').classList.remove('active');
+  evAssignRegId = null;
+}
+async function evSaveAssignSessions() {
+  if (!evAssignRegId) return;
+  const boxes = Array.from(document.querySelectorAll('#ev-assign-sess-list input[type=checkbox]'));
+  const toAdd = boxes.filter(b => b.checked && b.dataset.was === '0').map(b => b.dataset.sessId);
+  const toDel = boxes.filter(b => !b.checked && b.dataset.was === '1').map(b => b.dataset.sessId);
+  try {
+    if (toAdd.length) {
+      await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${evAssignRegId}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+        body: JSON.stringify({ session_ids: toAdd })
+      });
+    }
+    for (const sid of toDel) {
+      await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${evAssignRegId}/sessions/${sid}`, {
+        method: 'DELETE',
+        headers: { 'Authorization':`Bearer ${authToken}` }
+      });
+    }
+    showStatus('Sesiones actualizadas', 'success');
+    evCloseAssignSessions();
+    evLoadRegistrations();
+  } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
 async function evDeleteRegistration(regId) {

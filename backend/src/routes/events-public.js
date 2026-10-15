@@ -146,7 +146,7 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
       const { rows: okSess } = await pool.query(
         `SELECT id FROM events.event_sessions
          WHERE event_id = $1 AND status != 'cancelled' AND visibility = 'public'
-           AND id = ANY($2::int[])`,
+           AND id = ANY($2::uuid[])`,
         [event.id, session_ids]
       );
       effectiveSessionIds = okSess.map(r => r.id);

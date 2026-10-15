@@ -1788,7 +1788,7 @@ router.post('/:id/registrations/:regId/sessions', auth, async (req, res) => {
     if (!reg.rowCount) return res.status(404).json({ error: 'Registro no encontrado' });
     const sess = await pool.query(
       `SELECT id FROM events.event_sessions
-       WHERE event_id = $1 AND status != 'cancelled' AND id = ANY($2::int[])`,
+       WHERE event_id = $1 AND status != 'cancelled' AND id = ANY($2::uuid[])`,
       [req.params.id, sessionIds]
     );
     const valid = sess.rows.map(r => r.id);
@@ -1807,6 +1807,29 @@ router.post('/:id/registrations/:regId/sessions', auth, async (req, res) => {
     res.json({ assigned: inserted, skipped: valid.length - inserted.length });
   } catch (err) {
     console.error('❌ POST /registrations/:regId/sessions:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// GET sesiones asignadas a un registro (para UI de asignación manual)
+router.get('/:id/registrations/:regId/sessions', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const owner = isAdmin ? [req.params.id] : [req.params.id, req.user.id];
+    const ev = await pool.query(
+      `SELECT id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      owner
+    );
+    if (!ev.rowCount) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { rows } = await pool.query(
+      `SELECT session_id FROM events.registration_sessions
+       WHERE registration_id = $1`,
+      [req.params.regId]
+    );
+    res.json({ session_ids: rows.map(r => r.session_id) });
+  } catch (err) {
+    console.error('❌ GET /registrations/:regId/sessions:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
