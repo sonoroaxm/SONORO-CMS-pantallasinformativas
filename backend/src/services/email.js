@@ -1812,15 +1812,8 @@ async function sendCertificateEmail({ to, attendeeName, eventName, certUrl, pdfP
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
       Hola ${attendeeName || ''}, gracias por participar en <strong>${eventName}</strong>.
-      Adjuntamos tu certificado en PDF. También puedes consultarlo o descargarlo desde el enlace.
+      Adjuntamos tu certificado en PDF.
     </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-      <tr><td align="center">
-        <a href="${certUrl}" style="display:inline-block;padding:14px 26px;background:#0f0f0f;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:0.5px;">
-          Ver certificado
-        </a>
-      </td></tr>
-    </table>
     <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">
       La validez puede verificarse escaneando el código QR del certificado.
     </p>

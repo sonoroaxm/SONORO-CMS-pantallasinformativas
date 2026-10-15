@@ -5,7 +5,6 @@
 const express = require('express');
 const router  = express.Router();
 const jwt     = require('jsonwebtoken');
-const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
 const { withTransaction } = require('../db/withTransaction');
@@ -17,20 +16,30 @@ const PDF_DIR    = path.join(__dirname, '../../uploads/certificates');
 fs.mkdirSync(CANVAS_DIR, { recursive: true });
 fs.mkdirSync(PDF_DIR,    { recursive: true });
 
-const uploadCanvas = multer({
-  storage: multer.diskStorage({
-    destination: (req, _f, cb) => cb(null, CANVAS_DIR),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || '.png';
-      cb(null, `canvas-${req.user?.id || 0}-${Date.now()}${ext}`);
+// Convierte req.files.canvas (express-fileupload global) → req.file estilo multer.
+// express-fileupload consume el body antes que cualquier multer, así que usamos
+// el mismo pipeline que el resto del CMS.
+async function uploadCanvas(req, res, next) {
+  try {
+    const f = req.files && req.files.canvas;
+    if (!f) return next();
+    if (!/^image\/(png|jpe?g)$/i.test(f.mimetype || '')) {
+      return res.status(400).json({ error: 'Formato no soportado (usa PNG o JPG)' });
     }
-  }),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (/^image\/(png|jpeg|jpg)$/i.test(file.mimetype)) cb(null, true);
-    else cb(new Error('Formato no soportado (usa PNG o JPG)'));
+    if (f.size > 10 * 1024 * 1024) {
+      return res.status(400).json({ error: 'Archivo > 10 MB' });
+    }
+    const ext = (path.extname(f.name || '').toLowerCase()) || '.png';
+    const filename = `canvas-${req.user?.id || 0}-${Date.now()}${ext}`;
+    const dest = path.join(CANVAS_DIR, filename);
+    await f.mv(dest);
+    req.file = { path: dest, filename, mimetype: f.mimetype, size: f.size };
+    next();
+  } catch (err) {
+    console.error('[certs] uploadCanvas', err);
+    res.status(500).json({ error: 'Error al subir canvas' });
   }
-});
+}
 
 function auth(req, res, next) {
   const token = (req.headers['authorization'] || '').split(' ')[1];
@@ -116,7 +125,9 @@ async function registrationIsEligible(client, templateRow, registrationId) {
 }
 
 function publicBaseUrl(req) {
-  return process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  return process.env.PUBLIC_BASE_URL
+      || process.env.CMS_URL
+      || `${req.protocol}://${req.get('host')}`;
 }
 
 // ───────── Templates CRUD ─────────
@@ -141,7 +152,7 @@ router.get('/:id/certificate-templates', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/certificate-templates', auth, uploadCanvas.single('canvas'), async (req, res) => {
+router.post('/:id/certificate-templates', auth, uploadCanvas, async (req, res) => {
   try {
     const pool = global.pool;
     await assertEventOwned(pool, req.params.id, req.user.id);
@@ -172,7 +183,7 @@ router.post('/:id/certificate-templates', auth, uploadCanvas.single('canvas'), a
   }
 });
 
-router.patch('/certificate-templates/:tplId', auth, uploadCanvas.single('canvas'), async (req, res) => {
+router.patch('/certificate-templates/:tplId', auth, uploadCanvas, async (req, res) => {
   try {
     const pool = global.pool;
     const existing = await pool.query(
