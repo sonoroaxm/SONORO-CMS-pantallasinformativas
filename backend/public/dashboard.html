@@ -2115,6 +2115,12 @@
           <button class="lic-btn-grad" onclick="openLicTrialModal()" data-i18n="lic.trial_btn">Activar prueba</button>
         </div>
 
+        <!-- S210e #14 — Card Events v1 (gate dual status) -->
+        <div class="card" id="licEventsCard" style="display:none;">
+          <div class="card-title" data-i18n="lic.ev_title">Events v1</div>
+          <div id="licEventsBody"></div>
+        </div>
+
         <!-- Licencias activas -->
         <div class="card">
           <div class="card-title" data-i18n="lic.active_title">Licencias activas</div>
@@ -12572,19 +12578,22 @@ function licEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => 
 
 async function loadLicencias() {
   try {
-    const [licRes, ordRes, stRes] = await Promise.all([
+    const [licRes, ordRes, stRes, evRes] = await Promise.all([
       fetch(`${API_URL}/api/licenses/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
       fetch(`${API_URL}/api/licenses/orders/mine`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
-      fetch(`${API_URL}/api/user/storage`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      fetch(`${API_URL}/api/user/storage`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+      fetch(`${API_URL}/api/events/license/status`, { headers: { 'Authorization': `Bearer ${authToken}` } })
     ]);
     const licData = licRes.ok ? await licRes.json() : [];
     const ordData = ordRes.ok ? await ordRes.json() : [];
     const stData  = stRes.ok  ? await stRes.json()  : null;
+    const evData  = evRes.ok  ? await evRes.json()  : null;
     const licenses = Array.isArray(licData) ? licData : (licData.licenses || []);
     const orders   = Array.isArray(ordData) ? ordData : (ordData.orders   || []);
-    window.__licTrialStorage = stData; // usado por renderLicActiveGrid en trials
+    window.__licTrialStorage = stData;
     renderLicKpis(licenses, orders);
     renderLicTrialCta(licenses);
+    renderLicEventsCard(evData);
     renderLicActiveGrid(licenses);
     renderLicOrders(orders);
   } catch (e) {
@@ -12622,6 +12631,59 @@ function renderLicTrialCta(licenses) {
   const el = document.getElementById('licTrialCta');
   if (!el) return;
   el.style.display = hasUsedTrial ? 'none' : 'flex';
+}
+
+// S210e #14 — Card Events v1 (gate dual status) en Mis Licencias
+function renderLicEventsCard(data) {
+  const card = document.getElementById('licEventsCard');
+  const body = document.getElementById('licEventsBody');
+  if (!card || !body) return;
+  if (!data) { card.style.display = 'none'; return; }
+  const t = (k, fb) => (window.SonoroI18n?.t ? window.SonoroI18n.t(k) : fb) || fb;
+  const fmtDate = (iso) => {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleDateString(); } catch(_) { return iso; }
+  };
+  card.style.display = '';
+  card.style.borderLeft = '';
+  let html = '';
+
+  if (data.is_admin_bypass) {
+    html = `<div style="color:var(--text-muted);">${t('lic.ev_admin_bypass','Acceso administrador · sin licencia requerida')}</div>`;
+  } else if (data.status === 'no_license') {
+    html = `
+      <div style="font-weight:600;margin-bottom:4px;">${t('lic.ev_no_license_title','Aún no tienes acceso a Events v1')}</div>
+      <div style="color:var(--text-muted);margin-bottom:12px;">${t('lic.ev_no_license_body','Activa un plan para empezar a crear eventos.')}</div>
+      <a href="/eventos/" class="btn btn-primary" style="display:inline-block;">${t('lic.ev_btn_plans','Ver planes')}</a>`;
+  } else if (data.status === 'active') {
+    const tierKey = 'lic.ev_tier_' + (data.tier || 'lite');
+    const tierLabel = t(tierKey, data.tier || '');
+    const dl = data.days_left;
+    const dlStr = (dl != null)
+      ? `${dl} ${dl === 1 ? t('lic.ev_day_left','día restante') : t('lic.ev_days_left','días restantes')}`
+      : '';
+    html = `
+      <div style="font-weight:600;margin-bottom:4px;">${tierLabel}</div>
+      <div style="color:var(--text-muted);margin-bottom:4px;">${t('lic.ev_active_sub','Plan activo · vence el')} ${fmtDate(data.end_date)}</div>
+      ${dlStr ? `<div style="color:var(--text-muted);margin-bottom:12px;">${dlStr}</div>` : ''}
+      <a href="/eventos/" class="btn btn-secondary" style="display:inline-block;">${t('lic.ev_btn_manage','Gestionar')}</a>`;
+  } else if (data.status === 'grace') {
+    card.style.borderLeft = '3px solid #d97706';
+    html = `
+      <div style="font-weight:600;margin-bottom:4px;">${t('lic.ev_grace_title','Pago vencido')}</div>
+      <div style="color:var(--text-muted);margin-bottom:12px;">${t('lic.ev_grace_body','Mantienes acceso completo hasta el')} ${fmtDate(data.end_date)}</div>
+      <a href="/eventos/" class="btn btn-primary" style="display:inline-block;">${t('lic.ev_btn_pay','Pagar ahora')}</a>`;
+  } else if (data.status === 'readonly') {
+    card.style.borderLeft = '3px solid #dc2626';
+    html = `
+      <div style="font-weight:600;margin-bottom:4px;">${t('lic.ev_readonly_title','Modo solo lectura')}</div>
+      <div style="color:var(--text-muted);margin-bottom:12px;">${t('lic.ev_readonly_body','No puedes crear ni editar eventos hasta reactivar tu licencia.')}</div>
+      <a href="/eventos/" class="btn btn-primary" style="display:inline-block;">${t('lic.ev_btn_reactivate','Reactivar')}</a>`;
+  } else {
+    card.style.display = 'none';
+    return;
+  }
+  body.innerHTML = html;
 }
 
 function renderLicActiveGrid(licenses) {

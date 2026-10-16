@@ -22,7 +22,9 @@
 
 const jwt = require('jsonwebtoken');
 
-const SAFE_PATHS = new Set(['/health']);
+// S210e #14 — /license/status fuera del gate: la UI consulta su propio estado
+// (sin licencia, readonly, grace, etc.) para pintar el card en Mis Licencias.
+const SAFE_PATHS = new Set(['/health', '/license/status']);
 
 module.exports = (pool) => async function requireEventsAccess(req, res, next) {
   try {

@@ -3609,4 +3609,54 @@ router.post('/billing/upgrade', auth, async (req, res) => {
   }
 });
 
+// S210e #14 — GET /license/status
+// UI "Mis Licencias" card Events. Lectura pura filtrada por user_id.
+// Admin → is_admin_bypass:true. Sin licencia → status:'no_license'.
+// Aislamiento duro: solo events.licenses, nunca public.licenses.
+// Montado fuera del gate (ver requireEventsAccess.js SAFE_PATHS).
+router.get('/license/status', auth, async (req, res) => {
+  try {
+    const pool = global.pool;
+
+    if (req.user.role === 'admin') {
+      return res.json({ status: 'admin_bypass', is_admin_bypass: true });
+    }
+
+    const feature_on = req.user.features?.events_v1 === true;
+
+    const { rows } = await pool.query(
+      `SELECT id, tier, status, currency, billing_period,
+              start_date, end_date, trial_days, metadata
+         FROM events.licenses
+        WHERE user_id = $1 AND status IN ('active','grace','readonly')
+        ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id]
+    );
+
+    if (!rows.length) {
+      return res.json({ status: 'no_license', feature_on });
+    }
+
+    const lic = rows[0];
+    const now = Date.now();
+    const endMs = lic.end_date ? new Date(lic.end_date).getTime() : null;
+    const days_left = endMs !== null ? Math.ceil((endMs - now) / 86400000) : null;
+
+    return res.json({
+      status: lic.status,
+      tier: lic.tier,
+      currency: lic.currency,
+      billing_period: lic.billing_period,
+      start_date: lic.start_date,
+      end_date: lic.end_date,
+      days_left,
+      trial_days: lic.trial_days,
+      feature_on
+    });
+  } catch (err) {
+    console.error('❌ GET /license/status:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
