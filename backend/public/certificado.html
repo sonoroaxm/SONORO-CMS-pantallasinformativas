@@ -9,11 +9,12 @@
   :root { --bg:#f5f1e8; --ink:#0f0f0f; --muted:#666; --accent:#b8975f; --card:#fff; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
-  header{padding:24px;border-bottom:1px solid #e8e3d6;background:#fff}
+  header{padding:20px 24px;border-bottom:1px solid #e8e3d6;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ink)}
+  .lang-select{background:#fff;border:1px solid #d8d0bc;border-radius:6px;padding:6px 10px;font-size:12px;color:var(--ink);cursor:pointer}
   main{max-width:960px;margin:0 auto;padding:32px 20px}
   .card{background:var(--card);border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.04);margin-bottom:20px}
-  .meta-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0ebe0;font-size:14px}
+  .meta-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0ebe0;font-size:14px;gap:12px}
   .meta-row:last-child{border-bottom:none}
   .meta-row span:first-child{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:0.8px}
   .meta-row span:last-child{color:var(--ink);text-align:right}
@@ -29,60 +30,137 @@
 </style>
 </head>
 <body>
-<header><h1>SONORO · Certificado</h1></header>
+<header>
+  <h1 data-i18n="title">SONORO · Certificado</h1>
+  <select id="lang" class="lang-select" aria-label="Idioma / Language">
+    <option value="es">Español</option>
+    <option value="en">English</option>
+    <option value="pt">Português</option>
+  </select>
+</header>
 <main id="main">
-  <div class="loading">Cargando certificado...</div>
+  <div class="loading" data-i18n="loading">Cargando certificado...</div>
 </main>
-<footer>Verifica la validez escaneando el QR del documento.</footer>
+<footer data-i18n="footer">Verifica la validez escaneando el QR del documento.</footer>
 <script>
-const token = location.pathname.split('/').pop();
-const main = document.getElementById('main');
+const L = {
+  es: {
+    title: 'SONORO · Certificado',
+    loading: 'Cargando certificado...',
+    footer: 'Verifica la validez escaneando el QR del documento.',
+    notFound: 'Certificado no encontrado',
+    notFoundMsg: 'El enlace no es válido o fue removido.',
+    revoked: 'Este certificado fue revocado.',
+    revokedNote: 'Ya no es válido.',
+    attendee: 'Asistente', event: 'Evento', session: 'Sesión',
+    hours: 'Horas certificadas', issued: 'Emitido',
+    download: 'Descargar PDF', openTab: 'Abrir en nueva pestaña', verify: 'Verificar validez',
+    error: 'Error cargando el certificado.',
+    dateLoc: 'es-CO',
+  },
+  en: {
+    title: 'SONORO · Certificate',
+    loading: 'Loading certificate...',
+    footer: 'Verify validity by scanning the QR on the document.',
+    notFound: 'Certificate not found',
+    notFoundMsg: 'The link is invalid or has been removed.',
+    revoked: 'This certificate was revoked.',
+    revokedNote: 'It is no longer valid.',
+    attendee: 'Attendee', event: 'Event', session: 'Session',
+    hours: 'Certified hours', issued: 'Issued',
+    download: 'Download PDF', openTab: 'Open in new tab', verify: 'Verify validity',
+    error: 'Error loading the certificate.',
+    dateLoc: 'en-US',
+  },
+  pt: {
+    title: 'SONORO · Certificado',
+    loading: 'Carregando certificado...',
+    footer: 'Verifique a validade escaneando o QR do documento.',
+    notFound: 'Certificado não encontrado',
+    notFoundMsg: 'O link é inválido ou foi removido.',
+    revoked: 'Este certificado foi revogado.',
+    revokedNote: 'Já não é válido.',
+    attendee: 'Participante', event: 'Evento', session: 'Sessão',
+    hours: 'Horas certificadas', issued: 'Emitido',
+    download: 'Baixar PDF', openTab: 'Abrir em nova aba', verify: 'Verificar validade',
+    error: 'Erro ao carregar o certificado.',
+    dateLoc: 'pt-BR',
+  }
+};
+
+function detectLang(){
+  const q = new URLSearchParams(location.search).get('lang');
+  const stored = localStorage.getItem('sonoro_lang_public');
+  const nav = (navigator.language || 'es').slice(0,2);
+  const pick = (q || stored || nav).toLowerCase();
+  return L[pick] ? pick : 'es';
+}
+let LANG = detectLang();
+const t = (k) => (L[LANG][k] ?? k);
 
 function fmtDate(iso){
   if(!iso) return '';
-  try { return new Date(iso).toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' }); }
+  try { return new Date(iso).toLocaleDateString(L[LANG].dateLoc, { day:'numeric', month:'long', year:'numeric' }); }
   catch(_) { return iso; }
 }
 function fmtHours(n){
   if(n == null) return '—';
   const num = Number(n);
   if(Math.abs(num - Math.round(num)) < 0.05) return String(Math.round(num));
-  return num.toFixed(1).replace('.', ',');
+  return num.toFixed(1).replace('.', LANG === 'en' ? '.' : ',');
+}
+
+const main = document.getElementById('main');
+const token = location.pathname.split('/').pop();
+
+function applyStatic(){
+  document.documentElement.lang = LANG;
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
 }
 
 async function load(){
   try {
     const r = await fetch(`/api/public/certificates/${token}`);
     if(!r.ok){
-      main.innerHTML = `<div class="card"><h2 style="margin-top:0">Certificado no encontrado</h2><p>El enlace no es válido o fue removido.</p></div>`;
+      main.innerHTML = `<div class="card"><h2 style="margin-top:0">${t('notFound')}</h2><p>${t('notFoundMsg')}</p></div>`;
       return;
     }
     const { certificate: c } = await r.json();
     const revoked = c.revoked_at
-      ? `<div class="revoked"><strong>Este certificado fue revocado.</strong> Ya no es válido.</div>` : '';
+      ? `<div class="revoked"><strong>${t('revoked')}</strong> ${t('revokedNote')}</div>` : '';
     const sessionLine = c.session_name
-      ? `<div class="meta-row"><span>Sesión</span><span>${c.session_name}</span></div>` : '';
+      ? `<div class="meta-row"><span>${t('session')}</span><span>${c.session_name}</span></div>` : '';
     const pdfUrl = `/api/public/certificates/${token}/pdf`;
     main.innerHTML = `
       ${revoked}
       <div class="card">
-        <div class="meta-row"><span>Asistente</span><span>${c.attendee_name || ''}</span></div>
-        <div class="meta-row"><span>Evento</span><span>${c.event_name || ''}</span></div>
+        <div class="meta-row"><span>${t('attendee')}</span><span>${c.attendee_name || ''}</span></div>
+        <div class="meta-row"><span>${t('event')}</span><span>${c.event_name || ''}</span></div>
         ${sessionLine}
-        <div class="meta-row"><span>Horas certificadas</span><span>${fmtHours(c.hours_total)}</span></div>
-        <div class="meta-row"><span>Emitido</span><span>${fmtDate(c.issued_at)}</span></div>
+        <div class="meta-row"><span>${t('hours')}</span><span>${fmtHours(c.hours_total)}</span></div>
+        <div class="meta-row"><span>${t('issued')}</span><span>${fmtDate(c.issued_at)}</span></div>
         <div class="actions">
-          ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-primary" href="${pdfUrl}" download="certificado-${token}.pdf">Descargar PDF</a>` : ''}
-          ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-secondary" href="${pdfUrl}" target="_blank">Abrir en nueva pestaña</a>` : ''}
-          <a class="btn btn-secondary" href="/verify/${token}">Verificar validez</a>
+          ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-primary" href="${pdfUrl}" download="certificado-${token}.pdf">${t('download')}</a>` : ''}
+          ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-secondary" href="${pdfUrl}" target="_blank">${t('openTab')}</a>` : ''}
+          <a class="btn btn-secondary" href="/verify/${token}?lang=${LANG}">${t('verify')}</a>
         </div>
       </div>
       ${c.has_pdf && !c.revoked_at ? `<div class="card"><iframe class="pdf-frame" src="${pdfUrl}"></iframe></div>` : ''}
     `;
   } catch(err){
-    main.innerHTML = `<div class="card"><p>Error cargando el certificado.</p></div>`;
+    main.innerHTML = `<div class="card"><p>${t('error')}</p></div>`;
   }
 }
+
+document.getElementById('lang').value = LANG;
+document.getElementById('lang').addEventListener('change', (e) => {
+  LANG = e.target.value;
+  localStorage.setItem('sonoro_lang_public', LANG);
+  applyStatic();
+  load();
+});
+applyStatic();
 load();
 </script>
 </body>

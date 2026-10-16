@@ -516,70 +516,175 @@ let FORM_START  = Date.now();
 
 const L = {
   es: {
-    loading:      'Cargando evento...',
-    noEvent:      'Evento no disponible',
-    noEventMsg:   'Este evento no existe o el registro no esta abierto.',
-    full:         'Evento lleno',
-    fullMsg:      'Este evento ha alcanzado su capacidad maxima.',
-    screen1Title: 'Tus datos',
-    screen1Sub:   'Completa la informacion para registrarte.',
-    name:         'Nombre completo', email: 'Correo electronico',
-    idType:       'Tipo de documento', idNumber: 'Numero de documento',
-    phone:        'Telefono / Celular', ticket: 'Tipo de entrada',
-    org:          'Empresa / Institucion', job: 'Cargo',
-    continue:     'Continuar', back: 'Atras', register: 'Registrarme',
-    screen2Title: 'Selecciona tus sesiones',
-    screen2Sub:   'Elige las sesiones a las que planeas asistir.',
-    screen3Title: 'Confirmar registro',
-    screen3Sub:   'Revisa tus datos antes de registrarte.',
-    terms:        'He leído y acepto la <a href="/politica-datos.html" target="_blank">Política de Tratamiento de Datos</a> y los <a href="/terminos.html" target="_blank">Términos del evento</a>.',
-    edit:         'Editar datos',
-    sessions:     'Sesiones seleccionadas',
-    s4Title:      'Registro exitoso',
-    s4Msg:        (email) => `Te enviamos un email a <strong>${email}</strong> con tu codigo QR de acceso.`,
-    remTitle:     'Recuerda',
-    rem1:         'Guarda el email con tu codigo QR o captura esta pantalla',
-    rem2:         'El mismo QR aplica para todos los dias del evento',
-    rem3:         'Presentalo en el acceso principal al ingresar',
-    caps:         'Cupos',
-    sessLabel:    'Sesiones registradas',
-    reqErr:       'Campo requerido',
-    emailErr:     'Email invalido',
-    full_cap:     (cur, max) => `${cur} / ${max}`,
-    no_sessions:  'Este evento no tiene sesiones configuradas.',
+    loading:'Cargando evento...', noEvent:'Evento no disponible',
+    noEventMsg:'Este evento no existe o el registro no está abierto.',
+    full:'Evento lleno', fullMsg:'Este evento ha alcanzado su capacidad máxima.',
+    screen1Title:'Tus datos', screen1Sub:'Completa la información para registrarte.',
+    name:'Nombre completo', email:'Correo electrónico',
+    idType:'Tipo de documento', idNumber:'Número de documento',
+    phone:'Teléfono / Celular', ticket:'Tipo de entrada',
+    org:'Empresa / Institución', job:'Cargo',
+    continue:'Continuar', back:'Atrás', register:'Registrarme',
+    screen2Title:'Selecciona tus sesiones', screen2Sub:'Elige las sesiones a las que planeas asistir.',
+    screen3Title:'Confirmar registro', screen3Sub:'Revisa tus datos antes de registrarte.',
+    terms:'He leído y acepto la <a href="/politica-datos.html" target="_blank">Política de Tratamiento de Datos</a> y los <a href="/terminos.html" target="_blank">Términos del evento</a>.',
+    edit:'Editar datos', sessions:'Sesiones seleccionadas',
+    s4Title:'Registro exitoso',
+    s4Msg:(e)=>`Te enviamos un email a <strong>${e}</strong> con tu código QR de acceso.`,
+    remTitle:'Recuerda',
+    rem1:'Guarda el email con tu código QR o captura esta pantalla',
+    rem2:'El mismo QR aplica para todos los días del evento',
+    rem3:'Preséntalo en el acceso principal al ingresar',
+    caps:'Cupos', sessLabel:'Sesiones registradas',
+    reqErr:'Campo requerido', emailErr:'Email inválido',
+    no_sessions:'Este evento no tiene sesiones configuradas.',
+    dateLoc:'es-CO',
+    doc:'Documento', phoneShort:'Teléfono', fullNameShort:'Nombre completo', emailShort:'Correo electrónico',
+    groupTitle:(n)=>`Datos del grupo (${n} invitado${n===1?'':'s'})`,
+    groupSub:(n)=>`Llena los datos de los ${n} invitados. La primera fila ya tiene los datos del responsable — puedes corregirlos.`,
+    responsable:'Responsable (tú)', invitadoN:(n)=>`Invitado ${n}`,
+    sending:'Enviando...', sendGroup:'Enviar registro del grupo',
+    rowNameReq:(n)=>`Fila ${n}: nombre requerido`,
+    rowEmailBad:(n)=>`Fila ${n}: email inválido`,
+    errSendReg:'Error al enviar el registro',
+    regSentTitle:'Registro enviado',
+    regSentMsg:(n)=>`Confirmamos <strong>${n}</strong> invitados. Cada uno recibirá su email con QR de acceso individual.`,
+    remGroup1:'Cada invitado recibirá su email con QR en pocos minutos.',
+    remGroup2:'Revisen la carpeta de spam si no llega.',
+    remGroup3:'El QR aplica para todos los días del evento.',
+    noQuota:'Cupos agotados', noQuotaMsg:(label)=>`La invitación "${label}" ya no tiene cupos disponibles.`,
+    invCupos:(c,q)=>`Cupos: <strong>${c} / ${q}</strong> usados`,
+    invSpecificSessions:'Esta acreditación incluye sesiones específicas seleccionadas por el organizador.',
+    invPending:'Tu registro será revisado por el organizador antes de emitir el código QR.',
+    regNotFound:'Registro no encontrado', regNotFoundMsg:'El código QR no corresponde a ningún registro.',
+    errorGeneric:'Error', errorRegLoad:'No se pudo cargar el registro.',
+    alreadyReg:'Ya estás registrado en este evento.',
+    genericRegError:'Error al registrar. Intenta de nuevo.',
+    errRegistering:(m)=>`Error al registrar: ${m}`,
+    sinCupos:'Sin cupos', cap:(n)=>`Cap. ${n}`,
+    sessTypes:{plenary:'Plenaria', workshop:'Taller', meal:'Comida', breakout:'Sala', networking:'Networking'},
+    allSessions:'Todas las sesiones del evento',
+    pendingTitle:'Registro recibido',
+    pendingMsg:(label,email)=>`Recibimos tu registro para <strong>${label}</strong>. El organizador revisará tu inscripción y, al aprobarla, te enviaremos el código QR a <strong>${email}</strong>.`,
+    pendingSteps:'Próximos pasos',
+    pending1:'Revisa tu bandeja de entrada y carpeta de spam.',
+    pending2:'Recibirás un email con tu QR al ser aprobado.',
+    pending3:'Si pasan 48 horas sin respuesta, contacta al organizador.',
+    pageSuffix:' — Registro',
   },
   en: {
-    loading:      'Loading event...',
-    noEvent:      'Event not available',
-    noEventMsg:   'This event does not exist or registration is not open.',
-    full:         'Event full',
-    fullMsg:      'This event has reached its maximum capacity.',
-    screen1Title: 'Your information',
-    screen1Sub:   'Fill in your details to register.',
-    name:         'Full name', email: 'Email address',
-    idType:       'ID type', idNumber: 'ID number',
-    phone:        'Phone', ticket: 'Ticket type',
-    org:          'Company / Institution', job: 'Job title',
-    continue:     'Continue', back:  'Back', register: 'Register',
-    screen2Title: 'Select your sessions',
-    screen2Sub:   'Choose the sessions you plan to attend.',
-    screen3Title: 'Confirm registration',
-    screen3Sub:   'Review your details before registering.',
-    terms:        'I have read and accept the <a href="/politica-datos.html" target="_blank">Data Privacy Policy</a> and the <a href="/terminos.html" target="_blank">Event Terms</a>.',
-    edit:         'Edit details',
-    sessions:     'Selected sessions',
-    s4Title:      'Registration successful',
-    s4Msg:        (email) => `We sent an email to <strong>${email}</strong> with your QR access code.`,
-    remTitle:     'Remember',
-    rem1:         'Save the email with your QR code or screenshot this page',
-    rem2:         'The same QR applies for all days of the event',
-    rem3:         'Present it at the main entrance when you arrive',
-    caps:         'Capacity',
-    sessLabel:    'Registered sessions',
-    reqErr:       'Required field',
-    emailErr:     'Invalid email',
-    full_cap:     (cur, max) => `${cur} / ${max}`,
-    no_sessions:  'This event has no sessions configured.',
+    loading:'Loading event...', noEvent:'Event not available',
+    noEventMsg:'This event does not exist or registration is not open.',
+    full:'Event full', fullMsg:'This event has reached its maximum capacity.',
+    screen1Title:'Your information', screen1Sub:'Fill in your details to register.',
+    name:'Full name', email:'Email address',
+    idType:'ID type', idNumber:'ID number',
+    phone:'Phone', ticket:'Ticket type',
+    org:'Company / Institution', job:'Job title',
+    continue:'Continue', back:'Back', register:'Register',
+    screen2Title:'Select your sessions', screen2Sub:'Choose the sessions you plan to attend.',
+    screen3Title:'Confirm registration', screen3Sub:'Review your details before registering.',
+    terms:'I have read and accept the <a href="/politica-datos.html" target="_blank">Data Privacy Policy</a> and the <a href="/terminos.html" target="_blank">Event Terms</a>.',
+    edit:'Edit details', sessions:'Selected sessions',
+    s4Title:'Registration successful',
+    s4Msg:(e)=>`We sent an email to <strong>${e}</strong> with your QR access code.`,
+    remTitle:'Remember',
+    rem1:'Save the email with your QR code or screenshot this page',
+    rem2:'The same QR applies for all days of the event',
+    rem3:'Present it at the main entrance when you arrive',
+    caps:'Capacity', sessLabel:'Registered sessions',
+    reqErr:'Required field', emailErr:'Invalid email',
+    no_sessions:'This event has no sessions configured.',
+    dateLoc:'en-US',
+    doc:'ID', phoneShort:'Phone', fullNameShort:'Full name', emailShort:'Email',
+    groupTitle:(n)=>`Group details (${n} guest${n===1?'':'s'})`,
+    groupSub:(n)=>`Fill in the details for all ${n} guests. The first row has the host's details — you can edit them.`,
+    responsable:'Host (you)', invitadoN:(n)=>`Guest ${n}`,
+    sending:'Sending...', sendGroup:'Submit group registration',
+    rowNameReq:(n)=>`Row ${n}: name required`,
+    rowEmailBad:(n)=>`Row ${n}: invalid email`,
+    errSendReg:'Error submitting registration',
+    regSentTitle:'Registration sent',
+    regSentMsg:(n)=>`Confirmed <strong>${n}</strong> guests. Each will receive their individual QR access email.`,
+    remGroup1:'Each guest will receive their QR email in a few minutes.',
+    remGroup2:'Check the spam folder if it does not arrive.',
+    remGroup3:'The QR applies for all days of the event.',
+    noQuota:'No spots left', noQuotaMsg:(label)=>`Invitation "${label}" has no spots left.`,
+    invCupos:(c,q)=>`Spots: <strong>${c} / ${q}</strong> used`,
+    invSpecificSessions:'This pass includes specific sessions chosen by the organizer.',
+    invPending:'Your registration will be reviewed by the organizer before issuing the QR code.',
+    regNotFound:'Registration not found', regNotFoundMsg:'The QR code does not match any registration.',
+    errorGeneric:'Error', errorRegLoad:'Could not load the registration.',
+    alreadyReg:'You are already registered for this event.',
+    genericRegError:'Registration error. Please try again.',
+    errRegistering:(m)=>`Registration error: ${m}`,
+    sinCupos:'Full', cap:(n)=>`Cap. ${n}`,
+    sessTypes:{plenary:'Plenary', workshop:'Workshop', meal:'Meal', breakout:'Breakout', networking:'Networking'},
+    allSessions:'All event sessions',
+    pendingTitle:'Registration received',
+    pendingMsg:(label,email)=>`We received your registration for <strong>${label}</strong>. The organizer will review it and, once approved, send the QR code to <strong>${email}</strong>.`,
+    pendingSteps:'Next steps',
+    pending1:'Check your inbox and spam folder.',
+    pending2:'You will receive the QR email once approved.',
+    pending3:'If 48 hours pass without a reply, contact the organizer.',
+    pageSuffix:' — Registration',
+  },
+  pt: {
+    loading:'Carregando evento...', noEvent:'Evento indisponível',
+    noEventMsg:'Este evento não existe ou o registro não está aberto.',
+    full:'Evento lotado', fullMsg:'Este evento atingiu sua capacidade máxima.',
+    screen1Title:'Seus dados', screen1Sub:'Preencha as informações para se registrar.',
+    name:'Nome completo', email:'E-mail',
+    idType:'Tipo de documento', idNumber:'Número do documento',
+    phone:'Telefone / Celular', ticket:'Tipo de ingresso',
+    org:'Empresa / Instituição', job:'Cargo',
+    continue:'Continuar', back:'Voltar', register:'Registrar',
+    screen2Title:'Selecione suas sessões', screen2Sub:'Escolha as sessões que planeja participar.',
+    screen3Title:'Confirmar registro', screen3Sub:'Revise seus dados antes de se registrar.',
+    terms:'Li e aceito a <a href="/politica-datos.html" target="_blank">Política de Tratamento de Dados</a> e os <a href="/terminos.html" target="_blank">Termos do evento</a>.',
+    edit:'Editar dados', sessions:'Sessões selecionadas',
+    s4Title:'Registro realizado',
+    s4Msg:(e)=>`Enviamos um e-mail para <strong>${e}</strong> com seu código QR de acesso.`,
+    remTitle:'Lembre-se',
+    rem1:'Guarde o e-mail com seu código QR ou tire uma captura desta tela',
+    rem2:'O mesmo QR vale para todos os dias do evento',
+    rem3:'Apresente-o no acesso principal ao chegar',
+    caps:'Vagas', sessLabel:'Sessões registradas',
+    reqErr:'Campo obrigatório', emailErr:'E-mail inválido',
+    no_sessions:'Este evento não tem sessões configuradas.',
+    dateLoc:'pt-BR',
+    doc:'Documento', phoneShort:'Telefone', fullNameShort:'Nome completo', emailShort:'E-mail',
+    groupTitle:(n)=>`Dados do grupo (${n} convidado${n===1?'':'s'})`,
+    groupSub:(n)=>`Preencha os dados dos ${n} convidados. A primeira linha já tem os dados do responsável — você pode corrigi-los.`,
+    responsable:'Responsável (você)', invitadoN:(n)=>`Convidado ${n}`,
+    sending:'Enviando...', sendGroup:'Enviar registro do grupo',
+    rowNameReq:(n)=>`Linha ${n}: nome obrigatório`,
+    rowEmailBad:(n)=>`Linha ${n}: e-mail inválido`,
+    errSendReg:'Erro ao enviar o registro',
+    regSentTitle:'Registro enviado',
+    regSentMsg:(n)=>`Confirmamos <strong>${n}</strong> convidados. Cada um receberá seu e-mail com QR de acesso individual.`,
+    remGroup1:'Cada convidado receberá seu e-mail com QR em poucos minutos.',
+    remGroup2:'Confiram a pasta de spam se não chegar.',
+    remGroup3:'O QR vale para todos os dias do evento.',
+    noQuota:'Sem vagas', noQuotaMsg:(label)=>`O convite "${label}" não tem mais vagas disponíveis.`,
+    invCupos:(c,q)=>`Vagas: <strong>${c} / ${q}</strong> usadas`,
+    invSpecificSessions:'Esta credencial inclui sessões específicas escolhidas pelo organizador.',
+    invPending:'Seu registro será revisado pelo organizador antes de emitir o código QR.',
+    regNotFound:'Registro não encontrado', regNotFoundMsg:'O código QR não corresponde a nenhum registro.',
+    errorGeneric:'Erro', errorRegLoad:'Não foi possível carregar o registro.',
+    alreadyReg:'Você já está registrado neste evento.',
+    genericRegError:'Erro ao registrar. Tente novamente.',
+    errRegistering:(m)=>`Erro ao registrar: ${m}`,
+    sinCupos:'Esgotado', cap:(n)=>`Cap. ${n}`,
+    sessTypes:{plenary:'Plenária', workshop:'Oficina', meal:'Refeição', breakout:'Sala', networking:'Networking'},
+    allSessions:'Todas as sessões do evento',
+    pendingTitle:'Registro recebido',
+    pendingMsg:(label,email)=>`Recebemos seu registro para <strong>${label}</strong>. O organizador revisará sua inscrição e, ao aprová-la, enviaremos o código QR para <strong>${email}</strong>.`,
+    pendingSteps:'Próximos passos',
+    pending1:'Verifique sua caixa de entrada e a pasta de spam.',
+    pending2:'Você receberá um e-mail com o QR assim que aprovado.',
+    pending3:'Se passarem 48 horas sem resposta, contate o organizador.',
+    pageSuffix:' — Registro',
   }
 };
 
@@ -591,6 +696,8 @@ function t(key, ...args) {
 // ── INIT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
+  detectLang();
+  applyStatic();
   if (IS_INVITATION) {
     if (!CLAIM_CODE) { showError(t('noEvent'), t('noEventMsg')); return; }
     await loadInvitation();
@@ -613,14 +720,14 @@ async function loadInvitation() {
     BATCH = data.batch;
     EVENT = data.event;
     if (BATCH.slots_remaining <= 0) {
-      showError('Cupos agotados', `La invitación "${BATCH.label}" ya no tiene cupos disponibles.`);
+      showError(t('noQuota'), t('noQuotaMsg', BATCH.label));
       return;
     }
     renderHeader();
     renderInvitationBanner();
     detectLang();
     hide('screen-loading');
-    show('ev-header');
+    show('ev-header'); mountLangSwitcher();
     if (BATCH.kind === 'group') {
       renderGroupScreen();
       return;
@@ -643,9 +750,8 @@ async function loadInvitation() {
 function renderGroupScreen() {
   const remaining = BATCH.slots_remaining;
   const pf = BATCH.prefill || {};
-  document.getElementById('sg-title').textContent = `Datos del grupo (${remaining} invitado${remaining === 1 ? '' : 's'})`;
-  document.getElementById('sg-sub').textContent =
-    `Llena los datos de los ${remaining} invitados. La primera fila ya tiene los datos del responsable — puede corregirlos.`;
+  document.getElementById('sg-title').textContent = t('groupTitle', remaining);
+  document.getElementById('sg-sub').textContent = t('groupSub', remaining);
   const host = document.getElementById('sg-rows');
   host.innerHTML = '';
   for (let i = 0; i < remaining; i++) {
@@ -655,25 +761,25 @@ function renderGroupScreen() {
     row.style.cssText = 'border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface,#f7f7f7);';
     row.innerHTML = `
       <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">
-        ${isFirst ? 'Responsable (tú)' : 'Invitado ' + (i + 1)}
+        ${isFirst ? t('responsable') : t('invitadoN', i + 1)}
       </div>
       <div class="row-2">
         <div class="field">
-          <label>Nombre completo<span class="req">*</span></label>
+          <label>${t('fullNameShort')}<span class="req">*</span></label>
           <input type="text" class="sg-name" autocomplete="off" value="${isFirst && pf.name ? escapeHtml(pf.name) : ''}">
         </div>
         <div class="field">
-          <label>Correo electrónico<span class="req">*</span></label>
+          <label>${t('emailShort')}<span class="req">*</span></label>
           <input type="email" class="sg-email" autocomplete="off" value="${isFirst && pf.email ? escapeHtml(pf.email) : ''}">
         </div>
       </div>
       <div class="row-2">
         <div class="field">
-          <label>Documento</label>
+          <label>${t('doc')}</label>
           <input type="text" class="sg-id" autocomplete="off">
         </div>
         <div class="field">
-          <label>Teléfono</label>
+          <label>${t('phoneShort')}</label>
           <input type="tel" class="sg-phone" autocomplete="off" value="${isFirst && pf.phone ? escapeHtml(pf.phone) : ''}">
         </div>
       </div>
@@ -686,7 +792,7 @@ function renderGroupScreen() {
 async function doRegisterGroup() {
   const btn = document.getElementById('sg-submit');
   btn.disabled = true;
-  btn.textContent = 'Enviando...';
+  btn.textContent = t('sending');
   const rows = document.querySelectorAll('#sg-rows .sg-row');
   const attendees = [];
   for (let i = 0; i < rows.length; i++) {
@@ -695,11 +801,11 @@ async function doRegisterGroup() {
     const email = r.querySelector('.sg-email').value.trim();
     const id    = r.querySelector('.sg-id').value.trim();
     const phone = r.querySelector('.sg-phone').value.trim();
-    if (!name)  { alert(`Fila ${i+1}: nombre requerido`);  btn.disabled = false; btn.textContent = 'Enviar registro del grupo'; return; }
+    if (!name)  { alert(t('rowNameReq', i+1));  btn.disabled = false; btn.textContent = t('sendGroup'); return; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      alert(`Fila ${i+1}: email inválido`); btn.disabled = false; btn.textContent = 'Enviar registro del grupo'; return;
+      alert(t('rowEmailBad', i+1)); btn.disabled = false; btn.textContent = t('sendGroup'); return;
     }
-    attendees.push({ name, email, phone: phone || null, id_number: id || null, id_type: 'CC', locale: (LANG === 'en' ? 'en' : 'es') });
+    attendees.push({ name, email, phone: phone || null, id_number: id || null, id_type: 'CC', locale: LANG });
   }
   try {
     const res = await fetch(`${API_URL}/api/events/public/invitation/${CLAIM_CODE}/register`, {
@@ -717,27 +823,26 @@ async function doRegisterGroup() {
       showGroupSuccess(data.registrations || []);
     } else {
       btn.disabled = false;
-      btn.textContent = 'Enviar registro del grupo';
-      alert(data.error || 'Error al enviar el registro');
+      btn.textContent = t('sendGroup');
+      alert(data.error || t('errSendReg'));
     }
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'Enviar registro del grupo';
-    alert('Error: ' + e.message);
+    btn.textContent = t('sendGroup');
+    alert(t('errorGeneric') + ': ' + e.message);
   }
 }
 
 function showGroupSuccess(regs) {
   goTo(4);
-  document.getElementById('s4-title').textContent = 'Registro enviado';
-  document.getElementById('s4-msg').innerHTML =
-    `Confirmamos <strong>${regs.length}</strong> invitados. Cada uno recibirá su email con QR de acceso individual.`;
+  document.getElementById('s4-title').textContent = t('regSentTitle');
+  document.getElementById('s4-msg').innerHTML = t('regSentMsg', regs.length);
   const qrBox = document.getElementById('qr-canvas');  if (qrBox) qrBox.style.display = 'none';
   const qrTxt = document.getElementById('qr-token-text'); if (qrTxt) qrTxt.style.display = 'none';
-  document.getElementById('r-title').textContent = 'Recuerda';
-  document.getElementById('r1').textContent = 'Cada invitado recibirá su email con QR en pocos minutos.';
-  document.getElementById('r2').textContent = 'Revisen la carpeta de spam si no llega.';
-  document.getElementById('r3').textContent = 'El QR aplica para todos los días del evento.';
+  document.getElementById('r-title').textContent = t('remTitle');
+  document.getElementById('r1').textContent = t('remGroup1');
+  document.getElementById('r2').textContent = t('remGroup2');
+  document.getElementById('r3').textContent = t('remGroup3');
 }
 
 function renderInvitationBanner() {
@@ -748,11 +853,11 @@ function renderInvitationBanner() {
   div.style.cssText = 'margin:16px 0 0;padding:14px 18px;background:#f4ede1;border:1px solid #d9c9a6;border-radius:10px;color:#5a4a1f;font-size:14px;line-height:1.5;';
   const pendingMsg = BATCH.auto_approve
     ? ''
-    : '<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">Tu registro será revisado por el organizador antes de emitir el código QR.</div>';
+    : `<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">${t('invPending')}</div>`;
   div.innerHTML =
     `<div style="font-weight:600;letter-spacing:.2px;">${escapeHtml((BATCH.ticket_type||'talent').toUpperCase())} · ${escapeHtml(BATCH.label)}</div>
-     <div style="margin-top:4px;">Cupos: <strong>${BATCH.claimed_count} / ${BATCH.quota}</strong> usados</div>
-     ${BATCH.session_scope === 'specific_sessions' ? '<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">Esta acreditación incluye sesiones específicas seleccionadas por el organizador.</div>' : ''}
+     <div style="margin-top:4px;">${t('invCupos', BATCH.claimed_count, BATCH.quota)}</div>
+     ${BATCH.session_scope === 'specific_sessions' ? `<div style="margin-top:6px;font-size:13px;color:#8a6a1c;">${t('invSpecificSessions')}</div>` : ''}
      ${pendingMsg}`;
   host.appendChild(div);
 }
@@ -777,7 +882,7 @@ async function loadEvent() {
     renderSessions();
     detectLang();
     hide('screen-loading');
-    show('ev-header');
+    show('ev-header'); mountLangSwitcher();
     show('stepper');
     goTo(1);
   } catch(e) {
@@ -788,7 +893,7 @@ async function loadEvent() {
 async function loadMiRegistro() {
   try {
     const res = await fetch(`${API_URL}/api/events/public/${SLUG}/registration/${MREG_QR}`);
-    if (!res.ok) { showError('Registro no encontrado', 'El codigo QR no corresponde a ningun registro.'); return; }
+    if (!res.ok) { showError(t('regNotFound'), t('regNotFoundMsg')); return; }
     const reg = await res.json();
     // Load event for header
     const evRes = await fetch(`${API_URL}/api/events/public/${SLUG}`);
@@ -804,7 +909,7 @@ async function loadMiRegistro() {
     }
   } catch(e) {
     console.error('loadMiRegistro error:', e);
-    showError('Error', 'No se pudo cargar el registro. ' + (e?.message || ''));
+    showError(t('errorGeneric'), t('errorRegLoad') + ' ' + (e?.message || ''));
   }
 }
 
@@ -812,11 +917,11 @@ async function loadMiRegistro() {
 
 function renderHeader() {
   document.getElementById('ev-title').textContent = EVENT.name;
-  document.title = EVENT.name + ' — Registro';
+  document.title = EVENT.name + t('pageSuffix');
   const tz = EVENT.timezone || 'UTC';
   const s  = new Date(EVENT.starts_at);
   const e  = new Date(EVENT.ends_at);
-  const fmtDate = (d) => d.toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  const fmtDate = (d) => d.toLocaleDateString(t('dateLoc'), { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   let metaHtml = `
     <div class="ev-meta-item">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -935,11 +1040,12 @@ function renderSessions() {
   list.innerHTML = sessions.map(s => {
     const start = new Date(s.starts_at);
     const end   = new Date(s.ends_at);
-    const dateStr = start.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz });
-    const startT  = start.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
-    const endT    = end.toLocaleTimeString('es-CO',   { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+    const loc = t('dateLoc');
+    const dateStr = start.toLocaleDateString(loc, { weekday:'short', day:'numeric', month:'short', timeZone: tz });
+    const startT  = start.toLocaleTimeString(loc, { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+    const endT    = end.toLocaleTimeString(loc,   { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
     const isFull  = s.capacity && parseInt(s.registered_count) >= parseInt(s.capacity);
-    const typeLabel = { plenary: 'Plenaria', workshop: 'Taller', meal: 'Comida', breakout: 'Sala', networking: 'Networking' }[s.session_type] || '';
+    const typeLabel = (L[LANG].sessTypes || {})[s.session_type] || '';
     return `<div class="session-card${isFull ? ' full' : ''}" id="sc-${s.id}" onclick="${isFull ? '' : `toggleSession('${s.id}')`}" data-session-id="${s.id}">
       <div class="session-check">
         <svg width="10" height="10" viewBox="0 0 12 10" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="1,5 4,8 11,1"/></svg>
@@ -949,7 +1055,7 @@ function renderSessions() {
         <div class="session-meta">
           <span>${dateStr} &middot; ${startT} – ${endT}</span>
           ${s.venue_zone ? `<span>${s.venue_zone}</span>` : ''}
-          ${isFull ? '<span style="color:var(--error);font-weight:700;">Sin cupos</span>' : (s.capacity ? `<span>Cap. ${s.capacity}</span>` : '')}
+          ${isFull ? `<span style="color:var(--error);font-weight:700;">${t('sinCupos')}</span>` : (s.capacity ? `<span>${t('cap', s.capacity)}</span>` : '')}
         </div>
       </div>
     </div>`;
@@ -965,15 +1071,72 @@ function renderMiRegistro(reg) {
     const tz = EVENT?.timezone || 'UTC';
     document.getElementById('mreg-sess-label').textContent = t('sessLabel');
     document.getElementById('mreg-sess-list').innerHTML = reg.sessions.map(s =>
-      `<div class="session-detail-row">${s.name}${s.starts_at ? ' &middot; ' + new Date(s.starts_at).toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', timeZone: tz }) : ''}</div>`
+      `<div class="session-detail-row">${s.name}${s.starts_at ? ' &middot; ' + new Date(s.starts_at).toLocaleDateString(t('dateLoc'), { weekday:'short', day:'numeric', month:'short', timeZone: tz }) : ''}</div>`
     ).join('');
     show('mreg-sessions');
   }
 }
 
 function detectLang() {
+  const q = new URLSearchParams(location.search).get('lang');
+  const stored = localStorage.getItem('sonoro_lang_public');
   const nav = (navigator.language || 'es').substring(0, 2).toLowerCase();
-  LANG = nav === 'en' ? 'en' : 'es';
+  const pick = (q || stored || nav || 'es').toLowerCase();
+  LANG = L[pick] ? pick : 'es';
+  document.documentElement.lang = LANG;
+}
+
+function mountLangSwitcher() {
+  if (document.getElementById('lang-switcher')) return;
+  const header = document.getElementById('ev-header');
+  if (!header) return;
+  const sel = document.createElement('select');
+  sel.id = 'lang-switcher';
+  sel.setAttribute('aria-label', 'Idioma / Language');
+  sel.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;cursor:pointer;z-index:3;';
+  sel.innerHTML = '<option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option>';
+  sel.value = LANG;
+  sel.addEventListener('change', e => {
+    LANG = e.target.value;
+    localStorage.setItem('sonoro_lang_public', LANG);
+    location.reload();
+  });
+  header.appendChild(sel);
+}
+
+function applyStatic() {
+  const set = (sel, text) => { const el = document.querySelector(sel); if (el) el.textContent = text; };
+  const setHtml = (sel, html) => { const el = document.querySelector(sel); if (el) el.innerHTML = html; };
+  set('#screen-loading p', t('loading'));
+  set('#screen1 .card-title', t('screen1Title'));
+  set('#screen1 .card-subtitle', t('screen1Sub'));
+  set('#l-name', t('name'));
+  set('#l-email', t('email'));
+  set('#l-id-type', t('idType'));
+  set('#l-id-number', t('idNumber'));
+  set('#l-phone', t('phone'));
+  set('#l-ticket', t('ticket'));
+  set('#btn-step1', t('continue'));
+  set('#s2-title', t('screen2Title'));
+  set('#s2-sub', t('screen2Sub'));
+  set('#s3-title', t('screen3Title'));
+  set('#s3-sub', t('screen3Sub'));
+  set('#btn-register', t('register'));
+  set('#btn-back3', t('back'));
+  const step1lbl = document.querySelector('#step1 .step-label');
+  const step2lbl = document.querySelector('#step2 .step-label');
+  const step3lbl = document.querySelector('#step3 .step-label');
+  if (step1lbl) step1lbl.textContent = LANG === 'es' ? 'Datos' : (LANG === 'pt' ? 'Dados' : 'Details');
+  if (step2lbl) step2lbl.textContent = LANG === 'es' ? 'Sesiones' : (LANG === 'pt' ? 'Sessões' : 'Sessions');
+  if (step3lbl) step3lbl.textContent = LANG === 'es' ? 'Confirmar' : (LANG === 'pt' ? 'Confirmar' : 'Confirm');
+  const s2Back = document.querySelector('#screen2 .btn-ghost');
+  if (s2Back) s2Back.textContent = t('back');
+  const s2Next = document.querySelector('#screen2 .btn-primary');
+  if (s2Next) s2Next.textContent = t('continue');
+  setHtml('#l-terms', t('terms'));
+  const sgTermsLbl = document.querySelector('label[for="sg-terms"]');
+  if (sgTermsLbl) sgTermsLbl.innerHTML = t('terms');
+  set('#sg-submit', t('sendGroup'));
 }
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────────
@@ -1070,7 +1233,7 @@ function buildSummary() {
   if (sessNames.length) {
     rows += `<div style="grid-column:1/-1;"><div class="summary-label">${t('sessions')}</div><div class="summary-val">${sessNames.join(' · ')}</div></div>`;
   } else if (EVENT.registration_mode === 'full_event' && (EVENT.sessions || []).length) {
-    const label = LANG === 'en' ? 'All event sessions' : (LANG === 'pt-BR' ? 'Todas as sessões do evento' : 'Todas las sesiones del evento');
+    const label = t('allSessions');
     rows += `<div style="grid-column:1/-1;"><div class="summary-label">${t('sessions')}</div><div class="summary-val">${label}</div></div>`;
   }
   document.getElementById('summary-grid').innerHTML = rows;
@@ -1113,7 +1276,7 @@ async function doRegister() {
     ticket_type:   document.getElementById('f-ticket-type').value,
     session_ids:   [...selectedSessions],
     custom_fields,
-    locale:        (LANG === 'en' ? 'en' : 'es'),
+    locale:        LANG,
   };
   // Endpoint público de invitación ahora espera { attendees: [...] }
   const body = IS_INVITATION
@@ -1144,34 +1307,32 @@ async function doRegister() {
     } else if (res.status === 409) {
       btn.disabled = false;
       btn.textContent = t('register');
-      alert(data.error || 'Ya estas registrado en este evento.');
+      alert(data.error || t('alreadyReg'));
     } else {
       btn.disabled = false;
       btn.textContent = t('register');
-      alert(data.error || 'Error al registrar. Intenta de nuevo.');
+      alert(data.error || t('genericRegError'));
     }
   } catch(e) {
     btn.disabled = false;
     btn.textContent = t('register');
-    alert('Error al registrar: ' + e.message);
+    alert(t('errRegistering', e.message));
   }
 }
 
 function showPending(email) {
   hide('stepper');
   goTo(4);
-  document.getElementById('s4-title').textContent = 'Registro recibido';
-  document.getElementById('s4-msg').innerHTML =
-    `Recibimos tu registro para <strong>${escapeHtml(BATCH?.label || EVENT.name)}</strong>. ` +
-    `El organizador revisará tu inscripción y, al aprobarla, te enviaremos el código QR a <strong>${escapeHtml(email)}</strong>.`;
+  document.getElementById('s4-title').textContent = t('pendingTitle');
+  document.getElementById('s4-msg').innerHTML = t('pendingMsg', escapeHtml(BATCH?.label || EVENT.name), escapeHtml(email));
   const qrBox = document.getElementById('qr-canvas');
   if (qrBox) qrBox.style.display = 'none';
   const qrTxt = document.getElementById('qr-token-text');
   if (qrTxt) qrTxt.style.display = 'none';
-  document.getElementById('r-title').textContent = 'Próximos pasos';
-  document.getElementById('r1').textContent = 'Revisa tu bandeja de entrada y carpeta de spam.';
-  document.getElementById('r2').textContent = 'Recibirás un email con tu QR al ser aprobado.';
-  document.getElementById('r3').textContent = 'Si pasan 48 horas sin respuesta, contacta al organizador.';
+  document.getElementById('r-title').textContent = t('pendingSteps');
+  document.getElementById('r1').textContent = t('pending1');
+  document.getElementById('r2').textContent = t('pending2');
+  document.getElementById('r3').textContent = t('pending3');
 }
 
 function showSuccess(email, qrToken) {
