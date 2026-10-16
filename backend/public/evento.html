@@ -1120,7 +1120,9 @@ function mountLangSwitcher() {
       if (window.SonoroI18n && window.SonoroI18n.setLocale) {
         try { window.SonoroI18n.setLocale(c.remote); } catch(_){}
       }
-      location.reload();
+      const url = new URL(location.href);
+      url.searchParams.set('lang', c.code);
+      location.href = url.toString();
     });
     wrap.appendChild(b);
   });
