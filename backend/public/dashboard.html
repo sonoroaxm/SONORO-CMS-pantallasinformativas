@@ -1759,8 +1759,8 @@
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
             <button class="tab-btn" data-tab="events" data-i18n="ev.tab">Mis Eventos</button>
-            <button class="tab-btn" data-tab="ev-proveedores">Proveedores</button>
-            <button class="tab-btn" data-tab="ev-staff">Staff</button>
+            <button class="tab-btn" data-tab="ev-proveedores" data-i18n="ev.sub_suppliers">Proveedores</button>
+            <button class="tab-btn" data-tab="ev-staff" data-i18n="ev.sub_staff">Staff</button>
           </div>
         </div>
       </div>
@@ -2572,19 +2572,19 @@
           <div class="card" style="max-width:700px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
               <div class="form-group" style="grid-column:1/-1;margin:0;">
-                <label>Nombre del evento *</label>
-                <input type="text" id="ev-new-name" placeholder="Ej: Convención SONORO 2026">
+                <label data-i18n="ev.f_name">Nombre del evento *</label>
+                <input type="text" id="ev-new-name" placeholder="Ej: Convención SONORO 2026" data-i18n-attr="placeholder:ev.f_name_ph">
               </div>
               <div class="form-group" style="margin:0;">
-                <label>Fecha inicio *</label>
+                <label data-i18n="ev.f_start">Fecha inicio *</label>
                 <input type="date" id="ev-new-start">
               </div>
               <div class="form-group" style="margin:0;">
-                <label>Fecha fin *</label>
+                <label data-i18n="ev.f_end">Fecha fin *</label>
                 <input type="date" id="ev-new-end">
               </div>
               <div class="form-group" style="margin:0;">
-                <label>Zona horaria</label>
+                <label data-i18n="ev.f_tz">Zona horaria</label>
                 <select id="ev-new-tz">
                   <option value="America/Bogota">America/Bogota</option>
                   <option value="America/Lima">America/Lima</option>
@@ -2596,16 +2596,16 @@
                 </select>
               </div>
               <div class="form-group" style="margin:0;">
-                <label>Capacidad máxima</label>
-                <input type="number" id="ev-new-capacity" placeholder="Ej: 500" min="1">
+                <label data-i18n="ev.f_capacity">Capacidad máxima</label>
+                <input type="number" id="ev-new-capacity" placeholder="Ej: 500" min="1" data-i18n-attr="placeholder:ev.f_capacity_ph">
               </div>
               <div class="form-group" style="grid-column:1/-1;margin:0;">
-                <label>Descripción</label>
-                <textarea id="ev-new-desc" rows="3" placeholder="Descripción pública del evento..." style="resize:vertical;"></textarea>
+                <label data-i18n="ev.f_desc">Descripción</label>
+                <textarea id="ev-new-desc" rows="3" placeholder="Descripción pública del evento..." style="resize:vertical;" data-i18n-attr="placeholder:ev.f_desc_ph"></textarea>
               </div>
               <div class="form-group" style="grid-column:1/-1;margin:0;">
-                <label>Venue / Lugar</label>
-                <input type="text" id="ev-new-venue" placeholder="Ej: Hotel Tequendama, Bogotá">
+                <label data-i18n="ev.f_venue">Venue / Lugar</label>
+                <input type="text" id="ev-new-venue" placeholder="Ej: Hotel Tequendama, Bogotá" data-i18n-attr="placeholder:ev.f_venue_ph">
               </div>
             </div>
             <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
@@ -2643,18 +2643,18 @@
           <div id="ev-sub-info" class="ev-sub-panel">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
               <div class="card">
-                <div class="card-title">Datos del evento</div>
+                <div class="card-title" data-i18n="ev.card_data">Datos del evento</div>
                 <div style="display:grid;gap:12px;">
-                  <div class="form-group" style="margin:0;"><label>Nombre</label><input type="text" id="ev-edit-name"></div>
-                  <div class="form-group" style="margin:0;"><label>Descripción</label><textarea id="ev-edit-desc" rows="3" style="resize:vertical;"></textarea></div>
-                  <div class="form-group" style="margin:0;"><label>Venue</label><input type="text" id="ev-edit-venue"></div>
-                  <div class="form-group" style="margin:0;"><label>Capacidad</label><input type="number" id="ev-edit-capacity" min="1"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.c_name">Nombre</label><input type="text" id="ev-edit-name"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.c_desc">Descripción</label><textarea id="ev-edit-desc" rows="3" style="resize:vertical;"></textarea></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.c_venue">Venue</label><input type="text" id="ev-edit-venue"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.c_capacity">Capacidad</label><input type="number" id="ev-edit-capacity" min="1"></div>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                    <div class="form-group" style="margin:0;"><label>Fecha inicio</label><input type="date" id="ev-edit-start"></div>
-                    <div class="form-group" style="margin:0;"><label>Fecha fin</label><input type="date" id="ev-edit-end"></div>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.c_start">Fecha inicio</label><input type="date" id="ev-edit-start"></div>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.c_end">Fecha fin</label><input type="date" id="ev-edit-end"></div>
                   </div>
                   <div class="form-group" style="margin:0;">
-                    <label>Zona horaria</label>
+                    <label data-i18n="ev.c_tz">Zona horaria</label>
                     <select id="ev-edit-tz">
                       <option value="America/Bogota">America/Bogota</option>
                       <option value="America/Lima">America/Lima</option>
@@ -2669,76 +2669,76 @@
                   <div class="form-group" style="margin:0;padding:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);">
                     <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
                       <input type="checkbox" id="ev-edit-publish-cal" style="width:16px;height:16px;cursor:pointer;">
-                      <span style="font-weight:500;">Publicar en mi calendario externo</span>
+                      <span style="font-weight:500;" data-i18n="ev.publish_cal">Publicar en mi calendario externo</span>
                     </label>
                     <div id="ev-edit-publish-cal-status" style="font-size:12px;color:var(--muted);margin-top:8px;margin-left:26px;"></div>
                   </div>
                   <!-- Acceso y confirmación viven en la pestaña Formulario -->
                   <div class="form-group" style="margin:0;">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
-                      <span>Tipos de entrada</span>
-                      <span style="font-size:10px;color:var(--text-muted);font-weight:400;">uno por línea · vacío = solo "general"</span>
+                      <span data-i18n="ev.inf_ticket_types">Tipos de entrada</span>
+                      <span style="font-size:10px;color:var(--text-muted);font-weight:400;" data-i18n="ev.inf_ticket_types_hint">uno por línea · vacío = solo "general"</span>
                     </label>
-                    <textarea id="ev-edit-ticket-types" rows="4" placeholder="Escribe un tipo por línea, ej:&#10;General&#10;VIP&#10;Speaker" style="resize:vertical;font-size:12px;font-family:monospace;"></textarea>
+                    <textarea id="ev-edit-ticket-types" rows="4" placeholder="Escribe un tipo por línea, ej:&#10;General&#10;VIP&#10;Speaker" style="resize:vertical;font-size:12px;font-family:monospace;" data-i18n-attr="placeholder:ev.inf_ticket_types_ph"></textarea>
                   </div>
                   <div style="display:flex;gap:10px;margin-top:4px;align-items:center;">
-                    <button class="btn btn-grad" onclick="evSaveInfo()" style="flex:1;">Guardar cambios</button>
+                    <button class="btn btn-grad" onclick="evSaveInfo()" style="flex:1;" data-i18n="ev.save">Guardar cambios</button>
                     <button id="ev-publish-btn" class="btn btn-outline btn-sm" onclick="evTogglePublish()" style="flex-shrink:0;"></button>
                   </div>
                 </div>
               </div>
               <div class="card">
                 <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-                  Sesiones / Jornadas
-                  <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()">+ Agregar</button>
+                  <span data-i18n="ev.sess_card">Sesiones / Jornadas</span>
+                  <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()" data-i18n="ev.sess_add">+ Agregar</button>
                 </div>
                 <!-- E3.5: modo de inscripción -->
                 <div style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;">
-                  <span style="color:var(--text-muted);">Tipo de inscripción:</span>
+                  <span style="color:var(--text-muted);" data-i18n="ev.sess_regmode_label">Tipo de inscripción:</span>
                   <select id="ev-regmode-select" onchange="evSaveRegMode()" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;">
-                    <option value="full_event">Inscripción general (todas las sesiones)</option>
-                    <option value="per_session">Multisesiones (inscripción a sesiones específicas)</option>
+                    <option value="full_event" data-i18n="ev.sess_regmode_full">Inscripción general (todas las sesiones)</option>
+                    <option value="per_session" data-i18n="ev.sess_regmode_per">Multisesiones (inscripción a sesiones específicas)</option>
                   </select>
                   <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" style="display:none;">
                   <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" style="display:none;">
-                  <span title="Las sesiones privadas o solo-invitación nunca aparecen en el formulario público." style="color:var(--text-muted);cursor:help;">ⓘ</span>
+                  <span title="Las sesiones privadas o solo-invitación nunca aparecen en el formulario público." style="color:var(--text-muted);cursor:help;" data-i18n-attr="title:ev.sess_regmode_help">ⓘ</span>
                 </div>
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
                 <div id="ev-add-session-form" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                   <input type="hidden" id="ev-sess-edit-id">
                   <div style="display:grid;gap:10px;">
-                    <div class="form-group" style="margin:0;"><label>Nombre de la sesión</label><input type="text" id="ev-sess-name" placeholder="Ej: Día 1 — Mañana"></div>
-                    <div class="form-group" style="margin:0;"><label>Orador / Speaker</label><input type="text" id="ev-sess-speaker" placeholder="Nombre del orador (opcional)" maxlength="120"></div>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_name">Nombre de la sesión</label><input type="text" id="ev-sess-name" placeholder="Ej: Día 1 — Mañana" data-i18n-attr="placeholder:ev.sess_f_name_ph"></div>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_speaker">Orador / Speaker</label><input type="text" id="ev-sess-speaker" placeholder="Nombre del orador (opcional)" maxlength="120" data-i18n-attr="placeholder:ev.sess_f_speaker_ph"></div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                      <div class="form-group" style="margin:0;"><label>Fecha</label><input type="date" id="ev-sess-date"></div>
-                      <div class="form-group" style="margin:0;"><label>Cupo (opc.)</label><input type="number" id="ev-sess-cap" placeholder="Sin límite"></div>
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_date">Fecha</label><input type="date" id="ev-sess-date"></div>
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_cap">Cupo (opc.)</label><input type="number" id="ev-sess-cap" placeholder="Sin límite" data-i18n-attr="placeholder:ev.sess_f_cap_ph"></div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                      <div class="form-group" style="margin:0;"><label>Hora inicio</label><input type="time" id="ev-sess-start"></div>
-                      <div class="form-group" style="margin:0;"><label>Hora fin</label><input type="time" id="ev-sess-end"></div>
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_start">Hora inicio</label><input type="time" id="ev-sess-start"></div>
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_end">Hora fin</label><input type="time" id="ev-sess-end"></div>
                     </div>
-                    <div class="form-group" style="margin:0;"><label>Responsable</label>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_staff">Responsable</label>
                       <select id="ev-sess-staff"
                         style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
-                        <option value="">&#8212; Sin asignar &#8212;</option>
+                        <option value="" data-i18n="ev.sess_staff_none">&#8212; Sin asignar &#8212;</option>
                       </select>
                     </div>
-                    <div class="form-group" style="margin:0;"><label>Observaciones</label>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_obs">Observaciones</label>
                       <textarea id="ev-sess-obs" rows="2" placeholder="Notas o indicaciones especiales..."
-                        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;" data-i18n-attr="placeholder:ev.sess_f_obs_ph"></textarea>
                     </div>
-                    <div class="form-group" style="margin:0;"><label>Visibilidad</label>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_visibility">Visibilidad</label>
                       <select id="ev-sess-visibility"
                         style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
-                        <option value="public">Pública — todos pueden verla e inscribirse</option>
-                        <option value="private">Privada — solo el productor la asigna manualmente</option>
-                        <option value="invite_only">Solo invitados — requiere link de invitación</option>
+                        <option value="public" data-i18n="ev.sess_vis_public">Pública — todos pueden verla e inscribirse</option>
+                        <option value="private" data-i18n="ev.sess_vis_private">Privada — solo el productor la asigna manualmente</option>
+                        <option value="invite_only" data-i18n="ev.sess_vis_invite">Solo invitados — requiere link de invitación</option>
                       </select>
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;">
-                      <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()">Cancelar</button>
-                      <button class="btn btn-primary btn-sm" onclick="evSaveSession()">Guardar sesión</button>
+                      <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()" data-i18n="ev.cancel">Cancelar</button>
+                      <button class="btn btn-primary btn-sm" onclick="evSaveSession()" data-i18n="ev.sess_save">Guardar sesión</button>
                     </div>
                   </div>
                 </div>
@@ -2747,19 +2747,19 @@
 
             <!-- Configuración de correos -->
             <div class="card" style="margin-top:16px;">
-              <div class="card-title">Configuración de correos</div>
+              <div class="card-title" data-i18n="ev.mail_card">Configuración de correos</div>
               <div style="display:grid;gap:12px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                   <div class="form-group" style="margin:0;">
-                    <label>Nombre del remitente <span style="font-size:10px;font-weight:400;color:var(--text-muted);">(aparece en el inbox del destinatario)</span></label>
-                    <input type="text" id="ev-edit-email-from" placeholder="SONORO CMS (por defecto)">
+                    <label><span data-i18n="ev.mail_from">Nombre del remitente</span> <span style="font-size:10px;font-weight:400;color:var(--text-muted);" data-i18n="ev.mail_from_hint">(aparece en el inbox del destinatario)</span></label>
+                    <input type="text" id="ev-edit-email-from" placeholder="SONORO CMS (por defecto)" data-i18n-attr="placeholder:ev.mail_from_ph">
                   </div>
                   <div class="form-group" style="margin:0;">
-                    <label>Reply-To <span style="font-size:10px;font-weight:400;color:var(--text-muted);">(a quién responde el destinatario)</span></label>
-                    <input type="email" id="ev-edit-email-reply" placeholder="Vacío = sin reply-to">
+                    <label><span data-i18n="ev.mail_reply">Reply-To</span> <span style="font-size:10px;font-weight:400;color:var(--text-muted);" data-i18n="ev.mail_reply_hint">(a quién responde el destinatario)</span></label>
+                    <input type="email" id="ev-edit-email-reply" placeholder="Vacío = sin reply-to" data-i18n-attr="placeholder:ev.mail_reply_ph">
                   </div>
                 </div>
-                <p style="margin:0;font-size:11px;color:var(--text-muted);line-height:1.5;">Los correos siempre se envían desde <strong>cms@sonoro.com.co</strong>. El nombre del remitente y el Reply-To son visibles para el destinatario. Aplica a confirmaciones de registro y correos de cotización a proveedores.</p>
+                <p style="margin:0;font-size:11px;color:var(--text-muted);line-height:1.5;" data-i18n="ev.mail_note">Los correos siempre se envían desde <strong>cms@sonoro.com.co</strong>. El nombre del remitente y el Reply-To son visibles para el destinatario. Aplica a confirmaciones de registro y correos de cotización a proveedores.</p>
               </div>
             </div>
           </div>
@@ -2771,20 +2771,20 @@
               <div style="display:flex;flex-direction:column;gap:12px;">
                 <!-- Acceso y confirmación -->
                 <div class="card">
-                  <div class="card-title">Modo de confirmación</div>
+                  <div class="card-title" data-i18n="ev.fm_confirm_mode">Modo de confirmación</div>
                   <div style="display:flex;flex-direction:column;gap:10px;">
                     <label id="ev-opt-auto" onclick="evSelectConfirmMode('auto')" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:12px 14px;border-radius:8px;border:2px solid var(--border);">
                       <input type="radio" name="ev-confirm-mode" value="auto" id="ev-confirm-auto" style="width:16px;height:16px;accent-color:#f59e0b;flex-shrink:0;margin-top:2px;">
                       <div>
-                        <div style="font-size:13px;font-weight:700;">Confirmación automática</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Al inscribirse llega el pase con código QR de forma inmediata</div>
+                        <div style="font-size:13px;font-weight:700;" data-i18n="ev.fm_conf_auto">Confirmación automática</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" data-i18n="ev.fm_conf_auto_d">Al inscribirse llega el pase con código QR de forma inmediata</div>
                       </div>
                     </label>
                     <label id="ev-opt-manual" onclick="evSelectConfirmMode('manual')" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:12px 14px;border-radius:8px;border:2px solid var(--border);">
                       <input type="radio" name="ev-confirm-mode" value="manual" id="ev-confirm-manual" style="width:16px;height:16px;accent-color:#f59e0b;flex-shrink:0;margin-top:2px;">
                       <div>
-                        <div style="font-size:13px;font-weight:700;">Confirmación manual</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">El inscrito recibe aviso de que será confirmado por el equipo del evento. Al confirmar desde el dashboard se envía el pase con QR</div>
+                        <div style="font-size:13px;font-weight:700;" data-i18n="ev.fm_conf_manual">Confirmación manual</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" data-i18n="ev.fm_conf_manual_d">El inscrito recibe aviso de que será confirmado por el equipo del evento. Al confirmar desde el dashboard se envía el pase con QR</div>
                       </div>
                     </label>
                   </div>
@@ -2793,47 +2793,47 @@
                 <div class="card">
                   <div class="card-title" style="display:flex;align-items:center;gap:6px;">
                     <svg width="11" height="11" fill="currentColor"><use href="#ph-lock"/></svg>
-                    Campos fijos — siempre presentes
+                    <span data-i18n="ev.fx_title">Campos fijos — siempre presentes</span>
                   </div>
                   <div style="display:grid;gap:5px;">
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#818cf8;">texto</span><span style="flex:1;">Nombre completo</span><span class="ev-chip-req">*</span></div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#34d399;">email</span><span style="flex:1;">Correo electrónico</span><span class="ev-chip-req">*</span></div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#38bdf8;">tel</span><span style="flex:1;">Teléfono (+prefijo)</span></div>
-                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;">Tipo + N° documento</span><span class="ev-chip-req">*</span></div>
-                    <div id="ev-fixed-ticket-chip" class="ev-field-chip hidden" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;">Tipo de entrada</span><span class="ev-chip-req">*</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#818cf8;">texto</span><span style="flex:1;" data-i18n="ev.fx_fullname">Nombre completo</span><span class="ev-chip-req">*</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#34d399;">email</span><span style="flex:1;" data-i18n="ev.fx_email">Correo electrónico</span><span class="ev-chip-req">*</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type" style="color:#38bdf8;">tel</span><span style="flex:1;" data-i18n="ev.fx_phone">Teléfono (+prefijo)</span></div>
+                    <div class="ev-field-chip" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;" data-i18n="ev.fx_doc">Tipo + N° documento</span><span class="ev-chip-req">*</span></div>
+                    <div id="ev-fixed-ticket-chip" class="ev-field-chip hidden" style="cursor:default;opacity:0.55;"><span class="ev-chip-type">select</span><span style="flex:1;" data-i18n="ev.fx_ticket">Tipo de entrada</span><span class="ev-chip-req">*</span></div>
                   </div>
                 </div>
                 <!-- Campos activos en el formulario -->
                 <div class="card">
                   <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
-                    Campos en el formulario
+                    <span data-i18n="ev.fm_active">Campos en el formulario</span>
                     <span id="ev-active-count" style="background:var(--surface3);border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700;color:var(--text-muted);">0</span>
                   </div>
                   <div id="ev-active-rows" style="display:flex;flex-direction:column;gap:6px;"></div>
                 </div>
                 <!-- Catálogo -->
                 <div class="card">
-                  <div class="card-title">Campos disponibles para añadir</div>
+                  <div class="card-title" data-i18n="ev.fcat_title">Campos disponibles para añadir</div>
                   <div id="ev-catalog-rows" style="display:flex;flex-direction:column;gap:5px;"></div>
                 </div>
                 <!-- Nuevo campo personalizado -->
                 <div class="card">
-                  <div class="card-title">Crear campo personalizado</div>
+                  <div class="card-title" data-i18n="ev.fm_new_custom">Crear campo personalizado</div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px;background:var(--surface2);border-radius:6px;">
-                    <span style="font-size:11px;font-weight:600;color:var(--text-muted);align-self:center;">Tipo:</span>
-                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('text')">Texto</button>
-                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('select')">Selección</button>
-                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('boolean')">Sí / No</button>
-                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('tel')">Teléfono</button>
+                    <span style="font-size:11px;font-weight:600;color:var(--text-muted);align-self:center;" data-i18n="ev.fm_type_label">Tipo:</span>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('text')" data-i18n="ev.fm_type_text">Texto</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('select')" data-i18n="ev.fm_type_select">Selección</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('boolean')" data-i18n="ev.fm_type_bool">Sí / No</button>
+                    <button class="btn btn-outline btn-sm" onclick="evOpenNewFieldModal('tel')" data-i18n="ev.fm_type_tel">Teléfono</button>
                   </div>
                 </div>
                 <div style="display:flex;justify-content:flex-end;">
-                  <button class="btn btn-grad" onclick="evSaveFormConfig()">Guardar formulario</button>
+                  <button class="btn btn-grad" onclick="evSaveFormConfig()" data-i18n="ev.fm_save">Guardar formulario</button>
                 </div>
               </div>
               <!-- Vista previa -->
               <div class="card" style="position:sticky;top:80px;">
-                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Vista previa</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;" data-i18n="ev.fm_preview">Vista previa</div>
                 <div style="display:flex;gap:6px;margin-bottom:14px;">
                   <button class="btn btn-sm" id="ev-prev-es" onclick="evPreviewLang('es')" style="font-size:11px;background:rgba(245,158,11,0.15);color:#f59e0b;border:none;">ES</button>
                   <button class="btn btn-sm" id="ev-prev-en" onclick="evPreviewLang('en')" style="font-size:11px;background:var(--surface2);color:var(--text-muted);border:none;">EN</button>
@@ -2845,35 +2845,35 @@
           <!-- MODAL: campo personalizado -->
           <div id="ev-field-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
             <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:380px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto;">
-              <div style="font-size:14px;font-weight:700;" id="ev-modal-title">Nuevo campo</div>
-              <div class="form-group" style="margin:0;"><label>Etiqueta ES</label><input type="text" id="ev-m-label-es" placeholder="Ej: Empresa"></div>
-              <div class="form-group" style="margin:0;"><label>Label EN</label><input type="text" id="ev-m-label-en" placeholder="e.g. Company"></div>
+              <div style="font-size:14px;font-weight:700;" id="ev-modal-title" data-i18n="ev.fmod_title">Nuevo campo</div>
+              <div class="form-group" style="margin:0;"><label data-i18n="ev.fmod_label_es">Etiqueta ES</label><input type="text" id="ev-m-label-es" placeholder="Ej: Empresa" data-i18n-attr="placeholder:ev.fmod_label_es_ph"></div>
+              <div class="form-group" style="margin:0;"><label data-i18n="ev.fmod_label_en">Label EN</label><input type="text" id="ev-m-label-en" placeholder="e.g. Company" data-i18n-attr="placeholder:ev.fmod_label_en_ph"></div>
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;">
-                <input type="checkbox" id="ev-m-required" style="width:15px;height:15px;accent-color:#f59e0b;">Campo obligatorio
+                <input type="checkbox" id="ev-m-required" style="width:15px;height:15px;accent-color:#f59e0b;"><span data-i18n="ev.fmod_required">Campo obligatorio</span>
               </label>
               <div id="ev-m-opts-wrap" style="display:none;">
                 <div class="form-group" style="margin:0;">
-                  <label>Opciones</label>
+                  <label data-i18n="ev.fmod_opts">Opciones</label>
                   <div id="ev-m-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:30px;padding:7px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;"></div>
                   <div style="display:flex;gap:6px;margin-top:6px;">
-                    <input type="text" id="ev-m-opt-input" placeholder="Nueva opción…" onkeydown="if(event.key==='Enter'){evAddModalOpt();event.preventDefault();}">
-                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-color:rgba(245,158,11,0.4);color:#f59e0b;" onclick="evAddModalOpt()">+ Añadir</button>
+                    <input type="text" id="ev-m-opt-input" placeholder="Nueva opción…" onkeydown="if(event.key==='Enter'){evAddModalOpt();event.preventDefault();}" data-i18n-attr="placeholder:ev.fmod_opt_ph">
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;border-color:rgba(245,158,11,0.4);color:#f59e0b;" onclick="evAddModalOpt()" data-i18n="ev.fmod_opt_add">+ Añadir</button>
                   </div>
                 </div>
               </div>
               <div class="form-group" style="margin:0;">
-                <label>Mostrar solo si… (opcional)</label>
+                <label data-i18n="ev.fmod_cond">Mostrar solo si… (opcional)</label>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                   <select id="ev-m-cond-field" onchange="document.getElementById('ev-m-cond-val').disabled=!this.value;">
-                    <option value="">— Siempre visible —</option>
-                    <option value="ticket_type">Tipo de entrada =</option>
+                    <option value="" data-i18n="ev.fmod_cond_always">— Siempre visible —</option>
+                    <option value="ticket_type" data-i18n="ev.fmod_cond_ticket">Tipo de entrada =</option>
                   </select>
-                  <input type="text" id="ev-m-cond-val" placeholder="ej: vip" disabled>
+                  <input type="text" id="ev-m-cond-val" placeholder="ej: vip" disabled data-i18n-attr="placeholder:ev.fmod_cond_val_ph">
                 </div>
               </div>
               <div style="display:flex;gap:8px;justify-content:flex-end;">
-                <button class="btn btn-outline btn-sm" onclick="evCloseFieldModal()">Cancelar</button>
-                <button class="btn btn-primary btn-sm" onclick="evSaveFieldModal()">Añadir al formulario</button>
+                <button class="btn btn-outline btn-sm" onclick="evCloseFieldModal()" data-i18n="ev.cancel">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="evSaveFieldModal()" data-i18n="ev.fmod_add">Añadir al formulario</button>
               </div>
             </div>
           </div>
@@ -2882,7 +2882,7 @@
           <div id="ev-sub-regs" class="ev-sub-panel hidden">
             <!-- Links del evento -->
             <div class="card" style="margin-bottom:16px;background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2);">
-              <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:14px;">Enlaces del evento</div>
+              <div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:14px;" data-i18n="ev.reg_links">Enlaces del evento</div>
               <div style="display:flex;flex-direction:column;gap:10px;">
                 <!-- Registro público -->
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -2890,12 +2890,12 @@
                     <svg width="12" height="12" fill="#f59e0b"><use href="#ph-users"/></svg>
                   </div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Registro público</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="ev.reg_link_public">Registro público</div>
                     <div id="ev-public-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
                   </div>
                   <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-public-url')" style="border-color:#f59e0b;color:#f59e0b;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-public-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-public-url')" style="border-color:#f59e0b;color:#f59e0b;padding:4px 10px;font-size:11px;" data-i18n="common.copy">Copiar</button>
+                    <a id="ev-public-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;"><span data-i18n="ev.reg_open">Abrir</span> <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
                   </div>
                 </div>
                 <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
@@ -2905,12 +2905,12 @@
                     <svg width="12" height="12" fill="#60a5fa"><use href="#ph-device-mobile"/></svg>
                   </div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">App Check-in</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="ev.reg_link_app">App Check-in</div>
                     <div id="ev-staff-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
                   </div>
                   <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-staff-url')" style="border-color:#60a5fa;color:#60a5fa;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-staff-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-staff-url')" style="border-color:#60a5fa;color:#60a5fa;padding:4px 10px;font-size:11px;" data-i18n="common.copy">Copiar</button>
+                    <a id="ev-staff-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;"><span data-i18n="ev.reg_open">Abrir</span> <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
                   </div>
                 </div>
                 <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
@@ -2920,12 +2920,12 @@
                     <svg width="12" height="12" fill="#00e676"><use href="#ph-monitor"/></svg>
                   </div>
                   <div style="flex:1;min-width:0;">
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Kiosko check-in</div>
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="ev.reg_link_kiosko">Kiosko check-in</div>
                     <div id="ev-kiosko-url" style="font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
                   </div>
                   <div style="display:flex;gap:6px;flex-shrink:0;">
-                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;">Copiar</button>
-                    <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;">Abrir <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyLink('ev-kiosko-url')" style="border-color:#00e676;color:#00e676;padding:4px 10px;font-size:11px;" data-i18n="common.copy">Copiar</button>
+                    <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;"><span data-i18n="ev.reg_open">Abrir</span> <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
                   </div>
                 </div>
               </div>
@@ -2935,25 +2935,25 @@
             <div id="ev-regs-chart" style="margin-bottom:20px;"></div>
             <!-- Toolbar -->
             <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-              <input type="text" id="ev-regs-search" placeholder="Buscar por nombre o email..." style="flex:1;min-width:200px;" oninput="evRegsSearchInput()">
+              <input type="text" id="ev-regs-search" placeholder="Buscar por nombre o email..." style="flex:1;min-width:200px;" oninput="evRegsSearchInput()" data-i18n-attr="placeholder:ev.reg_search_ph">
               <label class="btn btn-outline btn-sm" style="cursor:pointer;">
-                Importar CSV/XLSX
+                <span data-i18n="ev.reg_import">Importar CSV/XLSX</span>
                 <input type="file" accept=".csv,.xlsx,.xls" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
               </label>
-              <button type="button" class="btn btn-outline btn-sm" onclick="evDownloadTemplate()" title="Plantilla XLSX con las columnas del formulario de este evento + instrucciones">Plantilla</button>
-              <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()">Exportar CSV</button>
-              <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()">Exportar PDF</button>
-              <button class="btn btn-outline btn-sm" onclick="evPrintAllLabels()" title="Imprimir etiquetas QR de todos los registros"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg> Imprimir todos</button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="evDownloadTemplate()" title="Plantilla XLSX con las columnas del formulario de este evento + instrucciones" data-i18n="ev.reg_template" data-i18n-attr="title:ev.reg_template_title">Plantilla</button>
+              <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()" data-i18n="ev.reg_export_csv">Exportar CSV</button>
+              <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()" data-i18n="ev.reg_export_pdf">Exportar PDF</button>
+              <button class="btn btn-outline btn-sm" onclick="evPrintAllLabels()" title="Imprimir etiquetas QR de todos los registros" data-i18n-attr="title:ev.reg_print_all_title"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg> <span data-i18n="ev.reg_print_all">Imprimir todos</span></button>
             </div>
             <div id="ev-regs-table-wrap" style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                   <tr style="border-bottom:1px solid var(--border);">
-                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Nombre</th>
-                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Email</th>
-                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Tipo</th>
-                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Estado</th>
-                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Registro</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_name">Nombre</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_email">Email</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_type">Tipo</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_status">Estado</th>
+                    <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_date">Registro</th>
                     <th style="padding:8px 12px;"></th>
                   </tr>
                 </thead>
@@ -2968,57 +2968,57 @@
           <div id="ev-sub-staff" class="ev-sub-panel hidden">
             <div class="card">
               <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-                Equipo del evento
-                <button class="btn btn-outline btn-sm" onclick="evOpenAddStaff()">+ Agregar</button>
+                <span data-i18n="ev.stf_card">Equipo del evento</span>
+                <button class="btn btn-outline btn-sm" onclick="evOpenAddStaff()" data-i18n="ev.stf_add">+ Agregar</button>
               </div>
 
               <!-- Formulario añadir staff (oculto) -->
               <div id="ev-add-staff-form" class="hidden" style="margin-bottom:16px;padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-                <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:#f59e0b;">Nuevo miembro de staff</div>
+                <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:#f59e0b;" data-i18n="ev.stf_new_title">Nuevo miembro de staff</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                  <div class="form-group" style="margin:0;"><label>Nombre *</label><input type="text" id="ev-staff-name" placeholder="Ej: Juan Pérez"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.stf_name">Nombre *</label><input type="text" id="ev-staff-name" placeholder="Ej: Juan Pérez" data-i18n-attr="placeholder:ev.stf_name_ph"></div>
                   <div class="form-group" style="margin:0;">
-                    <label>Rol *</label>
+                    <label data-i18n="ev.stf_role">Rol *</label>
                     <select id="ev-staff-role">
-                      <option value="">— Seleccionar —</option>
-                      <option value="coordinator">Coordinador</option>
-                      <option value="registration">Coordinador de Registro</option>
-                      <option value="tech">Coordinador Técnico</option>
-                      <option value="host">Coordinador de Anfitriones</option>
-                      <option value="security">Coordinador de Seguridad</option>
-                      <option value="catering">Coordinador de Catering</option>
-                      <option value="artistic_entertainment">Coordinador Artístico y de Entretenimiento</option>
-                      <option value="other">Otro</option>
+                      <option value="" data-i18n="ev.stf_role_select">— Seleccionar —</option>
+                      <option value="coordinator" data-i18n="ev.stf_role_coord">Coordinador</option>
+                      <option value="registration" data-i18n="ev.stf_role_reg">Coordinador de Registro</option>
+                      <option value="tech" data-i18n="ev.stf_role_tech">Coordinador Técnico</option>
+                      <option value="host" data-i18n="ev.stf_role_host">Coordinador de Anfitriones</option>
+                      <option value="security" data-i18n="ev.stf_role_sec">Coordinador de Seguridad</option>
+                      <option value="catering" data-i18n="ev.stf_role_cat">Coordinador de Catering</option>
+                      <option value="artistic_entertainment" data-i18n="ev.stf_role_art">Coordinador Artístico y de Entretenimiento</option>
+                      <option value="other" data-i18n="ev.stf_role_other">Otro</option>
                     </select>
                   </div>
-                  <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="ev-staff-email" placeholder="opcional"></div>
-                  <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="tel" id="ev-staff-phone" placeholder="opcional"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.stf_email">Email</label><input type="email" id="ev-staff-email" placeholder="opcional" data-i18n-attr="placeholder:ev.stf_email_ph"></div>
+                  <div class="form-group" style="margin:0;"><label data-i18n="ev.stf_phone">Teléfono</label><input type="tel" id="ev-staff-phone" placeholder="opcional" data-i18n-attr="placeholder:ev.stf_phone_ph"></div>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
                   <div class="form-group" style="margin:0;flex:1;">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
-                      <span>PIN de acceso (check-in)</span>
-                      <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px;" onclick="evGenPin()">Generar</button>
+                      <span data-i18n="ev.stf_pin">PIN de acceso (check-in)</span>
+                      <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px;" onclick="evGenPin()" data-i18n="ev.stf_pin_gen">Generar</button>
                     </label>
-                    <input type="text" id="ev-staff-pin" placeholder="6 dígitos — se genera automáticamente" maxlength="6" pattern="[0-9]{6}" style="font-family:monospace;letter-spacing:4px;font-size:15px;">
+                    <input type="text" id="ev-staff-pin" placeholder="6 dígitos — se genera automáticamente" maxlength="6" pattern="[0-9]{6}" style="font-family:monospace;letter-spacing:4px;font-size:15px;" data-i18n-attr="placeholder:ev.stf_pin_ph">
                   </div>
                 </div>
                 <div class="form-group" style="margin:12px 0 0;">
-                  <label>Idioma del staff (emails)</label>
+                  <label data-i18n="ev.stf_locale">Idioma del staff (emails)</label>
                   <select id="ev-staff-locale" style="width:100%;">
-                    <option value="es">Español</option>
-                    <option value="en">English</option>
-                    <option value="pt-BR">Português (BR)</option>
+                    <option value="es" data-i18n="ev.stf_locale_es">Español</option>
+                    <option value="en" data-i18n="ev.stf_locale_en">English</option>
+                    <option value="pt-BR" data-i18n="ev.stf_locale_pt">Português (BR)</option>
                   </select>
                 </div>
                 <div class="form-group" style="margin:12px 0 0;">
-                  <label>Mensaje personal (opcional)</label>
-                  <textarea id="ev-staff-custom-briefing" rows="3" placeholder="Ej: María, llega a las 5:45 PM para coordinar las acreditaciones VIP…" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;"></textarea>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Este texto se añade al email de briefing como "Mensaje del productor".</div>
+                  <label data-i18n="ev.stf_custom">Mensaje personal (opcional)</label>
+                  <textarea id="ev-staff-custom-briefing" rows="3" placeholder="Ej: María, llega a las 5:45 PM para coordinar las acreditaciones VIP…" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;" data-i18n-attr="placeholder:ev.stf_custom_ph"></textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" data-i18n="ev.stf_custom_hint">Este texto se añade al email de briefing como "Mensaje del productor".</div>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
-                  <button class="btn btn-outline btn-sm" onclick="evCloseAddStaff()">Cancelar</button>
-                  <button class="btn btn-primary btn-sm" onclick="evSaveStaff()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddStaff()" data-i18n="ev.cancel">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveStaff()" data-i18n="ev.stf_save">Guardar</button>
                 </div>
               </div>
 
@@ -3030,13 +3030,13 @@
             <div class="card" style="margin-top:16px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
                 <div>
-                  <h3 style="margin:0;font-size:15px;">Catálogo de staff</h3>
-                  <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Reciclable entre eventos. Agrega aquí para no volver a escribir los datos.</div>
+                  <h3 style="margin:0;font-size:15px;" data-i18n="ev.stf_pool_title">Catálogo de staff</h3>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" data-i18n="ev.stf_pool_hint">Reciclable entre eventos. Agrega aquí para no volver a escribir los datos.</div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                   <input type="text" id="ev-stf-pool-search" placeholder="Buscar..." oninput="evRenderStaffPool()"
-                    style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;max-width:200px;">
-                  <button class="btn btn-outline btn-sm" onclick="switchTab('ev-staff')">Gestionar catálogo →</button>
+                    style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;max-width:200px;" data-i18n-attr="placeholder:ev.stf_pool_search_ph">
+                  <button class="btn btn-outline btn-sm" onclick="switchTab('ev-staff')" data-i18n="ev.stf_pool_manage">Gestionar catálogo →</button>
                 </div>
               </div>
               <div id="ev-stf-pool-list" style="display:flex;flex-direction:column;gap:0;"></div>
@@ -3304,40 +3304,40 @@
             <!-- PRESUPUESTO -->
             <div class="card" style="margin-bottom:20px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                <h3 style="margin:0;font-size:15px;">Presupuesto del evento</h3>
+                <h3 style="margin:0;font-size:15px;" data-i18n="ev.sup_budget_card">Presupuesto del evento</h3>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <button class="btn btn-outline btn-sm" onclick="evExportCSV()" title="Descargar CSV"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> CSV</button>
-                  <button class="btn btn-outline btn-sm" onclick="evExportPDF()" title="Descargar PDF"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> PDF</button>
-                  <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()">Editar presupuesto</button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportCSV()" title="Descargar CSV" data-i18n-attr="title:ev.sup_csv_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> CSV</button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportPDF()" title="Descargar PDF" data-i18n-attr="title:ev.sup_pdf_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> PDF</button>
+                  <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()" data-i18n="ev.sup_budget_edit">Editar presupuesto</button>
                 </div>
               </div>
               <div id="ev-budget-edit" style="display:none;margin-bottom:16px;">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                   <input id="ev-budget-input" type="number" min="0" step="1000" placeholder="Presupuesto total (COP)"
-                    style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;">
-                  <button class="btn btn-primary btn-sm" onclick="evSaveBudget()">Guardar</button>
-                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-budget-edit').style.display='none'">Cancelar</button>
+                    style="flex:1;min-width:160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;" data-i18n-attr="placeholder:ev.sup_budget_ph">
+                  <button class="btn btn-primary btn-sm" onclick="evSaveBudget()" data-i18n="ev.sup_save">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-budget-edit').style.display='none'" data-i18n="ev.cancel">Cancelar</button>
                 </div>
               </div>
               <div id="ev-budget-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto máximo asignado al evento">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Presupuesto</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto máximo asignado al evento" data-i18n-attr="title:ev.sup_card_title_budget">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_budget">Presupuesto</div>
                   <div id="ev-budget-total" style="font-size:18px;font-weight:700;color:var(--text);">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de cotizaciones recibidas o aceptadas">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total cotizado</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de cotizaciones recibidas o aceptadas" data-i18n-attr="title:ev.sup_card_title_cot">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_cot">Total cotizado</div>
                   <div id="ev-budget-cotizado" style="font-size:18px;font-weight:700;color:#a78bfa;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de contratos aceptados (comprometido)">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total aprobado</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Suma de contratos aceptados (comprometido)" data-i18n-attr="title:ev.sup_card_title_appr">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_appr">Total aprobado</div>
                   <div id="ev-budget-aprobado" style="font-size:18px;font-weight:700;color:#f59e0b;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Dinero que ya salió: abonos + pagados">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Total pagado</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Dinero que ya salió: abonos + pagados" data-i18n-attr="title:ev.sup_card_title_paid">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_paid">Total pagado</div>
                   <div id="ev-budget-pagado" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total aprobado (puede ser negativo)">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Saldo disponible</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total aprobado (puede ser negativo)" data-i18n-attr="title:ev.sup_card_title_bal">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_bal">Saldo disponible</div>
                   <div id="ev-budget-saldo" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
                 </div>
               </div>
@@ -3346,39 +3346,39 @@
             <!-- PROVEEDORES CONTRATADOS PARA ESTE EVENTO -->
             <div class="card" style="margin-bottom:20px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                <h3 style="margin:0;font-size:15px;">Proveedores</h3>
-                <button class="btn btn-primary btn-sm" onclick="evShowAddContract()">+ Agregar</button>
+                <h3 style="margin:0;font-size:15px;" data-i18n="ev.sup_contracts">Proveedores</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddContract()" data-i18n="ev.sup_contract_add">+ Agregar</button>
               </div>
 
               <!-- Formulario agregar contrato -->
               <div id="ev-add-contract-form" style="display:none;background:var(--surface2,#f8f9fa);border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid var(--border);">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                   <div style="grid-column:1/-1;">
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Proveedor del directorio *</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_c_supplier">Proveedor del directorio *</label>
                     <select id="ev-contract-supplier-id"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
-                      <option value="">— Selecciona proveedor —</option>
+                      <option value="" data-i18n="ev.sup_c_supplier_sel">— Selecciona proveedor —</option>
                     </select>
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Descripción del servicio</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_c_role">Descripción del servicio</label>
                     <input id="ev-contract-role" type="text" placeholder="Ej: Sonido principal, Cobertura fotográfica"
-                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                      style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;" data-i18n-attr="placeholder:ev.sup_c_role_ph">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Presupuesto aproximado (COP)</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_c_amount">Presupuesto aproximado (COP)</label>
                     <input id="ev-contract-amount" type="number" min="0" step="1000" placeholder="0"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                 </div>
                 <div style="margin-bottom:12px;">
-                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Notas</label>
+                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_c_notes">Notas</label>
                   <input id="ev-contract-notes" type="text" placeholder="Observaciones"
-                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
+                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;" data-i18n-attr="placeholder:ev.sup_c_notes_ph">
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
-                  <button class="btn btn-outline btn-sm" onclick="evCloseAddContract()">Cancelar</button>
-                  <button class="btn btn-primary btn-sm" onclick="evSaveContract()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddContract()" data-i18n="ev.cancel">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveContract()" data-i18n="ev.sup_save">Guardar</button>
                 </div>
               </div>
 
@@ -3388,40 +3388,40 @@
             <!-- DIRECTORIO DE PROVEEDORES (tenant) -->
             <div class="card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                <h3 style="margin:0;font-size:15px;">Directorio de proveedores</h3>
-                <button class="btn btn-primary btn-sm" onclick="evShowAddSupplier()">+ Nuevo</button>
+                <h3 style="margin:0;font-size:15px;" data-i18n="ev.sup_dir">Directorio de proveedores</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddSupplier()" data-i18n="ev.sup_dir_new">+ Nuevo</button>
               </div>
 
               <!-- Formulario nuevo proveedor -->
               <div id="ev-add-supplier-form" style="display:none;background:var(--surface2,#f8f9fa);border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid var(--border);">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Nombre *</label>
-                    <input id="ev-sup-name" type="text" placeholder="Nombre empresa o persona"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_name">Nombre *</label>
+                    <input id="ev-sup-name" type="text" placeholder="Nombre empresa o persona" data-i18n-attr="placeholder:ev.sup_d_name_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Categoría</label>
-                    <input id="ev-sup-category" type="text" placeholder="Ej: Sonido, Fotografía, Catering"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_cat">Categoría</label>
+                    <input id="ev-sup-category" type="text" placeholder="Ej: Sonido, Fotografía, Catering" data-i18n-attr="placeholder:ev.sup_d_cat_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Contacto</label>
-                    <input id="ev-sup-contact" type="text" placeholder="Nombre contacto"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_contact">Contacto</label>
+                    <input id="ev-sup-contact" type="text" placeholder="Nombre contacto" data-i18n-attr="placeholder:ev.sup_d_contact_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Teléfono</label>
-                    <input id="ev-sup-phone" type="text" placeholder="+57 300 0000000"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_phone">Teléfono</label>
+                    <input id="ev-sup-phone" type="text" placeholder="+57 300 0000000" data-i18n-attr="placeholder:ev.sup_d_phone_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div style="grid-column:1/-1;">
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Email</label>
-                    <input id="ev-sup-email" type="email" placeholder="proveedor@ejemplo.com"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_email">Email</label>
+                    <input id="ev-sup-email" type="email" placeholder="proveedor@ejemplo.com" data-i18n-attr="placeholder:ev.sup_d_email_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Tipo ID</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_id_type">Tipo ID</label>
                     <select id="ev-sup-id-type"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
                       <option value="NIT">NIT</option>
@@ -3431,43 +3431,43 @@
                     </select>
                   </div>
                   <div>
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">N° identificación</label>
-                    <input id="ev-sup-id-number" type="text" placeholder="900.123.456-7"
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_id_num">N° identificación</label>
+                    <input id="ev-sup-id-number" type="text" placeholder="900.123.456-7" data-i18n-attr="placeholder:ev.sup_d_id_num_ph"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div style="grid-column:1/-1;">
-                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">Idioma del proveedor (emails)</label>
+                    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.sup_d_locale">Idioma del proveedor (emails)</label>
                     <select id="ev-sup-locale"
                       style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
-                      <option value="es">Español</option>
-                      <option value="en">English</option>
-                      <option value="pt-BR">Português (BR)</option>
+                      <option value="es" data-i18n="ev.stf_locale_es">Español</option>
+                      <option value="en" data-i18n="ev.stf_locale_en">English</option>
+                      <option value="pt-BR" data-i18n="ev.stf_locale_pt">Português (BR)</option>
                     </select>
                   </div>
                 </div>
                 <div id="ev-sup-docs-section" style="display:none;margin-bottom:8px;">
-                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Documentos legales</label>
+                  <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;" data-i18n="ev.sup_d_docs">Documentos legales</label>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <label id="ev-sup-rut-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
-                      RUT
+                      <span data-i18n="ev.sup_d_doc_rut">RUT</span>
                       <input type="file" id="ev-sup-rut" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
                         onchange="evSupDocUpload(evEditingSupplierId,'rut',this)">
                     </label>
                     <label id="ev-sup-cert-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
-                      Cert. bancario
+                      <span data-i18n="ev.sup_d_doc_cert">Cert. bancario</span>
                       <input type="file" id="ev-sup-cert" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
                         onchange="evSupDocUpload(evEditingSupplierId,'cert_bancario',this)">
                     </label>
                     <label id="ev-sup-camara-btn" class="btn btn-outline btn-sm" style="cursor:pointer;font-size:11px;">
-                      Cámara comercio
+                      <span data-i18n="ev.sup_d_doc_camara">Cámara comercio</span>
                       <input type="file" id="ev-sup-camara" accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
                         onchange="evSupDocUpload(evEditingSupplierId,'camara_comercio',this)">
                     </label>
                   </div>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
-                  <button class="btn btn-outline btn-sm" onclick="evCloseAddSupplier()">Cancelar</button>
-                  <button class="btn btn-primary btn-sm" onclick="evSaveSupplier()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddSupplier()" data-i18n="ev.cancel">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveSupplier()" data-i18n="ev.sup_save">Guardar</button>
                 </div>
               </div>
 
@@ -3582,53 +3582,53 @@
               <!-- Card: Dashboard de producción -->
               <div class="card" style="display:flex;flex-direction:column;gap:10px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                  <div style="font-size:14px;font-weight:800;">Dashboard de producción</div>
-                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,27,141,0.15);color:#FF1B8D;">Productor</span>
+                  <div style="font-size:14px;font-weight:800;" data-i18n="ev.prod_dash_title">Dashboard de producción</div>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,27,141,0.15);color:#FF1B8D;" data-i18n="ev.prod_dash_tag">Productor</span>
                 </div>
-                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;">Monitor de control en vivo: stats, cronómetro, sesiones y canal a pantallas. Pantalla principal del productor general.</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;" data-i18n="ev.prod_dash_desc">Monitor de control en vivo: stats, cronómetro, sesiones y canal a pantallas. Pantalla principal del productor general.</div>
                 <div id="ev-prod-token-row" style="display:none;">
                   <div id="ev-prod-token-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-                    <a id="ev-prod-token-open" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir en nueva pestaña</a>
-                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('produccion')">Copiar URL</button>
-                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('produccion')">Revocar token</button>
+                    <a id="ev-prod-token-open" href="#" target="_blank" class="btn btn-primary btn-sm" data-i18n="ev.prod_open_newtab">Abrir en nueva pestaña</a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('produccion')" data-i18n="ev.prod_copy_url">Copiar URL</button>
+                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('produccion')" data-i18n="ev.prod_revoke">Revocar token</button>
                   </div>
                 </div>
                 <div id="ev-prod-token-empty" style="display:none;">
-                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('produccion')">Generar URL pública</button>
+                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('produccion')" data-i18n="ev.prod_gen_url">Generar URL pública</button>
                 </div>
               </div>
 
               <!-- Card: Teleprompter -->
               <div class="card" style="display:flex;flex-direction:column;gap:10px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                  <div style="font-size:14px;font-weight:800;">Teleprompter</div>
-                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(96,165,250,0.15);color:#60a5fa;">Orador</span>
+                  <div style="font-size:14px;font-weight:800;" data-i18n="ev.prod_tp_title">Teleprompter</div>
+                  <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(96,165,250,0.15);color:#60a5fa;" data-i18n="ev.prod_tp_tag">Orador</span>
                 </div>
-                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;">Vista limpia para monitor de confidence del orador: nombre de sesión, timer gigante, qué sigue. URL distinta por sesión.</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;" data-i18n="ev.prod_tp_desc">Vista limpia para monitor de confidence del orador: nombre de sesión, timer gigante, qué sigue. URL distinta por sesión.</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" id="ev-tp-session-picker">
-                  <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">Sesión:</span>
-                  <span style="font-size:11px;color:var(--text-muted);">Sin sesiones</span>
+                  <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;" data-i18n="ev.prod_tp_session">Sesión:</span>
+                  <span style="font-size:11px;color:var(--text-muted);" data-i18n="ev.prod_tp_nosess">Sin sesiones</span>
                 </div>
                 <div id="ev-tp-token-row" style="display:none;">
                   <div id="ev-tp-token-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-                    <a id="ev-tp-token-open" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir</a>
-                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('teleprompter')">Copiar</button>
-                    <button class="btn btn-outline btn-sm" onclick="evWhatsappProdTokenUrl()">WhatsApp</button>
-                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('teleprompter')">Revocar</button>
+                    <a id="ev-tp-token-open" href="#" target="_blank" class="btn btn-primary btn-sm" data-i18n="ev.prod_tp_open">Abrir</a>
+                    <button class="btn btn-outline btn-sm" onclick="evCopyProdTokenUrl('teleprompter')" data-i18n="ev.prod_tp_copy">Copiar</button>
+                    <button class="btn btn-outline btn-sm" onclick="evWhatsappProdTokenUrl()" data-i18n="ev.prod_tp_wa">WhatsApp</button>
+                    <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRevokeProdToken('teleprompter')" data-i18n="ev.prod_tp_revoke">Revocar</button>
                   </div>
                 </div>
                 <div id="ev-tp-token-empty" style="display:none;">
-                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('teleprompter')">Generar URL para esta sesión</button>
+                  <button class="btn btn-primary btn-sm" onclick="evCreateProdToken('teleprompter')" data-i18n="ev.prod_tp_gen">Generar URL para esta sesión</button>
                 </div>
               </div>
             </div>
 
             <div class="card">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-                <h3 style="margin:0;font-size:15px;">Libreto del evento</h3>
-                <button class="btn btn-primary btn-sm" onclick="evShowAddCue()">+ Agregar cue</button>
+                <h3 style="margin:0;font-size:15px;" data-i18n="ev.prod_libreto">Libreto del evento</h3>
+                <button class="btn btn-primary btn-sm" onclick="evShowAddCue()" data-i18n="ev.prod_cue_add">+ Agregar cue</button>
               </div>
 
               <!-- Formulario agregar/editar cue -->
@@ -3636,54 +3636,54 @@
                 <input type="hidden" id="ev-cue-edit-id">
                 <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px;margin-bottom:10px;">
                   <div>
-                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Nro</label>
-                    <input id="ev-cue-number" type="text" placeholder="01" maxlength="20"
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_num">Nro</label>
+                    <input id="ev-cue-number" type="text" placeholder="01" maxlength="20" data-i18n-attr="placeholder:ev.prod_cue_num_ph"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Título *</label>
-                    <input id="ev-cue-title" type="text" placeholder="Apertura del evento" maxlength="200"
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_title_lbl">Título *</label>
+                    <input id="ev-cue-title" type="text" placeholder="Apertura del evento" maxlength="200" data-i18n-attr="placeholder:ev.prod_cue_title_ph"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Hora programada *</label>
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_sched">Hora programada *</label>
                     <input id="ev-cue-scheduled" type="datetime-local"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                   <div>
-                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Duración (min)</label>
-                    <input id="ev-cue-duration" type="number" min="1" max="999" placeholder="30"
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_dur">Duración (min)</label>
+                    <input id="ev-cue-duration" type="number" min="1" max="999" placeholder="30" data-i18n-attr="placeholder:ev.prod_cue_dur_ph"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Zona / Espacio</label>
-                    <input id="ev-cue-location" type="text" placeholder="Auditorio principal" maxlength="100"
+                    <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_zone">Zona / Espacio</label>
+                    <input id="ev-cue-location" type="text" placeholder="Auditorio principal" maxlength="100" data-i18n-attr="placeholder:ev.prod_cue_zone_ph"
                       style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box;">
                   </div>
                 </div>
                 <div style="margin-bottom:10px;">
-                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Responsable</label>
+                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_resp">Responsable</label>
                   <select id="ev-cue-responsible"
                     style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;">
                     <option value="">&#8212; Sin asignar &#8212;</option>
                   </select>
                 </div>
                 <div style="margin-bottom:12px;">
-                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;">Notas técnicas</label>
-                  <textarea id="ev-cue-notes" rows="2" placeholder="Audio: mic inalámbrico. Video: slide 1..." maxlength="500"
+                  <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px;" data-i18n="ev.prod_cue_notes">Notas técnicas</label>
+                  <textarea id="ev-cue-notes" rows="2" placeholder="Audio: mic inalámbrico. Video: slide 1..." maxlength="500" data-i18n-attr="placeholder:ev.prod_cue_notes_ph"
                     style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
-                  <button class="btn btn-outline btn-sm" onclick="evCloseAddCue()">Cancelar</button>
-                  <button class="btn btn-primary btn-sm" onclick="evSaveCue()">Guardar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evCloseAddCue()" data-i18n="common.cancel">Cancelar</button>
+                  <button class="btn btn-primary btn-sm" onclick="evSaveCue()" data-i18n="common.save">Guardar</button>
                 </div>
               </div>
 
               <!-- Cabecera tabla -->
               <div style="display:grid;grid-template-columns:48px 90px 1fr 60px 120px 90px auto;gap:8px;padding:0 0 8px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">
-                <div>Nro</div><div>Hora</div><div>Título</div><div>Dur.</div><div>Zona</div><div>Estado</div><div></div>
+                <div data-i18n="ev.prod_th_num">Nro</div><div data-i18n="ev.prod_th_time">Hora</div><div data-i18n="ev.prod_th_title">Título</div><div data-i18n="ev.prod_th_dur">Dur.</div><div data-i18n="ev.prod_th_zone">Zona</div><div data-i18n="ev.prod_th_status">Estado</div><div></div>
               </div>
               <div id="ev-rundown-list"></div>
             </div>
@@ -3693,18 +3693,18 @@
           <div id="ev-sub-certs" class="ev-sub-panel hidden">
             <!-- Nota introductoria + guía -->
             <div class="card" style="margin-bottom:16px;">
-              <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Certificados del evento</div>
+              <div style="font-size:13px;font-weight:700;margin-bottom:6px;" data-i18n="ev.cert_intro_title">Certificados del evento</div>
               <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">
-                Diseña tu certificado como una imagen de fondo (canvas). El sistema solo superpone los datos dinámicos: nombre, evento, sesión, horas, fecha y QR de verificación.
-                <a href="/assets/certificados/guia-certificado.html" target="_blank" style="color:var(--text);text-decoration:underline;">Abrir guía de diseño</a>
+                <span data-i18n="ev.cert_intro_desc">Diseña tu certificado como una imagen de fondo (canvas). El sistema solo superpone los datos dinámicos: nombre, evento, sesión, horas, fecha y QR de verificación.</span>
+                <a href="/assets/certificados/guia-certificado.html" target="_blank" style="color:var(--text);text-decoration:underline;" data-i18n="ev.cert_guide">Abrir guía de diseño</a>
               </div>
             </div>
 
             <!-- Plantillas -->
             <div class="card" style="margin-bottom:16px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-                <div class="card-title" style="margin:0;">Plantillas</div>
-                <button class="btn btn-grad btn-sm" onclick="evOpenCertTplModal()"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-plus"/></svg> Nueva plantilla</button>
+                <div class="card-title" style="margin:0;" data-i18n="ev.cert_tpls">Plantillas</div>
+                <button class="btn btn-grad btn-sm" onclick="evOpenCertTplModal()"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-plus"/></svg> <span data-i18n="ev.cert_tpl_new">Nueva plantilla</span></button>
               </div>
               <div id="ev-cert-tpls-list"></div>
             </div>
@@ -3712,21 +3712,21 @@
             <!-- Certificados emitidos -->
             <div class="card">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-                <div class="card-title" style="margin:0;">Emitidos</div>
+                <div class="card-title" style="margin:0;" data-i18n="ev.cert_issued">Emitidos</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <input type="text" id="ev-cert-search" placeholder="Buscar..." style="padding:6px 10px;font-size:12px;" oninput="evRenderCertsList()">
-                  <button class="btn btn-outline btn-sm" onclick="evOpenCertBulkModal()">Emisión masiva</button>
+                  <input type="text" id="ev-cert-search" placeholder="Buscar..." data-i18n-attr="placeholder:ev.cert_search_ph" style="padding:6px 10px;font-size:12px;" oninput="evRenderCertsList()">
+                  <button class="btn btn-outline btn-sm" onclick="evOpenCertBulkModal()" data-i18n="ev.cert_bulk">Emisión masiva</button>
                 </div>
               </div>
               <div id="ev-cert-list-wrap" style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <thead>
                     <tr style="border-bottom:1px solid var(--border);">
-                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Asistente</th>
-                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Plantilla</th>
-                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Horas</th>
-                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Emitido</th>
-                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Estado</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.cert_th_att">Asistente</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.cert_th_tpl">Plantilla</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.cert_th_hours">Horas</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.cert_th_issued">Emitido</th>
+                      <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.cert_th_status">Estado</th>
                       <th style="padding:8px 12px;"></th>
                     </tr>
                   </thead>
@@ -3743,7 +3743,7 @@
       <!-- PROVEEDORES TAB -->
       <div id="ev-proveedores-tab" class="container hidden">
           <div class="section-header" style="margin-bottom:16px;">
-            <div class="section-title">Proveedores</div>
+            <div class="section-title" data-i18n="ev.sub_suppliers">Proveedores</div>
             <div style="display:flex;gap:8px;">
               <button class="btn btn-outline btn-sm" onclick="evOpenInvitePanel()">Invitar <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></button>
               <button class="btn btn-grad" onclick="evOpenGlobalSupForm(null)">+ Nuevo Proveedor</button>
@@ -9105,19 +9105,21 @@ async function evDeleteStaffCat(id, name) {
 
 // ── POOL DEL CATÁLOGO EN SUB-TAB STAFF DEL EVENTO ───────────────
 async function evLoadStaffPool() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const el = document.getElementById('ev-stf-pool-list');
   if (!el) return;
-  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">Cargando...</div>';
+  el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:12px 0;">${t('ev.stf_pool_loading')}</div>`;
   try {
     const res = await fetch(`${API_URL}/api/events/staff-catalog`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     evStaffCatList = res.ok ? await res.json() : [];
     evRenderStaffPool();
   } catch(e) {
-    el.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:12px 0;">Error cargando catálogo.</div>';
+    el.innerHTML = `<div style="color:#ef4444;font-size:13px;padding:12px 0;">${t('ev.stf_pool_error')}</div>`;
   }
 }
 
 function evRenderStaffPool() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const el = document.getElementById('ev-stf-pool-list');
   if (!el) return;
   const q = (document.getElementById('ev-stf-pool-search')?.value || '').trim().toLowerCase();
@@ -9125,7 +9127,7 @@ function evRenderStaffPool() {
     ? evStaffCatList.filter(s => (s.name||'').toLowerCase().includes(q) || (s.email||'').toLowerCase().includes(q) || (s.default_role||'').toLowerCase().includes(q))
     : evStaffCatList;
   if (!list.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${q ? 'Sin resultados.' : 'Catálogo vacío. Crea staff reciclable en la pestaña Staff del sidebar.'}</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${q ? t('ev.stf_pool_no_results') : t('ev.stf_pool_empty')}</div>`;
     return;
   }
   el.innerHTML = list.map(s => {
@@ -9136,7 +9138,7 @@ function evRenderStaffPool() {
         <div style="font-size:13px;font-weight:700;">${invEscape(s.name)}${roleLbl ? ` <span style="font-size:11px;font-weight:400;color:var(--text-muted);">· ${roleLbl}</span>` : ''}</div>
         ${s.email || s.phone ? `<div style="font-size:11px;color:var(--text-muted);">${invEscape(s.email||'')}${s.phone ? ` · ${invEscape(s.phone)}` : ''}</div>` : ''}
       </div>
-      <button class="btn btn-primary btn-sm" onclick="evAddStaffFromCatalog('${s.id}','${escOnclick(s.name||'')}')">+ Agregar al evento</button>
+      <button class="btn btn-primary btn-sm" onclick="evAddStaffFromCatalog('${s.id}','${escOnclick(s.name||'')}')">${t('ev.stf_add_to_event')}</button>
     </div>`;
   }).join('');
 }
@@ -9290,15 +9292,16 @@ async function invOpenModalTenant() {
 
 // ── LISTA ──────────────────────────────────────────────────────
 async function evLoadList() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const grid = document.getElementById('ev-list-grid');
-  grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Cargando eventos...</div>';
+  grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">${t('ev.list_loading')}</div>`;
   try {
     const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const data = await res.json();
     if (!data.length) {
       grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">Sin eventos todavía</div>
-        <div style="font-size:13px;color:var(--text-muted);">Crea tu primer evento para comenzar.</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${t('ev.list_empty_title')}</div>
+        <div style="font-size:13px;color:var(--text-muted);">${t('ev.list_empty_sub')}</div>
       </div>`;
       return;
     }
@@ -9315,13 +9318,13 @@ async function evLoadList() {
           </div>
           <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
             <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">Gestionar</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
           </div>
         </div>
       </div>`;
     }).join('');
   } catch(e) {
-    grid.innerHTML = '<div style="color:#ff4444;font-size:13px;">Error cargando eventos.</div>';
+    grid.innerHTML = `<div style="color:#ff4444;font-size:13px;">${t('ev.list_error')}</div>`;
   }
 }
 
@@ -9419,35 +9422,36 @@ async function evLoadCertTemplates() {
 
 function evRenderCertTpls() {
   const el = document.getElementById('ev-cert-tpls-list');
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (!evCertTpls.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">Aún no hay plantillas. Crea una para empezar a emitir certificados.</div>';
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">${t('ev.cert_tpl_empty')}</div>`;
     return;
   }
-  el.innerHTML = evCertTpls.map(t => {
-    const scopeLabel = t.scope === 'session' ? 'Sesión específica' : 'Evento completo';
-    const pageLabel  = t.page_size === 'half_letter' ? 'Media carta' : 'Carta';
-    const stateBadge = t.active
-      ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Activa</span>'
-      : '<span style="padding:2px 8px;border-radius:999px;background:rgba(107,114,128,0.15);color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Inactiva</span>';
-    const canvas = t.canvas_path
-      ? '<span style="color:#10b981;font-size:11px;">Canvas cargado</span>'
-      : '<span style="color:#f59e0b;font-size:11px;">Sin canvas</span>';
+  el.innerHTML = evCertTpls.map(tpl => {
+    const scopeLabel = tpl.scope === 'session' ? t('ev.cert_tpl_scope_session') : t('ev.cert_tpl_scope_event');
+    const pageLabel  = tpl.page_size === 'half_letter' ? t('ev.cert_tpl_page_half') : t('ev.cert_tpl_page_letter');
+    const stateBadge = tpl.active
+      ? `<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${t('ev.cert_tpl_active')}</span>`
+      : `<span style="padding:2px 8px;border-radius:999px;background:rgba(107,114,128,0.15);color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${t('ev.cert_tpl_inactive')}</span>`;
+    const canvas = tpl.canvas_path
+      ? `<span style="color:#10b981;font-size:11px;">${t('ev.cert_tpl_canvas_ok')}</span>`
+      : `<span style="color:#f59e0b;font-size:11px;">${t('ev.cert_tpl_canvas_missing')}</span>`;
     return `
       <div style="border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
         <div style="flex:1;min-width:200px;">
-          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${evCertEsc(t.name)}</div>
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${evCertEsc(tpl.name)}</div>
           <div style="font-size:11px;color:var(--text-muted);display:flex;gap:12px;flex-wrap:wrap;">
             <span>${scopeLabel}</span>
             <span>${pageLabel}</span>
             ${canvas}
-            <span>${t.issued_count || 0} emitidos</span>
+            <span>${tpl.issued_count || 0} ${t('ev.cert_tpl_issued_count')}</span>
           </div>
         </div>
         ${stateBadge}
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-outline btn-sm" onclick="evCertPreview('${t.id}')">Vista previa</button>
-          <button class="btn btn-outline btn-sm" onclick="evOpenCertTplModal('${t.id}')">Editar</button>
-          <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evDeleteCertTpl('${t.id}')">Eliminar</button>
+          <button class="btn btn-outline btn-sm" onclick="evCertPreview('${tpl.id}')">${t('ev.cert_preview')}</button>
+          <button class="btn btn-outline btn-sm" onclick="evOpenCertTplModal('${tpl.id}')">${t('ev.cert_edit')}</button>
+          <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evDeleteCertTpl('${tpl.id}')">${t('ev.cert_delete')}</button>
         </div>
       </div>`;
   }).join('');
@@ -9468,20 +9472,21 @@ async function evLoadCertificates() {
 
 function evRenderCertsList() {
   const tbody = document.getElementById('ev-cert-tbody');
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const q = (document.getElementById('ev-cert-search')?.value || '').toLowerCase().trim();
   const items = q
     ? evCertsList.filter(c => (c.attendee_name||'').toLowerCase().includes(q) || (c.attendee_email||'').toLowerCase().includes(q))
     : evCertsList;
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:14px;color:var(--text-muted);text-align:center;">Aún no hay certificados emitidos.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:14px;color:var(--text-muted);text-align:center;">${t('ev.cert_issued_empty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map(c => {
     const state = c.revoked_at
-      ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Revocado</span>'
+      ? `<span style="padding:2px 8px;border-radius:999px;background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${t('ev.cert_state_revoked')}</span>`
       : c.email_sent_at
-        ? '<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Enviado</span>'
-        : '<span style="padding:2px 8px;border-radius:999px;background:rgba(96,165,250,0.15);color:#60a5fa;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Emitido</span>';
+        ? `<span style="padding:2px 8px;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${t('ev.cert_state_sent')}</span>`
+        : `<span style="padding:2px 8px;border-radius:999px;background:rgba(96,165,250,0.15);color:#60a5fa;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${t('ev.cert_state_issued')}</span>`;
     const sessionLine = c.session_name ? `<div style="font-size:11px;color:var(--text-muted);">${evCertEsc(c.session_name)}</div>` : '';
     return `
       <tr style="border-bottom:1px solid var(--border);">
@@ -9498,8 +9503,8 @@ function evRenderCertsList() {
         <td style="padding:10px 12px;">${state}</td>
         <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
           ${c.has_pdf && !c.revoked_at ? `<a class="btn btn-outline btn-sm" href="/api/public/certificates/${c.token}/pdf" target="_blank" style="margin-right:4px;">PDF</a>` : ''}
-          ${c.attendee_email && !c.revoked_at ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}')" style="margin-right:4px;">Reenviar</button>` : ''}
-          ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}')">Revocar</button>` : ''}
+          ${c.attendee_email && !c.revoked_at ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}')" style="margin-right:4px;">${t('ev.cert_resend')}</button>` : ''}
+          ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}')">${t('ev.cert_revoke')}</button>` : ''}
         </td>
       </tr>`;
   }).join('');
@@ -9507,18 +9512,19 @@ function evRenderCertsList() {
 
 function evOpenCertTplModal(id) {
   evCertTplEditing = id || null;
-  const t = id ? evCertTpls.find(x => x.id === id) : null;
-  document.getElementById('ev-cert-tpl-modal-title').textContent = t ? 'Editar plantilla' : 'Nueva plantilla';
-  document.getElementById('ev-cert-tpl-name').value       = t?.name || '';
-  document.getElementById('ev-cert-tpl-scope').value      = t?.scope || 'event';
-  document.getElementById('ev-cert-tpl-page').value       = t?.page_size || 'letter';
-  document.getElementById('ev-cert-tpl-body').value       = t?.body_text || 'Certificamos que {{nombre}} asistió al evento {{evento}}, con una duración total de {{horas}} horas, los días {{fechas}}.';
-  document.getElementById('ev-cert-tpl-reqchk').checked   = t ? t.requires_checkin : true;
-  document.getElementById('ev-cert-tpl-min').value        = t?.min_sessions_attended || '';
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const tpl = id ? evCertTpls.find(x => x.id === id) : null;
+  document.getElementById('ev-cert-tpl-modal-title').textContent = tpl ? t('ev.cert_tpl_edit') : t('ev.cert_tpl_new');
+  document.getElementById('ev-cert-tpl-name').value       = tpl?.name || '';
+  document.getElementById('ev-cert-tpl-scope').value      = tpl?.scope || 'event';
+  document.getElementById('ev-cert-tpl-page').value       = tpl?.page_size || 'letter';
+  document.getElementById('ev-cert-tpl-body').value       = tpl?.body_text || 'Certificamos que {{nombre}} asistió al evento {{evento}}, con una duración total de {{horas}} horas, los días {{fechas}}.';
+  document.getElementById('ev-cert-tpl-reqchk').checked   = tpl ? tpl.requires_checkin : true;
+  document.getElementById('ev-cert-tpl-min').value        = tpl?.min_sessions_attended || '';
   document.getElementById('ev-cert-tpl-canvas').value     = '';
-  document.getElementById('ev-cert-tpl-canvas-current').textContent = t?.canvas_path ? 'Canvas actual cargado. Sube uno nuevo para reemplazarlo.' : 'Sin canvas aún. Usa la guía descargable para diseñarlo.';
+  document.getElementById('ev-cert-tpl-canvas-current').textContent = tpl?.canvas_path ? 'Canvas actual cargado. Sube uno nuevo para reemplazarlo.' : 'Sin canvas aún. Usa la guía descargable para diseñarlo.';
   evCertTplRefreshSessions();
-  if (t?.session_id) setTimeout(() => { document.getElementById('ev-cert-tpl-session').value = t.session_id; }, 50);
+  if (tpl?.session_id) setTimeout(() => { document.getElementById('ev-cert-tpl-session').value = tpl.session_id; }, 50);
   evCertTplScopeChanged();
   document.getElementById('ev-cert-tpl-modal').classList.add('active');
 }
@@ -10182,12 +10188,13 @@ function evPopulateInfo(ev) {
   document.getElementById('ev-kiosko-url-link').href = `${baseUrl}/kiosko`;
   // Card "Dashboard Producción" se movió a la sub-tab Producción (con tokens públicos)
   const pubBtn = document.getElementById('ev-publish-btn');
+  const _t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (ev.status === 'published' || ev.status === 'live') {
-    pubBtn.textContent = 'Despublicar';
+    pubBtn.textContent = _t('ev.unpublish');
     pubBtn.style.borderColor = '#ef4444';
     pubBtn.style.color = '#ef4444';
   } else {
-    pubBtn.textContent = 'Publicar';
+    pubBtn.textContent = _t('ev.publish');
     pubBtn.style.borderColor = '';
     pubBtn.style.color = '';
   }
@@ -10263,10 +10270,11 @@ async function evRefreshCalendarSyncStatus(eventId) {
 }
 
 async function evTogglePublish() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const isPublished = evCurrentEvent.status === 'published' || evCurrentEvent.status === 'live';
   const newStatus = isPublished ? 'draft' : 'published';
-  const label = isPublished ? 'Despublicar' : 'Publicar';
-  if (isPublished && !confirm(`¿Despublicar el evento? La página pública dejará de ser accesible.`)) return;
+  const label = isPublished ? t('ev.unpublish') : t('ev.publish');
+  if (isPublished && !confirm(t('ev.unpublish_confirm'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
       method: 'PATCH',
@@ -10338,14 +10346,15 @@ function evCopyLink(elementId) {
 
 // ── SESIONES ───────────────────────────────────────────────────
 async function evLoadSessions(eventId) {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const list = document.getElementById('ev-sessions-list');
-  list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Cargando...</div>';
+  list.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">${t('ev.sess_loading')}</div>`;
   await evEnsureStaff();
   try {
     const res = await fetch(`${API_URL}/api/events/${eventId}/sessions`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const sessions = await res.json();
     evSessionsList = sessions;
-    if (!sessions.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Sin sesiones. Agrega una arriba.</div>'; return; }
+    if (!sessions.length) { list.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">${t('ev.sess_empty')}</div>`; return; }
     list.innerHTML = sessions.map(s => {
       const tz = evCurrentEvent?.timezone || 'UTC';
       const startDt = new Date(s.starts_at);
@@ -10354,23 +10363,23 @@ async function evLoadSessions(eventId) {
       const startT = startDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
       const endT = endDt.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
       const visBadge = s.visibility === 'private'
-        ? '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e;margin-left:6px;">PRIVADA</span>'
+        ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e;margin-left:6px;">${t('ev.sess_vis_private_badge')}</span>`
         : (s.visibility === 'invite_only'
-          ? '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:6px;">SOLO INVITADOS</span>'
+          ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:6px;">${t('ev.sess_vis_invite_badge')}</span>`
           : '');
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;">${s.name}${visBadge}</div>
-          <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' cupos' : ''}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' ' + t('ev.sess_cap_word') : ''}</div>
           ${s.assigned_staff_name ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-user"/></svg> ${s.assigned_staff_name}</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">Editar</button>
+          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteSession('${s.id}')">×</button>
         </div>
       </div>`;
     }).join('');
-  } catch(e) { list.innerHTML = '<div style="color:#ff4444;font-size:12px;">Error cargando sesiones.</div>'; }
+  } catch(e) { list.innerHTML = `<div style="color:#ff4444;font-size:12px;">${t('ev.sess_error')}</div>`; }
 }
 
 function evOpenAddSession() {
@@ -10493,43 +10502,54 @@ function evInitCatalog() {
 }
 
 function evRenderCatalog() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const rows = document.getElementById('ev-catalog-rows');
   if (!rows) return;
   const activeKeys = evFields.map(f => f.key);
   const available = evCatalog.filter(f => !activeKeys.includes(f.key));
   if (!available.length) {
-    rows.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px;">Todos los campos disponibles ya están en el formulario.</div>';
+    rows.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:6px;">${t('ev.fcat_all_added')}</div>`;
     return;
   }
+  // Mapeo canónico base → clave fcat_*. Para custom usa labelEs directo.
+  const BASE_KEYS = ['organization','job_title','dietary','tshirt_size','emergency','emergency_ph','eps','blood_type','transport','tourism','attended'];
+  const typeKey = { text:'fm_type_text', select:'fm_type_select', boolean:'fm_type_bool', tel:'fm_type_tel' };
   rows.innerHTML = available.map(f => {
     const color = EV_TYPE_COLORS[f.type] || '#888';
+    const typeLbl = typeKey[f.type] ? t('ev.' + typeKey[f.type]) : (EV_TYPE_LABELS[f.type]||f.type);
+    const label = BASE_KEYS.includes(f.key) ? t('ev.fcat_' + f.key) : f.labelEs;
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;">
       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
-      <span class="ev-chip-type" style="color:${color};">${EV_TYPE_LABELS[f.type]||f.type}</span>
-      <span style="flex:1;font-size:12px;font-weight:600;">${f.labelEs}</span>
-      ${f.condition ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(245,158,11,0.12);color:#f59e0b;">COND.</span>` : ''}
-      <button class="btn btn-sm" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.3);color:#f59e0b;font-size:11px;white-space:nowrap;" onclick="evAddFromCatalog('${f.key}')">+ Añadir al formulario</button>
+      <span class="ev-chip-type" style="color:${color};">${typeLbl}</span>
+      <span style="flex:1;font-size:12px;font-weight:600;">${label}</span>
+      ${f.condition ? `<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(245,158,11,0.12);color:#f59e0b;">${t('ev.fcat_cond')}</span>` : ''}
+      <button class="btn btn-sm" style="background:rgba(245,158,11,0.1);border:1.5px solid rgba(245,158,11,0.3);color:#f59e0b;font-size:11px;white-space:nowrap;" onclick="evAddFromCatalog('${f.key}')">${t('ev.fcat_add')}</button>
     </div>`;
   }).join('');
 }
 
 function evRenderActive() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const rows = document.getElementById('ev-active-rows');
   const count = document.getElementById('ev-active-count');
   if (!rows) return;
   if (count) count.textContent = evFields.length;
   if (!evFields.length) {
-    rows.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:8px;text-align:center;">Ningún campo añadido todavía.</div>';
+    rows.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:8px;text-align:center;">${t('ev.fm_empty')}</div>`;
     evRenderPreview(); return;
   }
+  const BASE_KEYS = ['organization','job_title','dietary','tshirt_size','emergency','emergency_ph','eps','blood_type','transport','tourism','attended'];
+  const typeKey = { text:'fm_type_text', select:'fm_type_select', boolean:'fm_type_bool', tel:'fm_type_tel' };
   rows.innerHTML = evFields.map((f, i) => {
     const color = EV_TYPE_COLORS[f.type] || '#888';
+    const typeLbl = typeKey[f.type] ? t('ev.' + typeKey[f.type]) : (EV_TYPE_LABELS[f.type]||f.type);
+    const label = BASE_KEYS.includes(f.key) ? t('ev.fcat_' + f.key) : f.labelEs;
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:6px;">
       <span style="font-size:11px;font-weight:800;color:var(--text-muted);width:16px;text-align:right;flex-shrink:0;">${i+1}</span>
       <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.labelEs}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${EV_TYPE_LABELS[f.type]||f.type}${f.required?' · obligatorio':''}${f.condition?` · solo si ${f.condition.field}=${f.condition.value}`:''}</div>
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${typeLbl}${f.required?' · '+t('ev.fcat_required'):''}${f.condition?` · ${t('ev.fcat_only_if')} ${f.condition.field}=${f.condition.value}`:''}</div>
       </div>
       <div style="display:flex;gap:2px;flex-shrink:0;">
         <button class="btn-icon" onclick="evMoveField(${i},-1)" ${i===0?'disabled':''}>
@@ -10539,7 +10559,7 @@ function evRenderActive() {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
         </button>
       </div>
-      <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.25);color:#ef4444;font-size:11px;white-space:nowrap;" onclick="evRemoveFromForm('${f.key}')">Quitar</button>
+      <button class="btn btn-sm" style="background:rgba(239,68,68,0.08);border:1.5px solid rgba(239,68,68,0.25);color:#ef4444;font-size:11px;white-space:nowrap;" onclick="evRemoveFromForm('${f.key}')">${t('ev.fcat_remove')}</button>
     </div>`;
   }).join('');
   evRenderPreview();
@@ -10681,8 +10701,9 @@ async function evSaveFormConfig() {
 
 // ── REGISTROS ─────────────────────────────────────────────────
 async function evLoadRegistrations() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const tbody = document.getElementById('ev-regs-tbody');
-  tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Cargando...</td></tr>';
+  tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.sess_loading')}</td></tr>`;
   try {
     const params = new URLSearchParams({ page: evRegsPage, limit: 25 });
     if (evRegsSearchTerm) params.set('search', evRegsSearchTerm);
@@ -10719,33 +10740,33 @@ async function evLoadRegistrations() {
 
     document.getElementById('ev-regs-stats').innerHTML =
       evDonut(occPct, '#f59e0b', total,
-        maxCap ? `de ${maxCap} cupos` : 'sin límite de cupos',
-        'Inscritos') +
+        maxCap ? `${t('ev.regs_stat_of')} ${maxCap} ${t('ev.regs_stat_seats_word')}` : t('ev.regs_stat_no_limit'),
+        t('ev.regs_stat_registered')) +
       evDonut(confPct, '#00e676', conf,
-        `de ${total} inscritos`,
-        'Confirmados') +
-      (pend ? evDonut(null, '#f59e0b', pend, 'pendientes de confirmar', 'Pendientes') : '');
+        `${t('ev.regs_stat_of')} ${total} ${t('ev.regs_stat_of_registered')}`,
+        t('ev.regs_stat_confirmed')) +
+      (pend ? evDonut(null, '#f59e0b', pend, t('ev.regs_stat_pending_sub'), t('ev.regs_stat_pending')) : '');
     const rows = data.registrations || [];
     evRegsCache = {};
     rows.forEach(r => { evRegsCache[r.id] = r; });
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">Sin registros.</td></tr>'; evRenderRegsPagination(0); return; }
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.reg_no_results')}</td></tr>`; evRenderRegsPagination(0); return; }
     const tz = evCurrentEvent?.timezone || 'America/Bogota';
     tbody.innerHTML = rows.map(r => {
       const date = new Date(r.registered_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz });
       const statusColor = r.status === 'confirmed' ? '#00e676' : r.status === 'cancelled' ? '#ff4444' : '#f59e0b';
-      const statusLabel = r.status === 'confirmed' ? 'Confirmado' : r.status === 'cancelled' ? 'Cancelado' : 'Pendiente';
+      const statusLabel = r.status === 'confirmed' ? t('ev.reg_status_confirmed') : r.status === 'cancelled' ? t('ev.reg_status_cancelled') : t('ev.reg_status_pending');
       const sessions = r.sessions ? r.sessions.filter(Boolean).join(', ') : '—';
       const extraFields = [
-        r.phone       ? `<span><b>Tel:</b> ${r.phone}</span>` : '',
-        r.id_number   ? `<span><b>ID:</b> ${r.id_number}</span>` : '',
-        r.organization? `<span><b>Empresa:</b> ${r.organization}</span>` : '',
-        r.job_title   ? `<span><b>Cargo:</b> ${r.job_title}</span>` : '',
+        r.phone       ? `<span><b>${t('ev.reg_extra_tel')}</b> ${r.phone}</span>` : '',
+        r.id_number   ? `<span><b>${t('ev.reg_extra_id')}</b> ${r.id_number}</span>` : '',
+        r.organization? `<span><b>${t('ev.reg_extra_company')}</b> ${r.organization}</span>` : '',
+        r.job_title   ? `<span><b>${t('ev.reg_extra_role')}</b> ${r.job_title}</span>` : '',
       ].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
       const actionBtns = r.status !== 'confirmed'
-        ? `<button class="btn btn-sm" style="background:#00e676;color:#000;font-weight:700;border:none;padding:4px 10px;border-radius:6px;" onclick="event.stopPropagation();evSetRegStatus('${r.id}','confirmed')">Confirmar</button>`
+        ? `<button class="btn btn-sm" style="background:#00e676;color:#000;font-weight:700;border:none;padding:4px 10px;border-radius:6px;" onclick="event.stopPropagation();evSetRegStatus('${r.id}','confirmed')">${t('ev.reg_confirm')}</button>`
         : '';
       const cancelBtn = r.status !== 'cancelled'
-        ? `<button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid #ff4444;padding:4px 10px;border-radius:6px;" onclick="event.stopPropagation();evSetRegStatus('${r.id}','cancelled')">Cancelar</button>`
+        ? `<button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid #ff4444;padding:4px 10px;border-radius:6px;" onclick="event.stopPropagation();evSetRegStatus('${r.id}','cancelled')">${t('ev.reg_cancel')}</button>`
         : '';
       return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="evToggleRegDetail('reg-detail-${r.id}')">
         <td style="padding:10px 12px;font-size:13px;font-weight:600;">${r.attendee_name || ''}</td>
@@ -10754,24 +10775,24 @@ async function evLoadRegistrations() {
         <td style="padding:10px 12px;"><span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${statusLabel}</span></td>
         <td style="padding:10px 12px;font-size:12px;color:var(--text-muted);">${date}</td>
         <td style="padding:10px 12px;text-align:right;white-space:nowrap;">
-          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 10px;border-radius:6px;margin-right:6px;font-size:12px;" title="Editar datos del inscrito" onclick="event.stopPropagation();evEditReg('${r.id}')">Editar</button>
-          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 8px;border-radius:6px;margin-right:6px;font-size:14px;" title="Imprimir etiqueta QR" onclick="event.stopPropagation();evPrintLabel('${r.id}')"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg></button>
+          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 10px;border-radius:6px;margin-right:6px;font-size:12px;" title="${t('ev.reg_edit_title')}" onclick="event.stopPropagation();evEditReg('${r.id}')">${t('ev.reg_edit')}</button>
+          <button class="btn btn-sm" style="background:transparent;border:1px solid var(--border);padding:3px 8px;border-radius:6px;margin-right:6px;font-size:14px;" title="${t('ev.reg_print_title')}" onclick="event.stopPropagation();evPrintLabel('${r.id}')"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg></button>
           <span style="font-size:16px;color:var(--text-muted);" id="reg-chevron-${r.id}">▸</span>
         </td>
       </tr>
       <tr id="reg-detail-${r.id}" class="hidden">
         <td colspan="6" style="padding:12px 16px 16px 16px;background:var(--surface2);border-bottom:2px solid var(--border);">
           <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text-muted);margin-bottom:10px;">
-            ${extraFields || '<span style="color:var(--text-muted)">Sin datos adicionales</span>'}
-            ${r.sessions?.length ? `&nbsp;&nbsp;·&nbsp;&nbsp;<span><b>Sesiones:</b> ${sessions}</span>` : ''}
+            ${extraFields || `<span style="color:var(--text-muted)">${t('ev.reg_no_extra')}</span>`}
+            ${r.sessions?.length ? `&nbsp;&nbsp;·&nbsp;&nbsp;<span><b>${t('ev.reg_sessions_label')}</b> ${sessions}</span>` : ''}
           </div>
           <div style="margin-bottom:10px;">
             ${r.checkins?.length ? `
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">Check-ins</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;">${t('ev.reg_checkins')}</div>
               <div style="display:flex;flex-wrap:wrap;gap:5px;">
                 ${r.checkins.map(c => {
                   const isSession = !!c.session_id;
-                  const label = isSession ? (c.session_name || 'Sesión') : 'Entrada general';
+                  const label = isSession ? (c.session_name || t('ev.reg_checkin_session')) : t('ev.reg_checkin_general');
                   const time = new Date(c.checked_in_at).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz });
                   const day  = new Date(c.checked_in_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', timeZone: tz });
                   const color = isSession ? '#60a5fa' : '#00e676';
@@ -10779,26 +10800,27 @@ async function evLoadRegistrations() {
                   const border= isSession ? 'rgba(96,165,250,.35)' : 'rgba(0,230,118,.35)';
                   return `<span style="font-size:11px;font-weight:700;color:${color};background:${bg};border:1px solid ${border};padding:3px 9px;border-radius:6px;white-space:nowrap;">${label}&thinsp;·&thinsp;${day}&thinsp;${time}</span>`;
                 }).join('')}
-              </div>` : `<span style="font-size:11px;color:var(--text-muted);">Sin check-ins registrados</span>`}
+              </div>` : `<span style="font-size:11px;color:var(--text-muted);">${t('ev.reg_no_checkins')}</span>`}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             ${actionBtns}
             ${cancelBtn}
-            <button class="btn btn-sm" style="background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:4px 10px;border-radius:6px;" title="Asignar o quitar sesiones (incluye privadas)" onclick="event.stopPropagation();evOpenAssignSessions('${r.id}')">Asignar sesión</button>
-            <button class="btn btn-sm" style="background:transparent;color:#b8975f;border:1px solid rgba(184,151,95,0.4);padding:4px 10px;border-radius:6px;" title="Emitir / gestionar certificado" onclick="event.stopPropagation();evOpenRegCertModal('${r.id}','${(r.attendee_name||'').replace(/'/g,'&apos;')}','${(r.email||'')}')">Certificado</button>
-            <button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid rgba(255,68,68,0.4);padding:4px 10px;border-radius:6px;margin-left:auto;" onclick="event.stopPropagation();evDeleteRegistration('${r.id}')">Eliminar</button>
+            <button class="btn btn-sm" style="background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:4px 10px;border-radius:6px;" title="${t('ev.reg_assign_title')}" onclick="event.stopPropagation();evOpenAssignSessions('${r.id}')">${t('ev.reg_assign_session')}</button>
+            <button class="btn btn-sm" style="background:transparent;color:#b8975f;border:1px solid rgba(184,151,95,0.4);padding:4px 10px;border-radius:6px;" title="${t('ev.reg_cert_title')}" onclick="event.stopPropagation();evOpenRegCertModal('${r.id}','${(r.attendee_name||'').replace(/'/g,'&apos;')}','${(r.email||'')}')">${t('ev.reg_cert')}</button>
+            <button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid rgba(255,68,68,0.4);padding:4px 10px;border-radius:6px;margin-left:auto;" onclick="event.stopPropagation();evDeleteRegistration('${r.id}')">${t('ev.reg_delete')}</button>
           </div>
           <div id="reg-certs-${r.id}" style="margin-top:12px;"></div>
         </td>
       </tr>`;
     }).join('');
     evRenderRegsPagination(data.total);
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">Error cargando registros.</td></tr>'; }
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">${t('ev.reg_error')}</td></tr>`; }
   // Cargar gráfica de check-ins por sesión
   evLoadSessionChart();
 }
 
 async function evLoadSessionChart() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const chartEl = document.getElementById('ev-regs-chart');
   if (!chartEl) return;
   try {
@@ -10831,7 +10853,7 @@ async function evLoadSessionChart() {
       </div>`;
     }).join('');
     chartEl.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
-      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:14px;">Check-ins por sesión</div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:14px;">${t('ev.regs_chart_title')}</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">${donuts}</div>
     </div>`;
   } catch(e) { chartEl.innerHTML = ''; }
@@ -10903,6 +10925,7 @@ function evCloseRegCertModal() {
 
 async function evRenderRegCertModalList(regId) {
   const el = document.getElementById('ev-reg-cert-list');
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   try {
     const r = await fetch(`/api/events/${evCurrentEventId}/registrations/${regId}/certificates`, {
       headers: { Authorization: 'Bearer ' + authToken }
@@ -10910,11 +10933,11 @@ async function evRenderRegCertModalList(regId) {
     const d = await r.json();
     const items = d.certificates || [];
     if (!items.length) {
-      el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Este asistente aún no tiene certificados emitidos.</div>';
+      el.innerHTML = `<div style="color:var(--text-muted);font-size:12px;">${t('ev.cert_reg_empty')}</div>`;
       return;
     }
     el.innerHTML = items.map(c => {
-      const stateLabel = c.revoked_at ? 'Revocado' : (c.email_sent_at ? 'Enviado' : 'Emitido');
+      const stateLabel = c.revoked_at ? t('ev.cert_state_revoked') : (c.email_sent_at ? t('ev.cert_state_sent') : t('ev.cert_state_issued'));
       const stateColor = c.revoked_at ? '#ef4444' : (c.email_sent_at ? '#10b981' : '#60a5fa');
       return `
         <div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -10927,8 +10950,8 @@ async function evRenderRegCertModalList(regId) {
           <span style="font-size:10px;font-weight:700;color:${stateColor};text-transform:uppercase;letter-spacing:.5px;">${stateLabel}</span>
           <div style="display:flex;gap:6px;">
             ${c.pdf_path !== false && !c.revoked_at ? `<a class="btn btn-outline btn-sm" href="/api/public/certificates/${c.token}/pdf" target="_blank">PDF</a>` : ''}
-            ${!c.revoked_at && evRegCertTarget?.email ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">Reenviar</button>` : ''}
-            ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">Revocar</button>` : ''}
+            ${!c.revoked_at && evRegCertTarget?.email ? `<button class="btn btn-outline btn-sm" onclick="evCertResend('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">${t('ev.cert_resend')}</button>` : ''}
+            ${!c.revoked_at ? `<button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evCertRevoke('${c.id}').then(()=>evRenderRegCertModalList('${regId}'))">${t('ev.cert_revoke')}</button>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -11388,6 +11411,7 @@ async function evLoadStaff() {
 function evRenderStaff() {
   const el = document.getElementById('ev-staff-list');
   if (!el) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (!evStaffList.length) {
     el.innerHTML = '';
     return;
@@ -11396,8 +11420,8 @@ function evRenderStaff() {
     const color = EV_ROLE_COLORS[s.role] || '#94a3b8';
     const label = EV_ROLE_LABELS[s.role] || s.role;
     const sentAt = s.briefing_sent_at ? new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="Enviar briefing por email" onclick="evOpenBriefingPreview('${s.id}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>Enviar briefing</button>` : '';
-    const sentBadge = s.briefing_sent_at ? `<div style="font-size:11px;color:#86efac;margin-top:4px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-check-circle"/></svg> Briefing enviado el ${sentAt}</div>` : '';
+    const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="${t('ev.stf_briefing_title')}" onclick="evOpenBriefingPreview('${s.id}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>${t('ev.stf_send_briefing')}</button>` : '';
+    const sentBadge = s.briefing_sent_at ? `<div style="font-size:11px;color:#86efac;margin-top:4px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-check-circle"/></svg> ${t('ev.stf_briefing_sent')} ${sentAt}</div>` : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="width:36px;height:36px;border-radius:50%;background:${color}22;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${color};flex-shrink:0;">${(s.name||'?')[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0;">
@@ -11407,7 +11431,7 @@ function evRenderStaff() {
         ${sentBadge}
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--surface2);padding:4px 10px;border-radius:6px;color:var(--text);" title="PIN de check-in">${s.pin}</div>
+        <div style="font-family:monospace;font-size:15px;font-weight:700;letter-spacing:4px;background:var(--surface2);padding:4px 10px;border-radius:6px;color:var(--text);" title="${t('ev.stf_pin_title')}">${s.pin}</div>
         ${briefingBtn}
         <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;" onclick="evDeleteStaff('${s.id}','${escOnclick(s.name||'')}')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-x"/></svg></button>
       </div>
@@ -11645,8 +11669,9 @@ function evFmtCOP(n) {
 }
 
 function evRenderBudget() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const { total_budget = 0, total_cotizado = 0, total_aprobado = 0, total_pagado = 0, saldo_disponible = 0 } = evBudgetData;
-  document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : 'No definido';
+  document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : t('ev.sup_budget_undefined');
   document.getElementById('ev-budget-cotizado').textContent = evFmtCOP(total_cotizado);
   document.getElementById('ev-budget-aprobado').textContent = evFmtCOP(total_aprobado);
   document.getElementById('ev-budget-pagado').textContent = evFmtCOP(total_pagado);
@@ -11682,32 +11707,33 @@ async function evSaveBudget() {
 function evRenderContracts() {
   const el = document.getElementById('ev-contracts-list');
   if (!el) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (!evEventContracts.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Sin proveedores aún.</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${t('ev.sup_contracts_empty')}</div>`;
     return;
   }
   el.innerHTML = evEventContracts.map(c => {
     const ps = c.payment_status || 'quote_requested';
     const color = EV_CONTRACT_STATUS_COLORS[ps] || '#94a3b8';
     const depositInfo = ps === 'partial' && c.deposit_amount > 0
-      ? `<div style="font-size:11px;color:#3b82f6;font-weight:600;">Abono: ${evFmtCOP(c.deposit_amount)} de ${evFmtCOP(c.contracted_amount)}</div>`
+      ? `<div style="font-size:11px;color:#3b82f6;font-weight:600;">${t('ev.sup_deposit')} ${evFmtCOP(c.deposit_amount)} ${t('ev.sup_deposit_of')} ${evFmtCOP(c.contracted_amount)}</div>`
       : '';
     const amountDisplay = ['accepted','partial','paid','rejected'].includes(ps)
       ? evFmtCOP(c.contracted_amount)
       : evFmtCOP(c.estimated_amount || c.contracted_amount);
     const proofSection = ['partial','paid'].includes(ps)
       ? (c.payment_proof_url
-          ? `<div style="margin-top:3px;"><a href="${c.payment_proof_url}" target="_blank" style="font-size:11px;color:#22c55e;font-weight:600;text-decoration:none;">Ver comprobante <svg width="11" height="11" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a></div>`
-          : `<label style="font-size:11px;color:#3b82f6;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;margin-top:3px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-upload"/></svg> Subir comprobante<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="evUploadPaymentProof('${c.id}',this)"></label>`)
+          ? `<div style="margin-top:3px;"><a href="${c.payment_proof_url}" target="_blank" style="font-size:11px;color:#22c55e;font-weight:600;text-decoration:none;">${t('ev.sup_see_proof')} <svg width="11" height="11" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a></div>`
+          : `<label style="font-size:11px;color:#3b82f6;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;margin-top:3px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-upload"/></svg> ${t('ev.sup_upload_proof')}<input type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="evUploadPaymentProof('${c.id}',this)"></label>`)
       : '';
     // Quote badge
     let quoteBadge = '';
     if (ps === 'quote_received') {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#a78bfa;color:#a78bfa;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">Ver cotización</button>`;
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="border-color:#a78bfa;color:#a78bfa;padding:3px 8px;font-size:11px;" onclick="evViewQuote('${c.id}')">${t('ev.sup_view_quote')}</button>`;
     } else if (ps === 'quote_sent') {
-      quoteBadge = `<span style="font-size:11px;color:#f59e0b;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">Esperando resp.</span>`;
+      quoteBadge = `<span style="font-size:11px;color:#f59e0b;padding:3px 6px;background:rgba(245,158,11,0.1);border-radius:4px;">${t('ev.sup_waiting_resp')}</span>`;
     } else if (ps === 'quote_requested' && c.contact_email) {
-      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" onclick="evSendQuote('${c.id}','${escOnclick(c.contact_email||'')}')">Solicitar cotización</button>`;
+      quoteBadge = `<button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:11px;" onclick="evSendQuote('${c.id}','${escOnclick(c.contact_email||'')}')">${t('ev.sup_request_quote')}</button>`;
     }
     return `<div id="ev-cr-${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -11731,19 +11757,19 @@ function evRenderContracts() {
       </div>
       <!-- Inline abono input -->
       <div id="ev-abono-${c.id}" style="display:none;margin-top:10px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:12px;">
-        <div style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px;">¿Cuánto fue el abono?</div>
+        <div style="font-size:12px;font-weight:600;color:#3b82f6;margin-bottom:8px;">${t('ev.sup_abono_q')}</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input id="ev-abono-val-${c.id}" type="number" min="0" step="1000" placeholder="Monto abonado (COP)"
+          <input id="ev-abono-val-${c.id}" type="number" min="0" step="1000" placeholder="${t('ev.sup_abono_ph')}"
             style="flex:1;min-width:160px;padding:7px 10px;border:1px solid rgba(59,130,246,0.4);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
-          <button class="btn btn-primary btn-sm" onclick="evConfirmAbono('${c.id}')">Confirmar</button>
-          <button class="btn btn-outline btn-sm" onclick="evCancelAbono('${c.id}','${ps}')">Cancelar</button>
+          <button class="btn btn-primary btn-sm" onclick="evConfirmAbono('${c.id}')">${t('ev.sup_abono_confirm')}</button>
+          <button class="btn btn-outline btn-sm" onclick="evCancelAbono('${c.id}','${ps}')">${t('ev.sup_cancel')}</button>
         </div>
       </div>
       ${c.history && c.history.length ? `<div style="margin-top:8px;padding:8px 0 4px;border-top:1px solid var(--border);">
         ${c.history.map(h => {
           const hDate = new Date(h.at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true,timeZone:'America/Bogota'});
           const hColor = ({accepted:'#22c55e',partial:'#3b82f6',paid:'#22c55e',rejected:'#ef4444',cancelled:'#94a3b8'})[h.status]||'var(--muted)';
-          const hLabel = ({accepted:'Aceptada',partial:'Abono',paid:'Pago completo',rejected:'Rechazada',cancelled:'Cancelada'})[h.status]||h.status;
+          const hLabel = ({accepted:t('ev.sup_hist_accepted'),partial:t('ev.sup_hist_partial'),paid:t('ev.sup_hist_paid'),rejected:t('ev.sup_hist_rejected'),cancelled:t('ev.sup_hist_cancelled')})[h.status]||h.status;
           const _svgCheck = '<svg width="11" height="11" style="vertical-align:middle;fill:currentColor"><use href="#ph-check"/></svg>';
           const _svgCircle = '<svg width="11" height="11" style="vertical-align:middle;fill:currentColor"><use href="#ph-check-circle"/></svg>';
           const _svgX = '<svg width="11" height="11" style="vertical-align:middle;fill:currentColor"><use href="#ph-x"/></svg>';
@@ -11893,8 +11919,9 @@ async function evDeleteContract(contractId, name) {
 function evRenderSupplierDir() {
   const el = document.getElementById('ev-supplier-dir-list');
   if (!el) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (!evSupplierDir.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Directorio vacío. Agrega proveedores frecuentes para reutilizarlos en futuros eventos.</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${t('ev.sup_dir_empty')}</div>`;
     return;
   }
   el.innerHTML = evSupplierDir.map(s => `
@@ -11912,7 +11939,7 @@ function evRenderSupplierDir() {
         </div>` : ''}
       </div>
       <button class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:11px;"
-        onclick="evEditSupplier('${s.id}')">Editar</button>
+        onclick="evEditSupplier('${s.id}')">${t('ev.sup_edit')}</button>
       <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;padding:4px 8px;"
         onclick="evDeleteSupplier('${s.id}','${escOnclick(s.name||'')}')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-x"/></svg></button>
     </div>`).join('');
@@ -12222,11 +12249,12 @@ async function evLoadRundown() {
 function evRenderRundown() {
   const el = document.getElementById('ev-rundown-list');
   if (!el) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   if (!evRundownList.length) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0;">Sin cues. Agrega el primero con el botón de arriba.</div>';
+    el.innerHTML = `<div style="color:var(--muted);font-size:13px;padding:16px 0;">${t('ev.prod_cue_empty')}</div>`;
     return;
   }
-  const statusLabel = { pending: 'Pendiente', in_progress: 'En curso', done: 'Finalizado', skipped: 'Omitido', delayed: 'Con retraso' };
+  const statusLabel = { pending: t('ev.prod_status_pending'), in_progress: t('ev.prod_status_in_progress'), done: t('ev.prod_status_done'), skipped: t('ev.prod_status_skipped'), delayed: t('ev.prod_status_delayed') };
   const statusColor = { pending: 'var(--muted)', in_progress: '#f59e0b', done: '#22c55e', skipped: '#6b7280', delayed: '#ef4444' };
   const tz = evCurrentEvent && evCurrentEvent.timezone ? evCurrentEvent.timezone : 'America/Bogota';
   el.innerHTML = evRundownList.map(c => {
@@ -12246,7 +12274,7 @@ function evRenderRundown() {
       <div style="color:var(--muted);font-size:12px;padding-top:2px;">${c.location || '—'}</div>
       <div style="font-size:11px;font-weight:600;color:${sColor};padding-top:2px;">${sLabel}</div>
       <div style="display:flex;gap:6px;flex-shrink:0;">
-        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditCue('${c.id}')">Editar</button>
+        <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditCue('${c.id}')">${t('ev.prod_cue_edit')}</button>
         <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteCue('${c.id}')">×</button>
       </div>
     </div>`;
