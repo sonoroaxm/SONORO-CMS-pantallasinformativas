@@ -5,13 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Verificar certificado — SONORO</title>
 <link rel="icon" href="/sonoro-icon.svg">
+<script src="/js/i18n.js"></script>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+</defs></svg>
 <style>
   :root { --bg:#f5f1e8; --ink:#0f0f0f; --muted:#666; --ok:#15803d; --bad:#991b1b; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
   header{padding:20px 24px;border-bottom:1px solid #e8e3d6;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
   header h1{margin:0;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
-  .lang-select{background:#fff;border:1px solid #d8d0bc;border-radius:6px;padding:6px 10px;font-size:12px;color:var(--ink);cursor:pointer}
+  .lang-pill{display:inline-flex;background:#faf6ec;border:1px solid #d8d0bc;border-radius:10px;padding:3px;gap:2px}
+  .lang-pill button{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit}
+  .lang-pill button.on{background:#fff;color:var(--ink)}
+  .lang-pill svg{width:16px;height:11px;display:block;border-radius:2px}
   main{max-width:560px;margin:0 auto;padding:48px 20px}
   .status{background:#fff;border-radius:12px;padding:36px 28px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
   .badge{display:inline-block;padding:8px 16px;border-radius:999px;font-weight:800;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:20px}
@@ -28,11 +36,11 @@
 <body>
 <header>
   <h1 data-i18n="title">SONORO · Verificación</h1>
-  <select id="lang" class="lang-select" aria-label="Idioma / Language">
-    <option value="es">Español</option>
-    <option value="en">English</option>
-    <option value="pt">Português</option>
-  </select>
+  <div id="langPill" class="lang-pill" aria-label="Idioma / Language">
+    <button type="button" data-lang="es" data-remote="es">ES</button>
+    <button type="button" data-lang="en" data-remote="en"><svg><use href="#sonoro-flag-us"/></svg>EN</button>
+    <button type="button" data-lang="pt" data-remote="pt-BR"><svg><use href="#sonoro-flag-br"/></svg>PT</button>
+  </div>
 </header>
 <main id="main">
   <div class="loading" data-i18n="loading">Verificando...</div>
@@ -97,10 +105,13 @@ const L = {
 
 function detectLang(){
   const q = new URLSearchParams(location.search).get('lang');
-  const stored = localStorage.getItem('sonoro_lang_public');
-  const nav = (navigator.language || 'es').slice(0,2);
-  const pick = (q || stored || nav).toLowerCase();
-  return L[pick] ? pick : 'es';
+  const fromI18n = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : null;
+  const stored = localStorage.getItem('sonoro_locale');
+  const nav = (navigator.language || 'es');
+  const raw = String(q || fromI18n || stored || nav).toLowerCase();
+  if (raw.startsWith('pt')) return 'pt';
+  if (raw.startsWith('en')) return 'en';
+  return L[raw] ? raw : 'es';
 }
 let LANG = detectLang();
 const t = (k) => (L[LANG][k] ?? k);
@@ -163,13 +174,23 @@ async function verify(){
   }
 }
 
-document.getElementById('lang').value = LANG;
-document.getElementById('lang').addEventListener('change', (e) => {
-  LANG = e.target.value;
-  localStorage.setItem('sonoro_lang_public', LANG);
-  applyStatic();
-  verify();
+function syncLangPill(){
+  document.querySelectorAll('#langPill [data-lang]').forEach(b => {
+    b.classList.toggle('on', b.dataset.lang === LANG);
+  });
+}
+document.querySelectorAll('#langPill [data-lang]').forEach(b => {
+  b.addEventListener('click', () => {
+    const remote = b.dataset.remote;
+    try { localStorage.setItem('sonoro_locale', remote); } catch(_){}
+    if (window.SonoroI18n && window.SonoroI18n.setLocale) { try { window.SonoroI18n.setLocale(remote); } catch(_){} }
+    LANG = b.dataset.lang;
+    syncLangPill();
+    applyStatic();
+    verify();
+  });
 });
+syncLangPill();
 applyStatic();
 verify();
 </script>

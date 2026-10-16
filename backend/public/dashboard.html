@@ -1758,7 +1758,7 @@
         </div>
         <div class="sidebar-children">
           <div class="sidebar-children-inner">
-            <button class="tab-btn" data-tab="events">Mis Eventos</button>
+            <button class="tab-btn" data-tab="events" data-i18n="ev.tab">Mis Eventos</button>
             <button class="tab-btn" data-tab="ev-proveedores">Proveedores</button>
             <button class="tab-btn" data-tab="ev-staff">Staff</button>
           </div>
@@ -2557,8 +2557,8 @@
         <!-- VISTA: Lista de Eventos -->
         <div id="ev-list-view">
           <div class="section-header">
-            <div class="section-title">Mis Eventos</div>
-            <button class="btn btn-grad" onclick="evShowView('new')">+ Nuevo Evento</button>
+            <div class="section-title" data-i18n="ev.title_my">Mis Eventos</div>
+            <button class="btn btn-grad" data-i18n="ev.new_btn" onclick="evShowView('new')">+ Nuevo Evento</button>
           </div>
           <div id="ev-list-grid" style="display:grid;gap:16px;"></div>
         </div>
@@ -2566,8 +2566,8 @@
         <!-- VISTA: Nuevo Evento -->
         <div id="ev-new-view" class="hidden">
           <div class="section-header">
-            <div class="section-title">Nuevo Evento</div>
-            <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Volver</button>
+            <div class="section-title" data-i18n="ev.title_new">Nuevo Evento</div>
+            <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="ev.back">Volver</span></button>
           </div>
           <div class="card" style="max-width:700px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -2609,8 +2609,8 @@
               </div>
             </div>
             <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
-              <button class="btn btn-outline" onclick="evShowView('list')">Cancelar</button>
-              <button class="btn btn-grad" onclick="evSaveNew()">Crear Evento <svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-right"/></svg></button>
+              <button class="btn btn-outline" data-i18n="ev.cancel" onclick="evShowView('list')">Cancelar</button>
+              <button class="btn btn-grad" onclick="evSaveNew()"><span data-i18n="ev.create">Crear Evento</span> <svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-right"/></svg></button>
             </div>
           </div>
         </div>
@@ -2623,20 +2623,20 @@
               <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="ev-detail-slug"></div>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
-              <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evDeleteCurrentEvent()">Eliminar evento</button>
-              <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Mis Eventos</button>
+              <button class="btn btn-outline btn-sm" data-i18n="ev.delete_event" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evDeleteCurrentEvent()">Eliminar evento</button>
+              <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="ev.back_list">Mis Eventos</span></button>
             </div>
           </div>
 
           <!-- Sub-tabs del detalle -->
           <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:24px;">
-            <button class="ev-sub-tab active" data-evtab="info" onclick="evSwitchSubTab('info')">Información</button>
-            <button class="ev-sub-tab" data-evtab="form" onclick="evSwitchSubTab('form')">Formulario</button>
-            <button class="ev-sub-tab" data-evtab="regs" onclick="evSwitchSubTab('regs')">Registros</button>
-            <button class="ev-sub-tab" data-evtab="staff" onclick="evSwitchSubTab('staff')">Staff</button>
-            <button class="ev-sub-tab" data-evtab="suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
-            <button class="ev-sub-tab" data-evtab="rundown" onclick="evSwitchSubTab('rundown')">Producción</button>
-            <button class="ev-sub-tab" data-evtab="certs" onclick="evSwitchSubTab('certs')">Certificados</button>
+            <button class="ev-sub-tab active" data-evtab="info" data-i18n="ev.sub_info" onclick="evSwitchSubTab('info')">Información</button>
+            <button class="ev-sub-tab" data-evtab="form" data-i18n="ev.sub_form" onclick="evSwitchSubTab('form')">Formulario</button>
+            <button class="ev-sub-tab" data-evtab="regs" data-i18n="ev.sub_regs" onclick="evSwitchSubTab('regs')">Registros</button>
+            <button class="ev-sub-tab" data-evtab="staff" data-i18n="ev.sub_staff" onclick="evSwitchSubTab('staff')">Staff</button>
+            <button class="ev-sub-tab" data-evtab="suppliers" data-i18n="ev.sub_suppliers" onclick="evSwitchSubTab('suppliers')">Proveedores</button>
+            <button class="ev-sub-tab" data-evtab="rundown" data-i18n="ev.sub_rundown" onclick="evSwitchSubTab('rundown')">Producción</button>
+            <button class="ev-sub-tab" data-evtab="certs" data-i18n="ev.sub_certs" onclick="evSwitchSubTab('certs')">Certificados</button>
           </div>
 
           <!-- SUB-TAB: Información -->

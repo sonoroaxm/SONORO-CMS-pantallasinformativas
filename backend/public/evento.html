@@ -494,6 +494,11 @@
   Impulsado por <a href="https://sonoro.com.co" target="_blank">SONORO AV</a>
 </div>
 
+<script src="/js/i18n.js"></script>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+</defs></svg>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script>
 'use strict';
@@ -1077,12 +1082,18 @@ function renderMiRegistro(reg) {
   }
 }
 
+function _normalizeLocale(loc){
+  loc = String(loc || '').toLowerCase();
+  if (loc.startsWith('pt')) return 'pt';
+  if (loc.startsWith('en')) return 'en';
+  return 'es';
+}
 function detectLang() {
   const q = new URLSearchParams(location.search).get('lang');
-  const stored = localStorage.getItem('sonoro_lang_public');
-  const nav = (navigator.language || 'es').substring(0, 2).toLowerCase();
-  const pick = (q || stored || nav || 'es').toLowerCase();
-  LANG = L[pick] ? pick : 'es';
+  const fromI18n = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : null;
+  const stored = localStorage.getItem('sonoro_locale');
+  const nav = (navigator.language || 'es');
+  LANG = _normalizeLocale(q || fromI18n || stored || nav);
   document.documentElement.lang = LANG;
 }
 
@@ -1090,18 +1101,40 @@ function mountLangSwitcher() {
   if (document.getElementById('lang-switcher')) return;
   const header = document.getElementById('ev-header');
   if (!header) return;
-  const sel = document.createElement('select');
-  sel.id = 'lang-switcher';
-  sel.setAttribute('aria-label', 'Idioma / Language');
-  sel.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 8px;font-size:11px;font-family:inherit;cursor:pointer;z-index:3;';
-  sel.innerHTML = '<option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option>';
-  sel.value = LANG;
-  sel.addEventListener('change', e => {
-    LANG = e.target.value;
-    localStorage.setItem('sonoro_lang_public', LANG);
-    location.reload();
+  const wrap = document.createElement('div');
+  wrap.id = 'lang-switcher';
+  wrap.style.cssText = 'position:absolute;top:14px;right:14px;z-index:3;display:inline-flex;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:3px;gap:2px;';
+  const codes = [
+    { code:'es', label:'ES', remote:'es' },
+    { code:'en', label:'EN', remote:'en', flag:'sonoro-flag-us' },
+    { code:'pt', label:'PT', remote:'pt-BR', flag:'sonoro-flag-br' }
+  ];
+  codes.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.lang = c.code;
+    b.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:7px;cursor:pointer;color:rgba(255,255,255,.75);font-size:11px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit;';
+    b.innerHTML = (c.flag ? `<svg style="width:16px;height:11px;display:block;border-radius:2px;"><use href="#${c.flag}"/></svg>` : '') + c.label;
+    b.addEventListener('click', () => {
+      try { localStorage.setItem('sonoro_locale', c.remote); } catch(_){}
+      if (window.SonoroI18n && window.SonoroI18n.setLocale) {
+        try { window.SonoroI18n.setLocale(c.remote); } catch(_){}
+      }
+      location.reload();
+    });
+    wrap.appendChild(b);
   });
-  header.appendChild(sel);
+  header.appendChild(wrap);
+  syncLangPill();
+}
+function syncLangPill(){
+  const wrap = document.getElementById('lang-switcher');
+  if (!wrap) return;
+  wrap.querySelectorAll('[data-lang]').forEach(b => {
+    const on = b.dataset.lang === LANG;
+    b.style.background = on ? 'rgba(255,255,255,.22)' : 'transparent';
+    b.style.color      = on ? '#fff' : 'rgba(255,255,255,.72)';
+  });
 }
 
 function applyStatic() {
