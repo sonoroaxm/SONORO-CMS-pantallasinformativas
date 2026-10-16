@@ -249,22 +249,40 @@
 
   /* Clock */
   .clock { font-variant-numeric: tabular-nums; }
+
+  /* ── LANG PILL ─────────────────────────────── */
+  .lang-pill{position:fixed;bottom:14px;right:14px;z-index:9999;display:inline-flex;background:rgba(0,0,0,.85);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;pointer-events:auto}
+  .lang-pill button{pointer-events:auto;touch-action:manipulation}
+  .lang-pill button{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit}
+  .lang-pill button.on{background:rgba(255,255,255,.12);color:var(--text)}
+  .lang-pill svg{width:16px;height:11px;display:block;border-radius:2px}
 </style>
+<script src="/js/i18n.js"></script>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+</defs></svg>
 </head>
 <body>
+
+<div id="langPill" class="lang-pill" aria-label="Idioma / Language">
+  <button type="button" data-lang="es" data-remote="es" onclick="window.__sLang('es','es')">ES</button>
+  <button type="button" data-lang="en" data-remote="en" onclick="window.__sLang('en','en')">EN</button>
+  <button type="button" data-lang="pt" data-remote="pt-BR" onclick="window.__sLang('pt','pt-BR')">PT</button>
+</div>
 
 <!-- ══════════════ LOADING ══════════════ -->
 <div id="s-loading">
   <div class="init-logo">SONORO.</div>
   <div class="init-spinner"></div>
-  <div class="init-msg">Cargando evento…</div>
+  <div class="init-msg" data-i18n="loading">Cargando evento…</div>
 </div>
 
 <!-- ══════════════ ERROR ══════════════ -->
 <div id="s-error" class="hidden">
   <div class="init-logo">SONORO.</div>
   <div class="init-err-msg" id="init-err-msg">No se pudo cargar el evento</div>
-  <button class="init-retry" onclick="autoInit()">Reintentar</button>
+  <button class="init-retry" data-i18n="retry" onclick="autoInit()">Reintentar</button>
 </div>
 
 <!-- ══════════════ SESSION PICKER ══════════════ -->
@@ -272,7 +290,7 @@
   <div class="ev-header">
     <div style="min-width:0;">
       <div class="ev-name" id="sess-ev-name">—</div>
-      <div class="ev-meta">Selecciona tu punto de check-in</div>
+      <div class="ev-meta" data-i18n="pickSession">Selecciona tu punto de check-in</div>
     </div>
     <div class="staff-badge">
       <div class="staff-avatar" id="sess-staff-av">?</div>
@@ -292,7 +310,7 @@
     <div style="min-width:0;">
       <div class="ev-name" id="ev-name">—</div>
       <div class="ev-meta"><span id="ev-day-label">—</span> &nbsp;·&nbsp; <span class="clock" id="clock">—</span></div>
-      <div style="font-size:11px;color:var(--blue);margin-top:3px;cursor:pointer;" onclick="showSessionPicker()"><span id="ev-sess-active">—</span> <span style="color:var(--muted);font-size:10px;">cambiar</span></div>
+      <div style="font-size:11px;color:var(--blue);margin-top:3px;cursor:pointer;" onclick="showSessionPicker()"><span id="ev-sess-active">—</span> <span style="color:var(--muted);font-size:10px;" data-i18n="change">cambiar</span></div>
     </div>
     <div class="staff-badge">
       <div class="staff-avatar" id="staff-av">?</div>
@@ -317,14 +335,14 @@
           <div class="scan-corner br"></div>
           <div class="scan-line"></div>
         </div>
-        <div class="camera-no-support hidden" id="camera-no-support">
+        <div class="camera-no-support hidden" id="camera-no-support" data-i18n-html="camNoSupport">
           Cámara no disponible<br>Usa la entrada manual
         </div>
       </div>
-      <div class="camera-hint">Apunta al código QR del asistente</div>
+      <div class="camera-hint" data-i18n="camHint">Apunta al código QR del asistente</div>
       <div class="manual-row">
         <input id="manual-inp" class="manual-input" type="text"
-               placeholder="Código QR manual (Enter)" autocomplete="off"
+               placeholder="Código QR manual (Enter)" data-i18n-ph="manualPh" autocomplete="off"
                autocorrect="off" spellcheck="false">
         <button class="manual-btn" onclick="submitManual()"><svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></button>
       </div>
@@ -332,24 +350,24 @@
 
     <!-- Stats + log -->
     <div class="stats-panel">
-      <div class="sp-title">Hoy</div>
+      <div class="sp-title" data-i18n="today">Hoy</div>
       <div class="sp-card green">
         <div class="sp-num" id="sp-today">—</div>
-        <div class="sp-lbl" id="sp-today-lbl">Check-ins hoy</div>
+        <div class="sp-lbl" id="sp-today-lbl" data-i18n="checkinsToday">Check-ins hoy</div>
       </div>
       <div class="sp-card blue">
         <div class="sp-num" id="sp-total">—</div>
-        <div class="sp-lbl">Inscritos</div>
+        <div class="sp-lbl" data-i18n="registered">Inscritos</div>
       </div>
       <div class="sp-card amber">
         <div class="sp-num" id="sp-pending">—</div>
-        <div class="sp-lbl">Pendientes</div>
+        <div class="sp-lbl" data-i18n="pending">Pendientes</div>
       </div>
 
-      <div class="log-title">Últimas entradas</div>
+      <div class="log-title" data-i18n="recent">Últimas entradas</div>
       <div class="log-scroll" id="log-list"></div>
 
-      <button class="logout-btn" onclick="location.reload()">Reiniciar</button>
+      <button class="logout-btn" data-i18n="restart" onclick="location.reload()">Reiniciar</button>
     </div>
 
   </div>
@@ -365,8 +383,8 @@
     <div class="result-status" id="r-status"></div>
     <div class="result-name" id="r-name"></div>
     <div class="result-msg" id="r-msg"></div>
-    <button id="r-print" class="result-continue" style="display:none;background:#fff;color:#000;margin-bottom:8px;" onclick="event.stopPropagation();printLastLabel();"><svg viewBox="0 0 256 256" width="16" height="16" fill="currentColor" style="vertical-align:middle"><path d="M214.86,100H200V32H56v68H41.14A17.16,17.16,0,0,0,24,117.14v68.72A17.16,17.16,0,0,0,41.14,203H56v29a8,8,0,0,0,8,8H192a8,8,0,0,0,8-8V203h14.86A17.16,17.16,0,0,0,232,185.86V117.14A17.16,17.16,0,0,0,214.86,100ZM72,48H184v52H72Zm112,176H72V168H184Zm32-38.14a1.17,1.17,0,0,1-.86,1.14H200V160a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8v27H41.14a1.17,1.17,0,0,1-1.14-1.14V117.14A1.17,1.17,0,0,1,41.14,116H214.86a1.17,1.17,0,0,1,1.14,1.14ZM188,132a12,12,0,1,1-12-12A12,12,0,0,1,188,132Z"/></svg> Imprimir etiqueta</button>
-    <button class="result-continue" onclick="backToScanner()">Siguiente <svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></button>
+    <button id="r-print" class="result-continue" style="display:none;background:#fff;color:#000;margin-bottom:8px;" onclick="event.stopPropagation();printLastLabel();"><svg viewBox="0 0 256 256" width="16" height="16" fill="currentColor" style="vertical-align:middle"><path d="M214.86,100H200V32H56v68H41.14A17.16,17.16,0,0,0,24,117.14v68.72A17.16,17.16,0,0,0,41.14,203H56v29a8,8,0,0,0,8,8H192a8,8,0,0,0,8-8V203h14.86A17.16,17.16,0,0,0,232,185.86V117.14A17.16,17.16,0,0,0,214.86,100ZM72,48H184v52H72Zm112,176H72V168H184Zm32-38.14a1.17,1.17,0,0,1-.86,1.14H200V160a8,8,0,0,0-8-8H64a8,8,0,0,0-8,8v27H41.14a1.17,1.17,0,0,1-1.14-1.14V117.14A1.17,1.17,0,0,1,41.14,116H214.86a1.17,1.17,0,0,1,1.14,1.14ZM188,132a12,12,0,1,1-12-12A12,12,0,0,1,188,132Z"/></svg> <span data-i18n="printLabel">Imprimir etiqueta</span></button>
+    <button class="result-continue" onclick="backToScanner()"><span data-i18n="next">Siguiente</span> <svg viewBox="0 0 256 256" width="14" height="14" fill="currentColor" style="vertical-align:middle"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg></button>
   </div>
 </div>
 
@@ -378,6 +396,210 @@
 'use strict';
 
 const API = window.location.origin;
+
+// ── i18n ──────────────────────────────────────────────────────
+const L = {
+  es: {
+    title: 'SONORO · Staff',
+    loading: 'Cargando evento…',
+    retry: 'Reintentar',
+    urlInvalid: 'URL inválida — abre este enlace desde el dashboard del evento',
+    noEvent: 'Evento no encontrado o no publicado',
+    noAccess: 'No se pudo obtener acceso al evento',
+    cantLoad: 'No se pudo cargar el evento',
+    pickSession: 'Selecciona tu punto de check-in',
+    change: 'cambiar',
+    camNoSupport: 'Cámara no disponible<br>Usa la entrada manual',
+    camHint: 'Apunta al código QR del asistente',
+    manualPh: 'Código QR manual (Enter)',
+    today: 'Hoy',
+    checkinsToday: 'Check-ins hoy',
+    registered: 'Inscritos',
+    pending: 'Pendientes',
+    recent: 'Últimas entradas',
+    restart: 'Reiniciar',
+    printLabel: 'Imprimir etiqueta',
+    next: 'Siguiente',
+    staff: 'Staff',
+    operations: 'Operaciones',
+    generalAccess: 'Acceso general',
+    generalEntry: 'Entrada general',
+    generalEntryDesc: 'Registro de llegada al evento',
+    sessions: 'Sesiones',
+    loadingSessions: 'Cargando sesiones…',
+    errorSessions: 'Error cargando sesiones',
+    welcome: 'Bienvenido',
+    alreadyIn: 'Ya registrado',
+    alreadyPrev: 'Entrada registrada anteriormente',
+    cancelledReg: 'Inscripción cancelada',
+    invalid: 'No válido',
+    unknownCode: 'Código no reconocido para este evento',
+    cancelled: 'Cancelado',
+    offline: 'Sin conexión',
+    netErr: 'Error de red',
+    netErrSub: 'Verifica la conexión e intenta de nuevo',
+    error: 'Error',
+    unknown: '?',
+    coordinator: 'Coordinador',
+    registration: 'Registro',
+    tech: 'Técnico',
+    host: 'Host',
+    security: 'Seguridad',
+    catering: 'Catering',
+    artistic: 'Arte / Entretenimiento',
+    other: 'Staff',
+    dateLoc: 'es-CO'
+  },
+  en: {
+    title: 'SONORO · Staff',
+    loading: 'Loading event…',
+    retry: 'Retry',
+    urlInvalid: 'Invalid URL — open this link from the event dashboard',
+    noEvent: 'Event not found or not published',
+    noAccess: 'Could not get access to the event',
+    cantLoad: 'Could not load the event',
+    pickSession: 'Pick your check-in point',
+    change: 'change',
+    camNoSupport: 'Camera unavailable<br>Use manual input',
+    camHint: 'Point at the attendee’s QR code',
+    manualPh: 'Manual QR code (Enter)',
+    today: 'Today',
+    checkinsToday: 'Check-ins today',
+    registered: 'Registered',
+    pending: 'Pending',
+    recent: 'Recent entries',
+    restart: 'Restart',
+    printLabel: 'Print label',
+    next: 'Next',
+    staff: 'Staff',
+    operations: 'Operations',
+    generalAccess: 'General access',
+    generalEntry: 'General entry',
+    generalEntryDesc: 'Arrival check-in for the event',
+    sessions: 'Sessions',
+    loadingSessions: 'Loading sessions…',
+    errorSessions: 'Error loading sessions',
+    welcome: 'Welcome',
+    alreadyIn: 'Already checked in',
+    alreadyPrev: 'Previously checked in',
+    cancelledReg: 'Registration cancelled',
+    invalid: 'Not valid',
+    unknownCode: 'Code not recognized for this event',
+    cancelled: 'Cancelled',
+    offline: 'Offline',
+    netErr: 'Network error',
+    netErrSub: 'Check your connection and try again',
+    error: 'Error',
+    unknown: '?',
+    coordinator: 'Coordinator',
+    registration: 'Registration',
+    tech: 'Tech',
+    host: 'Host',
+    security: 'Security',
+    catering: 'Catering',
+    artistic: 'Arts / Entertainment',
+    other: 'Staff',
+    dateLoc: 'en-US'
+  },
+  pt: {
+    title: 'SONORO · Staff',
+    loading: 'Carregando evento…',
+    retry: 'Tentar novamente',
+    urlInvalid: 'URL inválida — abra este link pelo painel do evento',
+    noEvent: 'Evento não encontrado ou não publicado',
+    noAccess: 'Não foi possível obter acesso ao evento',
+    cantLoad: 'Não foi possível carregar o evento',
+    pickSession: 'Escolha seu ponto de check-in',
+    change: 'alterar',
+    camNoSupport: 'Câmera indisponível<br>Use a entrada manual',
+    camHint: 'Aponte para o QR do participante',
+    manualPh: 'Código QR manual (Enter)',
+    today: 'Hoje',
+    checkinsToday: 'Check-ins hoje',
+    registered: 'Inscritos',
+    pending: 'Pendentes',
+    recent: 'Últimas entradas',
+    restart: 'Reiniciar',
+    printLabel: 'Imprimir etiqueta',
+    next: 'Próximo',
+    staff: 'Staff',
+    operations: 'Operações',
+    generalAccess: 'Acesso geral',
+    generalEntry: 'Entrada geral',
+    generalEntryDesc: 'Registro de chegada ao evento',
+    sessions: 'Sessões',
+    loadingSessions: 'Carregando sessões…',
+    errorSessions: 'Erro ao carregar sessões',
+    welcome: 'Bem-vindo',
+    alreadyIn: 'Já registrado',
+    alreadyPrev: 'Entrada registrada anteriormente',
+    cancelledReg: 'Inscrição cancelada',
+    invalid: 'Inválido',
+    unknownCode: 'Código não reconhecido para este evento',
+    cancelled: 'Cancelado',
+    offline: 'Sem conexão',
+    netErr: 'Erro de rede',
+    netErrSub: 'Verifique a conexão e tente novamente',
+    error: 'Erro',
+    unknown: '?',
+    coordinator: 'Coordenador',
+    registration: 'Registro',
+    tech: 'Técnico',
+    host: 'Host',
+    security: 'Segurança',
+    catering: 'Catering',
+    artistic: 'Arte / Entretenimento',
+    other: 'Staff',
+    dateLoc: 'pt-BR'
+  }
+};
+function _normalizeLocale(loc){ loc=String(loc||'').toLowerCase(); if(loc.startsWith('pt'))return'pt'; if(loc.startsWith('en'))return'en'; return 'es'; }
+function detectLang(){
+  const q = new URLSearchParams(location.search).get('lang');
+  const fromI18n = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : null;
+  const stored = (() => { try { return localStorage.getItem('sonoro_locale'); } catch(_){ return null; } })();
+  const nav = (navigator.language || 'es');
+  return _normalizeLocale(q || fromI18n || stored || nav);
+}
+let LANG = detectLang();
+function t(k){ return (L[LANG] && L[LANG][k]) || (L.es[k] || k); }
+function applyStatic(){
+  document.documentElement.lang = LANG;
+  document.title = t('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+}
+function syncLangPill(){
+  document.querySelectorAll('#langPill [data-lang]').forEach(b => {
+    b.classList.toggle('on', b.dataset.lang === LANG);
+  });
+}
+window.__sLang = function(lang, remote){
+  try { localStorage.setItem('sonoro_locale', remote); } catch(_){}
+  LANG = lang;
+  syncLangPill();
+  applyStatic();
+  try {
+    // Re-render dynamic bits dependent on language
+    try {
+      const staffNameLbl = document.getElementById('staff-name-lbl');
+      const staffRoleLbl = document.getElementById('staff-role-lbl');
+      if (staffNameLbl && (!staffData || !staffData.name)) staffNameLbl.textContent = t('staff');
+      if (staffRoleLbl) staffRoleLbl.textContent = staffData ? roleLabel(staffData.role) : t('operations');
+      const sessActive = document.getElementById('ev-sess-active');
+      if (sessActive) sessActive.textContent = currentSession ? currentSession.name : t('generalEntry');
+      const todayLbl = document.getElementById('sp-today-lbl');
+      if (todayLbl) todayLbl.textContent = currentSession ? currentSession.name : t('checkinsToday');
+      const sessStaffName = document.getElementById('sess-staff-name');
+      const sessStaffRole = document.getElementById('sess-staff-role');
+      if (sessStaffName && (!staffData || !staffData.name)) sessStaffName.textContent = t('staff');
+      if (sessStaffRole) sessStaffRole.textContent = staffData ? roleLabel(staffData.role) : t('operations');
+    } catch(_){}
+  } catch(_){}
+};
+syncLangPill();
+applyStatic();
 
 // Estado global
 let token     = null;
@@ -415,7 +637,7 @@ async function autoInit() {
   const parts = location.pathname.split('/').filter(Boolean);
   const slug  = parts[1]; // /evento/:slug/staff
 
-  if (!slug) { showInitError('URL inválida — abre este enlace desde el dashboard del evento'); return; }
+  if (!slug) { showInitError(t('urlInvalid')); return; }
 
   try {
     const [evRes, tkRes] = await Promise.all([
@@ -424,11 +646,11 @@ async function autoInit() {
     ]);
     if (!evRes.ok) {
       const d = await evRes.json().catch(() => ({}));
-      throw new Error(d.error || 'Evento no encontrado o no publicado');
+      throw new Error(d.error || t('noEvent'));
     }
     if (!tkRes.ok) {
       const d = await tkRes.json().catch(() => ({}));
-      throw new Error(d.error || 'No se pudo obtener acceso al evento');
+      throw new Error(d.error || t('noAccess'));
     }
     const ev   = await evRes.json();
     const tkData = await tkRes.json();
@@ -457,12 +679,12 @@ function startScanner() {
   if (currentSession === undefined) { showSessionPicker(); return; }
 
   document.getElementById('ev-name').textContent        = eventData.name || '—';
-  document.getElementById('staff-name-lbl').textContent = staffData?.name || 'Staff';
-  document.getElementById('staff-role-lbl').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
+  document.getElementById('staff-name-lbl').textContent = staffData?.name || t('staff');
+  document.getElementById('staff-role-lbl').textContent = staffData ? roleLabel(staffData.role) : t('operations');
   document.getElementById('staff-av').textContent =
     (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   document.getElementById('ev-sess-active').textContent =
-    currentSession ? currentSession.name : 'Entrada general';
+    currentSession ? currentSession.name : t('generalEntry');
 
   show('s-scanner');
   startCamera();
@@ -577,7 +799,7 @@ async function doCheckin(qrToken) {
     if (res.ok) {
       const dayLabel = currentSession ? currentSession.name : formatDay(data.event_day);
       lastCheckin = { qr_token: data.qr_token, name: data.name, custom_fields: data.custom_fields, registration_id: data.registration_id };
-      showResult('success', data.name, 'Bienvenido', dayLabel);
+      showResult('success', data.name, t('welcome'), dayLabel);
       addLog(data.name, 'g');
       bumpStat('sp-today');
     } else if (res.status === 401 || res.status === 403) {
@@ -590,31 +812,31 @@ async function doCheckin(qrToken) {
       processing = false;
       return;
     } else if (data.code === 'ALREADY_CHECKED_IN') {
-      showResult('already', data.attendee_name || '—', 'Ya registrado', data.error || 'Entrada registrada anteriormente');
+      showResult('already', data.attendee_name || '—', t('alreadyIn'), data.error || t('alreadyPrev'));
       addLog(data.attendee_name || '—', 'a');
     } else if (data.code === 'CANCELLED') {
-      showResult('error', 'Inscripción cancelada', 'No válido', data.error || '');
-      addLog('Cancelado', 'r');
+      showResult('error', t('cancelledReg'), t('invalid'), data.error || '');
+      addLog(t('cancelled'), 'r');
     } else {
-      showResult('error', data.error || 'Error', 'No válido', 'Código no reconocido para este evento');
-      addLog('?', 'r');
+      showResult('error', data.error || t('error'), t('invalid'), t('unknownCode'));
+      addLog(t('unknown'), 'r');
     }
   } catch(e) {
-    showResult('error', 'Sin conexión', 'Error de red', 'Verifica la conexión e intenta de nuevo');
+    showResult('error', t('offline'), t('netErr'), t('netErrSub'));
   }
 }
 
 // ── SESSION PICKER ────────────────────────────────────────────
 async function showSessionPicker() {
   document.getElementById('sess-ev-name').textContent    = eventData.name || '—';
-  document.getElementById('sess-staff-name').textContent = staffData?.name || 'Staff';
-  document.getElementById('sess-staff-role').textContent = staffData ? roleLabel(staffData.role) : 'Operaciones';
+  document.getElementById('sess-staff-name').textContent = staffData?.name || t('staff');
+  document.getElementById('sess-staff-role').textContent = staffData ? roleLabel(staffData.role) : t('operations');
   document.getElementById('sess-staff-av').textContent   =
     (staffData?.name || 'ST').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   show('s-session');
 
   const list = document.getElementById('sess-pick-list');
-  list.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:20px 0;">Cargando sesiones…</div>';
+  list.innerHTML = `<div style="color:var(--muted);font-size:12px;padding:20px 0;">${esc(t('loadingSessions'))}</div>`;
 
   try {
     const res = await fetch(`${API}/api/events/staff/${eventId}/sessions`, {
@@ -622,20 +844,22 @@ async function showSessionPicker() {
     });
     const sessions = res.ok ? await res.json() : [];
     const tz = eventData.timezone || 'America/Bogota';
+    const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
 
+    const generalEntry = t('generalEntry');
     const generalSection = [
-      '<div class="sess-group-lbl">Acceso general</div>',
-      `<button class="sess-pick-btn general" onclick="pickSession(null,'Entrada general',null)">
-        <div class="sess-pick-label">Entrada general</div>
-        <div class="sess-pick-meta">Registro de llegada al evento</div>
+      `<div class="sess-group-lbl">${esc(t('generalAccess'))}</div>`,
+      `<button class="sess-pick-btn general" onclick="pickSession(null, ${JSON.stringify(generalEntry)}, null)">
+        <div class="sess-pick-label">${esc(generalEntry)}</div>
+        <div class="sess-pick-meta">${esc(t('generalEntryDesc'))}</div>
        </button>`,
     ];
     const sessionSection = sessions.length ? [
-      '<div class="sess-group-lbl">Sesiones</div>',
+      `<div class="sess-group-lbl">${esc(t('sessions'))}</div>`,
       ...sessions.map(s => {
-        const t = new Date(s.starts_at).toLocaleTimeString('es-CO',
+        const tm = new Date(s.starts_at).toLocaleTimeString(locale,
           { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz });
-        const meta = [t, s.venue_zone].filter(Boolean).join(' · ');
+        const meta = [tm, s.venue_zone].filter(Boolean).join(' · ');
         const safeName = s.name.replace(/"/g, '&quot;');
         const safeMeta = meta.replace(/"/g, '&quot;');
         return `<button class="sess-pick-btn session"
@@ -648,7 +872,7 @@ async function showSessionPicker() {
     ] : [];
     list.innerHTML = [...generalSection, ...sessionSection].join('');
   } catch(e) {
-    list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:20px 0;">Error cargando sesiones</div>';
+    list.innerHTML = `<div style="color:var(--red);font-size:12px;padding:20px 0;">${esc(t('errorSessions'))}</div>`;
   }
 }
 
@@ -728,7 +952,7 @@ async function loadStats() {
     document.getElementById('sp-pending').textContent = d.pending ?? '—';
     // Label dinamico: nombre de sesion o 'Check-ins hoy'
     const lbl = document.getElementById('sp-today-lbl');
-    if (lbl) lbl.textContent = currentSession ? currentSession.name : 'Check-ins hoy';
+    if (lbl) lbl.textContent = currentSession ? currentSession.name : t('checkinsToday');
     // Actualizar label del día
     if (d.event_day) {
       const tz = eventData?.timezone || 'America/Bogota';
@@ -746,7 +970,8 @@ function bumpStat(id) {
 // ── LOG ───────────────────────────────────────────────────────
 function addLog(name, dotClass) {
   const list = document.getElementById('log-list');
-  const now  = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
+  const now  = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: true });
   const item = document.createElement('div');
   item.className = 'log-item';
   item.innerHTML = `<div class="log-dot ${dotClass}"></div><div class="log-name">${esc(name)}</div><div class="log-time">${now}</div>`;
@@ -759,7 +984,8 @@ function addLog(name, dotClass) {
 function startClock() {
   function tick() {
     const tz  = eventData?.timezone || 'America/Bogota';
-    const now = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
+    const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
+    const now = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });
     const el  = document.getElementById('clock');
     if (el) el.textContent = now;
   }
@@ -778,21 +1004,31 @@ function esc(s) {
 }
 
 function roleLabel(r) {
-  return { coordinator:'Coordinador', registration:'Registro', tech:'Técnico',
-           host:'Host', security:'Seguridad', catering:'Catering',
-           artistic_entertainment:'Arte / Entretenimiento', other:'Staff' }[r] || r || 'Staff';
+  const map = {
+    coordinator: t('coordinator'),
+    registration: t('registration'),
+    tech: t('tech'),
+    host: t('host'),
+    security: t('security'),
+    catering: t('catering'),
+    artistic_entertainment: t('artistic'),
+    other: t('other')
+  };
+  return map[r] || r || t('staff');
 }
 
 function formatDay(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+  const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
+  return d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function formatDayFull(dateStr, tz) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
+  const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
+  return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz });
 }
 </script>
 </body>

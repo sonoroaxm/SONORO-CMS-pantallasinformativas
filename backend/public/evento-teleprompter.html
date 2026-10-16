@@ -59,6 +59,12 @@ html,body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sys
 
 .tp-error { display:flex; align-items:center; justify-content:center; height:100vh; font-size:24px; color:var(--muted); padding:40px; text-align:center; }
 
+.lang-pill{position:fixed;top:10px;right:12px;z-index:50;display:inline-flex;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;opacity:.5;transition:opacity .2s}
+.lang-pill:hover{opacity:1}
+.lang-pill button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:22px;padding:0;border:0;background:transparent;border-radius:7px;cursor:pointer;color:var(--text-dim)}
+.lang-pill button.active{background:rgba(255,255,255,.14);color:#fff}
+.lang-pill svg{width:20px;height:14px;display:block}
+
 @media (max-width:1100px) {
   .tp { padding:32px; }
   .tp-session { font-size:38px; }
@@ -68,25 +74,89 @@ html,body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sys
 </head>
 <body>
 
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="sonoro-flag-es" viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect width="3" height="1" y=".5" fill="#f1bf00"/></symbol>
+  <symbol id="sonoro-flag-us" viewBox="0 0 7410 3900"><rect width="7410" height="3900" fill="#b22234"/><path d="M0,450H7410M0,1050H7410M0,1650H7410M0,2250H7410M0,2850H7410M0,3450H7410" stroke="#fff" stroke-width="300"/><rect width="2964" height="2100" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 720 504"><rect width="720" height="504" fill="#009c3b"/><path d="M360,48 672,252 360,456 48,252Z" fill="#ffdf00"/><circle cx="360" cy="252" r="90" fill="#002776"/></symbol>
+</svg>
+
+<div class="lang-pill" id="langPill" role="group" aria-label="Idioma">
+  <button type="button" data-lang="es" data-remote="es" class="active" aria-label="Español"><svg><use href="#sonoro-flag-es"/></svg></button>
+  <button type="button" data-lang="en" data-remote="en" aria-label="English"><svg><use href="#sonoro-flag-us"/></svg></button>
+  <button type="button" data-lang="pt" data-remote="pt-BR" aria-label="Português"><svg><use href="#sonoro-flag-br"/></svg></button>
+</div>
+
 <div id="tp-root">
-  <div class="tp-error">Cargando teleprompter...</div>
+  <div class="tp-error" id="tp-boot">Cargando teleprompter...</div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 'use strict';
 
+// ── I18N ──────────────────────────────────────────────────────────────────────
+const L = {
+  es: {
+    loading:'Cargando teleprompter...', url_invalid:'URL inválida', token_required:'Token requerido en la URL (?t=...)',
+    token_invalid:'Token inválido o revocado.<br>Reintentando en 30 s...', conn_error:'Error de conexión. Reintentando...',
+    speaker:'Orador', room:'Sala', next_up:'A continuación', starts_at:'Empieza a las', end_of_program:'Fin del programa',
+    now_clock:'Hora actual', progress:(e,t)=>`Va <strong id="tp-elapsed">${e}</strong> de <strong id="tp-total">${t}</strong>`,
+    starts_in:'EMPIEZA EN', next:'PRÓXIMA', overtime:'TIEMPO EXTRA', close_now:'CIERRA YA',
+    closing:'CIERRE', preparing_close:'PREPARANDO CIERRE', remaining:'Restan', live:'EN VIVO'
+  },
+  en: {
+    loading:'Loading teleprompter...', url_invalid:'Invalid URL', token_required:'Token required in URL (?t=...)',
+    token_invalid:'Invalid or revoked token.<br>Retrying in 30 s...', conn_error:'Connection error. Retrying...',
+    speaker:'Speaker', room:'Room', next_up:'Up next', starts_at:'Starts at', end_of_program:'End of program',
+    now_clock:'Current time', progress:(e,t)=>`<strong id="tp-elapsed">${e}</strong> of <strong id="tp-total">${t}</strong>`,
+    starts_in:'STARTS IN', next:'UP NEXT', overtime:'OVERTIME', close_now:'WRAP NOW',
+    closing:'CLOSING', preparing_close:'PREPARING TO CLOSE', remaining:'Left', live:'LIVE'
+  },
+  pt: {
+    loading:'Carregando teleprompter...', url_invalid:'URL inválida', token_required:'Token obrigatório na URL (?t=...)',
+    token_invalid:'Token inválido ou revogado.<br>Tentando novamente em 30 s...', conn_error:'Erro de conexão. Tentando novamente...',
+    speaker:'Palestrante', room:'Sala', next_up:'A seguir', starts_at:'Começa às', end_of_program:'Fim do programa',
+    now_clock:'Hora atual', progress:(e,t)=>`<strong id="tp-elapsed">${e}</strong> de <strong id="tp-total">${t}</strong>`,
+    starts_in:'COMEÇA EM', next:'PRÓXIMA', overtime:'TEMPO EXTRA', close_now:'ENCERRE JÁ',
+    closing:'ENCERRAMENTO', preparing_close:'PREPARANDO ENCERRAMENTO', remaining:'Restam', live:'AO VIVO'
+  }
+};
+function _norm(loc){ if(!loc) return 'es'; const s=String(loc).toLowerCase(); if(s.startsWith('pt')) return 'pt'; if(s.startsWith('en')) return 'en'; return 'es'; }
+function detectLang(){
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q) return _norm(q);
+  try { if (window.SonoroI18n?.getLocale) return _norm(window.SonoroI18n.getLocale()); } catch(_){}
+  try { const s = localStorage.getItem('sonoro_locale'); if (s) return _norm(s); } catch(_){}
+  return _norm(navigator.language);
+}
+let LANG = detectLang();
+function t(k, ...args){ const v = L[LANG]?.[k] ?? L.es[k] ?? k; return typeof v === 'function' ? v(...args) : v; }
+function syncPill(){ document.querySelectorAll('#langPill button').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG)); }
+document.querySelectorAll('#langPill button').forEach(b => {
+  b.addEventListener('click', () => {
+    const remote = b.dataset.remote;
+    try { localStorage.setItem('sonoro_locale', remote); } catch(_){}
+    if (window.SonoroI18n?.setLocale) { try { window.SonoroI18n.setLocale(remote); } catch(_){} }
+    LANG = b.dataset.lang;
+    syncPill();
+    const boot = document.getElementById('tp-boot'); if (boot) boot.textContent = t('loading');
+    if (data) { renderShell(); tick(); } else { load(); }
+  });
+});
+syncPill();
+const bootEl = document.getElementById('tp-boot'); if (bootEl) bootEl.textContent = t('loading');
+
 // ── PARSE URL ─────────────────────────────────────────────────────────────────
 const m = window.location.pathname.match(/\/evento\/([^\/]+)\/orador\/([^\/]+)/);
 if (!m) {
-  document.getElementById('tp-root').innerHTML = '<div class="tp-error">URL invalida</div>';
+  document.getElementById('tp-root').innerHTML = `<div class="tp-error">${t('url_invalid')}</div>`;
 }
 const SLUG       = m ? m[1] : null;
 const SESSION_ID = m ? m[2] : null;
 const TOKEN      = new URLSearchParams(window.location.search).get('t');
 
 if (!TOKEN) {
-  document.getElementById('tp-root').innerHTML = '<div class="tp-error">Token requerido en la URL (?t=...)</div>';
+  document.getElementById('tp-root').innerHTML = `<div class="tp-error">${t('token_required')}</div>`;
 }
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
@@ -103,7 +173,8 @@ function fmt(sec) {
 }
 function tz() { return data?.event?.timezone || 'America/Bogota'; }
 function fmtClock(d) {
-  return d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz() });
+  const loc = LANG === 'en' ? 'en-US' : (LANG === 'pt' ? 'pt-BR' : 'es-CO');
+  return d.toLocaleTimeString(loc, { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:tz() });
 }
 function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -114,7 +185,7 @@ async function load() {
     const res = await fetch(`/api/events/public/${encodeURIComponent(SLUG)}/orador/${encodeURIComponent(SESSION_ID)}?t=${encodeURIComponent(TOKEN)}`);
     if (!res.ok) {
       if (res.status === 403 || res.status === 401) {
-        document.getElementById('tp-root').innerHTML = '<div class="tp-error">Token invalido o revocado.<br>Reintentando en 30 s...</div>';
+        document.getElementById('tp-root').innerHTML = `<div class="tp-error">${t('token_invalid')}</div>`;
         setTimeout(load, 30000);
         return;
       }
@@ -127,7 +198,7 @@ async function load() {
     tick();
   } catch (e) {
     console.error('load:', e);
-    document.getElementById('tp-root').innerHTML = '<div class="tp-error">Error de conexion. Reintentando...</div>';
+    document.getElementById('tp-root').innerHTML = `<div class="tp-error">${t('conn_error')}</div>`;
     setTimeout(load, 15000);
   }
 }
@@ -156,16 +227,16 @@ function connectSocket() {
 function renderShell() {
   const room = data.session.room ? ` &middot; ${esc(data.session.room)}` : '';
   const speaker = data.session.speaker_name
-    ? `Orador: <strong>${esc(data.session.speaker_name)}</strong>${room}`
-    : (data.session.room ? `Sala: <strong>${esc(data.session.room)}</strong>` : '');
+    ? `${t('speaker')}: <strong>${esc(data.session.speaker_name)}</strong>${room}`
+    : (data.session.room ? `${t('room')}: <strong>${esc(data.session.room)}</strong>` : '');
   const next = data.next_session;
   const nextHtml = next
-    ? `<div class="tp-next-lbl">A continuacion</div>
+    ? `<div class="tp-next-lbl">${t('next_up')}</div>
        <div>
          <div class="tp-next-name">${esc(next.title)}</div>
-         <div class="tp-next-when">Empieza a las <strong id="tp-next-when">--</strong>${next.room ? ' &middot; ' + esc(next.room) : ''}</div>
+         <div class="tp-next-when">${t('starts_at')} <strong id="tp-next-when">--</strong>${next.room ? ' &middot; ' + esc(next.room) : ''}</div>
        </div>`
-    : `<div class="tp-next-lbl">A continuacion</div><div class="tp-next-name">Fin del programa</div>`;
+    : `<div class="tp-next-lbl">${t('next_up')}</div><div class="tp-next-name">${t('end_of_program')}</div>`;
 
   document.getElementById('tp-root').innerHTML = `
     <div class="tp" id="tp">
@@ -177,7 +248,7 @@ function renderShell() {
         </div>
         <div class="tp-meta">
           <div class="tp-clock" id="tp-now-clock">--</div>
-          <div class="tp-clock-lbl">Hora actual</div>
+          <div class="tp-clock-lbl">${t('now_clock')}</div>
         </div>
       </div>
       <div class="tp-center">
@@ -185,7 +256,7 @@ function renderShell() {
         <div class="tp-timer-lbl" id="tp-timer-lbl">--</div>
         <div class="tp-progress"><div class="tp-progress-fill" id="tp-progress-fill" style="width:0%"></div></div>
         <div class="tp-progress-meta">
-          <span>Va <strong id="tp-elapsed">--:--</strong> de <strong id="tp-total">--:--</strong></span>
+          <span>${t('progress','--:--','--:--')}</span>
           <span id="tp-pct">0%</span>
         </div>
       </div>
@@ -223,9 +294,9 @@ function tick() {
     const remaining = Math.floor((startMs - now) / 1000);
     timer.className = 'tp-timer';
     timer.textContent = fmt(remaining);
-    lbl.textContent = 'EMPIEZA EN';
+    lbl.textContent = t('starts_in');
     status.className = 'tp-status muted';
-    status.textContent = 'PROXIMA';
+    status.textContent = t('next');
     fill.style.width = '0%';
     elapsedEl.textContent = fmt(0);
     pctEl.textContent = '0%';
@@ -240,9 +311,9 @@ function tick() {
     const over = Math.floor((now - endMs) / 1000);
     timer.className = 'tp-timer red';
     timer.textContent = '+' + fmt(over);
-    lbl.textContent = 'TIEMPO EXTRA';
+    lbl.textContent = t('overtime');
     status.className = 'tp-status amber';
-    status.textContent = 'CIERRA YA';
+    status.textContent = t('close_now');
     fill.style.width = '100%';
     elapsedEl.textContent = fmt(elapsedSec);
     pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';
@@ -250,9 +321,9 @@ function tick() {
   } else if (remainingSec < 300) {
     timer.className = 'tp-timer amber';
     timer.textContent = fmt(remainingSec);
-    lbl.textContent = 'CIERRE';
+    lbl.textContent = t('closing');
     status.className = 'tp-status amber';
-    status.textContent = 'PREPARANDO CIERRE';
+    status.textContent = t('preparing_close');
     fill.style.width = ((elapsedSec / totalSec) * 100) + '%';
     elapsedEl.textContent = fmt(elapsedSec);
     pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';
@@ -260,9 +331,9 @@ function tick() {
   } else {
     timer.className = 'tp-timer';
     timer.textContent = fmt(remainingSec);
-    lbl.textContent = 'Restan';
+    lbl.textContent = t('remaining');
     status.className = 'tp-status';
-    status.textContent = 'EN VIVO';
+    status.textContent = t('live');
     fill.style.width = ((elapsedSec / totalSec) * 100) + '%';
     elapsedEl.textContent = fmt(elapsedSec);
     pctEl.textContent = Math.round((elapsedSec / totalSec) * 100) + '%';

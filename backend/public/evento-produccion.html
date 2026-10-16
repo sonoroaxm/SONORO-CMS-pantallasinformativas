@@ -220,7 +220,18 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
   .rundown-header { padding:10px 14px 8px; }
   .screen-bar { padding:6px 12px; }
 }
+
+/* ── LANG PILL ─────────────────────────────── */
+.lang-pill{display:inline-flex;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;flex-shrink:0}
+.lang-pill button{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:7px;cursor:pointer;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.6px;border:none;background:transparent;font-family:inherit}
+.lang-pill button.on{background:var(--border);color:var(--text)}
+.lang-pill svg{width:16px;height:11px;display:block;border-radius:2px}
 </style>
+<script src="/js/i18n.js"></script>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+</defs></svg>
 </head>
 <body>
 
@@ -232,14 +243,19 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
       <div class="hdr-logo">SONORO.</div>
       <div class="hdr-sep"></div>
       <div>
-        <div class="hdr-event" id="hdr-event">Cargando...</div>
+        <div class="hdr-event" id="hdr-event" data-i18n="loading">Cargando...</div>
         <div class="hdr-date"  id="hdr-date"></div>
       </div>
     </div>
     <div class="hdr-right">
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">Claro</button>
+      <div id="langPill" class="lang-pill" aria-label="Idioma / Language">
+        <button type="button" data-lang="es" data-remote="es">ES</button>
+        <button type="button" data-lang="en" data-remote="en"><svg><use href="#sonoro-flag-us"/></svg>EN</button>
+        <button type="button" data-lang="pt" data-remote="pt-BR"><svg><use href="#sonoro-flag-br"/></svg>PT</button>
+      </div>
+      <button class="theme-btn" id="theme-btn" data-i18n="themeLight" onclick="toggleTheme()" title="Cambiar tema">Claro</button>
       <div class="live-pill" id="live-pill" style="display:none">
-        <div class="live-dot"></div>EN VIVO
+        <div class="live-dot"></div><span data-i18n="live">EN VIVO</span>
       </div>
       <div class="hdr-clock-wrap">
         <div class="hdr-clock" id="clock">—</div>
@@ -251,15 +267,15 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
   <!-- HEADER COUNTDOWN -->
   <div class="header-countdown">
     <div class="cd-cell">
-      <div class="cd-label" id="cd-left-lbl">Próxima sesión</div>
+      <div class="cd-label" id="cd-left-lbl" data-i18n="cdNext">Próxima sesión</div>
       <div class="cd-next" id="cd-next">—</div>
     </div>
     <div class="cd-center">
-      <div class="cd-label" id="cd-center-lbl">Empieza en</div>
+      <div class="cd-label" id="cd-center-lbl" data-i18n="cdStartsIn">Empieza en</div>
       <div class="cd-timer" id="cd-timer">—</div>
     </div>
     <div class="cd-right">
-      <div class="cd-label" id="cd-right-lbl">Hora de inicio</div>
+      <div class="cd-label" id="cd-right-lbl" data-i18n="cdStartTime">Hora de inicio</div>
       <div class="cd-next" id="cd-starts">—</div>
       <div class="cd-sub" id="cd-starts-sub" style="display:none">—</div>
     </div>
@@ -267,30 +283,30 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 
   <!-- MOBILE STATS BAR -->
   <div class="mobile-stats-bar">
-    <div class="msb-item"><div class="msb-num green" id="msb-today">—</div><div class="msb-lbl">Check-ins</div></div>
+    <div class="msb-item"><div class="msb-num green" id="msb-today">—</div><div class="msb-lbl" data-i18n="statCheckins">Check-ins</div></div>
     <div class="msb-sep"></div>
-    <div class="msb-item"><div class="msb-num blue"  id="msb-total">—</div><div class="msb-lbl">Inscritos</div></div>
+    <div class="msb-item"><div class="msb-num blue"  id="msb-total">—</div><div class="msb-lbl" data-i18n="statRegistered">Inscritos</div></div>
     <div class="msb-sep"></div>
-    <div class="msb-item"><div class="msb-num amber" id="msb-pend">—</div><div class="msb-lbl">Pendientes</div></div>
+    <div class="msb-item"><div class="msb-num amber" id="msb-pend">—</div><div class="msb-lbl" data-i18n="statPending">Pendientes</div></div>
   </div>
 
   <!-- LEFT PANEL -->
   <aside class="left-panel">
     <div class="stats-grid">
-      <div class="stat-cell"><div class="stat-num green"  id="st-today">—</div><div class="stat-lbl">Hoy</div></div>
-      <div class="stat-cell"><div class="stat-num blue"   id="st-total">—</div><div class="stat-lbl">Inscritos</div></div>
-      <div class="stat-cell"><div class="stat-num amber"  id="st-pend">—</div><div class="stat-lbl">Pendientes</div></div>
-      <div class="stat-cell"><div class="stat-num purple" id="st-hist">—</div><div class="stat-lbl">Histórico</div></div>
+      <div class="stat-cell"><div class="stat-num green"  id="st-today">—</div><div class="stat-lbl" data-i18n="statToday">Hoy</div></div>
+      <div class="stat-cell"><div class="stat-num blue"   id="st-total">—</div><div class="stat-lbl" data-i18n="statRegistered">Inscritos</div></div>
+      <div class="stat-cell"><div class="stat-num amber"  id="st-pend">—</div><div class="stat-lbl" data-i18n="statPending">Pendientes</div></div>
+      <div class="stat-cell"><div class="stat-num purple" id="st-hist">—</div><div class="stat-lbl" data-i18n="statHistoric">Histórico</div></div>
     </div>
     <div class="cap-wrap">
       <div class="cap-row">
-        <div class="cap-lbl">Aforo</div>
+        <div class="cap-lbl" data-i18n="capacity">Aforo</div>
         <div class="cap-pct" id="cap-pct">—</div>
       </div>
       <div class="cap-bar"><div class="cap-fill" id="cap-fill" style="width:0%"></div></div>
     </div>
     <div class="mini-feed-header">
-      <div class="mini-feed-title">Entradas recientes</div>
+      <div class="mini-feed-title" data-i18n="recentEntries">Entradas recientes</div>
       <div class="mini-feed-count" id="feed-count">0</div>
     </div>
     <div class="mini-feed" id="mini-feed"></div>
@@ -300,26 +316,27 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
   <main class="right-panel">
     <div class="rundown-header">
       <div style="display:flex;gap:0;background:var(--bg);border-radius:8px;padding:2px;flex-shrink:0;">
-        <button id="toggle-sessions" onclick="switchRundownView('sessions')"
+        <button id="toggle-sessions" data-i18n="tabSessions" onclick="switchRundownView('sessions')"
           style="padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:var(--amber);color:#000;transition:.15s;">Sesiones</button>
-        <button id="toggle-libreto" onclick="switchRundownView('libreto')"
+        <button id="toggle-libreto" data-i18n="tabLibreto" onclick="switchRundownView('libreto')"
           style="padding:4px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);transition:.15s;">Libreto</button>
       </div>
       <div class="day-selector" id="day-selector"></div>
     </div>
     <div class="rundown-list" id="rundown-list">
-      <div class="loading">Conectando...</div>
+      <div class="loading" data-i18n="connecting">Conectando...</div>
     </div>
     <div class="rundown-list" id="cue-list" style="display:none;">
-      <div class="loading">Cargando libreto...</div>
+      <div class="loading" data-i18n="loadingLibreto">Cargando libreto...</div>
     </div>
     <div class="screen-bar">
-      <span class="screen-bar-label">Pantallas</span>
+      <span class="screen-bar-label" data-i18n="screens">Pantallas</span>
       <input type="text" id="screen-input" class="screen-input"
              placeholder="Mensaje a pantallas informativas del evento..."
+             data-i18n-ph="screensPh"
              maxlength="120"
              onkeydown="if(event.key==='Enter')sendBroadcast()">
-      <button class="screen-send" onclick="sendBroadcast()">Enviar</button>
+      <button class="screen-send" data-i18n="send" onclick="sendBroadcast()">Enviar</button>
       <span class="screen-feedback" id="screen-feedback"></span>
     </div>
   </main>
@@ -329,6 +346,171 @@ html, body { width:100%; height:100%; overflow:hidden; font-family:'Segoe UI',sy
 <script src="/socket.io/socket.io.js"></script>
 <script>
 'use strict';
+
+// ── i18n ───────────────────────────────────────────────────────────────────
+const L = {
+  es: {
+    title: 'Producción — SONORO CMS',
+    loading: 'Cargando...',
+    themeLight: 'Claro', themeDark: 'Oscuro',
+    live: 'EN VIVO',
+    cdNext: 'Próxima sesión', cdStartsIn: 'Empieza en', cdStartTime: 'Hora de inicio',
+    cdInProgress: 'En curso', cdTimeRemaining: 'Tiempo restante', cdStartedAt: 'Empezó a las',
+    cdStartDelay: 'Atraso de inicio', cdNotStartedFor: 'Sin iniciar hace', cdShouldStartAt: 'Debió empezar a las',
+    cdOverrun: 'Atraso', cdInExcess: 'En exceso', cdShouldEndAt: 'Debió terminar a las',
+    cdEndOfProgram: 'Fin del programa',
+    cdWent: 'va',
+    statCheckins: 'Check-ins', statRegistered: 'Inscritos', statPending: 'Pendientes',
+    statToday: 'Hoy', statHistoric: 'Histórico',
+    capacity: 'Aforo',
+    recentEntries: 'Entradas recientes',
+    tabSessions: 'Sesiones', tabLibreto: 'Libreto',
+    connecting: 'Conectando...',
+    loadingLibreto: 'Cargando libreto...',
+    screens: 'Pantallas',
+    screensPh: 'Mensaje a pantallas informativas del evento...',
+    send: 'Enviar',
+    sent: 'Enviado', sentScreens: 'Enviado a pantallas',
+    noSessions: 'Sin sesiones para este día',
+    noCues: 'Sin cues para este día',
+    error: 'Error', errorConn: 'Error de conexión',
+    errorLoadingDash: 'Error cargando dashboard',
+    eventNotFound: 'Evento no encontrado o sin acceso',
+    errorLoadingData: 'Error cargando datos',
+    invalidToken: 'Token inválido o revocado',
+    dayN: (n) => `Día ${n}`,
+    daysOf: (i, n) => `Día ${i} de ${n}`,
+    nDays: (n) => `${n} día${n > 1 ? 's' : ''}`,
+    badgeInProgress: 'En curso', badgeDone: 'Finalizado',
+    delayPrefix: 'ATRASO',
+    full: 'LLENO', almostFull: 'Casi lleno',
+    zone: null,
+    speaker: 'Orador', responsible: 'Responsable', registeredLbl: 'Registrados',
+    ofN: (a, b) => `${a} de ${b}`,
+    markStart: 'Marcar inicio', closeSession: 'Cerrar sesión', reopen: 'Reabrir',
+    delaySuffix: (m) => `atraso +${m}m`,
+    cueStart: 'Iniciar', cueClose: 'Cerrar', cueSkip: 'Omitir', cueReopen: 'Reabrir',
+    onTime: 'A tiempo', minSuffix: 'min',
+    cueStatus: { pending: 'Pendiente', in_progress: 'En curso', done: 'Finalizado', skipped: 'Omitido', delayed: 'Con retraso' },
+    dateLoc: 'es-CO'
+  },
+  en: {
+    title: 'Production — SONORO CMS',
+    loading: 'Loading...',
+    themeLight: 'Light', themeDark: 'Dark',
+    live: 'LIVE',
+    cdNext: 'Next session', cdStartsIn: 'Starts in', cdStartTime: 'Start time',
+    cdInProgress: 'In progress', cdTimeRemaining: 'Time remaining', cdStartedAt: 'Started at',
+    cdStartDelay: 'Start delay', cdNotStartedFor: 'Not started for', cdShouldStartAt: 'Should have started at',
+    cdOverrun: 'Overrun', cdInExcess: 'Overtime', cdShouldEndAt: 'Should have ended at',
+    cdEndOfProgram: 'End of program',
+    cdWent: 'elapsed',
+    statCheckins: 'Check-ins', statRegistered: 'Registered', statPending: 'Pending',
+    statToday: 'Today', statHistoric: 'Historic',
+    capacity: 'Capacity',
+    recentEntries: 'Recent entries',
+    tabSessions: 'Sessions', tabLibreto: 'Rundown',
+    connecting: 'Connecting...',
+    loadingLibreto: 'Loading rundown...',
+    screens: 'Screens',
+    screensPh: 'Message for event info screens...',
+    send: 'Send',
+    sent: 'Sent', sentScreens: 'Sent to screens',
+    noSessions: 'No sessions for this day',
+    noCues: 'No cues for this day',
+    error: 'Error', errorConn: 'Connection error',
+    errorLoadingDash: 'Error loading dashboard',
+    eventNotFound: 'Event not found or no access',
+    errorLoadingData: 'Error loading data',
+    invalidToken: 'Invalid or revoked token',
+    dayN: (n) => `Day ${n}`,
+    daysOf: (i, n) => `Day ${i} of ${n}`,
+    nDays: (n) => `${n} day${n > 1 ? 's' : ''}`,
+    badgeInProgress: 'In progress', badgeDone: 'Done',
+    delayPrefix: 'DELAY',
+    full: 'FULL', almostFull: 'Almost full',
+    speaker: 'Speaker', responsible: 'Lead', registeredLbl: 'Registered',
+    ofN: (a, b) => `${a} of ${b}`,
+    markStart: 'Mark start', closeSession: 'Close session', reopen: 'Reopen',
+    delaySuffix: (m) => `delay +${m}m`,
+    cueStart: 'Start', cueClose: 'Close', cueSkip: 'Skip', cueReopen: 'Reopen',
+    onTime: 'On time', minSuffix: 'min',
+    cueStatus: { pending: 'Pending', in_progress: 'In progress', done: 'Done', skipped: 'Skipped', delayed: 'Delayed' },
+    dateLoc: 'en-US'
+  },
+  pt: {
+    title: 'Produção — SONORO CMS',
+    loading: 'Carregando...',
+    themeLight: 'Claro', themeDark: 'Escuro',
+    live: 'AO VIVO',
+    cdNext: 'Próxima sessão', cdStartsIn: 'Começa em', cdStartTime: 'Hora de início',
+    cdInProgress: 'Em andamento', cdTimeRemaining: 'Tempo restante', cdStartedAt: 'Começou às',
+    cdStartDelay: 'Atraso de início', cdNotStartedFor: 'Sem iniciar há', cdShouldStartAt: 'Deveria começar às',
+    cdOverrun: 'Atraso', cdInExcess: 'Em excesso', cdShouldEndAt: 'Deveria terminar às',
+    cdEndOfProgram: 'Fim do programa',
+    cdWent: 'decorrido',
+    statCheckins: 'Check-ins', statRegistered: 'Inscritos', statPending: 'Pendentes',
+    statToday: 'Hoje', statHistoric: 'Histórico',
+    capacity: 'Capacidade',
+    recentEntries: 'Entradas recentes',
+    tabSessions: 'Sessões', tabLibreto: 'Roteiro',
+    connecting: 'Conectando...',
+    loadingLibreto: 'Carregando roteiro...',
+    screens: 'Telas',
+    screensPh: 'Mensagem para as telas informativas do evento...',
+    send: 'Enviar',
+    sent: 'Enviado', sentScreens: 'Enviado às telas',
+    noSessions: 'Sem sessões para este dia',
+    noCues: 'Sem cues para este dia',
+    error: 'Erro', errorConn: 'Erro de conexão',
+    errorLoadingDash: 'Erro ao carregar painel',
+    eventNotFound: 'Evento não encontrado ou sem acesso',
+    errorLoadingData: 'Erro ao carregar dados',
+    invalidToken: 'Token inválido ou revogado',
+    dayN: (n) => `Dia ${n}`,
+    daysOf: (i, n) => `Dia ${i} de ${n}`,
+    nDays: (n) => `${n} dia${n > 1 ? 's' : ''}`,
+    badgeInProgress: 'Em andamento', badgeDone: 'Finalizado',
+    delayPrefix: 'ATRASO',
+    full: 'LOTADO', almostFull: 'Quase lotado',
+    speaker: 'Palestrante', responsible: 'Responsável', registeredLbl: 'Inscritos',
+    ofN: (a, b) => `${a} de ${b}`,
+    markStart: 'Marcar início', closeSession: 'Encerrar sessão', reopen: 'Reabrir',
+    delaySuffix: (m) => `atraso +${m}m`,
+    cueStart: 'Iniciar', cueClose: 'Encerrar', cueSkip: 'Pular', cueReopen: 'Reabrir',
+    onTime: 'No horário', minSuffix: 'min',
+    cueStatus: { pending: 'Pendente', in_progress: 'Em andamento', done: 'Finalizado', skipped: 'Pulado', delayed: 'Atrasado' },
+    dateLoc: 'pt-BR'
+  }
+};
+function _normalizeLocale(loc){ loc=String(loc||'').toLowerCase(); if(loc.startsWith('pt'))return'pt'; if(loc.startsWith('en'))return'en'; return 'es'; }
+function detectLang(){
+  const q = new URLSearchParams(location.search).get('lang');
+  const fromI18n = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : null;
+  const stored = (() => { try { return localStorage.getItem('sonoro_locale'); } catch(_){ return null; } })();
+  const nav = (navigator.language || 'es');
+  return _normalizeLocale(q || fromI18n || stored || nav);
+}
+let LANG = detectLang();
+function tx(k, ...args){
+  const v = (L[LANG] && L[LANG][k] !== undefined) ? L[LANG][k] : (L.es[k] !== undefined ? L.es[k] : k);
+  return typeof v === 'function' ? v(...args) : v;
+}
+function dateLocale(){ return (L[LANG] && L[LANG].dateLoc) || 'es-CO'; }
+function applyStatic(){
+  document.documentElement.lang = LANG;
+  document.title = tx('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tx(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.setAttribute('placeholder', tx(el.getAttribute('data-i18n-ph'))); });
+  // Theme btn depends on current theme
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = document.documentElement.dataset.theme === 'light' ? tx('themeDark') : tx('themeLight');
+}
+function syncLangPill(){
+  document.querySelectorAll('#langPill [data-lang]').forEach(b => {
+    b.classList.toggle('on', b.dataset.lang === LANG);
+  });
+}
 
 // ── AUTH (modo token público o JWT) ────────────────────────────────────────
 const PUBLIC_TOKEN = new URLSearchParams(window.location.search).get('t');
@@ -358,12 +540,12 @@ let socket       = null;
 function tz() { return eventInfo?.timezone || 'America/Bogota'; }
 
 function fmtTime(iso) {
-  return new Date(iso).toLocaleTimeString('es-CO', {
+  return new Date(iso).toLocaleTimeString(dateLocale(), {
     hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz()
   });
 }
 function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString('es-CO', {
+  return new Date(iso).toLocaleDateString(dateLocale(), {
     weekday: 'short', day: 'numeric', month: 'short', timeZone: tz()
   });
 }
@@ -379,7 +561,7 @@ function esc(s) {
 async function apiFetch(url, opts) {
   const res = await fetch(url, { headers: H, ...opts });
   if (res.status === 401 || res.status === 403) {
-    if (IS_PUBLIC) { showError('Token invalido o revocado'); return null; }
+    if (IS_PUBLIC) { showError(tx('invalidToken')); return null; }
     window.location.href = '/dashboard.html';
     return null;
   }
@@ -393,7 +575,7 @@ async function init() {
     if (IS_PUBLIC) {
       // Modo token público: un solo endpoint trae event + sessions agregadas
       const res = await fetch(`/api/events/public/${encodeURIComponent(SLUG)}/produccion?t=${encodeURIComponent(PUBLIC_TOKEN)}`);
-      if (!res.ok) { showError(res.status === 403 ? 'Token invalido o revocado' : 'Error cargando datos'); return; }
+      if (!res.ok) { showError(res.status === 403 ? tx('invalidToken') : tx('errorLoadingData')); return; }
       const payload = await res.json();
       eventInfo = payload.event;
       eventId   = eventInfo.id;
@@ -404,13 +586,13 @@ async function init() {
       // 1. Resolver slug → evento (autenticado, todos los estados)
       const evRes = await apiFetch(`/api/events/by-slug/${SLUG}`);
       if (!evRes) return;
-      if (!evRes.ok) { showError('Evento no encontrado o sin acceso'); return; }
+      if (!evRes.ok) { showError(tx('eventNotFound')); return; }
       eventInfo = await evRes.json();
       eventId   = eventInfo.id;
 
       // 2. Dashboard snapshot
       const dashRes = await apiFetch(`/api/events/${eventId}/dashboard`);
-      if (!dashRes || !dashRes.ok) { showError('Error cargando dashboard'); return; }
+      if (!dashRes || !dashRes.ok) { showError(tx('errorLoadingDash')); return; }
       const dash = await dashRes.json();
       sessions  = dash.sessions || [];
       statsNow  = dash.stats    || {};
@@ -440,7 +622,7 @@ async function init() {
 
   } catch (err) {
     console.error('init error:', err);
-    showError('Error de conexión');
+    showError(tx('errorConn'));
   }
 }
 
@@ -483,7 +665,7 @@ function connectSocket() {
   socket.on('screen.broadcast', (data) => {
     if (data.event_id !== eventId) return;
     const fb = document.getElementById('screen-feedback');
-    if (fb) { fb.innerHTML = '<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Enviado'; setTimeout(() => { fb.innerHTML = ''; }, 3000); }
+    if (fb) { fb.innerHTML = `<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('sent'))}`; setTimeout(() => { fb.innerHTML = ''; }, 3000); }
   });
 
   socket.on('disconnect', () => console.log('socket desconectado'));
@@ -504,10 +686,10 @@ function renderHeader() {
   if (dayIdx >= 0) {
     const dateLbl = fmtDate(today + 'T12:00:00');
     document.getElementById('hdr-date').textContent =
-      `${dateLbl} · Día ${dayIdx + 1} de ${days.length}`;
+      `${dateLbl} · ${tx('daysOf', dayIdx + 1, days.length)}`;
   } else if (days.length) {
     document.getElementById('hdr-date').textContent =
-      `${fmtDate(days[0] + 'T12:00:00')} · ${days.length} día${days.length > 1 ? 's' : ''}`;
+      `${fmtDate(days[0] + 'T12:00:00')} · ${tx('nDays', days.length)}`;
   }
 }
 
@@ -515,7 +697,7 @@ function renderHeader() {
 function startClock() {
   function tick() {
     document.getElementById('clock').textContent =
-      new Date().toLocaleTimeString('es-CO', {
+      new Date().toLocaleTimeString(dateLocale(), {
         hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz()
       });
   }
@@ -564,36 +746,36 @@ function updateCountdown() {
     if (active.status !== 'in_progress' && now >= startMs && now < endMs) {
       // Modo atraso de inicio: ya paso starts_at pero nadie pulso play
       const lateBy = Math.floor((now - startMs) / 1000);
-      leftLblEl.textContent   = 'Atraso de inicio';
+      leftLblEl.textContent   = tx('cdStartDelay');
       nextEl.textContent      = active.name;
-      centerLblEl.textContent = 'Sin iniciar hace';
+      centerLblEl.textContent = tx('cdNotStartedFor');
       timerEl.textContent     = '+' + fmtDur(lateBy);
       setTimerCls('red');
-      rightLblEl.textContent  = 'Debió empezar a las';
+      rightLblEl.textContent  = tx('cdShouldStartAt');
       startsEl.textContent    = fmtTime(active.starts_at);
       subEl.style.display     = 'none';
     } else if (now < endMs) {
       // Modo en curso: restan
       const remaining = Math.floor((endMs - now) / 1000);
       const elapsed   = Math.floor((now - startMs) / 1000);
-      leftLblEl.textContent   = 'En curso';
+      leftLblEl.textContent   = tx('cdInProgress');
       nextEl.textContent      = active.name;
-      centerLblEl.textContent = 'Tiempo restante';
+      centerLblEl.textContent = tx('cdTimeRemaining');
       timerEl.textContent     = fmtDur(remaining);
       setTimerCls('green');
-      rightLblEl.textContent  = 'Empezó a las';
+      rightLblEl.textContent  = tx('cdStartedAt');
       startsEl.textContent    = fmtTime(active.starts_at);
-      subEl.textContent       = 'va ' + fmtDur(elapsed);
+      subEl.textContent       = tx('cdWent') + ' ' + fmtDur(elapsed);
       subEl.style.display     = '';
     } else {
       // Modo atraso: ya paso ends_at pero sigue abierta
       const over = Math.floor((now - endMs) / 1000);
-      leftLblEl.textContent   = 'Atraso';
+      leftLblEl.textContent   = tx('cdOverrun');
       nextEl.textContent      = active.name;
-      centerLblEl.textContent = 'En exceso';
+      centerLblEl.textContent = tx('cdInExcess');
       timerEl.textContent     = '+' + fmtDur(over);
       setTimerCls('red');
-      rightLblEl.textContent  = 'Debió terminar a las';
+      rightLblEl.textContent  = tx('cdShouldEndAt');
       startsEl.textContent    = fmtTime(active.ends_at);
       subEl.style.display     = 'none';
     }
@@ -608,7 +790,7 @@ function updateCountdown() {
 
   if (!next) {
     leftLblEl.textContent   = '';
-    nextEl.textContent      = 'Fin del programa';
+    nextEl.textContent      = tx('cdEndOfProgram');
     centerLblEl.textContent = '';
     timerEl.textContent     = '—';
     setTimerCls('');
@@ -619,12 +801,12 @@ function updateCountdown() {
   }
 
   const diff = Math.max(0, Math.floor((new Date(next.starts_at).getTime() - now) / 1000));
-  leftLblEl.textContent   = 'Próxima sesión';
+  leftLblEl.textContent   = tx('cdNext');
   nextEl.textContent      = next.name;
-  centerLblEl.textContent = 'Empieza en';
+  centerLblEl.textContent = tx('cdStartsIn');
   timerEl.textContent     = fmtDur(diff);
   setTimerCls('');
-  rightLblEl.textContent  = 'Hora de inicio';
+  rightLblEl.textContent  = tx('cdStartTime');
   startsEl.textContent    = fmtTime(next.starts_at);
   subEl.style.display     = 'none';
 }
@@ -673,7 +855,7 @@ function renderDaySelector(days) {
   if (days.length <= 1) { el.innerHTML = ''; return; }
   el.innerHTML = days.map((d, i) =>
     `<button class="day-btn${d === selectedDay ? ' active' : ''}"
-             onclick="selectDay('${d}')">Día ${i + 1}</button>`
+             onclick="selectDay('${d}')">${esc(tx('dayN', i + 1))}</button>`
   ).join('');
 }
 
@@ -704,7 +886,7 @@ function renderRundown() {
   );
 
   if (!day.length) {
-    list.innerHTML = '<div class="loading">Sin sesiones para este día</div>';
+    list.innerHTML = `<div class="loading">${esc(tx('noSessions'))}</div>`;
     return;
   }
 
@@ -747,14 +929,14 @@ function renderRundown() {
       } else if (state === 'upcoming') {
         // Sesion futura: NO mostrar boton hasta que se pase la hora de inicio
         if (startDelayMin > 0) {
-          actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
+          actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; ${esc(tx('markStart'))} &middot; ${esc(tx('delaySuffix', startDelayMin))}</button>`;
         }
       } else if (state === 'current' && s.status !== 'in_progress') {
-        actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; Marcar inicio &middot; atraso +${startDelayMin}m</button>`;
+        actionBtn = `<button class="action-btn start-btn delayed" onclick="event.stopPropagation();markSession('${s.id}','in_progress')">&#9654; ${esc(tx('markStart'))} &middot; ${esc(tx('delaySuffix', startDelayMin))}</button>`;
       } else if (state === 'current' && s.status === 'in_progress') {
-        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Cerrar sesion</button>`;
+        actionBtn = `<button class="action-btn done-btn" onclick="event.stopPropagation();markSession('${s.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('closeSession'))}</button>`;
       } else if (state === 'done') {
-        actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">&#8634; Reabrir</button>`;
+        actionBtn = `<button class="action-btn reopen-btn" onclick="event.stopPropagation();markSession('${s.id}','scheduled')">&#8634; ${esc(tx('reopen'))}</button>`;
       }
 
       return `<div class="sess-card ${state}" id="sess-${s.id}" onclick="toggleSess('${s.id}')">
@@ -763,11 +945,11 @@ function renderRundown() {
           <div class="sess-toggle">▾</div>
         </div>
         <div class="sess-badges">
-          ${state === 'current' ? '<span class="badge current">&#9654; En curso</span>' : ''}
-          ${state === 'done'    ? '<span class="badge done"><svg viewBox="0 0 256 256" width="10" height="10" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Finalizado</span>'  : ''}
-          ${endDelayMin > 0 ? `<span class="badge delay">ATRASO +${endDelayMin}m</span>` : ''}
-          ${startDelayMin > 0 && state === 'upcoming' ? `<span class="badge delay">&#9654; ATRASO +${startDelayMin}m</span>` : ''}
-          ${cap ? `<span class="badge ${full?'warn':almst?'warn':'cap'}">${reg}/${cap}${full?' · LLENO':almst?' · Casi lleno':''}</span>` : ''}
+          ${state === 'current' ? `<span class="badge current">&#9654; ${esc(tx('badgeInProgress'))}</span>` : ''}
+          ${state === 'done'    ? `<span class="badge done"><svg viewBox="0 0 256 256" width="10" height="10" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('badgeDone'))}</span>`  : ''}
+          ${endDelayMin > 0 ? `<span class="badge delay">${esc(tx('delayPrefix'))} +${endDelayMin}m</span>` : ''}
+          ${startDelayMin > 0 && state === 'upcoming' ? `<span class="badge delay">&#9654; ${esc(tx('delayPrefix'))} +${startDelayMin}m</span>` : ''}
+          ${cap ? `<span class="badge ${full?'warn':almst?'warn':'cap'}">${reg}/${cap}${full?' · '+esc(tx('full')):almst?' · '+esc(tx('almostFull')):''}</span>` : ''}
           <span style="font-size:10px;color:var(--muted);padding:2px 0">${fmtTime(s.starts_at)}–${fmtTime(s.ends_at)}</span>
         </div>
         <div class="sess-body">
@@ -781,15 +963,15 @@ function renderRundown() {
           </div>` : ''}
           ${s.speaker_name ? `<div class="sess-row prominent">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14c-4 0-7 2-7 5v2h14v-2c0-3-3-5-7-5z"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Orador: <strong>${esc(s.speaker_name)}</strong></span>
+            <span>${esc(tx('speaker'))}: <strong>${esc(s.speaker_name)}</strong></span>
           </div>` : ''}
           ${s.assigned_staff_name ? `<div class="sess-row prominent">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Responsable: <strong>${esc(s.assigned_staff_name)}</strong></span>
+            <span>${esc(tx('responsible'))}: <strong>${esc(s.assigned_staff_name)}</strong></span>
           </div>` : ''}
           ${cap ? `<div class="sess-row prominent">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Registrados: <strong style="color:${full?'var(--amber)':'var(--text)'}">${reg} de ${cap}</strong></span>
+            <span>${esc(tx('registeredLbl'))}: <strong style="color:${full?'var(--amber)':'var(--text)'}">${esc(tx('ofN', reg, cap))}</strong></span>
           </div>` : ''}
           ${actionBtn ? `<div class="sess-actions">${actionBtn}</div>` : ''}
         </div>
@@ -855,7 +1037,7 @@ async function sendBroadcast() {
     if (res.ok) {
       input.value = '';
       const fb = document.getElementById('screen-feedback');
-      fb.innerHTML = '<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Enviado a pantallas';
+      fb.innerHTML = `<svg viewBox="0 0 256 256" width="13" height="13" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('sentScreens'))}`;
       setTimeout(() => { fb.innerHTML = ''; }, 3000);
     }
   } catch (err) {
@@ -875,7 +1057,7 @@ async function refreshStats() {
 function showError(msg) {
   document.getElementById('rundown-list').innerHTML =
     `<div class="error-msg">${esc(msg)}</div>`;
-  document.getElementById('hdr-event').textContent = 'Error';
+  document.getElementById('hdr-event').textContent = tx('error');
 }
 
 // ── RUNDOWN VIEW TOGGLE ──────────────────────────────────────────────────────
@@ -915,31 +1097,31 @@ function renderCues() {
     : cues;
 
   if (!dayCues.length) {
-    list.innerHTML = '<div class="loading">Sin cues para este día</div>';
+    list.innerHTML = `<div class="loading">${esc(tx('noCues'))}</div>`;
     return;
   }
 
-  const statusLabel = { pending: 'Pendiente', in_progress: 'En curso', done: 'Finalizado', skipped: 'Omitido', delayed: 'Con retraso' };
+  const statusLabel = (L[LANG] && L[LANG].cueStatus) || L.es.cueStatus;
   const statusColor = { pending: 'var(--muted)', in_progress: 'var(--amber)', done: '#22c55e', skipped: '#6b7280', delayed: '#ef4444' };
 
   list.innerHTML = dayCues.map(c => {
-    const timeStr = new Date(c.scheduled_at).toLocaleTimeString('es-CO', {
+    const timeStr = new Date(c.scheduled_at).toLocaleTimeString(dateLocale(), {
       hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz
     });
     const st = c.status || 'pending';
     const delayBadge = (c.delay_minutes !== null && c.delay_minutes !== undefined && (st === 'in_progress' || st === 'done' || st === 'delayed'))
       ? (c.delay_minutes === 0
-          ? '<span style="font-size:10px;font-weight:700;color:#22c55e;flex-shrink:0;"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> A tiempo</span>'
-          : `<span style="font-size:10px;font-weight:700;color:${c.delay_minutes > 5 ? '#ef4444' : '#f59e0b'};flex-shrink:0;">+${c.delay_minutes} min</span>`)
+          ? `<span style="font-size:10px;font-weight:700;color:#22c55e;flex-shrink:0;"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('onTime'))}</span>`
+          : `<span style="font-size:10px;font-weight:700;color:${c.delay_minutes > 5 ? '#ef4444' : '#f59e0b'};flex-shrink:0;">+${c.delay_minutes} ${esc(tx('minSuffix'))}</span>`)
       : '';
     let actionBtn = '';
     if (st === 'pending' || st === 'delayed') {
-      actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg> Iniciar</button>`;
+      actionBtn = `<button class="action-btn start-btn" onclick="markCue('${c.id}','in_progress')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M232.4,114.49,88.32,26.35a16,16,0,0,0-16.2-.3A15.86,15.86,0,0,0,64,39.87V216.13A15.94,15.94,0,0,0,80,232a16.07,16.07,0,0,0,8.36-2.35L232.4,141.51a15.81,15.81,0,0,0,0-27ZM80,215.94V40l143.83,88Z"/></svg> ${esc(tx('cueStart'))}</button>`;
     } else if (st === 'in_progress') {
-      actionBtn = `<button class="action-btn done-btn" onclick="markCue('${c.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> Cerrar</button>
-                   <button class="action-btn" style="background:rgba(107,114,128,.15);color:var(--muted);border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" onclick="markCue('${c.id}','skipped')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a87.56,87.56,0,0,1,22.24-58.41L186.41,193.76A88,88,0,0,1,40,128Zm153.76,58.41L69.59,62.24A88,88,0,0,1,193.76,186.41Z"/></svg> Omitir</button>`;
+      actionBtn = `<button class="action-btn done-btn" onclick="markCue('${c.id}','done')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg> ${esc(tx('cueClose'))}</button>
+                   <button class="action-btn" style="background:rgba(107,114,128,.15);color:var(--muted);border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;" onclick="markCue('${c.id}','skipped')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a87.56,87.56,0,0,1,22.24-58.41L186.41,193.76A88,88,0,0,1,40,128Zm153.76,58.41L69.59,62.24A88,88,0,0,1,193.76,186.41Z"/></svg> ${esc(tx('cueSkip'))}</button>`;
     } else if (st === 'done' || st === 'skipped') {
-      actionBtn = `<button class="action-btn reopen-btn" onclick="markCue('${c.id}','pending')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64h0a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,88.42V56a8,8,0,1,1,16,0Z"/></svg> Reabrir</button>`;
+      actionBtn = `<button class="action-btn reopen-btn" onclick="markCue('${c.id}','pending')"><svg viewBox="0 0 256 256" width="11" height="11" fill="currentColor" style="vertical-align:middle"><path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64h0a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,88.42V56a8,8,0,1,1,16,0Z"/></svg> ${esc(tx('cueReopen'))}</button>`;
     }
 
     return `<div class="sess-card ${st === 'in_progress' ? 'current' : st === 'done' ? 'done' : ''}" id="cue-${c.id}" style="margin-bottom:0;border-radius:0;border-bottom:1px solid var(--border);">
@@ -988,10 +1170,10 @@ async function markCue(cueId, newStatus) {
 }
 
 // ── THEME ──────────────────────────────────────────────────────────────────────
-function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
+function applyTheme(th) {
+  document.documentElement.dataset.theme = th;
   const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = t === 'light' ? 'Oscuro' : 'Claro';
+  if (btn) btn.textContent = th === 'light' ? tx('themeDark') : tx('themeLight');
 }
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'light' ? '' : 'light';
@@ -1002,6 +1184,30 @@ function toggleTheme() {
   const saved = localStorage.getItem('produccion-theme') || '';
   applyTheme(saved);
 })();
+
+// ── LANG PILL ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('#langPill [data-lang]').forEach(b => {
+  b.addEventListener('click', () => {
+    const remote = b.dataset.remote;
+    try { localStorage.setItem('sonoro_locale', remote); } catch(_){}
+    if (window.SonoroI18n && window.SonoroI18n.setLocale) { try { window.SonoroI18n.setLocale(remote); } catch(_){} }
+    LANG = b.dataset.lang;
+    syncLangPill();
+    applyStatic();
+    // Re-render dynamic bits dependent on language
+    try {
+      if (eventInfo) {
+        renderHeader();
+        renderDaySelector(getEventDays());
+        renderRundown();
+        if (rundownView === 'libreto') renderCues();
+      }
+      updateCountdown();
+    } catch(_){}
+  });
+});
+syncLangPill();
+applyStatic();
 
 // ── START ─────────────────────────────────────────────────────────────────────
 init();
