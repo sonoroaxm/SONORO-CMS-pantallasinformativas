@@ -306,7 +306,14 @@
             confirm_contract_accepted:'¿Aceptar esta cotización? Se registrará como aprobada en el historial.',
             confirm_contract_rejected:'¿Marcar como rechazada? El proveedor quedará fuera del presupuesto.',
             confirm_contract_paid:'¿Confirmar pago completo? Se registrará en el historial.',
-            confirm_contract_cancelled:'¿Cancelar este contrato? La acción quedará registrada.' },
+            confirm_contract_cancelled:'¿Cancelar este contrato? La acción quedará registrada.',
+            err_generic:'Error', err_network:'Error de conexión', err_save:'Error al guardar', err_delete:'Error al eliminar', err_load:'Error al cargar', err_send:'Error al enviar', err_add:'Error al agregar',
+            err_name_required:'Nombre requerido', err_role_required:'Selecciona un rol', err_role_before_send:'Selecciona un rol antes de enviar', err_session_required:'Selecciona la sesión', err_tpl_required:'Selecciona una plantilla', err_valid_amount:'Ingresa un monto válido', err_valid_value:'Ingresa un valor válido', err_open_event_first:'Abre un evento primero', err_name_dates_required:'Nombre, fecha y horas son obligatorios', err_name_dates_short:'Nombre y fechas son obligatorios', err_title_time_required:'Título y hora son requeridos',
+            err_create_event:'Error creando evento', err_load_event:'Error cargando evento', err_load_staff:'Error cargando staff', err_load_sup:'Error cargando proveedores', err_load_invitations:'Error cargando invitaciones', err_load_quote:'Error cargando cotización',
+            err_generate_link:'Error al generar enlace', err_generate_token:'Error generando token', err_generate_preview:'Error generando vista previa', err_generate_pdf:'Error generando PDF', err_generate_csv:'Error al generar CSV', err_generate_tpl:'Error generando plantilla', err_dl_tpl:'Error descargando plantilla', err_export_csv:'Error exportando CSV', err_import:'Error importando archivo',
+            err_disconnect:'Error desconectando', err_revoke:'Error al revocar', err_resend:'Error al reenviar', err_popup_blocked:'Permite ventanas emergentes para imprimir', err_print_prep:'Error al preparar impresión',
+            err_send_quote:'Error al enviar cotización', err_update_price:'Error al actualizar precio', err_update_status:'Error al actualizar estado', err_del_event:'Error al eliminar el evento', err_upload_doc:'Error al subir documento', err_upload_receipt:'Error al subir comprobante', err_save_budget:'Error al guardar presupuesto', err_save_cue:'Error al guardar cue', err_del_cue:'Error al eliminar cue',
+            err_briefing:'Error al enviar briefing', err_staff_notfound:'Staff no encontrado', err_staff_noemail:'Este staff no tiene email', err_add_sup_dir_first:'Agrega proveedores al directorio primero', err_select_sup:'Selecciona un proveedor del directorio', err_no_quote:'Sin cotización', err_first_create_tpl:'Primero crea una plantilla', err_save_resend:'Guardado, pero error al reenviar: {msg}' },
       toast: { language_updated:'Idioma actualizado' }
     },
     en: {
@@ -588,7 +595,14 @@
             confirm_contract_accepted:'Accept this quote? It will be recorded as approved in the history.',
             confirm_contract_rejected:'Mark as rejected? The supplier will be removed from the budget.',
             confirm_contract_paid:'Confirm full payment? It will be recorded in the history.',
-            confirm_contract_cancelled:'Cancel this contract? The action will be recorded.' },
+            confirm_contract_cancelled:'Cancel this contract? The action will be recorded.',
+            err_generic:'Error', err_network:'Connection error', err_save:'Could not save', err_delete:'Could not delete', err_load:'Could not load', err_send:'Could not send', err_add:'Could not add',
+            err_name_required:'Name is required', err_role_required:'Select a role', err_role_before_send:'Select a role before sending', err_session_required:'Select the session', err_tpl_required:'Select a template', err_valid_amount:'Enter a valid amount', err_valid_value:'Enter a valid value', err_open_event_first:'Open an event first', err_name_dates_required:'Name, date and times are required', err_name_dates_short:'Name and dates are required', err_title_time_required:'Title and time are required',
+            err_create_event:'Error creating event', err_load_event:'Error loading event', err_load_staff:'Error loading staff', err_load_sup:'Error loading suppliers', err_load_invitations:'Error loading invitations', err_load_quote:'Error loading quote',
+            err_generate_link:'Error generating link', err_generate_token:'Error generating token', err_generate_preview:'Error generating preview', err_generate_pdf:'Error generating PDF', err_generate_csv:'Error generating CSV', err_generate_tpl:'Error generating template', err_dl_tpl:'Error downloading template', err_export_csv:'Error exporting CSV', err_import:'Error importing file',
+            err_disconnect:'Error disconnecting', err_revoke:'Error revoking', err_resend:'Error resending', err_popup_blocked:'Allow pop-ups to print', err_print_prep:'Error preparing print',
+            err_send_quote:'Error sending quote', err_update_price:'Error updating price', err_update_status:'Error updating status', err_del_event:'Error deleting event', err_upload_doc:'Error uploading document', err_upload_receipt:'Error uploading receipt', err_save_budget:'Error saving budget', err_save_cue:'Error saving cue', err_del_cue:'Error deleting cue',
+            err_briefing:'Error sending briefing', err_staff_notfound:'Staff not found', err_staff_noemail:'This staff has no email', err_add_sup_dir_first:'First add suppliers to the directory', err_select_sup:'Select a supplier from the directory', err_no_quote:'No quote available', err_first_create_tpl:'First create a template', err_save_resend:'Saved, but error resending: {msg}' },
       toast: { language_updated:'Language updated' }
     },
     'pt-BR': {
@@ -870,7 +884,14 @@
             confirm_contract_accepted:'Aceitar esta cotação? Será registrada como aprovada no histórico.',
             confirm_contract_rejected:'Marcar como rejeitada? O fornecedor sairá do orçamento.',
             confirm_contract_paid:'Confirmar pagamento integral? Será registrado no histórico.',
-            confirm_contract_cancelled:'Cancelar este contrato? A ação será registrada.' },
+            confirm_contract_cancelled:'Cancelar este contrato? A ação será registrada.',
+            err_generic:'Erro', err_network:'Erro de conexão', err_save:'Erro ao salvar', err_delete:'Erro ao excluir', err_load:'Erro ao carregar', err_send:'Erro ao enviar', err_add:'Erro ao adicionar',
+            err_name_required:'Nome obrigatório', err_role_required:'Selecione uma função', err_role_before_send:'Selecione uma função antes de enviar', err_session_required:'Selecione a sessão', err_tpl_required:'Selecione um modelo', err_valid_amount:'Informe um valor válido', err_valid_value:'Informe um valor válido', err_open_event_first:'Abra um evento primeiro', err_name_dates_required:'Nome, data e horários são obrigatórios', err_name_dates_short:'Nome e datas são obrigatórios', err_title_time_required:'Título e horário são obrigatórios',
+            err_create_event:'Erro ao criar evento', err_load_event:'Erro ao carregar evento', err_load_staff:'Erro ao carregar staff', err_load_sup:'Erro ao carregar fornecedores', err_load_invitations:'Erro ao carregar convites', err_load_quote:'Erro ao carregar cotação',
+            err_generate_link:'Erro ao gerar link', err_generate_token:'Erro ao gerar token', err_generate_preview:'Erro ao gerar prévia', err_generate_pdf:'Erro ao gerar PDF', err_generate_csv:'Erro ao gerar CSV', err_generate_tpl:'Erro ao gerar modelo', err_dl_tpl:'Erro ao baixar modelo', err_export_csv:'Erro ao exportar CSV', err_import:'Erro ao importar arquivo',
+            err_disconnect:'Erro ao desconectar', err_revoke:'Erro ao revogar', err_resend:'Erro ao reenviar', err_popup_blocked:'Permita pop-ups para imprimir', err_print_prep:'Erro ao preparar impressão',
+            err_send_quote:'Erro ao enviar cotação', err_update_price:'Erro ao atualizar preço', err_update_status:'Erro ao atualizar status', err_del_event:'Erro ao excluir evento', err_upload_doc:'Erro ao enviar documento', err_upload_receipt:'Erro ao enviar comprovante', err_save_budget:'Erro ao salvar orçamento', err_save_cue:'Erro ao salvar cue', err_del_cue:'Erro ao excluir cue',
+            err_briefing:'Erro ao enviar briefing', err_staff_notfound:'Staff não encontrado', err_staff_noemail:'Este staff não tem e-mail', err_add_sup_dir_first:'Primeiro adicione fornecedores ao diretório', err_select_sup:'Selecione um fornecedor do diretório', err_no_quote:'Sem cotação', err_first_create_tpl:'Primeiro crie um modelo', err_save_resend:'Salvo, mas erro ao reenviar: {msg}' },
       toast: { language_updated:'Idioma atualizado' }
     }
   };

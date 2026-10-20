@@ -8883,11 +8883,11 @@ async function evGenerateInviteLink() {
       body: JSON.stringify(eventId ? { event_id: eventId } : {})
     });
     const data = await res.json();
-    if (!res.ok) { showStatus(data.error || 'Error al generar enlace', 'error'); return; }
+    if (!res.ok) { showStatus(data.error || evI18n('ev.err_generate_link'), 'error'); return; }
     const url = `${window.location.origin}/proveedor-registro/${data.token}`;
     document.getElementById('ev-invite-link-input').value = url;
     document.getElementById('ev-invite-link-box').style.display = '';
-  } catch(e) { showStatus('Error al generar enlace', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_generate_link'), 'error'); }
 }
 
 function evCopyInviteLink() {
@@ -9054,7 +9054,7 @@ async function evGenerateCalendarLink(catId, provider) {
       body: JSON.stringify({ provider })
     });
     const data = await res.json();
-    if (!res.ok) { showStatus(data.error || 'Error generando link','error'); return; }
+    if (!res.ok) { showStatus(data.error || evI18n('ev.err_generate_link'),'error'); return; }
     try { await navigator.clipboard.writeText(data.url); showStatus('Link copiado — válido 24h. Envíaselo al staff.','success'); }
     catch(_) { prompt('Copia este link (válido 24h):', data.url); }
   } catch(e) { showStatus('Error de conexión','error'); }
@@ -9065,7 +9065,7 @@ async function evDisconnectIntegration(id, catId) {
     const res = await fetch(`${API_URL}/api/events/calendar/integrations/${id}`, {
       method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
     });
-    if (!res.ok) { showStatus('Error desconectando','error'); return; }
+    if (!res.ok) { showStatus(evI18n('ev.err_disconnect'),'error'); return; }
     showStatus('Calendario desconectado','success');
     await evLoadStaffIntegrations(catId);
   } catch(e) { showStatus('Error de conexión','error'); }
@@ -9150,7 +9150,7 @@ function evRenderStaffPool() {
 }
 
 async function evAddStaffFromCatalog(catalogId, name) {
-  if (!evCurrentEventId) { showStatus('Abre un evento primero','error'); return; }
+  if (!evCurrentEventId) { showStatus(evI18n('ev.err_open_event_first'),'error'); return; }
   const cat = evStaffCatList.find(x => String(x.id) === String(catalogId));
   const defaultRole = cat?.default_role || '';
   const defaultLbl  = defaultRole ? (ROLE_LABELS[defaultRole] || defaultRole) : '';
@@ -9176,7 +9176,7 @@ async function evAddStaffFromCatalog(catalogId, name) {
     showStatus(`"${name}" agregado al evento (${ROLE_LABELS[role] || role})`,'success');
     evLoadStaff();
     evLoadStaffPool();
-  } catch(e) { showStatus('Error al agregar','error'); }
+  } catch(e) { showStatus(evI18n('ev.err_add'),'error'); }
 }
 
 // ── INVITACIONES TENANT ─────────────────────────────────────────
@@ -9343,7 +9343,7 @@ async function evSaveNew() {
   const capacity = document.getElementById('ev-new-capacity').value;
   const desc = document.getElementById('ev-new-desc').value.trim();
   const venue = document.getElementById('ev-new-venue').value.trim();
-  if (!name || !start || !end) { showStatus('Nombre y fechas son obligatorios', 'error'); return; }
+  if (!name || !start || !end) { showStatus(evI18n('ev.err_name_dates_short'), 'error'); return; }
   try {
     const res = await fetch(`${API_URL}/api/events`, {
       method: 'POST',
@@ -9356,7 +9356,7 @@ async function evSaveNew() {
       ['ev-new-name','ev-new-start','ev-new-end','ev-new-capacity','ev-new-desc','ev-new-venue'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('ev-new-tz').value = 'America/Bogota';
       await evOpenDetail(data.id);
-    } else { showStatus(data.error || 'Error creando evento', 'error'); }
+    } else { showStatus(data.error || evI18n('ev.err_create_event'), 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
@@ -9371,7 +9371,7 @@ async function evOpenDetail(eventId) {
     evInitCatalog();
     evSwitchSubTab('info');
     evShowView('detail');
-  } catch(e) { showStatus('Error cargando evento', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_load_event'), 'error'); }
 }
 
 function evSwitchSubTab(tab) {
@@ -9557,7 +9557,7 @@ async function evSaveCertTpl() {
   if (!name) { showStatus('Nombre requerido', 'error'); return; }
   const scope = document.getElementById('ev-cert-tpl-scope').value;
   const sessionId = document.getElementById('ev-cert-tpl-session').value;
-  if (scope === 'session' && !sessionId) { showStatus('Selecciona la sesión', 'error'); return; }
+  if (scope === 'session' && !sessionId) { showStatus(evI18n('ev.err_session_required'), 'error'); return; }
 
   const fd = new FormData();
   fd.append('name', name);
@@ -9609,7 +9609,7 @@ async function evCertPreview(tplId) {
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
-  } catch (_) { showStatus('Error generando vista previa', 'error'); }
+  } catch (_) { showStatus(evI18n('ev.err_generate_preview'), 'error'); }
 }
 
 async function evCertRevoke(certId) {
@@ -9624,7 +9624,7 @@ async function evCertRevoke(certId) {
     if (!r.ok) throw 0;
     showStatus(evI18n('ev.toast_cert_revoked'), 'success');
     evLoadCertificates();
-  } catch (_) { showStatus('Error al revocar', 'error'); }
+  } catch (_) { showStatus(evI18n('ev.err_revoke'), 'error'); }
 }
 
 async function evCertResend(certId) {
@@ -9639,7 +9639,7 @@ async function evCertResend(certId) {
 }
 
 function evOpenCertBulkModal() {
-  if (!evCertTpls.length) { showStatus('Primero crea una plantilla', 'error'); return; }
+  if (!evCertTpls.length) { showStatus(evI18n('ev.err_first_create_tpl'), 'error'); return; }
   const sel = document.getElementById('ev-cert-bulk-tpl');
   sel.innerHTML = evCertTpls.filter(t=>t.active).map(t => `<option value="${t.id}">${evCertEsc(t.name)}</option>`).join('');
   document.getElementById('ev-cert-bulk-send').checked = true;
@@ -9709,7 +9709,7 @@ async function invLoadBatches() {
     invBatches = res.ok ? await res.json() : [];
     invRenderList();
   } catch(e) {
-    showStatus('Error cargando invitaciones', 'error');
+    showStatus(evI18n('ev.err_load_invitations'), 'error');
   }
 }
 
@@ -10127,7 +10127,7 @@ async function evCreateProdToken(kind) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
       body: JSON.stringify(body)
     });
-    if (!res.ok) { showStatus('Error generando token', 'error'); return; }
+    if (!res.ok) { showStatus(evI18n('ev.err_generate_token'), 'error'); return; }
     const tok = await res.json();
     evProdTokens.push(tok);
     evRenderProductionTokens();
@@ -10145,7 +10145,7 @@ async function evRevokeProdToken(kind) {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/production-tokens/${tok.id}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
     });
-    if (res.status !== 204) { showStatus('Error revocando', 'error'); return; }
+    if (res.status !== 204) { showStatus(evI18n('ev.err_revoke'), 'error'); return; }
     evProdTokens = evProdTokens.filter(t => t.id !== tok.id);
     evRenderProductionTokens();
     showStatus('Token revocado', 'success');
@@ -10439,7 +10439,7 @@ async function evSaveSession() {
   const date = document.getElementById('ev-sess-date').value;
   const startT = document.getElementById('ev-sess-start').value;
   const endT = document.getElementById('ev-sess-end').value;
-  if (!name || !date || !startT || !endT) { showStatus('Nombre, fecha y horas son obligatorios', 'error'); return; }
+  if (!name || !date || !startT || !endT) { showStatus(evI18n('ev.err_name_dates_required'), 'error'); return; }
   let endDate = date;
   if (endT <= startT) {
     const d = new Date(`${date}T00:00:00`);
@@ -10967,7 +10967,7 @@ async function evRenderRegCertModalList(regId) {
 async function evIssueRegCert() {
   if (!evRegCertTarget) return;
   const tplId = document.getElementById('ev-reg-cert-tpl').value;
-  if (!tplId) { showStatus('Selecciona una plantilla', 'error'); return; }
+  if (!tplId) { showStatus(evI18n('ev.err_tpl_required'), 'error'); return; }
   const manual = document.getElementById('ev-reg-cert-manual').checked;
   const sendEmail = document.getElementById('ev-reg-cert-send').checked;
   const resultEl = document.getElementById('ev-reg-cert-result');
@@ -11125,14 +11125,14 @@ async function evDownloadTemplate() {
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/template.xlsx`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
-    if (!r.ok) { showStatus('Error generando plantilla', 'error'); return; }
+    if (!r.ok) { showStatus(evI18n('ev.err_generate_tpl'), 'error'); return; }
     const blob = await r.blob();
     const cd = r.headers.get('Content-Disposition') || '';
     const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `plantilla-asistentes-${evCurrentEventId}.xlsx`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { showStatus('Error descargando plantilla', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_dl_tpl'), 'error'); }
 }
 
 async function evImportCSV(input) {
@@ -11154,7 +11154,7 @@ async function evImportCSV(input) {
       showStatus(`Importado: ${created} nuevos, ${data.skipped || 0} omitidos${errs}`, 'success');
       evLoadRegistrations();
     } else { showStatus(data.error || 'Error en importación', 'error'); }
-  } catch(e) { showStatus('Error importando archivo', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_import'), 'error'); }
   input.value = '';
 }
 
@@ -11162,14 +11162,14 @@ async function evExportRegsCSV() {
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/csv`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
-    if (!r.ok) { showStatus('Error exportando CSV', 'error'); return; }
+    if (!r.ok) { showStatus(evI18n('ev.err_export_csv'), 'error'); return; }
     const blob = await r.blob();
     const cd = r.headers.get('Content-Disposition') || '';
     const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `registros_${evCurrentEventId}.csv`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { showStatus('Error exportando CSV', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_export_csv'), 'error'); }
 }
 
 async function evExportRegsPDF() {
@@ -11177,14 +11177,14 @@ async function evExportRegsPDF() {
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/pdf`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
-    if (!r.ok) { showStatus('Error generando PDF', 'error'); return; }
+    if (!r.ok) { showStatus(evI18n('ev.err_generate_pdf'), 'error'); return; }
     const blob = await r.blob();
     const cd = r.headers.get('Content-Disposition') || '';
     const fname = (cd.match(/filename="([^"]+)"/) || [])[1] || `registros_${evCurrentEventId}.pdf`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = fname; a.click();
     URL.revokeObjectURL(url);
-  } catch(e) { showStatus('Error generando PDF', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_generate_pdf'), 'error'); }
 }
 
 // ── IMPRESIÓN ETIQUETAS QR ────────────────────────────────────────────────────
@@ -11258,7 +11258,7 @@ async function evPrintLabel(regId) {
   const evName = evCurrentEvent?.name || '';
   const html = await evBuildLabelHTML([r], evName);
   const w = window.open('', '_blank', 'width=400,height=350');
-  if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
+  if (!w) { showStatus(evI18n('ev.err_popup_blocked'), 'error'); return; }
   w.document.write(html);
   w.document.close();
 }
@@ -11274,10 +11274,10 @@ async function evPrintAllLabels() {
     const evName = evCurrentEvent?.name || '';
     const html = await evBuildLabelHTML(regs, evName);
     const w = window.open('', '_blank', 'width=500,height=600');
-    if (!w) { showStatus('Permite ventanas emergentes para imprimir', 'error'); return; }
+    if (!w) { showStatus(evI18n('ev.err_popup_blocked'), 'error'); return; }
     w.document.write(html);
     w.document.close();
-  } catch(e) { showStatus('Error al preparar impresión', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_print_prep'), 'error'); }
 }
 
 // ── EDITAR INSCRITO ───────────────────────────────────────────────────────────
@@ -11411,7 +11411,7 @@ async function evLoadStaff() {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     evStaffList = await res.json();
     evRenderStaff();
-  } catch(e) { showStatus('Error cargando staff', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_load_staff'), 'error'); }
 }
 
 function evRenderStaff() {
@@ -11460,8 +11460,8 @@ let evBriefingStaff = null;
 
 function evOpenBriefingPreview(staffId) {
   const s = evStaffList.find(x => String(x.id) === String(staffId));
-  if (!s) { showStatus('Staff no encontrado','error'); return; }
-  if (!s.email) { showStatus('Este staff no tiene email','error'); return; }
+  if (!s) { showStatus(evI18n('ev.err_staff_notfound'),'error'); return; }
+  if (!s.email) { showStatus(evI18n('ev.err_staff_noemail'),'error'); return; }
   evBriefingStaff = s;
 
   const ev = evCurrentEvent || {};
@@ -11547,7 +11547,7 @@ async function evConfirmSendBriefing() {
   if (!evBriefingStaff) return;
   const s = evBriefingStaff;
   const newRole = document.getElementById('ev-briefing-role-select').value;
-  if (!newRole) { showStatus('Selecciona un rol antes de enviar','error'); return; }
+  if (!newRole) { showStatus(evI18n('ev.err_role_before_send'),'error'); return; }
   const btn = document.getElementById('ev-briefing-send-btn');
   const originalText = btn.textContent;
   btn.disabled = true; btn.textContent = 'Enviando…';
@@ -11571,12 +11571,12 @@ async function evConfirmSendBriefing() {
       method:'POST', headers:{ 'Authorization':`Bearer ${authToken}` }
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Error al enviar briefing');
+    if (!res.ok) throw new Error(data.error || evI18n('ev.err_briefing'));
     showStatus(evI18n('ev.toast_briefing_sent', {name: s.name}), 'success');
     evCloseBriefingPreview();
     await evLoadStaff();
   } catch(e) {
-    showStatus(e.message || 'Error al enviar briefing', 'error');
+    showStatus(e.message || evI18n('ev.err_briefing'), 'error');
     btn.disabled = false; btn.textContent = originalText;
   }
 }
@@ -11666,7 +11666,7 @@ async function evLoadSuppliers() {
     evRenderBudget();
     evRenderContracts();
     evRenderSupplierDir();
-  } catch(e) { showStatus('Error cargando proveedores', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_load_sup'), 'error'); }
 }
 
 function evFmtCOP(n) {
@@ -11719,7 +11719,7 @@ async function evSaveBudget() {
     evRenderBudget();
     document.getElementById('ev-budget-edit').style.display = 'none';
     showStatus(evI18n('ev.toast_budget_saved'), 'success');
-  } catch(e) { showStatus('Error al guardar presupuesto', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_save_budget'), 'error'); }
 }
 
 function evRenderContracts() {
@@ -11807,7 +11807,7 @@ function evRenderContracts() {
 
 function evShowAddContract() {
   if (!evSupplierDir.length) {
-    showStatus('Agrega proveedores al directorio primero', 'error');
+    showStatus(evI18n('ev.err_add_sup_dir_first'), 'error');
     return;
   }
   const sel = document.getElementById('ev-contract-supplier-id');
@@ -11837,7 +11837,7 @@ async function evSaveContract() {
   const role = document.getElementById('ev-contract-role').value.trim();
   const amount = parseFloat(document.getElementById('ev-contract-amount').value) || 0;
   const notes = document.getElementById('ev-contract-notes').value.trim();
-  if (!supId) { showStatus('Selecciona un proveedor del directorio', 'error'); return; }
+  if (!supId) { showStatus(evI18n('ev.err_select_sup'), 'error'); return; }
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers`, {
       method: 'POST',
@@ -11901,7 +11901,7 @@ async function evPatchContractStatus(contractId, newStatus, abonoAmount) {
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!res.ok) { showStatus('Error al actualizar estado', 'error'); evLoadSuppliers(); return; }
+    if (!res.ok) { showStatus(evI18n('ev.err_update_status'), 'error'); evLoadSuppliers(); return; }
     const idx = evEventContracts.findIndex(c => c.id == contractId);
     if (idx >= 0) {
       evEventContracts[idx].payment_status = newStatus;
@@ -12062,7 +12062,7 @@ async function evSendQuote(contractId, email) {
     const idx = evEventContracts.findIndex(c => c.id === contractId);
     if (idx >= 0) evEventContracts[idx].quote_status = 'enviada';
     evRenderContracts();
-  } catch(e) { showStatus('Error al enviar cotización', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_send_quote'), 'error'); }
 }
 
 async function evViewQuote(contractId) {
@@ -12071,9 +12071,9 @@ async function evViewQuote(contractId) {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     const q = await res.json();
-    if (!res.ok) { showStatus(q.error || 'Sin cotización', 'error'); return; }
+    if (!res.ok) { showStatus(q.error || evI18n('ev.err_no_quote'), 'error'); return; }
     evShowQuoteModal(q, contractId);
-  } catch(e) { showStatus('Error cargando cotización', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_load_quote'), 'error'); }
 }
 
 function evShowQuoteModal(q, contractId) {
@@ -12136,7 +12136,7 @@ async function evApplyQuotePrice(contractId, amount) {
     fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
       .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
     showStatus(evI18n('ev.toast_price_updated'), 'success');
-  } catch(e) { showStatus('Error al actualizar precio', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_update_price'), 'error'); }
 }
 
 async function evDeleteCurrentEvent() {
@@ -12152,7 +12152,7 @@ async function evDeleteCurrentEvent() {
     evShowView('list');
     evLoadList();
     showStatus(evI18n('ev.toast_ev_deleted'), 'success');
-  } catch(e) { showStatus('Error al eliminar el evento', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_del_event'), 'error'); }
 }
 
 // ══ FIN GESTIÓN DE EVENTOS ══
@@ -12224,7 +12224,7 @@ async function evSupDocUpload(supId, docType, fileInput) {
     const btn = fileInput.closest('label');
     if (btn) btn.style.borderColor = '#22c55e';
     showStatus(evI18n('ev.toast_doc_saved'), 'success');
-  } catch(e) { showStatus('Error al subir documento', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_upload_doc'), 'error'); }
 }
 
 async function evUploadPaymentProof(contractId, fileInput) {
@@ -12239,12 +12239,12 @@ async function evUploadPaymentProof(contractId, fileInput) {
       body: fd
     });
     const d = await res.json();
-    if (!res.ok) { showStatus(d.error || 'Error al subir comprobante', 'error'); return; }
+    if (!res.ok) { showStatus(d.error || evI18n('ev.err_upload_receipt'), 'error'); return; }
     const idx = evEventContracts.findIndex(c => c.id === contractId);
     if (idx >= 0) evEventContracts[idx].payment_proof_url = d.url;
     evRenderContracts();
     showStatus(evI18n('ev.toast_receipt_saved'), 'success');
-  } catch(e) { showStatus('Error al subir comprobante', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_upload_receipt'), 'error'); }
 }
 
 async function evLoadRundown() {
@@ -12331,7 +12331,7 @@ async function evSaveCue() {
   const editId = document.getElementById('ev-cue-edit-id').value;
   const title = document.getElementById('ev-cue-title').value.trim();
   const scheduled_at = document.getElementById('ev-cue-scheduled').value;
-  if (!title || !scheduled_at) { showStatus('Título y hora son requeridos', 'error'); return; }
+  if (!title || !scheduled_at) { showStatus(evI18n('ev.err_title_time_required'), 'error'); return; }
   const durVal = parseInt(document.getElementById('ev-cue-duration').value);
   const body = {
     cue_number: document.getElementById('ev-cue-number').value.trim() || null,
@@ -12356,7 +12356,7 @@ async function evSaveCue() {
     evCloseAddCue();
     await evLoadRundown();
     showStatus(evI18n(editId ? 'ev.toast_cue_updated' : 'ev.toast_cue_added'), 'success');
-  } catch(e) { showStatus('Error al guardar cue', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_save_cue'), 'error'); }
 }
 
 async function evDeleteCue(id) {
@@ -12368,7 +12368,7 @@ async function evDeleteCue(id) {
     if (!res.ok) { showStatus('Error al eliminar', 'error'); return; }
     await evLoadRundown();
     showStatus(evI18n('ev.toast_cue_deleted'), 'success');
-  } catch(e) { showStatus('Error al eliminar cue', 'error'); }
+  } catch(e) { showStatus(evI18n('ev.err_del_cue'), 'error'); }
 }
 
 </script>
@@ -12393,7 +12393,7 @@ function evExportCSV() {
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }).catch(() => showStatus('Error al generar CSV', 'error'));
+  }).catch(() => showStatus(evI18n('ev.err_generate_csv'), 'error'));
 }
 
 function evExportPDF() {
