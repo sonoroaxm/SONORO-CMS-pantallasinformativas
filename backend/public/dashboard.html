@@ -430,6 +430,139 @@
     .sidebar-group.eventos .sidebar-indicator { background: #f59e0b; }
     .sidebar-group.eventos .sidebar-children-inner { border-color: rgba(245,158,11,0.25); }
 
+    /* ── EVENTS · Panel resumen (Pro/Masivo) ── */
+    #ev-analytics-panel, #ev-analytics-teaser { margin-bottom: 24px; }
+    .evp-head {
+      display:flex; justify-content:space-between; align-items:flex-end;
+      gap:16px; flex-wrap:wrap; margin-bottom:14px;
+    }
+    .evp-head h3 { font-size:14px; font-weight:700; letter-spacing:-0.2px; margin:0 0 4px; color:var(--text); }
+    .evp-head .sub { font-size:11px; color:var(--text-muted); font-weight:500; }
+    .evp-filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .evp-chip {
+      background:transparent; border:1px solid var(--border); color:var(--text-muted);
+      padding:6px 12px; border-radius:999px; font-size:11px; font-weight:600; cursor:pointer;
+      font-family:inherit; transition:all 0.15s;
+    }
+    .evp-chip:hover { border-color:var(--text); color:var(--text); }
+    .evp-chip.active { background:var(--text); color:var(--surface); border-color:var(--text); }
+    .evp-sep { width:1px; height:18px; background:var(--border); margin:0 4px; }
+    .evp-exp {
+      background:var(--surface); border:1px solid var(--border); color:var(--text);
+      padding:6px 12px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer;
+      display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+    }
+    .evp-exp:hover { border-color:#f59e0b; color:#f59e0b; }
+    .evp-collapse {
+      background:transparent; border:1px solid var(--border); color:var(--text-muted);
+      width:28px; height:28px; border-radius:8px; cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center; font-family:inherit;
+    }
+    .evp-collapse:hover { color:var(--text); }
+
+    .evp-kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+    @media (max-width:980px) { .evp-kpi-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:540px) { .evp-kpi-grid { grid-template-columns:1fr; } }
+
+    .evp-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:18px;
+    }
+    .evp-label {
+      font-size:10px; text-transform:uppercase; letter-spacing:1.2px;
+      color:var(--text-muted); font-weight:600; margin-bottom:12px;
+    }
+    .evp-main { display:flex; align-items:center; gap:16px; }
+    .evp-donut { position:relative; width:68px; height:68px; flex-shrink:0; }
+    .evp-donut svg { transform:rotate(-90deg); width:100%; height:100%; }
+    .evp-donut-track { stroke:var(--border); fill:none; }
+    .evp-donut-fill { fill:none; stroke-linecap:round; transition:stroke-dashoffset 0.6s ease; }
+    .evp-donut-text {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:700; color:var(--text);
+    }
+    .evp-value { font-size:24px; font-weight:700; letter-spacing:-0.5px; line-height:1.1; color:var(--text); }
+    .evp-value.sm { font-size:18px; }
+    .evp-unit { font-size:10px; color:var(--text-muted); font-weight:500; margin-top:3px; }
+    .evp-legend { margin-top:14px; display:flex; flex-direction:column; gap:5px; font-size:11px; }
+    .evp-legend-row { display:flex; justify-content:space-between; align-items:center; color:var(--text-muted); }
+    .evp-legend-lbl { display:flex; align-items:center; gap:6px; }
+    .evp-dot { width:7px; height:7px; border-radius:50%; }
+    .evp-legend-val { color:var(--text); font-weight:600; }
+
+    .evp-list-grid { display:grid; grid-template-columns:1.3fr 1fr; gap:14px; }
+    @media (max-width:860px) { .evp-list-grid { grid-template-columns:1fr; } .evp-bars-wrap { display:none; } }
+    .evp-list-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; }
+    .evp-list-card h4 {
+      font-size:10px; text-transform:uppercase; letter-spacing:1.2px;
+      color:var(--text-muted); font-weight:600; margin:0 0 14px;
+    }
+    .evp-top { display:flex; flex-direction:column; gap:8px; }
+    .evp-top-row {
+      display:grid; grid-template-columns:20px 1fr auto; gap:10px; align-items:center;
+      padding:9px 10px; border-radius:8px; background:var(--surface2); border:1px solid transparent;
+      transition:border-color 0.15s;
+    }
+    .evp-top-row:hover { border-color:var(--border); }
+    .evp-top-rank { font-size:10px; color:var(--text-muted); font-weight:700; text-align:center; }
+    .evp-top-name { font-size:12px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .evp-top-meta { font-size:10px; color:var(--text-muted); font-weight:500; }
+    .evp-top-val { font-size:12px; font-weight:700; color:var(--text); text-align:right; }
+    .evp-top-val .u { font-size:9px; color:var(--text-muted); font-weight:500; margin-left:2px; }
+
+    .evp-bars { display:grid; grid-template-columns:repeat(12,1fr); gap:5px; height:120px; align-items:end; margin-top:4px; }
+    .evp-bar { background:linear-gradient(180deg,#f59e0b,#d97706); border-radius:3px 3px 0 0; position:relative; min-height:2px; transition:opacity 0.15s; }
+    .evp-bar:hover { opacity:0.75; }
+    .evp-bar-tt {
+      position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+      background:var(--surface2); border:1px solid var(--border); color:var(--text);
+      padding:3px 7px; border-radius:5px; font-size:10px; font-weight:600; white-space:nowrap;
+      margin-bottom:5px; opacity:0; pointer-events:none; transition:opacity 0.15s;
+    }
+    .evp-bar:hover .evp-bar-tt { opacity:1; }
+    .evp-bar-labels { display:grid; grid-template-columns:repeat(12,1fr); gap:5px; margin-top:5px; }
+    .evp-bar-labels span { font-size:9px; color:var(--text-muted); text-align:center; font-weight:500; }
+
+    /* Teaser Lite/Trial */
+    .evp-teaser {
+      background:linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+      border:1px solid var(--border); border-radius:12px; padding:22px;
+      display:grid; grid-template-columns:auto 1fr auto; gap:20px; align-items:center;
+      position:relative; overflow:hidden;
+    }
+    .evp-teaser::before {
+      content:''; position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 15% 50%, rgba(255,27,141,0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 50%, rgba(255,140,0,0.08) 0%, transparent 40%);
+      pointer-events:none;
+    }
+    .evp-teaser-lock {
+      width:44px; height:44px; border-radius:10px; background:var(--surface2); border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center; color:var(--text-muted); z-index:1;
+    }
+    .evp-teaser-body { z-index:1; }
+    .evp-teaser-tag {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(217,119,6,0.12); color:#f59e0b;
+      padding:3px 10px; border-radius:999px; font-size:10px; font-weight:700;
+      text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;
+    }
+    .evp-teaser-tag .d { width:5px; height:5px; border-radius:50%; background:#f59e0b; }
+    .evp-teaser-body h3 { font-size:15px; font-weight:700; margin:0 0 4px; letter-spacing:-0.2px; color:var(--text); }
+    .evp-teaser-body p { font-size:12px; color:var(--text-muted); margin:0; max-width:480px; }
+    .evp-teaser-cta {
+      background:var(--text); color:var(--surface); border:none;
+      padding:9px 18px; border-radius:9px; font-size:11px; font-weight:700;
+      cursor:pointer; font-family:inherit; z-index:1; white-space:nowrap;
+    }
+    .evp-teaser-cta:hover { opacity:0.9; }
+    @media (max-width:720px) {
+      .evp-teaser { grid-template-columns:1fr; text-align:center; }
+      .evp-teaser-lock { margin:0 auto; }
+      .evp-teaser-body p { margin:0 auto; }
+    }
+
     /* ── EVENTOS sub-tabs ── */
     .ev-sub-tab {
       padding: 8px 18px; background: transparent; border: none;
@@ -2568,6 +2701,156 @@
             <div class="section-title" data-i18n="ev.title_my">Mis Eventos</div>
             <button class="btn btn-grad" data-i18n="ev.new_btn" onclick="evShowView('new')">+ Nuevo Evento</button>
           </div>
+
+          <!-- Panel resumen (Pro/Masivo) · teaser (Lite/Trial) · nada (sin licencia) -->
+          <div id="ev-analytics-teaser" style="display:none;">
+            <div class="evp-teaser">
+              <div class="evp-teaser-lock">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="4" y="11" width="16" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </div>
+              <div class="evp-teaser-body">
+                <span class="evp-teaser-tag"><span class="d"></span><span data-i18n="ev.panel.tier_badge">Pro · Masivo</span></span>
+                <h3 data-i18n="ev.panel.teaser_title">Panel de resumen</h3>
+                <p data-i18n="ev.panel.teaser_body">Visualiza métricas agregadas de todos tus eventos: asistentes, presupuesto proyectado vs ejecutado, top eventos y evolución mensual. Exporta informes PDF y Excel.</p>
+              </div>
+              <button class="evp-teaser-cta" onclick="window.open('/eventos/','_blank')" data-i18n="ev.panel.teaser_cta">Ver planes</button>
+            </div>
+          </div>
+
+          <div id="ev-analytics-panel" style="display:none;">
+            <div class="evp-head">
+              <div>
+                <h3 data-i18n="ev.panel.title">Panel resumen</h3>
+                <div class="sub" id="evp-sub" data-i18n="ev.panel.sub_default">Vista agregada de tus eventos · últimos 12 meses</div>
+              </div>
+              <div class="evp-filters">
+                <button class="evp-chip" data-range="30d" onclick="evpSetRange('30d')">30d</button>
+                <button class="evp-chip" data-range="90d" onclick="evpSetRange('90d')">90d</button>
+                <button class="evp-chip active" data-range="12m" onclick="evpSetRange('12m')">12m</button>
+                <button class="evp-chip" data-range="ytd" onclick="evpSetRange('ytd')" data-i18n="ev.panel.r_ytd">YTD</button>
+                <button class="evp-chip" data-range="all" onclick="evpSetRange('all')" data-i18n="ev.panel.r_all">Todo</button>
+                <div class="evp-sep"></div>
+                <button class="evp-exp" onclick="evpExport('pdf')">
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2v9m0 0l-3-3m3 3l3-3M3 13h10"/></svg>
+                  PDF
+                </button>
+                <button class="evp-exp" onclick="evpExport('xlsx')">
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 2v9m0 0l-3-3m3 3l3-3M3 13h10"/></svg>
+                  Excel
+                </button>
+                <button class="evp-collapse" onclick="evpToggleCollapse()" title="" data-i18n-attr="title:ev.panel.collapse" id="evp-collapse-btn">
+                  <svg id="evp-collapse-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6l5 5 5-5"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div id="evp-body">
+              <div class="evp-kpi-grid">
+                <div class="evp-card">
+                  <div class="evp-label" data-i18n="ev.panel.k_events">Eventos realizados</div>
+                  <div class="evp-main">
+                    <div class="evp-donut">
+                      <svg viewBox="0 0 36 36">
+                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
+                        <circle id="evp-donut-events" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#10b981" stroke-dasharray="0 100"/>
+                      </svg>
+                      <div class="evp-donut-text" id="evp-donut-events-pct">0%</div>
+                    </div>
+                    <div>
+                      <div class="evp-value" id="evp-k-done">0</div>
+                      <div class="evp-unit" id="evp-k-done-sub" data-i18n="ev.panel.k_done_sub">de 0 totales</div>
+                    </div>
+                  </div>
+                  <div class="evp-legend">
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#10b981"></span><span data-i18n="ev.panel.k_done">Realizados</span></span><span class="evp-legend-val" id="evp-l-done">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#f59e0b"></span><span data-i18n="ev.panel.k_sched">Programados</span></span><span class="evp-legend-val" id="evp-l-sched">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_cancel">Cancelados</span></span><span class="evp-legend-val" id="evp-l-cancel">0</span></div>
+                  </div>
+                </div>
+
+                <div class="evp-card">
+                  <div class="evp-label" data-i18n="ev.panel.k_att">Asistentes</div>
+                  <div class="evp-main">
+                    <div class="evp-donut">
+                      <svg viewBox="0 0 36 36">
+                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
+                        <circle id="evp-donut-att" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#d97706" stroke-dasharray="0 100"/>
+                      </svg>
+                      <div class="evp-donut-text" id="evp-donut-att-pct">0%</div>
+                    </div>
+                    <div>
+                      <div class="evp-value" id="evp-k-att">0</div>
+                      <div class="evp-unit" id="evp-k-att-sub" data-i18n="ev.panel.k_att_sub">asistieron (de 0)</div>
+                    </div>
+                  </div>
+                  <div class="evp-legend">
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#d97706"></span><span data-i18n="ev.panel.k_checkin">Check-in</span></span><span class="evp-legend-val" id="evp-l-checkin">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_noshow">No show</span></span><span class="evp-legend-val" id="evp-l-noshow">0</span></div>
+                  </div>
+                </div>
+
+                <div class="evp-card">
+                  <div class="evp-label" data-i18n="ev.panel.k_proj">Presupuesto proyectado</div>
+                  <div class="evp-main">
+                    <div class="evp-donut">
+                      <svg viewBox="0 0 36 36">
+                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
+                        <circle id="evp-donut-proj" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#FF1B8D" stroke-dasharray="0 100"/>
+                      </svg>
+                      <div class="evp-donut-text" id="evp-donut-proj-pct">—</div>
+                    </div>
+                    <div>
+                      <div class="evp-value sm" id="evp-k-proj">—</div>
+                      <div class="evp-unit" id="evp-k-proj-sub">—</div>
+                    </div>
+                  </div>
+                  <div class="evp-legend">
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF1B8D"></span><span data-i18n="ev.panel.k_total">Total</span></span><span class="evp-legend-val" id="evp-l-proj">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_avg">Promedio evento</span></span><span class="evp-legend-val" id="evp-l-avg">0</span></div>
+                  </div>
+                </div>
+
+                <div class="evp-card">
+                  <div class="evp-label" data-i18n="ev.panel.k_paid">Presupuesto pagado</div>
+                  <div class="evp-main">
+                    <div class="evp-donut">
+                      <svg viewBox="0 0 36 36">
+                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
+                        <circle id="evp-donut-paid" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#FF8C00" stroke-dasharray="0 100"/>
+                      </svg>
+                      <div class="evp-donut-text" id="evp-donut-paid-pct">0%</div>
+                    </div>
+                    <div>
+                      <div class="evp-value sm" id="evp-k-paid">—</div>
+                      <div class="evp-unit" data-i18n="ev.panel.k_paid_sub">pagado a proveedores</div>
+                    </div>
+                  </div>
+                  <div class="evp-legend">
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF8C00"></span><span data-i18n="ev.panel.k_paid_lbl">Pagado</span></span><span class="evp-legend-val" id="evp-l-paid">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#f59e0b"></span><span data-i18n="ev.panel.k_pending">Pendiente</span></span><span class="evp-legend-val" id="evp-l-pending">0</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="evp-list-grid">
+                <div class="evp-list-card">
+                  <h4 data-i18n="ev.panel.top5_title">Top eventos por asistencia</h4>
+                  <div class="evp-top" id="evp-top-list">
+                    <div style="color:var(--text-muted);font-size:12px;text-align:center;padding:16px 0;" data-i18n="ev.panel.top5_empty">Sin eventos realizados en el rango.</div>
+                  </div>
+                </div>
+                <div class="evp-list-card evp-bars-wrap">
+                  <h4 data-i18n="ev.panel.monthly_title">Eventos por mes</h4>
+                  <div class="evp-bars" id="evp-bars"></div>
+                  <div class="evp-bar-labels" id="evp-bar-labels"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="ev-list-grid" style="display:grid;gap:16px;"></div>
         </div>
 
@@ -9298,11 +9581,212 @@ async function invOpenModalTenant() {
   document.getElementById('inv-modal').classList.add('active');
 }
 
+// ── PANEL RESUMEN (analytics agregado) ─────────────────────────
+let evpRange = 'last12m';
+const EVP_RANGE_MAP = { '30d':'last30d', '90d':'last90d', '12m':'last12m', 'ytd':'ytd', 'all':'all' };
+
+function evpSetDonut(id, pct, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const p = Math.max(0, Math.min(100, pct || 0));
+  el.setAttribute('stroke-dasharray', `${p} 100`);
+  const txt = document.getElementById(id + '-pct');
+  if (txt) txt.textContent = text !== undefined ? text : (Math.round(p) + '%');
+}
+
+function evpFmtMoney(v, currency) {
+  const n = Number(v) || 0;
+  if (n >= 1e6) return (currency === 'USD' ? '$' : '$ ') + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (currency === 'USD' ? '$' : '$ ') + (n/1e3).toFixed(1) + 'K';
+  return (currency === 'USD' ? '$' : '$ ') + n.toLocaleString('es-CO');
+}
+function evpFmtMoneyFull(v) {
+  return (Number(v) || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+}
+
+async function evpLoad() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const panel = document.getElementById('ev-analytics-panel');
+  const teaser = document.getElementById('ev-analytics-teaser');
+  if (!panel) return;
+  try {
+    const range = EVP_RANGE_MAP[evpRange] || 'last12m';
+    const res = await fetch(`${API_URL}/api/events/analytics/overview?range=${range}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.status === 403) {
+      const j = await res.json().catch(()=>({}));
+      panel.style.display = 'none';
+      if (j.code === 'tier_locked') {
+        teaser.style.display = 'block';
+      } else {
+        teaser.style.display = 'none';
+      }
+      return;
+    }
+    if (!res.ok) {
+      panel.style.display = 'none';
+      teaser.style.display = 'none';
+      return;
+    }
+    const d = await res.json();
+    teaser.style.display = 'none';
+    panel.style.display = 'block';
+    evpRender(d);
+  } catch(e) {
+    panel.style.display = 'none';
+    teaser.style.display = 'none';
+  }
+}
+
+function evpRender(d) {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const cur = d.currency || 'COP';
+  const events = d.events || {};
+  const att = d.attendees || {};
+  const bud = d.budget || {};
+
+  // KPI 1 — Eventos realizados
+  const total = events.total || 0;
+  const done = events.done || 0;
+  const pctDone = total ? (done / total * 100) : 0;
+  evpSetDonut('evp-donut-events', pctDone);
+  document.getElementById('evp-k-done').textContent = done;
+  document.getElementById('evp-k-done-sub').textContent = t('ev.panel.k_done_sub_tpl').replace('{total}', total);
+  document.getElementById('evp-l-done').textContent = done;
+  document.getElementById('evp-l-sched').textContent = events.scheduled || 0;
+  document.getElementById('evp-l-cancel').textContent = events.cancelled || 0;
+
+  // KPI 2 — Asistentes
+  const reg = att.registered || 0;
+  const chk = att.checkin || 0;
+  const pctChk = reg ? (chk / reg * 100) : 0;
+  evpSetDonut('evp-donut-att', pctChk);
+  document.getElementById('evp-k-att').textContent = chk.toLocaleString('es-CO');
+  document.getElementById('evp-k-att-sub').textContent = t('ev.panel.k_att_sub_tpl').replace('{reg}', reg.toLocaleString('es-CO'));
+  document.getElementById('evp-l-checkin').textContent = chk.toLocaleString('es-CO');
+  document.getElementById('evp-l-noshow').textContent = (att.noshow || 0).toLocaleString('es-CO');
+
+  // KPI 3 — Proyectado
+  const proj = bud.projected || 0;
+  const avg = bud.avg || 0;
+  evpSetDonut('evp-donut-proj', proj > 0 ? 100 : 0, proj > 0 ? '100%' : '—');
+  document.getElementById('evp-k-proj').textContent = proj > 0 ? evpFmtMoney(proj, cur) : '—';
+  document.getElementById('evp-k-proj-sub').textContent = cur + ' · ' + done + ' ' + t('ev.panel.events_word');
+  document.getElementById('evp-l-proj').textContent = evpFmtMoneyFull(proj);
+  document.getElementById('evp-l-avg').textContent = evpFmtMoneyFull(avg);
+
+  // KPI 4 — Pagado
+  const paid = bud.paid || 0;
+  const pending = bud.pending || 0;
+  const pctPaid = proj ? (paid / proj * 100) : 0;
+  evpSetDonut('evp-donut-paid', pctPaid);
+  document.getElementById('evp-k-paid').textContent = paid > 0 ? evpFmtMoney(paid, cur) : '—';
+  document.getElementById('evp-l-paid').textContent = evpFmtMoneyFull(paid);
+  document.getElementById('evp-l-pending').textContent = evpFmtMoneyFull(pending);
+
+  // Top 5
+  const top5 = Array.isArray(d.top5) ? d.top5 : [];
+  const topEl = document.getElementById('evp-top-list');
+  if (!top5.length) {
+    topEl.innerHTML = `<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:16px 0;">${t('ev.panel.top5_empty')}</div>`;
+  } else {
+    const lang = (window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || 'es';
+    const locale = lang === 'en' ? 'en-US' : lang === 'pt-BR' ? 'pt-BR' : 'es-CO';
+    topEl.innerHTML = top5.map((ev, i) => {
+      const start = new Date(ev.starts_at);
+      const end = new Date(ev.ends_at);
+      const days = Math.max(1, Math.round((end - start) / 86400000) + 1);
+      const dateStr = start.toLocaleDateString(locale, { day:'numeric', month:'short', year:'numeric' });
+      return `<div class="evp-top-row" onclick="evOpenDetail('${ev.id}')" style="cursor:pointer;">
+        <div class="evp-top-rank">${String(i+1).padStart(2,'0')}</div>
+        <div>
+          <div class="evp-top-name">${ev.name}${ev.venue_name ? ' · ' + ev.venue_name : ''}</div>
+          <div class="evp-top-meta">${dateStr} · ${days} ${days === 1 ? t('ev.panel.day') : t('ev.panel.days')}</div>
+        </div>
+        <div class="evp-top-val">${(ev.attendees || 0).toLocaleString('es-CO')} <span class="u">${t('ev.panel.attendees_short')}</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Monthly bars
+  const monthly = Array.isArray(d.monthly) ? d.monthly : [];
+  const bars = document.getElementById('evp-bars');
+  const labels = document.getElementById('evp-bar-labels');
+  if (monthly.length) {
+    const max = Math.max(1, ...monthly.map(m => m.count || 0));
+    const lang = (window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || 'es';
+    const locale = lang === 'en' ? 'en-US' : lang === 'pt-BR' ? 'pt-BR' : 'es-CO';
+    bars.innerHTML = monthly.map(m => {
+      const h = (m.count || 0) / max * 100;
+      const d2 = new Date(m.month + '-01T12:00:00Z');
+      const mo = d2.toLocaleDateString(locale, { month:'short', timeZone:'UTC' });
+      return `<div class="evp-bar" style="height:${h}%"><span class="evp-bar-tt">${mo} · ${m.count || 0}</span></div>`;
+    }).join('');
+    labels.innerHTML = monthly.map(m => {
+      const d2 = new Date(m.month + '-01T12:00:00Z');
+      return `<span>${d2.toLocaleDateString(locale, { month:'narrow', timeZone:'UTC' })}</span>`;
+    }).join('');
+  } else {
+    bars.innerHTML = '';
+    labels.innerHTML = '';
+  }
+
+  const subMap = { 'last30d':'ev.panel.sub_30d', 'last90d':'ev.panel.sub_90d', 'last12m':'ev.panel.sub_12m', 'ytd':'ev.panel.sub_ytd', 'all':'ev.panel.sub_all' };
+  const subKey = subMap[EVP_RANGE_MAP[evpRange]] || 'ev.panel.sub_12m';
+  document.getElementById('evp-sub').textContent = t(subKey);
+}
+
+function evpSetRange(r) {
+  evpRange = r;
+  document.querySelectorAll('#ev-analytics-panel .evp-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.range === r);
+  });
+  evpLoad();
+}
+
+function evpToggleCollapse() {
+  const body = document.getElementById('evp-body');
+  const icon = document.getElementById('evp-collapse-icon');
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  icon.style.transform = collapsed ? '' : 'rotate(-90deg)';
+  try { localStorage.setItem('evpCollapsed', collapsed ? '0' : '1'); } catch(e){}
+}
+
+async function evpExport(fmt) {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const range = EVP_RANGE_MAP[evpRange] || 'last12m';
+  try {
+    const res = await fetch(`${API_URL}/api/events/analytics/export/${fmt}?range=${range}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) { showStatus(t('ev.panel.export_err'), 'error'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `events-resumen-${range}.${fmt === 'xlsx' ? 'xlsx' : 'pdf'}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch(e) { showStatus(t('ev.panel.export_err'), 'error'); }
+}
+
 // ── LISTA ──────────────────────────────────────────────────────
 async function evLoadList() {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const grid = document.getElementById('ev-list-grid');
   grid.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">${t('ev.list_loading')}</div>`;
+  // Carga el panel resumen en paralelo (tier gating lado backend)
+  evpLoad();
+  try {
+    if (localStorage.getItem('evpCollapsed') === '1') {
+      const body = document.getElementById('evp-body');
+      const icon = document.getElementById('evp-collapse-icon');
+      if (body) body.style.display = 'none';
+      if (icon) icon.style.transform = 'rotate(-90deg)';
+    }
+  } catch(e){}
   try {
     const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     const data = await res.json();

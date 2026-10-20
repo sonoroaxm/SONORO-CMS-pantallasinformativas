@@ -3659,4 +3659,164 @@ router.get('/license/status', auth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// ANALYTICS — Panel resumen agregado (Pro / Masivo / Admin)
+// ═══════════════════════════════════════════════════════════════════
+
+async function requireAnalyticsAccess(req, res, next) {
+  try {
+    if (req.user.role === 'admin') { req._licTier = 'admin'; return next(); }
+    const pool = global.pool;
+    const { rows } = await pool.query(
+      `SELECT tier, status FROM events.licenses
+        WHERE user_id = $1 AND status IN ('active','grace','readonly')
+        ORDER BY created_at DESC LIMIT 1`,
+      [req.user.id]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'Sin licencia Events', code: 'no_license' });
+    if (!['pro', 'masivo'].includes(rows[0].tier)) {
+      return res.status(403).json({ error: 'Panel resumen disponible solo en Pro y Masivo', code: 'tier_locked', tier: rows[0].tier });
+    }
+    req._licTier = rows[0].tier;
+    next();
+  } catch (err) {
+    console.error('❌ requireAnalyticsAccess:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+}
+
+function parseAnalyticsRange(q) {
+  // Devuelve { from: Date, to: Date } con default = últimos 12 meses
+  const now = new Date();
+  let to = q.to ? new Date(q.to) : now;
+  let from = q.from ? new Date(q.from) : new Date(now.getTime() - 365 * 86400000);
+  if (isNaN(from.getTime())) from = new Date(now.getTime() - 365 * 86400000);
+  if (isNaN(to.getTime())) to = now;
+  return { from, to };
+}
+
+router.get('/analytics/overview', auth, requireAnalyticsAccess, async (req, res) => {
+  try {
+    const pool = global.pool;
+    const { from, to } = parseAnalyticsRange(req.query);
+    const userId = req.user.id;
+
+    // 1) Conteo de eventos por status + currency dominante
+    const eventsAgg = await pool.query(
+      `SELECT
+          COUNT(*) FILTER (WHERE status IN ('closed','archived') OR ends_at < NOW()) AS done,
+          COUNT(*) FILTER (WHERE status IN ('draft','published','live') AND ends_at >= NOW()) AS scheduled,
+          COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+          COUNT(*) AS total
+         FROM events.events
+        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3`,
+      [userId, from, to]
+    );
+
+    // 2) Currency dominante (licencia Events del tenant)
+    const curAgg = await pool.query(
+      `SELECT currency FROM events.licenses
+         WHERE user_id = $1 AND status IN ('active','grace','readonly')
+         ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+    const currency = curAgg.rows[0]?.currency || 'COP';
+
+    // 3) Asistentes (solo eventos pasados)
+    const attAgg = await pool.query(
+      `WITH past_events AS (
+         SELECT id FROM events.events
+          WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+            AND ends_at < NOW()
+       ),
+       regs AS (
+         SELECT r.id, r.status
+           FROM events.registrations r
+           JOIN past_events pe ON pe.id = r.event_id
+          WHERE r.status != 'cancelled'
+       ),
+       checkins AS (
+         SELECT DISTINCT c.registration_id
+           FROM events.registration_checkins c
+           JOIN regs r ON r.id = c.registration_id
+       )
+       SELECT (SELECT COUNT(*) FROM regs) AS registered,
+              (SELECT COUNT(*) FROM checkins) AS checkin`,
+      [userId, from, to]
+    );
+    const registered = parseInt(attAgg.rows[0]?.registered || 0, 10);
+    const checkin = parseInt(attAgg.rows[0]?.checkin || 0, 10);
+    const noshow = Math.max(registered - checkin, 0);
+
+    // 4) Presupuesto: proyectado (config.total_budget) + pagado (suppliers paid)
+    const projAgg = await pool.query(
+      `SELECT COALESCE(SUM((config->>'total_budget')::NUMERIC), 0) AS projected
+         FROM events.events
+        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+          AND (config->>'total_budget') ~ '^[0-9]+(\\.[0-9]+)?$'`,
+      [userId, from, to]
+    );
+    const paidAgg = await pool.query(
+      `SELECT COALESCE(SUM(s.contracted_amount), 0) AS paid
+         FROM events.event_suppliers s
+         JOIN events.events e ON e.id = s.event_id
+        WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
+          AND s.currency = $4 AND s.payment_status = 'paid'`,
+      [userId, from, to, currency]
+    );
+    const projected = parseFloat(projAgg.rows[0]?.projected || 0);
+    const paid = parseFloat(paidAgg.rows[0]?.paid || 0);
+    const pending = Math.max(projected - paid, 0);
+
+    // 5) Top 5 eventos por asistencia (solo pasados)
+    const top5 = await pool.query(
+      `SELECT e.id, e.name, e.slug, e.starts_at, e.ends_at, e.venue_name,
+              COUNT(DISTINCT c.registration_id) AS attendees
+         FROM events.events e
+         LEFT JOIN events.registrations r ON r.event_id = e.id AND r.status != 'cancelled'
+         LEFT JOIN events.registration_checkins c ON c.registration_id = r.id
+        WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
+          AND e.ends_at < NOW()
+        GROUP BY e.id
+        ORDER BY attendees DESC NULLS LAST, e.starts_at DESC
+        LIMIT 5`,
+      [userId, from, to]
+    );
+
+    // 6) Eventos por mes (serie temporal)
+    const monthly = await pool.query(
+      `SELECT TO_CHAR(DATE_TRUNC('month', starts_at), 'YYYY-MM') AS month,
+              COUNT(*) AS count
+         FROM events.events
+        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+          AND status != 'cancelled'
+        GROUP BY 1 ORDER BY 1`,
+      [userId, from, to]
+    );
+
+    res.json({
+      range: { from: from.toISOString(), to: to.toISOString() },
+      currency,
+      tier: req._licTier,
+      events: {
+        done: parseInt(eventsAgg.rows[0]?.done || 0, 10),
+        scheduled: parseInt(eventsAgg.rows[0]?.scheduled || 0, 10),
+        cancelled: parseInt(eventsAgg.rows[0]?.cancelled || 0, 10),
+        total: parseInt(eventsAgg.rows[0]?.total || 0, 10)
+      },
+      attendees: { registered, checkin, noshow },
+      budget: { projected, paid, pending, avg: eventsAgg.rows[0]?.done > 0 ? projected / parseInt(eventsAgg.rows[0].done, 10) : 0 },
+      top5: top5.rows.map(r => ({
+        id: r.id, name: r.name, slug: r.slug,
+        starts_at: r.starts_at, ends_at: r.ends_at, venue: r.venue_name,
+        attendees: parseInt(r.attendees || 0, 10)
+      })),
+      monthly: monthly.rows.map(r => ({ month: r.month, count: parseInt(r.count, 10) }))
+    });
+  } catch (err) {
+    console.error('❌ GET /analytics:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
