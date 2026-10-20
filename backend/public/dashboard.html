@@ -8900,7 +8900,7 @@ function evCopyInviteLink() {
 }
 
 async function evGlobalDeleteSupplier(supId, supName) {
-  if (!confirm(`¿Eliminar a "${supName}" del directorio? Esta acción no se puede deshacer.`)) return;
+  if (!confirm(evI18n('ev.confirm_sup_del_dir', {name: supName}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/suppliers/${supId}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -9060,7 +9060,7 @@ async function evGenerateCalendarLink(catId, provider) {
   } catch(e) { showStatus('Error de conexión','error'); }
 }
 async function evDisconnectIntegration(id, catId) {
-  if (!confirm('¿Desconectar este calendario?')) return;
+  if (!confirm(evI18n('ev.confirm_cal_disc'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/calendar/integrations/${id}`, {
       method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
@@ -9097,7 +9097,7 @@ async function evSaveStaffCat() {
 }
 
 async function evDeleteStaffCat(id, name) {
-  if (!confirm(`¿Eliminar a "${name}" del catálogo? Las asignaciones a eventos pasados se conservan.`)) return;
+  if (!confirm(evI18n('ev.confirm_staff_cat_del', {name: name}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/staff-catalog/${id}`, {
       method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
@@ -9352,7 +9352,7 @@ async function evSaveNew() {
     });
     const data = await res.json();
     if (data.id) {
-      showStatus('Evento creado', 'success');
+      showStatus(evI18n('ev.toast_ev_created'), 'success');
       ['ev-new-name','ev-new-start','ev-new-end','ev-new-capacity','ev-new-desc','ev-new-venue'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('ev-new-tz').value = 'America/Bogota';
       await evOpenDetail(data.id);
@@ -9578,7 +9578,7 @@ async function evSaveCertTpl() {
   try {
     const r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + authToken }, body: fd });
     if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || 'Error'); }
-    showStatus(evCertTplEditing ? 'Plantilla actualizada' : 'Plantilla creada', 'success');
+    showStatus(evI18n(evCertTplEditing ? 'ev.toast_cert_tpl_updated' : 'ev.toast_cert_tpl_created'), 'success');
     evCloseCertTplModal();
     evLoadCertTemplates();
   } catch (e) {
@@ -9587,13 +9587,13 @@ async function evSaveCertTpl() {
 }
 
 async function evDeleteCertTpl(id) {
-  if (!confirm('¿Eliminar esta plantilla? Si ya tiene certificados emitidos, se marcará como inactiva.')) return;
+  if (!confirm(evI18n('ev.confirm_cert_tpl_del'))) return;
   try {
     const r = await fetch(`/api/events/certificate-templates/${id}`, {
       method: 'DELETE', headers: { Authorization: 'Bearer ' + authToken }
     });
     if (!r.ok) throw 0;
-    showStatus('Plantilla eliminada', 'success');
+    showStatus(evI18n('ev.toast_cert_tpl_deleted'), 'success');
     evLoadCertTemplates();
   } catch (_) { showStatus('Error al eliminar', 'error'); }
 }
@@ -9622,7 +9622,7 @@ async function evCertRevoke(certId) {
       body: JSON.stringify({ reason })
     });
     if (!r.ok) throw 0;
-    showStatus('Certificado revocado', 'success');
+    showStatus(evI18n('ev.toast_cert_revoked'), 'success');
     evLoadCertificates();
   } catch (_) { showStatus('Error al revocar', 'error'); }
 }
@@ -10140,7 +10140,7 @@ async function evRevokeProdToken(kind) {
   if (kind === 'produccion') tok = evProdTokens.find(t => t.kind === 'produccion');
   else tok = evProdTokens.find(t => t.kind === 'teleprompter' && t.session_id === evTpSelectedSessionId);
   if (!tok) return;
-  if (!confirm('¿Revocar este token? La URL actual dejará de funcionar.')) return;
+  if (!confirm(evI18n('ev.confirm_token_revoke'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/production-tokens/${tok.id}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -10328,7 +10328,7 @@ async function evSaveInfo() {
       const ticketChip = document.getElementById('ev-fixed-ticket-chip');
       if (ticketChip) ticketChip.classList.toggle('hidden', !(data.config?.ticket_types?.length));
       evPopulateInfo(data);
-      showStatus('Evento actualizado', 'success');
+      showStatus(evI18n('ev.toast_ev_updated'), 'success');
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
 }
@@ -10422,14 +10422,14 @@ function evEditSession(id) {
 }
 
 async function evDeleteSession(id) {
-  if (!confirm('¿Eliminar esta sesión?')) return;
+  if (!confirm(evI18n('ev.confirm_sess_del'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions/${id}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
     });
     if (!res.ok) { showStatus('Error al eliminar', 'error'); return; }
     evLoadSessions(evCurrentEventId);
-    showStatus('Sesión eliminada', 'success');
+    showStatus(evI18n('ev.toast_sess_deleted'), 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
@@ -10467,7 +10467,7 @@ async function evSaveSession() {
     });
     const data = await res.json();
     if (data.id) {
-      showStatus(editId ? 'Sesión actualizada' : 'Sesión agregada', 'success');
+      showStatus(evI18n(editId ? 'ev.toast_sess_updated' : 'ev.toast_sess_added'), 'success');
       evCloseAddSession();
       evLoadSessions(evCurrentEventId);
     } else { showStatus(data.error || 'Error', 'error'); }
@@ -10700,7 +10700,7 @@ async function evSaveFormConfig() {
     const data = await res.json();
     if (data.id) {
       evCurrentEvent = data;
-      showStatus('Formulario guardado', 'success');
+      showStatus(evI18n('ev.toast_form_saved'), 'success');
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
 }
@@ -11042,7 +11042,7 @@ async function evOpenAssignSessions(regId) {
         : vis === 'invite_only'
           ? '<span style="font-size:9px;font-weight:700;background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.4);padding:1px 6px;border-radius:4px;margin-left:6px;">SOLO INVITADOS</span>'
           : '';
-      const date = s.starts_at ? new Date(s.starts_at).toLocaleString('es-CO', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+      const date = s.starts_at ? evFmtDate(s.starts_at, { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz }) : '';
       const isOn = assigned.has(s.id);
       return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface);">
         <input type="checkbox" data-sess-id="${s.id}" data-was="${isOn ? '1':'0'}" ${isOn ? 'checked':''}>
@@ -11079,14 +11079,14 @@ async function evSaveAssignSessions() {
         headers: { 'Authorization':`Bearer ${authToken}` }
       });
     }
-    showStatus('Sesiones actualizadas', 'success');
+    showStatus(evI18n('ev.toast_sess_updated_bulk'), 'success');
     evCloseAssignSessions();
     evLoadRegistrations();
   } catch(e) { showStatus('Error de conexión', 'error'); }
 }
 
 async function evDeleteRegistration(regId) {
-  if (!confirm('¿Eliminar permanentemente este registro? Esta acción no se puede deshacer.')) return;
+  if (!confirm(evI18n('ev.confirm_reg_del'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}`, {
       method: 'DELETE',
@@ -11330,14 +11330,14 @@ function evCloseEdit() {
 }
 
 async function evResendQR(regId) {
-  if (!confirm('¿Reenviar correo con el QR al inscrito?')) return;
+  if (!confirm(evI18n('ev.confirm_qr_resend'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${regId}/resend-email`, {
       method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
-    showStatus(`QR reenviado a ${data.sent_to}`, 'success');
+    showStatus(evI18n('ev.toast_qr_resent', {email: data.sent_to}), 'success');
   } catch(e) { showStatus(e.message || 'Error al reenviar', 'error'); }
 }
 
@@ -11363,7 +11363,7 @@ async function evSaveReg(regId, alsoResend) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
-    showStatus('Inscrito actualizado', 'success');
+    showStatus(evI18n('ev.toast_reg_updated'), 'success');
     evCloseEdit();
     if (typeof evLoadRegistrations === 'function') evLoadRegistrations();
     if (alsoResend) {
@@ -11373,7 +11373,7 @@ async function evSaveReg(regId, alsoResend) {
         });
         const d2 = await r2.json();
         if (!r2.ok) throw new Error(d2.error || 'Error');
-        showStatus(`QR reenviado a ${d2.sent_to}`, 'success');
+        showStatus(evI18n('ev.toast_qr_resent', {email: d2.sent_to}), 'success');
       } catch(e) { showStatus('Guardado, pero error al reenviar: ' + e.message, 'error'); }
     }
   } catch(e) {
@@ -11425,7 +11425,7 @@ function evRenderStaff() {
   el.innerHTML = evStaffList.map(s => {
     const color = EV_ROLE_COLORS[s.role] || '#94a3b8';
     const label = EV_ROLE_LABELS[s.role] || s.role;
-    const sentAt = s.briefing_sent_at ? new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+    const sentAt = s.briefing_sent_at ? evFmtDate(s.briefing_sent_at, { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
     const briefingBtn = s.email ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:#fff;border:none;padding:4px 10px;font-size:11px;font-weight:700;" title="${t('ev.stf_briefing_title')}" onclick="evOpenBriefingPreview('${s.id}')"><svg width="12" height="12" style="vertical-align:middle;fill:currentColor;margin-right:4px"><use href="#ph-arrow-right"/></svg>${t('ev.stf_send_briefing')}</button>` : '';
     const sentBadge = s.briefing_sent_at ? `<div style="font-size:11px;color:#86efac;margin-top:4px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-check-circle"/></svg> ${t('ev.stf_briefing_sent')} ${sentAt}</div>` : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
@@ -11466,8 +11466,8 @@ function evOpenBriefingPreview(staffId) {
 
   const ev = evCurrentEvent || {};
   const tz = ev.timezone || 'America/Bogota';
-  const starts = ev.starts_at ? new Date(ev.starts_at).toLocaleString('es-CO', { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
-  const ends   = ev.ends_at   ? new Date(ev.ends_at).toLocaleString('es-CO',   { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+  const starts = ev.starts_at ? evFmtDate(ev.starts_at, { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
+  const ends   = ev.ends_at   ? evFmtDate(ev.ends_at,   { day:'numeric', month:'long', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true, timeZone: tz }) : '';
 
   document.getElementById('ev-briefing-event-name').textContent  = ev.name || '—';
   document.getElementById('ev-briefing-event-when').textContent  = starts ? `${starts}${ends ? ' → ' + ends : ''} · ${tz}` : '—';
@@ -11486,7 +11486,7 @@ function evOpenBriefingPreview(staffId) {
   const alreadyEl = document.getElementById('ev-briefing-already');
   const sendBtn = document.getElementById('ev-briefing-send-btn');
   if (s.briefing_sent_at) {
-    const prev = new Date(s.briefing_sent_at).toLocaleString('es-CO', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const prev = evFmtDate(s.briefing_sent_at, { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
     alreadyEl.textContent = `Briefing ya enviado el ${prev}. Si envías ahora, se reenviará.`;
     alreadyEl.style.display = '';
     sendBtn.textContent = 'Reenviar briefing';
@@ -11572,7 +11572,7 @@ async function evConfirmSendBriefing() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Error al enviar briefing');
-    showStatus(`Briefing enviado a ${s.name}`, 'success');
+    showStatus(evI18n('ev.toast_briefing_sent', {name: s.name}), 'success');
     evCloseBriefingPreview();
     await evLoadStaff();
   } catch(e) {
@@ -11621,12 +11621,12 @@ async function evSaveStaff() {
     evStaffList.push(data);
     evRenderStaff();
     evCloseAddStaff();
-    showStatus('Staff agregado', 'success');
+    showStatus(evI18n('ev.toast_staff_added'), 'success');
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
 async function evDeleteStaff(staffId, staffName) {
-  if (!confirm(`¿Eliminar a "${staffName}" del staff?`)) return;
+  if (!confirm(evI18n('ev.confirm_staff_remove', {name: staffName}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/staff/${staffId}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -11634,7 +11634,7 @@ async function evDeleteStaff(staffId, staffName) {
     if (!res.ok) { const d = await res.json(); showStatus(d.error||'Error', 'error'); return; }
     evStaffList = evStaffList.filter(s => s.id !== staffId);
     evRenderStaff();
-    showStatus('Staff eliminado', 'success');
+    showStatus(evI18n('ev.toast_staff_deleted'), 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
@@ -11673,6 +11673,18 @@ function evFmtCOP(n) {
   if (!n && n !== 0) return '–';
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 }
+function evFmtDate(iso, opts) {
+  if (!iso) return '';
+  var loc = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : 'es';
+  var map = { 'es':'es-CO', 'en':'en-US', 'pt-BR':'pt-BR' };
+  return new Date(iso).toLocaleString(map[loc] || 'es-CO', opts || {});
+}
+function evI18n(key, params) {
+  var fn = (window.SonoroI18n && window.SonoroI18n.t) ? window.SonoroI18n.t : function(k){ return k; };
+  var s = fn(key);
+  if (params) Object.keys(params).forEach(function(k){ s = s.replace(new RegExp('\\{'+k+'\\}', 'g'), params[k]); });
+  return s;
+}
 
 function evRenderBudget() {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
@@ -11706,7 +11718,7 @@ async function evSaveBudget() {
     evBudgetData.total_budget = val;
     evRenderBudget();
     document.getElementById('ev-budget-edit').style.display = 'none';
-    showStatus('Presupuesto guardado', 'success');
+    showStatus(evI18n('ev.toast_budget_saved'), 'success');
   } catch(e) { showStatus('Error al guardar presupuesto', 'error'); }
 }
 
@@ -11846,7 +11858,7 @@ async function evSaveContract() {
     fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
       .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
     evCloseAddContract();
-    showStatus('Proveedor agregado', 'success');
+    showStatus(evI18n('ev.toast_sup_added'), 'success');
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
@@ -11856,13 +11868,7 @@ function evUpdateContractStatus(contractId, newStatus, prevStatus) {
     document.getElementById(`ev-abono-val-${contractId}`).focus();
     return;
   }
-  const msgs = {
-    accepted:  '¿Aceptar esta cotización? Se registrará como aprobada en el historial.',
-    rejected:  '¿Marcar como rechazada? El proveedor quedará fuera del presupuesto.',
-    paid:      '¿Confirmar pago completo? Se registrará en el historial.',
-    cancelled: '¿Cancelar este contrato? La acción quedará registrada.',
-  };
-  const msg = msgs[newStatus];
+  const msg = evI18n('ev.confirm_contract_' + newStatus);
   if (msg && !confirm(msg)) {
     // Revertir el <select> al valor anterior
     const sel = document.querySelector(`select[onchange*="evUpdateContractStatus('${contractId}'"]`);
@@ -11908,7 +11914,7 @@ async function evPatchContractStatus(contractId, newStatus, abonoAmount) {
 }
 
 async function evDeleteContract(contractId, name) {
-  if (!confirm(`¿Quitar a "${name}" de este evento?`)) return;
+  if (!confirm(evI18n('ev.confirm_staff_pool_remove', {name: name}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -11918,7 +11924,7 @@ async function evDeleteContract(contractId, name) {
     evRenderContracts();
     fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
       .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
-    showStatus('Proveedor quitado del evento', 'success');
+    showStatus(evI18n('ev.toast_sup_removed_ev'), 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
@@ -12024,12 +12030,12 @@ async function evSaveSupplier() {
     }
     evRenderSupplierDir();
     evCloseAddSupplier();
-    showStatus(isEdit ? 'Proveedor actualizado' : 'Proveedor guardado en directorio', 'success');
+    showStatus(evI18n(isEdit ? 'ev.toast_sup_updated' : 'ev.toast_sup_saved_dir'), 'success');
   } catch(e) { showStatus('Error al guardar', 'error'); }
 }
 
 async function evDeleteSupplier(supId, name) {
-  if (!confirm(`¿Eliminar "${name}" del directorio?`)) return;
+  if (!confirm(evI18n('ev.confirm_sup_dir_del', {name: name}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/suppliers/${supId}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -12038,21 +12044,21 @@ async function evDeleteSupplier(supId, name) {
     if (!res.ok) { showStatus(d.error || 'Error', 'error'); return; }
     evSupplierDir = evSupplierDir.filter(s => s.id != supId);
     evRenderSupplierDir();
-    showStatus('Proveedor eliminado del directorio', 'success');
+    showStatus(evI18n('ev.toast_sup_removed_dir'), 'success');
   } catch(e) { showStatus('Error al eliminar', 'error'); }
 }
 
 // ── COTIZACIONES ────────────────────────────────────────────────────────────
 
 async function evSendQuote(contractId, email) {
-  if (!confirm(`¿Enviar formato de cotización a ${email}?`)) return;
+  if (!confirm(evI18n('ev.confirm_quote_send', {email: email}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}/send-quote`, {
       method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }
     });
     const data = await res.json();
     if (!res.ok) { showStatus(data.error || 'Error al enviar', 'error'); return; }
-    showStatus(`Cotización enviada a ${email}`, 'success');
+    showStatus(evI18n('ev.toast_quote_sent', {email: email}), 'success');
     const idx = evEventContracts.findIndex(c => c.id === contractId);
     if (idx >= 0) evEventContracts[idx].quote_status = 'enviada';
     evRenderContracts();
@@ -12114,7 +12120,7 @@ function evShowQuoteModal(q, contractId) {
 }
 
 async function evApplyQuotePrice(contractId, amount) {
-  if (!confirm(`¿Actualizar el monto contratado a ${evFmtCOP(amount)}?`)) return;
+  if (!confirm(evI18n('ev.confirm_price_update', {amount: evFmtCOP(amount)}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/suppliers/${contractId}`, {
       method: 'PATCH',
@@ -12129,13 +12135,13 @@ async function evApplyQuotePrice(contractId, amount) {
     document.getElementById('ev-quote-modal').style.display = 'none';
     fetch(`${API_URL}/api/events/${evCurrentEventId}/budget`, { headers: { 'Authorization': `Bearer ${authToken}` } })
       .then(r => r.json()).then(b => { evBudgetData = b; evRenderBudget(); });
-    showStatus('Precio actualizado', 'success');
+    showStatus(evI18n('ev.toast_price_updated'), 'success');
   } catch(e) { showStatus('Error al actualizar precio', 'error'); }
 }
 
 async function evDeleteCurrentEvent() {
   const name = document.getElementById('ev-detail-title').textContent;
-  if (!confirm(`¿Eliminar "${name}"?\n\nEsta acción es irreversible: se borrarán todos los registros, check-ins y datos del evento.`)) return;
+  if (!confirm(evI18n('ev.confirm_ev_del', {name: name}))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
@@ -12145,7 +12151,7 @@ async function evDeleteCurrentEvent() {
     evCurrentEventId = null;
     evShowView('list');
     evLoadList();
-    showStatus('Evento eliminado', 'success');
+    showStatus(evI18n('ev.toast_ev_deleted'), 'success');
   } catch(e) { showStatus('Error al eliminar el evento', 'error'); }
 }
 
@@ -12217,7 +12223,7 @@ async function evSupDocUpload(supId, docType, fileInput) {
     if (s) s[docType + '_url'] = d.url;
     const btn = fileInput.closest('label');
     if (btn) btn.style.borderColor = '#22c55e';
-    showStatus('Documento guardado', 'success');
+    showStatus(evI18n('ev.toast_doc_saved'), 'success');
   } catch(e) { showStatus('Error al subir documento', 'error'); }
 }
 
@@ -12237,7 +12243,7 @@ async function evUploadPaymentProof(contractId, fileInput) {
     const idx = evEventContracts.findIndex(c => c.id === contractId);
     if (idx >= 0) evEventContracts[idx].payment_proof_url = d.url;
     evRenderContracts();
-    showStatus('Comprobante guardado', 'success');
+    showStatus(evI18n('ev.toast_receipt_saved'), 'success');
   } catch(e) { showStatus('Error al subir comprobante', 'error'); }
 }
 
@@ -12349,19 +12355,19 @@ async function evSaveCue() {
     if (!res.ok) { showStatus(d.error || 'Error', 'error'); return; }
     evCloseAddCue();
     await evLoadRundown();
-    showStatus(editId ? 'Cue actualizado' : 'Cue agregado', 'success');
+    showStatus(evI18n(editId ? 'ev.toast_cue_updated' : 'ev.toast_cue_added'), 'success');
   } catch(e) { showStatus('Error al guardar cue', 'error'); }
 }
 
 async function evDeleteCue(id) {
-  if (!confirm('¿Eliminar este cue?')) return;
+  if (!confirm(evI18n('ev.confirm_cue_del'))) return;
   try {
     const res = await fetch(`${API_URL}/api/events/${evCurrentEventId}/rundown/${id}`, {
       method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` }
     });
     if (!res.ok) { showStatus('Error al eliminar', 'error'); return; }
     await evLoadRundown();
-    showStatus('Cue eliminado', 'success');
+    showStatus(evI18n('ev.toast_cue_deleted'), 'success');
   } catch(e) { showStatus('Error al eliminar cue', 'error'); }
 }
 
