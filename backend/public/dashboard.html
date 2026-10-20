@@ -1566,7 +1566,7 @@
           </div>
           <div class="form-group">
             <label data-i18n="login.password">Contraseña</label>
-            <input type="password" id="loginPassword" placeholder="••••••••" required>
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required>
           </div>
           <button type="submit" class="submit-btn" data-i18n="login.signin_btn">Ingresar</button>
         </form>
@@ -1607,7 +1607,7 @@
           </div>
           <div class="form-group">
             <label data-i18n="login.password">Contraseña</label>
-            <input type="password" id="registerPassword" placeholder="••••••••" required>
+            <input type="password" id="registerPassword" placeholder="••••••••" autocomplete="new-password" required>
           </div>
           <button type="submit" class="submit-btn" data-i18n="login.signup_btn">Crear Cuenta</button>
         </form>
@@ -2181,7 +2181,8 @@
 
         <div class="card">
           <div class="card-title" data-i18n="mc.change_pw">Cambiar contraseña</div>
-          <div style="display:grid;gap:12px;max-width:420px;">
+          <form style="display:grid;gap:12px;max-width:420px;" onsubmit="event.preventDefault();mcChangePassword();" autocomplete="on">
+            <input type="text" name="username" autocomplete="username" style="display:none;" tabindex="-1" aria-hidden="true">
             <div>
               <label style="font-size:12px;color:var(--text-muted);" data-i18n="mc.pw_current">Contraseña actual</label>
               <input type="password" id="mcPwCurrent" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="current-password">
@@ -2195,9 +2196,9 @@
               <input type="password" id="mcPwConfirm" class="lic-select" style="width:100%;margin-top:4px;" autocomplete="new-password">
             </div>
             <div>
-              <button id="mcPwBtn" class="btn btn-grad" onclick="mcChangePassword()" data-i18n="mc.change_pw_btn">Cambiar contraseña</button>
+              <button id="mcPwBtn" type="submit" class="btn btn-grad" data-i18n="mc.change_pw_btn">Cambiar contraseña</button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
 
