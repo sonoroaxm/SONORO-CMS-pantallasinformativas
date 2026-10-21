@@ -19,6 +19,7 @@ const eventsProductionPublicRouter = require('./routes/events-production-public'
 const eventsStaffRouter  = require('./routes/events-staff');
 const eventsCalendarRouter = require('./routes/events-calendar');
 const eventsCertificatesRouter = require('./routes/events-certificates');
+const eventsRnRouter     = require('./routes/events-rn');
 const licensesRouter     = require('./routes/licenses');
 const licensesAdminRouter = require('./routes/licenses-admin');
 const licensesApprovalRouter = require('./routes/licenses-approval');
@@ -9009,6 +9010,8 @@ app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events/calendar', requireEventsAccess, eventsCalendarRouter);
 app.use('/api/events',          requireEventsAccess, eventsCertificatesRouter);
 app.use('/api/events',          requireEventsAccess, eventsRouter);
+// Rueda de Negocios v1 (E-RN-1) — hereda gate Events
+app.use('/api/rn',              requireEventsAccess, eventsRnRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
 app.use('/api', licensesRouter);
