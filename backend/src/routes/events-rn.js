@@ -565,6 +565,12 @@ router.post('/events/:eventId/rounds/:roundId/open', auth, async (req, res) => {
       solver.runRuntimeRound(client, { eventId: req.params.eventId, roundId: req.params.roundId })
     );
     console.log(`[rn-solver] runtime event=${req.params.eventId} round=${req.params.roundId} deferred=${result.deferred_count}`);
+    global.io?.to(`event_rueda_${req.params.eventId}`).emit('rn.round.opened', {
+      event_id: req.params.eventId,
+      round_id: req.params.roundId,
+      deferred_count: result.deferred_count,
+      at: new Date().toISOString(),
+    });
     res.json(result);
   } catch (err) { handleError(res, err, 'POST rounds/open'); }
 });

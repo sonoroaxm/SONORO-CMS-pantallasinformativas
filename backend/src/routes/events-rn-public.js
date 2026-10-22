@@ -877,4 +877,135 @@ router.get('/callboard/:eventSlug/:zoneSlug?', rnReadLimiter, async (req, res) =
   } catch (err) { handleError(res, err, 'GET callboard'); }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-5 — Runtime: check-in · start/end meeting · EBV capture (D-RN-15)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// POST /checkin?token=<agenda_token>
+// Marca al delegado como presente en el evento (idempotente por UNIQUE).
+router.post('/checkin', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const method = ['self','staff','qr','admin'].includes(req.body?.method) ? req.body.method : 'self';
+    const r = await pool.query(
+      `INSERT INTO events.rn_checkins (event_id, delegate_id, method)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (event_id, delegate_id) DO UPDATE SET method = EXCLUDED.method
+       RETURNING id, checked_in_at, method`,
+      [ctx.event_id, ctx.delegate_id, method]
+    );
+    global.io?.to(`event_rueda_${ctx.event_id}`).emit('rn.checkin', {
+      delegate_id: ctx.delegate_id, at: r.rows[0].checked_in_at,
+    });
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'POST checkin'); }
+});
+
+// Helper: valida que el delegado tiene registration en la reunión
+async function assertMeetingDelegate(pool, meetingId, delegateId) {
+  const { rows } = await pool.query(
+    `SELECT m.id, m.event_id, m.round_id, m.table_id, m.company_a_id, m.company_b_id,
+            m.status, m.origin, d.registration_id AS my_reg
+       FROM events.rn_meetings m
+       JOIN events.rn_delegates d ON d.id = $2
+      WHERE m.id = $1`,
+    [meetingId, delegateId]
+  );
+  if (!rows[0]) {
+    const e = new Error('Reunión no encontrada'); e.httpStatus = 404; throw e;
+  }
+  const m = rows[0];
+  const myReg = m.my_reg;
+  const isA = myReg === m.company_a_id;
+  const isB = myReg === m.company_b_id;
+  if (!isA && !isB) {
+    const e = new Error('No eres parte de esta reunión'); e.httpStatus = 403; throw e;
+  }
+  return { meeting: m, side: isA ? 'a' : 'b' };
+}
+
+// POST /meetings/:id/start?token=<agenda_token>
+router.post('/meetings/:id/start', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { meeting } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    if (!['scheduled','active'].includes(meeting.status)) {
+      return res.status(409).json({ error: `No puede iniciarse (status=${meeting.status})` });
+    }
+    const r = await pool.query(
+      `UPDATE events.rn_meetings
+          SET status = 'active',
+              started_at = COALESCE(started_at, NOW()),
+              initiated_by = COALESCE(initiated_by, $2)
+        WHERE id = $1
+        RETURNING id, status, started_at`,
+      [req.params.id, ctx.registration_id]
+    );
+    global.io?.to(`event_rueda_${meeting.event_id}`).emit('rn.meeting.started', r.rows[0]);
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'POST meeting/start'); }
+});
+
+// POST /meetings/:id/end?token=<agenda_token>
+router.post('/meetings/:id/end', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { meeting, side } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    if (meeting.status === 'completed') return res.json({ id: meeting.id, status: 'completed' });
+
+    const notes = req.body?.notes ? String(req.body.notes).slice(0, 2000) : null;
+    const notesCol = `notes_${side}`;
+    const r = await pool.query(
+      `UPDATE events.rn_meetings
+          SET status = 'completed',
+              ended_at = COALESCE(ended_at, NOW()),
+              ${notesCol} = COALESCE($2, ${notesCol})
+        WHERE id = $1
+        RETURNING id, status, ended_at`,
+      [req.params.id, notes]
+    );
+    global.io?.to(`event_rueda_${meeting.event_id}`).emit('rn.meeting.ended', r.rows[0]);
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'POST meeting/end'); }
+});
+
+// POST /meetings/:id/ebv?token=<agenda_token>  (D-RN-15)
+// Guarda EBV en el lado del token (A o B). Nunca cross-lado. Editable hasta event.status='closed'.
+router.post('/meetings/:id/ebv', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    if (ctx.event_status === 'closed') {
+      return res.status(423).json({ error: 'Evento cerrado, EBV ya no editable' });
+    }
+    const amount   = parseFloat(req.body?.amount);
+    const currency = (req.body?.currency || 'COP').toString().toUpperCase().slice(0, 3);
+    const horizon  = ['short','long'].includes(req.body?.horizon) ? req.body.horizon : null;
+    if (!isFinite(amount) || amount < 0) {
+      return res.status(400).json({ error: 'amount inválido' });
+    }
+
+    const { side } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    const amtCol = `expected_value_${side}_amount`;
+    const curCol = `expected_value_${side}_currency`;
+    const horCol = `expected_value_${side}_horizon`;
+    const atCol  = `expected_value_${side}_at`;
+
+    const r = await pool.query(
+      `UPDATE events.rn_meetings
+          SET ${amtCol} = $2, ${curCol} = $3, ${horCol} = $4, ${atCol} = NOW()
+        WHERE id = $1
+        RETURNING id, ${amtCol} AS amount, ${curCol} AS currency, ${horCol} AS horizon, ${atCol} AS at`,
+      [req.params.id, amount, currency, horizon]
+    );
+    res.json({ side, ...r.rows[0] });
+  } catch (err) { handleError(res, err, 'POST meeting/ebv'); }
+});
+
 module.exports = router;

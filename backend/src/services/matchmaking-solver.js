@@ -411,9 +411,7 @@ async function resetMeetings(client, eventId) {
 // Decide status según presencia de delegados primarios y marca deferred.
 // ──────────────────────────────────────────────────────────────────────────────
 async function runRuntimeRound(client, { eventId, roundId }) {
-  // Presencia a nivel registration: ≥1 delegado con registration con check-in previo o aceptado.
-  // Como no tenemos aún check-in RN físico, el stub asume "todos presentes" salvo opt-out marcado
-  // en custom_fields.rn_absent=true. E-RN-5 refinará con rn_checkins propio.
+  // Presencia a nivel registration: ≥1 delegado de la registration con fila en events.rn_checkins.
   const meetings = (await client.query(
     `SELECT m.id, m.company_a_id, m.company_b_id, m.origin, m.locked, m.status
        FROM events.rn_meetings m
@@ -425,13 +423,16 @@ async function runRuntimeRound(client, { eventId, roundId }) {
   for (const m of meetings) { regs.add(m.company_a_id); regs.add(m.company_b_id); }
   const absent = new Set();
   if (regs.size > 0) {
-    const absentRows = (await client.query(
-      `SELECT id FROM events.registrations
-        WHERE id = ANY($1::uuid[])
-          AND (custom_fields->>'rn_absent')::boolean = TRUE`,
-      [Array.from(regs)]
+    const presentRows = (await client.query(
+      `SELECT DISTINCT d.registration_id
+         FROM events.rn_checkins c
+         JOIN events.rn_delegates d ON d.id = c.delegate_id
+        WHERE c.event_id = $1
+          AND d.registration_id = ANY($2::uuid[])`,
+      [eventId, Array.from(regs)]
     )).rows;
-    for (const r of absentRows) absent.add(r.id);
+    const present = new Set(presentRows.map(r => r.registration_id));
+    for (const r of regs) if (!present.has(r)) absent.add(r);
   }
 
   const deferred = [];
