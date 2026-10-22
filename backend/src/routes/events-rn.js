@@ -619,4 +619,153 @@ router.get('/events/:eventId/meetings', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET meetings'); }
 });
 
+// E-RN-6a · Reporte post-evento productor (D-RN-9 + D-RN-15)
+router.get('/events/:eventId/report', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const topN = Math.min(Math.max(parseInt(req.query.top_n, 10) || 10, 1), 50);
+    const eventId = req.params.eventId;
+
+    // Per-meeting value computed server-side siguiendo §5.5.1:
+    //   bilateral → AVG(a,b) · unilateral → el único lado · nunca SUM(a+b)
+    const perMeetingSql = `
+      WITH per_meeting AS (
+        SELECT
+          m.id,
+          m.round_id,
+          m.table_id,
+          m.company_a_id,
+          m.company_b_id,
+          m.expected_value_a_amount AS a_amt,
+          m.expected_value_b_amount AS b_amt,
+          m.expected_value_a_currency AS a_cur,
+          m.expected_value_b_currency AS b_cur,
+          m.expected_value_a_horizon AS a_hor,
+          m.expected_value_b_horizon AS b_hor,
+          CASE
+            WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL
+              THEN (m.expected_value_a_amount + m.expected_value_b_amount) / 2.0
+            WHEN m.expected_value_a_amount IS NOT NULL THEN m.expected_value_a_amount
+            WHEN m.expected_value_b_amount IS NOT NULL THEN m.expected_value_b_amount
+          END AS meeting_value,
+          CASE
+            WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL THEN 'bilateral'
+            WHEN m.expected_value_a_amount IS NOT NULL OR  m.expected_value_b_amount IS NOT NULL THEN 'unilateral'
+            ELSE 'empty'
+          END AS fill_type,
+          CASE
+            WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL
+                 AND m.expected_value_a_horizon = m.expected_value_b_horizon THEN m.expected_value_a_horizon
+            WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL THEN 'mixed'
+            WHEN m.expected_value_a_amount IS NOT NULL THEN m.expected_value_a_horizon
+            WHEN m.expected_value_b_amount IS NOT NULL THEN m.expected_value_b_horizon
+          END AS horizon_label
+        FROM events.rn_meetings m
+        WHERE m.event_id = $1
+      )
+      SELECT * FROM per_meeting
+    `;
+
+    const perMeeting = (await pool.query(perMeetingSql, [eventId])).rows;
+
+    const total       = perMeeting.length;
+    const withEbv     = perMeeting.filter(r => r.fill_type !== 'empty');
+    const bilateral   = perMeeting.filter(r => r.fill_type === 'bilateral');
+    const unilateral  = perMeeting.filter(r => r.fill_type === 'unilateral');
+    const values      = withEbv.map(r => Number(r.meeting_value)).sort((a, b) => a - b);
+    const coverage    = total > 0 ? withEbv.length / total : 0;
+    const sum         = values.reduce((s, v) => s + v, 0);
+    const avg         = values.length ? sum / values.length : null;
+    const min         = values.length ? values[0] : null;
+    const max         = values.length ? values[values.length - 1] : null;
+    const median      = values.length
+      ? (values.length % 2
+          ? values[(values.length - 1) / 2]
+          : (values[values.length / 2 - 1] + values[values.length / 2]) / 2)
+      : null;
+
+    // Horizon breakdown
+    const horizonBreakdown = { short: 0, long: 0, mixed: 0, unknown: 0 };
+    for (const r of withEbv) {
+      const h = r.horizon_label;
+      if (h === 'short' || h === 'long' || h === 'mixed') horizonBreakdown[h]++;
+      else horizonBreakdown.unknown++;
+    }
+
+    // Currency sanity: v1 asume moneda base única (COP). Flag si hay mezcla.
+    const currencies = new Set();
+    for (const r of withEbv) {
+      if (r.a_cur) currencies.add(r.a_cur);
+      if (r.b_cur) currencies.add(r.b_cur);
+    }
+    const mixedCurrencies = currencies.size > 1;
+
+    // Top N nombrado
+    const topIds = withEbv
+      .slice()
+      .sort((a, b) => Number(b.meeting_value) - Number(a.meeting_value))
+      .slice(0, topN)
+      .map(r => r.id);
+    let topRows = [];
+    if (topIds.length) {
+      topRows = (await pool.query(
+        `SELECT m.id,
+                rd.round_number,
+                t.label AS table_label,
+                ra.custom_fields->>'company_name' AS company_a,
+                rb.custom_fields->>'company_name' AS company_b
+           FROM events.rn_meetings m
+           JOIN events.rn_rounds rd ON rd.id = m.round_id
+           JOIN events.rn_tables t  ON t.id  = m.table_id
+           JOIN events.registrations ra ON ra.id = m.company_a_id
+           JOIN events.registrations rb ON rb.id = m.company_b_id
+          WHERE m.id = ANY($1::uuid[])`,
+        [topIds]
+      )).rows;
+    }
+    const topRowsById = Object.fromEntries(topRows.map(r => [r.id, r]));
+    const top = withEbv
+      .slice()
+      .sort((a, b) => Number(b.meeting_value) - Number(a.meeting_value))
+      .slice(0, topN)
+      .map(r => ({
+        meeting_id:  r.id,
+        value:       Number(r.meeting_value),
+        fill_type:   r.fill_type,
+        horizon:     r.horizon_label,
+        round:       topRowsById[r.id]?.round_number ?? null,
+        table_label: topRowsById[r.id]?.table_label  ?? null,
+        company_a:   topRowsById[r.id]?.company_a    ?? null,
+        company_b:   topRowsById[r.id]?.company_b    ?? null,
+      }));
+
+    res.json({
+      event: {
+        id: ev.id,
+        name: ev.name,
+        status: ev.status,
+      },
+      meetings: {
+        total,
+        with_ebv: withEbv.length,
+        bilateral: bilateral.length,
+        unilateral: unilateral.length,
+        empty: total - withEbv.length,
+      },
+      ebv: {
+        total_estimated: sum || null,
+        avg_per_meeting: avg,
+        median_per_meeting: median,
+        min, max,
+        horizon_breakdown: horizonBreakdown,
+        coverage,
+        referential: coverage < 0.20,          // D-RN-15 flag
+        mixed_currencies: mixedCurrencies,     // v1 asume COP; v2 FX
+      },
+      top,
+    });
+  } catch (err) { handleError(res, err, 'GET report productor'); }
+});
+
 module.exports = router;

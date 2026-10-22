@@ -1014,4 +1014,115 @@ router.post('/meetings/:id/ebv', rnTokenMutationLimiter, async (req, res) => {
   } catch (err) { handleError(res, err, 'POST meeting/ebv'); }
 });
 
+// E-RN-6a · Reporte post-evento delegado (D-RN-9 + D-RN-15)
+// Cifras propias del delegado + agregado anónimo del evento (sin desglose por empresa).
+router.get('/report', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const regId = ctx.registration_id;
+    const eventId = ctx.event_id;
+
+    // Mis reuniones + EBV que yo (como lado A o B) escribí.
+    // D-RN-15: nunca ve la contraparte — solo mi lado.
+    const myMeetings = (await pool.query(
+      `SELECT m.id,
+              m.company_a_id,
+              m.company_b_id,
+              m.status,
+              rd.round_number,
+              t.label AS table_label,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_amount
+                   WHEN m.company_b_id = $1 THEN m.expected_value_b_amount END AS my_amount,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_currency
+                   WHEN m.company_b_id = $1 THEN m.expected_value_b_currency END AS my_currency,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_horizon
+                   WHEN m.company_b_id = $1 THEN m.expected_value_b_horizon END AS my_horizon,
+              CASE WHEN m.company_a_id = $1
+                     THEN rb.custom_fields->>'company_name'
+                     ELSE ra.custom_fields->>'company_name' END AS counterpart_company,
+              CASE WHEN m.company_a_id = $1
+                     THEN rb.id
+                     ELSE ra.id END AS counterpart_registration_id
+         FROM events.rn_meetings m
+         JOIN events.rn_rounds rd ON rd.id = m.round_id
+         JOIN events.rn_tables t  ON t.id  = m.table_id
+         JOIN events.registrations ra ON ra.id = m.company_a_id
+         JOIN events.registrations rb ON rb.id = m.company_b_id
+        WHERE m.event_id = $2 AND (m.company_a_id = $1 OR m.company_b_id = $1)
+        ORDER BY rd.round_number ASC`,
+      [regId, eventId]
+    )).rows;
+
+    const myFilled = myMeetings.filter(r => r.my_amount != null);
+    const myValues = myFilled.map(r => Number(r.my_amount)).sort((a, b) => a - b);
+    const mySum    = myValues.reduce((s, v) => s + v, 0);
+    const myAvg    = myValues.length ? mySum / myValues.length : null;
+
+    // Agregado anónimo del evento (misma lógica que productor pero sin top ni nombres)
+    const perMeeting = (await pool.query(
+      `SELECT
+         CASE
+           WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL
+             THEN (m.expected_value_a_amount + m.expected_value_b_amount) / 2.0
+           WHEN m.expected_value_a_amount IS NOT NULL THEN m.expected_value_a_amount
+           WHEN m.expected_value_b_amount IS NOT NULL THEN m.expected_value_b_amount
+         END AS meeting_value
+       FROM events.rn_meetings m
+       WHERE m.event_id = $1`,
+      [eventId]
+    )).rows;
+
+    const total   = perMeeting.length;
+    const withEbv = perMeeting.filter(r => r.meeting_value != null);
+    const vals    = withEbv.map(r => Number(r.meeting_value)).sort((a, b) => a - b);
+    const sum     = vals.reduce((s, v) => s + v, 0);
+    const avg     = vals.length ? sum / vals.length : null;
+    const median  = vals.length
+      ? (vals.length % 2
+          ? vals[(vals.length - 1) / 2]
+          : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2)
+      : null;
+    const coverage = total > 0 ? withEbv.length / total : 0;
+
+    res.json({
+      event: {
+        id: eventId,
+        name: ctx.event_name,
+        slug: ctx.event_slug,
+        status: ctx.event_status,
+      },
+      me: {
+        meetings_total: myMeetings.length,
+        meetings_with_ebv: myFilled.length,
+        sum: mySum || null,
+        avg: myAvg,
+        meetings: myMeetings.map(r => ({
+          meeting_id: r.id,
+          round: r.round_number,
+          table_label: r.table_label,
+          status: r.status,
+          counterpart_company: r.counterpart_company,
+          my_amount: r.my_amount != null ? Number(r.my_amount) : null,
+          my_currency: r.my_currency,
+          my_horizon: r.my_horizon,
+        })),
+      },
+      event_aggregate_anonymous: {
+        total_meetings: total,
+        with_ebv: withEbv.length,
+        total_estimated: sum || null,
+        avg_per_meeting: avg,
+        median_per_meeting: median,
+        coverage,
+        referential: coverage < 0.20,
+      },
+    });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('[rn-public] GET /report error:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
