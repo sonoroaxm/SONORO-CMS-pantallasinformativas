@@ -1907,4 +1907,97 @@ async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, compa
   console.log(`✅ RN delegate-invited enviado a ${to}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, verifyConnection };
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD DE REUNIÓN RECIBIDA (E-RN-2) ────────
+async function sendRnRequestReceivedEmail({ to, delegateName, fromCompanyName, eventName, agendaUrl, message }) {
+  if (!to || !agendaUrl) return;
+  const msgBlock = message
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+        <tr><td style="padding:14px 20px;">
+          <p style="margin:0;font-size:13px;color:#444;line-height:1.6;font-style:italic;">&ldquo;${message}&rdquo;</p>
+        </td></tr>
+      </table>`
+    : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${fromCompanyName} quiere reunirse contigo
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, recibiste una nueva solicitud de reunión para
+      <strong style="color:#0f0f0f;">${eventName}</strong>. Revisa y responde desde tu agenda.
+    </p>
+    ${msgBlock}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Revisar solicitud
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Si aceptas, el solver intentará ubicar la reunión en una ronda disponible. Las solicitudes aceptadas son prioritarias (<em>requested</em>).
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Nueva solicitud de reunión &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-received enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD ACEPTADA (E-RN-2) ───────────────────
+async function sendRnRequestAcceptedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${targetCompanyName} aceptó tu solicitud
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, tu solicitud de reunión para
+      <strong style="color:#0f0f0f;">${eventName}</strong> fue aceptada. La asignación de ronda y mesa aparecerá en tu agenda
+      cuando el productor publique el pool.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver mi agenda
+        </a>
+      </td></tr>
+    </table>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Solicitud aceptada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-accepted enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD RECHAZADA (E-RN-2) ──────────────────
+async function sendRnRequestRejectedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Solicitud no aceptada
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} no aceptó tu solicitud de reunión en
+      <strong style="color:#0f0f0f;">${eventName}</strong>. El solver puede proponerte alternativas con tags coincidentes.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Explorar directorio
+        </a>
+      </td></tr>
+    </table>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Solicitud no aceptada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-rejected enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, verifyConnection };
