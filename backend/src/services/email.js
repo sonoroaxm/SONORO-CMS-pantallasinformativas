@@ -1832,4 +1832,79 @@ async function sendCertificateEmail({ to, attendeeName, eventName, certUrl, pdfP
   console.log(`✅ Certificado enviado a ${to} (${eventName})`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, verifyConnection };
+// ── EMAIL — RUEDA DE NEGOCIOS: BIENVENIDA PRIMARIO (E-RN-1b) ─────────────────
+async function sendRnWelcomeEmail({ to, delegateName, companyName, eventName, eventSlug, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${companyName} quedó inscrita en ${eventName}
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, confirmamos tu inscripción como delegado primario.
+      Tu agenda personal queda en el enlace de abajo &mdash; guárdalo, es tu acceso durante todo el evento.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Abrir mi agenda
+        </a>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0;font-size:12px;color:#999;line-height:1.5;word-break:break-all;">
+          ${agendaUrl}
+        </p>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Como delegado primario puedes invitar a tu equipo desde la misma página, pedir reuniones con otras empresas y revisar tu agenda en tiempo real.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Inscripción confirmada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN welcome enviado a ${to} (${eventSlug})`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: INVITACIÓN DELEGADO SECUNDARIO (E-RN-1b) ──────
+async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, companyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${inviterName} te invitó a ${eventName}
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, representas a
+      <strong style="color:#0f0f0f;">${companyName}</strong> en esta rueda de negocios.
+      Tu agenda es independiente: el solver te asigna reuniones propias y puedes pedir las tuyas.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Aceptar y abrir mi agenda
+        </a>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0;font-size:12px;color:#999;line-height:1.5;word-break:break-all;">
+          ${agendaUrl}
+        </p>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Al abrir el enlace completas tu perfil. Puedes editar tu nombre, teléfono y cargo en cualquier momento.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Fuiste invitado a ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN delegate-invited enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, verifyConnection };
