@@ -2000,4 +2000,143 @@ async function sendRnRequestRejectedEmail({ to, delegateName, targetCompanyName,
   console.log(`✅ RN request-rejected enviado a ${to}`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, verifyConnection };
+// ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO DELEGADO (E-RN-6b · D-RN-9) ──
+async function sendRnEventSummaryEmail({ to, delegateName, companyName, eventName, agendaUrl, meetings, myEbv, aggregate }) {
+  if (!to || !agendaUrl) return;
+  const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+
+  const meetingRows = (meetings || []).slice(0, 20).map(m => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;">
+        <strong>${safe(m.counterpart_company)}</strong>
+        ${m.tags_matched && m.tags_matched.length ? `<div style="margin-top:3px;font-size:11px;color:#888;">${m.tags_matched.map(safe).join(' · ')}</div>` : ''}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;text-align:right;">
+        Ronda ${m.round} · Mesa ${safe(m.table_label)}
+      </td>
+    </tr>`).join('');
+
+  const myEbvBlock = myEbv && myEbv.sum ? `
+    <div style="margin:0 0 20px;padding:16px 18px;background:#faf5ff;border-left:3px solid #a855f7;border-radius:4px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Tus cifras privadas</div>
+      <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(myEbv.sum)}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">Potencial estimado por ti en ${myEbv.filled} de ${meetings.length} reuniones. Solo tú ves este valor.</div>
+    </div>` : '';
+
+  const aggBlock = aggregate ? `
+    <div style="margin:0 0 20px;padding:16px 18px;background:#f9fafb;border-radius:6px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Agregado anónimo del evento</div>
+      <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(aggregate.total_estimated)}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">
+        ${aggregate.with_ebv} de ${aggregate.total_meetings} reuniones aportaron cifra
+        ${aggregate.referential ? ' · <strong style="color:#c2410c;">cifra referencial, muestra insuficiente</strong>' : ''}.
+      </div>
+    </div>` : '';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Resumen de tu rueda
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, estas son las empresas con las que
+      <strong style="color:#0f0f0f;">${safe(companyName)}</strong> se reunió en <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
+      Los próximos pasos están en tus manos.
+    </p>
+    ${myEbvBlock}
+    ${aggBlock}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
+      ${meetingRows || '<tr><td style="padding:16px;text-align:center;color:#888;font-size:13px;">No se registraron reuniones.</td></tr>'}
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver detalle completo
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
+      Guarda este correo: contiene los contactos de las empresas con las que te reuniste.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Resumen de tu rueda — ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN event-summary enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO PRODUCTOR (E-RN-6b · D-RN-9) ──
+async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics, top, reportUrl }) {
+  if (!to) return;
+  const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+
+  const metricCard = (label, value) => `
+    <td width="33%" style="padding:14px 10px;background:#f9fafb;border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${label}</div>
+      <div style="font-size:18px;font-weight:800;color:#0f0f0f;">${value}</div>
+    </td>`;
+
+  const topRows = (top || []).slice(0, 10).map((m, i) => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;width:32px;">${i+1}.</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;">
+        <strong>${safe(m.company_a)}</strong> ↔ <strong>${safe(m.company_b)}</strong>
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;text-align:right;font-weight:700;">
+        COP $${fmtMoney(m.value)}
+      </td>
+    </tr>`).join('');
+
+  const refFlag = metrics.referential
+    ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff7ed;border-left:3px solid #c2410c;border-radius:4px;font-size:12px;color:#9a3412;">
+         Cobertura ${(metrics.coverage*100).toFixed(0)}% &mdash; las cifras EBV son <strong>referenciales</strong> (muestra insuficiente, &lt;20%).
+       </div>` : '';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Resumen de la rueda
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, cierre de
+      <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
+    </p>
+    ${refFlag}
+    <table width="100%" cellpadding="0" cellspacing="6" style="margin:0 0 20px;">
+      <tr>
+        ${metricCard('Reuniones', metrics.total)}
+        ${metricCard('Con EBV', `${metrics.with_ebv} <span style="font-size:12px;color:#888;">(${(metrics.coverage*100).toFixed(0)}%)</span>`)}
+        ${metricCard('Agregado', `COP $${fmtMoney(metrics.total_estimated)}`)}
+      </tr>
+    </table>
+    ${top && top.length ? `
+    <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Top reuniones por potencial</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
+      ${topRows}
+    </table>` : ''}
+    ${reportUrl ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver reporte completo
+        </a>
+      </td></tr>
+    </table>` : ''}
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
+      Agregado calculado con semántica D-RN-15: valor por reunión = promedio bilateral o lado único.
+      Nunca se suma lado A + lado B.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Resumen de la rueda — ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN producer-summary enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, verifyConnection };

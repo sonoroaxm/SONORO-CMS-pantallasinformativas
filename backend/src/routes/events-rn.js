@@ -768,4 +768,142 @@ router.get('/events/:eventId/report', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET report productor'); }
 });
 
+// E-RN-6b · Trigger emails post-evento (D-RN-9 §7)
+router.post('/events/:eventId/report/send', auth, async (req, res) => {
+  const pool = global.pool;
+  const email = require('../services/email.js');
+  try {
+    const ev = await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const eventId = ev.id;
+    const baseUrl = (process.env.CMS_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+
+    // Payload productor (reusa misma semántica del GET /report)
+    const perMeeting = (await pool.query(
+      `SELECT m.id,
+              CASE
+                WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL
+                  THEN (m.expected_value_a_amount + m.expected_value_b_amount) / 2.0
+                WHEN m.expected_value_a_amount IS NOT NULL THEN m.expected_value_a_amount
+                WHEN m.expected_value_b_amount IS NOT NULL THEN m.expected_value_b_amount
+              END AS meeting_value,
+              CASE
+                WHEN m.expected_value_a_amount IS NOT NULL AND m.expected_value_b_amount IS NOT NULL THEN 'bilateral'
+                WHEN m.expected_value_a_amount IS NOT NULL OR  m.expected_value_b_amount IS NOT NULL THEN 'unilateral'
+                ELSE 'empty' END AS fill_type
+         FROM events.rn_meetings m WHERE m.event_id = $1`,
+      [eventId]
+    )).rows;
+    const totalMeetings = perMeeting.length;
+    const withEbv = perMeeting.filter(r => r.fill_type !== 'empty');
+    const vals = withEbv.map(r => Number(r.meeting_value)).sort((a, b) => a - b);
+    const sumAgg = vals.reduce((s, v) => s + v, 0);
+    const coverage = totalMeetings > 0 ? withEbv.length / totalMeetings : 0;
+    const metrics = {
+      total: totalMeetings, with_ebv: withEbv.length,
+      total_estimated: sumAgg || null, coverage, referential: coverage < 0.20,
+    };
+
+    // Top 10 nombrado
+    const topIds = withEbv.slice().sort((a,b)=>Number(b.meeting_value)-Number(a.meeting_value)).slice(0,10).map(r=>r.id);
+    let topRows = [];
+    if (topIds.length) {
+      topRows = (await pool.query(
+        `SELECT m.id, ra.custom_fields->>'company_name' AS company_a, rb.custom_fields->>'company_name' AS company_b
+           FROM events.rn_meetings m
+           JOIN events.registrations ra ON ra.id=m.company_a_id
+           JOIN events.registrations rb ON rb.id=m.company_b_id
+          WHERE m.id = ANY($1::uuid[])`, [topIds])).rows;
+    }
+    const byId = Object.fromEntries(topRows.map(r=>[r.id, r]));
+    const top = withEbv.slice().sort((a,b)=>Number(b.meeting_value)-Number(a.meeting_value)).slice(0,10)
+      .map(r => ({ value: Number(r.meeting_value), company_a: byId[r.id]?.company_a, company_b: byId[r.id]?.company_b }));
+
+    // Email productor
+    const producerEmail = (await pool.query(
+      `SELECT u.email, u.name FROM public.users u WHERE u.id=$1`, [req.user.id])).rows[0];
+    let sentProducer = 0;
+    if (producerEmail?.email) {
+      try {
+        await email.sendRnProducerSummaryEmail({
+          to: producerEmail.email,
+          producerName: producerEmail.name || 'Productor',
+          eventName: ev.name,
+          metrics, top,
+          reportUrl: `${baseUrl}/dashboard.html#events-tab`,
+        });
+        sentProducer = 1;
+      } catch (e) { console.error('[rn-report/send] producer email error:', e.message); }
+    }
+
+    // Delegados primarios: una fila por registration con el delegado primario aceptado
+    const delegates = (await pool.query(
+      `SELECT d.id              AS delegate_id,
+              d.full_name,
+              d.email,
+              d.agenda_token,
+              r.id              AS registration_id,
+              r.custom_fields->>'company_name' AS company_name
+         FROM events.rn_delegates d
+         JOIN events.registrations r ON r.id = d.registration_id
+        WHERE r.event_id = $1 AND d.is_primary = TRUE AND d.accepted_at IS NOT NULL`,
+      [eventId]
+    )).rows;
+
+    let sentDelegates = 0;
+    for (const d of delegates) {
+      const regId = d.registration_id;
+      const myMeetings = (await pool.query(
+        `SELECT m.id,
+                rd.round_number,
+                t.label AS table_label,
+                CASE WHEN m.company_a_id=$1 THEN m.expected_value_a_amount
+                     ELSE m.expected_value_b_amount END AS my_amount,
+                CASE WHEN m.company_a_id=$1 THEN rb.custom_fields->>'company_name'
+                     ELSE ra.custom_fields->>'company_name' END AS counterpart_company
+           FROM events.rn_meetings m
+           JOIN events.rn_rounds rd ON rd.id=m.round_id
+           JOIN events.rn_tables t  ON t.id=m.table_id
+           JOIN events.registrations ra ON ra.id=m.company_a_id
+           JOIN events.registrations rb ON rb.id=m.company_b_id
+          WHERE m.event_id=$2 AND (m.company_a_id=$1 OR m.company_b_id=$1)
+          ORDER BY rd.round_number ASC`,
+        [regId, eventId]
+      )).rows;
+
+      const myFilled = myMeetings.filter(r => r.my_amount != null);
+      const mySum = myFilled.reduce((s, r) => s + Number(r.my_amount), 0);
+
+      try {
+        await email.sendRnEventSummaryEmail({
+          to: d.email,
+          delegateName: d.full_name,
+          companyName: d.company_name,
+          eventName: ev.name,
+          agendaUrl: `${baseUrl}/rueda/mi-agenda/${d.agenda_token}`,
+          meetings: myMeetings.map(m => ({
+            counterpart_company: m.counterpart_company,
+            round: m.round_number,
+            table_label: m.table_label,
+          })),
+          myEbv: { sum: mySum || null, filled: myFilled.length },
+          aggregate: {
+            total_meetings: totalMeetings,
+            with_ebv: withEbv.length,
+            total_estimated: metrics.total_estimated,
+            referential: metrics.referential,
+          },
+        });
+        sentDelegates++;
+      } catch (e) { console.error(`[rn-report/send] delegate email error ${d.email}:`, e.message); }
+    }
+
+    res.json({
+      event_id: eventId,
+      sent_to_delegates: sentDelegates,
+      delegates_total: delegates.length,
+      sent_to_producer: sentProducer,
+    });
+  } catch (err) { handleError(res, err, 'POST report/send'); }
+});
+
 module.exports = router;
