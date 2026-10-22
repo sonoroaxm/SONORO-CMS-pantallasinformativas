@@ -11,7 +11,13 @@ const express   = require('express');
 const router    = express.Router();
 const rateLimit = require('express-rate-limit');
 const { withTransaction } = require('../db/withTransaction');
-const { sendRnWelcomeEmail, sendRnDelegateInvitedEmail } = require('../services/email');
+const {
+  sendRnWelcomeEmail,
+  sendRnDelegateInvitedEmail,
+  sendRnRequestReceivedEmail,
+  sendRnRequestAcceptedEmail,
+  sendRnRequestRejectedEmail,
+} = require('../services/email');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,6 +94,8 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
     pitch,
     website,
     delegate = {},
+    tags = {},                   // E-RN-2: {offer:[tagId,...], demand:[tagId,...]}
+    visibility_choice,           // E-RN-2: 'public'|'private' solo si cfg.visibility='mixed'
     accepted_terms,
     hp_field = '',
     locale: rawLocale,
@@ -138,10 +146,34 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
       }
     }
 
+    // E-RN-2: visibility choice (solo relevante si cfg.visibility='mixed')
+    const eventVis = (cfg.matchmaking && cfg.matchmaking.visibility) || cfg.visibility || 'public';
+    let rnVisibility = null;
+    if (eventVis === 'mixed') {
+      rnVisibility = (visibility_choice === 'private') ? 'private' : 'public';
+    }
+
+    // E-RN-2: tags offer/demand — ignorados si matching_mode='manual_only'
+    const matchingMode = (cfg.matchmaking && cfg.matchmaking.matching_mode) || cfg.matching_mode || 'tags';
+    const offerIds  = Array.isArray(tags.offer)  ? tags.offer.filter(x => UUID_RE.test(String(x)))  : [];
+    const demandIds = Array.isArray(tags.demand) ? tags.demand.filter(x => UUID_RE.test(String(x))) : [];
+    let validOffer = [], validDemand = [];
+    if (matchingMode !== 'manual_only' && (offerIds.length || demandIds.length)) {
+      const allIds = [...new Set([...offerIds, ...demandIds])];
+      const tagCheck = await pool.query(
+        `SELECT id FROM events.rn_tags WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+        [event.user_id, allIds]
+      );
+      const ok = new Set(tagCheck.rows.map(r => r.id));
+      validOffer  = offerIds.filter(id => ok.has(id));
+      validDemand = demandIds.filter(id => ok.has(id));
+    }
+
     const customFields = {
       company_name: companyName,
       pitch: pitch ? String(pitch).trim().slice(0, 1000) : null,
       website: website ? String(website).trim().slice(0, 300) : null,
+      rn_visibility: rnVisibility,
     };
 
     const result = await withTransaction(pool, async (client) => {
@@ -186,6 +218,23 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
          RETURNING id, agenda_token`,
         [registration.id, delegateName, cleanEmail, delegate.phone || null, delegate.role_title || null]
       );
+
+      // E-RN-2: tags offer/demand
+      for (const tagId of validOffer) {
+        await client.query(
+          `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+           VALUES ($1,$2,'offer') ON CONFLICT DO NOTHING`,
+          [registration.id, tagId]
+        );
+      }
+      for (const tagId of validDemand) {
+        await client.query(
+          `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+           VALUES ($1,$2,'demand') ON CONFLICT DO NOTHING`,
+          [registration.id, tagId]
+        );
+      }
+
       return { registration, delegate: delRes.rows[0], event };
     });
 
@@ -367,6 +416,336 @@ router.get('/delegates/me', rnReadLimiter, async (req, res) => {
       },
     });
   } catch (err) { handleError(res, err, 'GET /me'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-2 · Público — tags del tenant (para el formulario de inscripción)
+// GET /api/rn/public/:eventSlug/tags → lista tags disponibles del productor
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/:eventSlug/tags', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows: evRows } = await pool.query(
+      `SELECT user_id, config FROM events.events
+        WHERE slug = $1 AND status IN ('published','live')`,
+      [req.params.eventSlug]
+    );
+    if (!evRows[0]) return res.status(404).json({ error: 'Rueda no encontrada' });
+    const ev = evRows[0];
+    const cfg = ev.config || {};
+    const matchingMode = (cfg.matchmaking && cfg.matchmaking.matching_mode) || cfg.matching_mode || 'tags';
+    if (matchingMode === 'manual_only') return res.json({ matching_mode: 'manual_only', tags: [] });
+
+    const { rows } = await pool.query(
+      `SELECT id, slug, label, category FROM events.rn_tags
+        WHERE user_id = $1
+        ORDER BY category NULLS LAST, label`,
+      [ev.user_id]
+    );
+    res.json({ matching_mode: matchingMode, tags: rows });
+  } catch (err) { handleError(res, err, 'GET tags'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-2 · Directorio (D-RN-16 views match/all · D-RN-17 matching_mode)
+// GET /api/rn/public/directory/:eventSlug?token=<agenda_token>
+//   &view=match|all  &q=  &tags=<csv>  &role=seller|buyer|both  &page=<n>
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    // El token debe pertenecer al mismo evento del path
+    if (ctx.event_slug !== req.params.eventSlug) {
+      return res.status(403).json({ error: 'Token no corresponde a esta rueda' });
+    }
+
+    const cfg = ctx.event_config || {};
+    const mm  = cfg.matchmaking || {};
+    const eventVis   = mm.visibility || cfg.visibility || 'public';
+    const matchingMode = mm.matching_mode || cfg.matching_mode || 'tags';
+    const defaultView  = mm.directory_default_view || cfg.directory_default_view || 'match';
+    const PAGE_SIZE = 24;
+
+    if (eventVis === 'private') {
+      return res.json({ view: 'match', total: 0, page: 1, page_size: PAGE_SIZE, results: [] });
+    }
+
+    const requestedView = String(req.query.view || defaultView);
+    const view = (requestedView === 'all') ? 'all' : 'match';
+    const q    = String(req.query.q || '').trim().slice(0, 100);
+    const role = ['seller','buyer','both'].includes(req.query.role) ? req.query.role : null;
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
+    const tagFilter = String(req.query.tags || '')
+      .split(',').map(s => s.trim()).filter(s => UUID_RE.test(s));
+
+    // mis tags para calcular overlap
+    const myTagsRes = await pool.query(
+      `SELECT tag_id, kind FROM events.rn_registration_tags WHERE registration_id = $1`,
+      [ctx.registration_id]
+    );
+    const myOffer  = myTagsRes.rows.filter(t => t.kind === 'offer').map(t => t.tag_id);
+    const myDemand = myTagsRes.rows.filter(t => t.kind === 'demand').map(t => t.tag_id);
+
+    // tag_overlap_score = count(their offer ∩ my demand) + count(their demand ∩ my offer)
+    // Si matching_mode='manual_only' → siempre 0 (ignora tags en filtro y sort)
+    const scoreSelect = (matchingMode === 'manual_only')
+      ? `0 AS score`
+      : `(
+          SELECT COUNT(*)::int FROM events.rn_registration_tags rt
+          WHERE rt.registration_id = r.id
+            AND ((rt.kind = 'offer'  AND rt.tag_id = ANY($2::uuid[]))
+              OR (rt.kind = 'demand' AND rt.tag_id = ANY($3::uuid[])))
+        ) AS score`;
+
+    const params = [ctx.event_id, myDemand, myOffer];
+    let where = `r.event_id = $1 AND r.id <> $4 AND r.status != 'cancelled'`;
+    params.push(ctx.registration_id);
+
+    // visibility='mixed' → solo quienes marcaron rn_visibility='public'
+    if (eventVis === 'mixed') {
+      where += ` AND (r.custom_fields->>'rn_visibility') = 'public'`;
+    }
+
+    // Blocklist bidireccional — oculta ambos lados
+    where += ` AND NOT EXISTS (
+      SELECT 1 FROM events.rn_blocklist b
+      WHERE (b.registration_id = $4 AND b.blocked_registration_id = r.id)
+         OR (b.registration_id = r.id AND b.blocked_registration_id = $4)
+    )`;
+
+    if (q) {
+      params.push(`%${q.toLowerCase()}%`);
+      where += ` AND (
+        LOWER(r.custom_fields->>'company_name') LIKE $${params.length}
+        OR LOWER(COALESCE(r.custom_fields->>'pitch','')) LIKE $${params.length}
+      )`;
+    }
+
+    if (tagFilter.length && matchingMode !== 'manual_only') {
+      params.push(tagFilter);
+      where += ` AND EXISTS (
+        SELECT 1 FROM events.rn_registration_tags rt
+        WHERE rt.registration_id = r.id AND rt.tag_id = ANY($${params.length}::uuid[])
+      )`;
+    }
+
+    // role filter (seller/buyer/both basado en qué kinds tiene la empresa)
+    if (role) {
+      if (role === 'seller') {
+        where += ` AND EXISTS (SELECT 1 FROM events.rn_registration_tags rt WHERE rt.registration_id = r.id AND rt.kind = 'offer')`;
+      } else if (role === 'buyer') {
+        where += ` AND EXISTS (SELECT 1 FROM events.rn_registration_tags rt WHERE rt.registration_id = r.id AND rt.kind = 'demand')`;
+      } else if (role === 'both') {
+        where += ` AND EXISTS (SELECT 1 FROM events.rn_registration_tags rt WHERE rt.registration_id = r.id AND rt.kind = 'offer')
+                   AND EXISTS (SELECT 1 FROM events.rn_registration_tags rt WHERE rt.registration_id = r.id AND rt.kind = 'demand')`;
+      }
+    }
+
+    // view=match → threshold ≥ 1 (default). view=all → sin filtro mínimo (pero mantiene seller/both heurística).
+    if (view === 'match' && matchingMode !== 'manual_only') {
+      // threshold vive en cfg
+      const threshold = Number(mm.default_tag_overlap_threshold || 1);
+      // Lo aplicamos en HAVING-like via subquery abajo
+      params.push(threshold);
+      where += ` AND (
+        SELECT COUNT(*) FROM events.rn_registration_tags rt
+        WHERE rt.registration_id = r.id
+          AND ((rt.kind = 'offer'  AND rt.tag_id = ANY($2::uuid[]))
+            OR (rt.kind = 'demand' AND rt.tag_id = ANY($3::uuid[])))
+      ) >= $${params.length}`;
+    }
+
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM events.registrations r WHERE ${where}`,
+      params
+    );
+    const total = countRes.rows[0].c;
+
+    const orderBy = (view === 'all')
+      ? `score DESC NULLS LAST, LOWER(r.custom_fields->>'company_name') ASC`
+      : `score DESC NULLS LAST, LOWER(r.custom_fields->>'company_name') ASC`;
+
+    const offset = (page - 1) * PAGE_SIZE;
+    params.push(PAGE_SIZE); params.push(offset);
+    const limitIdx  = params.length - 1;
+    const offsetIdx = params.length;
+
+    const listRes = await pool.query(
+      `SELECT r.id,
+              r.custom_fields->>'company_name' AS company_name,
+              r.custom_fields->>'pitch'        AS pitch,
+              r.custom_fields->>'website'      AS website,
+              ${scoreSelect}
+         FROM events.registrations r
+        WHERE ${where}
+        ORDER BY ${orderBy}
+        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      params
+    );
+
+    res.json({
+      view, matching_mode: matchingMode, total,
+      page, page_size: PAGE_SIZE,
+      results: listRes.rows,
+    });
+  } catch (err) { handleError(res, err, 'GET directory'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-2 · Meeting requests (peer-to-peer)
+// POST /api/rn/public/requests?token=<token>  Body: { to_registration_id, message? }
+// POST /api/rn/public/requests/:id/respond?token=<token>  Body: { action: 'accept'|'reject' }
+// GET  /api/rn/public/requests?token=<token>&direction=in|out
+// ──────────────────────────────────────────────────────────────────────────────
+router.post('/requests', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const { to_registration_id, message } = req.body || {};
+    if (!to_registration_id || !UUID_RE.test(String(to_registration_id))) {
+      return res.status(400).json({ error: 'to_registration_id requerido' });
+    }
+    if (to_registration_id === ctx.registration_id) {
+      return res.status(400).json({ error: 'No puedes pedir una reunión contigo mismo' });
+    }
+
+    // Target debe estar en el mismo evento + no cancelado + no bloqueado
+    const tgt = await pool.query(
+      `SELECT r.id, r.custom_fields->>'company_name' AS company_name,
+              r.custom_fields->>'rn_visibility' AS rn_vis,
+              EXISTS (
+                SELECT 1 FROM events.rn_blocklist b
+                 WHERE (b.registration_id = $1 AND b.blocked_registration_id = r.id)
+                    OR (b.registration_id = r.id AND b.blocked_registration_id = $1)
+              ) AS blocked
+         FROM events.registrations r
+        WHERE r.id = $2 AND r.event_id = $3 AND r.status != 'cancelled'`,
+      [ctx.registration_id, to_registration_id, ctx.event_id]
+    );
+    if (!tgt.rows[0]) return res.status(404).json({ error: 'Empresa destino no encontrada' });
+    if (tgt.rows[0].blocked) return res.status(403).json({ error: 'Esta empresa no está disponible' });
+
+    // Email primario destino
+    const primary = await pool.query(
+      `SELECT full_name, email, agenda_token FROM events.rn_delegates
+        WHERE registration_id = $1 AND is_primary = TRUE LIMIT 1`,
+      [to_registration_id]
+    );
+
+    try {
+      const ins = await pool.query(
+        `INSERT INTO events.rn_meeting_requests
+           (event_id, from_registration_id, to_registration_id, message)
+         VALUES ($1,$2,$3,$4)
+         RETURNING id, status, created_at`,
+        [ctx.event_id, ctx.registration_id, to_registration_id,
+         message ? String(message).slice(0, 500) : null]
+      );
+      const request = ins.rows[0];
+
+      if (primary.rows[0]) {
+        const fromCompanyRow = await pool.query(
+          `SELECT custom_fields->>'company_name' AS c FROM events.registrations WHERE id = $1`,
+          [ctx.registration_id]
+        );
+        sendRnRequestReceivedEmail({
+          to: primary.rows[0].email,
+          delegateName: primary.rows[0].full_name,
+          fromCompanyName: fromCompanyRow.rows[0]?.c || '',
+          eventName: ctx.event_name,
+          agendaUrl: agendaUrl(req, primary.rows[0].agenda_token),
+          message: message || null,
+        }).catch(e => console.error('⚠️ Email rn-request-received fallido:', e.message));
+      }
+
+      console.log(`[rn-public] request event=${ctx.event_slug} from=${ctx.registration_id} to=${to_registration_id}`);
+      res.status(201).json(request);
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'Ya existe una solicitud pendiente a esta empresa' });
+      throw err;
+    }
+  } catch (err) { handleError(res, err, 'POST request'); }
+});
+
+router.post('/requests/:id/respond', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+
+    const action = req.body?.action;
+    if (!['accept','reject'].includes(action)) {
+      return res.status(400).json({ error: "action debe ser 'accept' o 'reject'" });
+    }
+    const newStatus = (action === 'accept') ? 'accepted' : 'rejected';
+
+    const upd = await pool.query(
+      `UPDATE events.rn_meeting_requests
+          SET status = $1, responded_at = NOW()
+        WHERE id = $2
+          AND to_registration_id = $3
+          AND status = 'pending'
+        RETURNING id, from_registration_id, to_registration_id, status, message`,
+      [newStatus, req.params.id, ctx.registration_id]
+    );
+    if (upd.rowCount === 0) {
+      return res.status(404).json({ error: 'Solicitud no encontrada o ya respondida' });
+    }
+    const r = upd.rows[0];
+
+    // Email al origen (delegado primario)
+    const fromPrim = await pool.query(
+      `SELECT d.email, d.full_name, d.agenda_token,
+              rg.custom_fields->>'company_name' AS from_company,
+              rt.custom_fields->>'company_name' AS to_company
+         FROM events.rn_delegates d
+         JOIN events.registrations rg ON rg.id = d.registration_id
+         JOIN events.registrations rt ON rt.id = $2
+        WHERE d.registration_id = $1 AND d.is_primary = TRUE
+        LIMIT 1`,
+      [r.from_registration_id, r.to_registration_id]
+    );
+    if (fromPrim.rows[0]) {
+      const payload = {
+        to: fromPrim.rows[0].email,
+        delegateName: fromPrim.rows[0].full_name,
+        targetCompanyName: fromPrim.rows[0].to_company || '',
+        eventName: ctx.event_name,
+        agendaUrl: agendaUrl(req, fromPrim.rows[0].agenda_token),
+      };
+      if (newStatus === 'accepted') {
+        sendRnRequestAcceptedEmail(payload).catch(e => console.error('⚠️ Email rn-request-accepted:', e.message));
+      } else {
+        sendRnRequestRejectedEmail(payload).catch(e => console.error('⚠️ Email rn-request-rejected:', e.message));
+      }
+    }
+
+    console.log(`[rn-public] request ${newStatus} event=${ctx.event_slug} id=${req.params.id}`);
+    res.json(r);
+  } catch (err) { handleError(res, err, 'POST request/respond'); }
+});
+
+router.get('/requests', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const direction = (req.query.direction === 'out') ? 'out' : 'in';
+    const sideCol = (direction === 'in') ? 'to_registration_id' : 'from_registration_id';
+    const otherCol = (direction === 'in') ? 'from_registration_id' : 'to_registration_id';
+
+    const { rows } = await pool.query(
+      `SELECT q.id, q.status, q.message, q.created_at, q.responded_at,
+              q.${otherCol} AS other_registration_id,
+              r.custom_fields->>'company_name' AS other_company
+         FROM events.rn_meeting_requests q
+         JOIN events.registrations r ON r.id = q.${otherCol}
+        WHERE q.${sideCol} = $1 AND q.event_id = $2
+        ORDER BY q.created_at DESC`,
+      [ctx.registration_id, ctx.event_id]
+    );
+    res.json({ direction, requests: rows });
+  } catch (err) { handleError(res, err, 'GET requests'); }
 });
 
 module.exports = router;
