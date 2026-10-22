@@ -9,6 +9,7 @@ const express = require('express');
 const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const { withTransaction } = require('../db/withTransaction');
+const solver = require('../services/matchmaking-solver');
 
 function auth(req, res, next) {
   const token = (req.headers['authorization'] || '').split(' ')[1];
@@ -492,6 +493,80 @@ router.post('/events/:eventId/delegates/bulk', auth, async (req, res) => {
       skipped: result.skipped,
     });
   } catch (err) { handleError(res, err, 'POST delegates/bulk'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-3 — Solver (preview · run · reset · runtime per round)
+// ──────────────────────────────────────────────────────────────────────────────
+router.post('/events/:eventId/solver/preview', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
+    const result = await withTransaction(pool, async (client) => {
+      const out = await solver.runPreEvent(client, {
+        eventId: req.params.eventId,
+        dryRun: true,
+        manualMeetings: manual,
+      });
+      // Dry-run: rollback forzado para no escribir nada
+      const e = new Error('__dry_run__'); e.__dryRun = true; e.payload = out;
+      throw e;
+    }).catch(e => {
+      if (e.__dryRun) return e.payload;
+      throw e;
+    });
+    if (!result.ok) return res.status(400).json({ error: 'setup_incompleto', details: result.errors });
+    res.json(result);
+  } catch (err) { handleError(res, err, 'POST solver/preview'); }
+});
+
+router.post('/events/:eventId/solver/run', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
+    const result = await withTransaction(pool, async (client) => {
+      return solver.runPreEvent(client, {
+        eventId: req.params.eventId,
+        dryRun: false,
+        manualMeetings: manual,
+      });
+    });
+    if (!result.ok) return res.status(400).json({ error: 'setup_incompleto', details: result.errors });
+    console.log(`[rn-solver] event=${req.params.eventId} meetings=${result.stats.meetings_total} rounds=${result.stats.total_rounds_effective}`);
+    res.json(result);
+  } catch (err) { handleError(res, err, 'POST solver/run'); }
+});
+
+router.post('/events/:eventId/solver/reset', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const result = await withTransaction(pool, async (client) => solver.resetMeetings(client, req.params.eventId));
+    console.log(`[rn-solver] reset event=${req.params.eventId} deleted=${result.deleted}`);
+    res.json(result);
+  } catch (err) { handleError(res, err, 'POST solver/reset'); }
+});
+
+// Runtime re-entrant: productor abre una ronda específica → solver evalúa presencia
+router.post('/events/:eventId/rounds/:roundId/open', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    // Verificar round pertenece al evento
+    const chk = await pool.query(
+      `SELECT 1 FROM events.rn_rounds WHERE id = $1 AND event_id = $2`,
+      [req.params.roundId, req.params.eventId]
+    );
+    if (chk.rowCount === 0) return res.status(404).json({ error: 'Ronda no encontrada' });
+
+    const result = await withTransaction(pool, async (client) =>
+      solver.runRuntimeRound(client, { eventId: req.params.eventId, roundId: req.params.roundId })
+    );
+    console.log(`[rn-solver] runtime event=${req.params.eventId} round=${req.params.roundId} deferred=${result.deferred_count}`);
+    res.json(result);
+  } catch (err) { handleError(res, err, 'POST rounds/open'); }
 });
 
 module.exports = router;
