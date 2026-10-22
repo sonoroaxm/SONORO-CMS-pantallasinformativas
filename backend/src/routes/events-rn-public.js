@@ -498,7 +498,11 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
               OR (rt.kind = 'demand' AND rt.tag_id = ANY($3::uuid[])))
         ) AS score`;
 
-    const params = [ctx.event_id, myDemand, myOffer];
+    // Sentinel UUID para que PG pueda inferir uuid[] cuando mi perfil no tiene tags.
+    const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+    const myDemandP = myDemand.length ? myDemand : [NIL_UUID];
+    const myOfferP  = myOffer.length  ? myOffer  : [NIL_UUID];
+    const params = [ctx.event_id, myDemandP, myOfferP];
     let where = `r.event_id = $1 AND r.id <> $4 AND r.status != 'cancelled'`;
     params.push(ctx.registration_id);
 
@@ -556,8 +560,10 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
       ) >= $${params.length}`;
     }
 
+    // Cast tautológico fuerza inferencia de tipos uuid[] para $2/$3 cuando no se referencian abajo (view='all').
     const countRes = await pool.query(
-      `SELECT COUNT(*)::int AS c FROM events.registrations r WHERE ${where}`,
+      `SELECT COUNT(*)::int AS c FROM events.registrations r
+         WHERE ${where} AND ($2::uuid[] IS NOT NULL) AND ($3::uuid[] IS NOT NULL)`,
       params
     );
     const total = countRes.rows[0].c;
