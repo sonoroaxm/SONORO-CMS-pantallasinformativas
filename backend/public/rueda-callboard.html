@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d14">
+<title>Callboard · Rueda · SONORO CMS</title>
+
+<meta property="og:title" content="Callboard — Rueda de Negocios SONORO CMS">
+<meta property="og:description" content="Macrorrueda AgroExport 2026 · pantalla pública de rondas">
+<meta property="og:image" content="/img/og/rueda-callboard-og.png">
+<meta property="og:type" content="website">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --brand-1:#f97316; --brand-2:#ec4899; --brand-3:#a855f7;
+    --amber:#d97706;
+    --sagrado:#ec4899; --sagrado-soft:rgba(236,72,153,.12);
+    --fluido:#a855f7; --fluido-soft:rgba(168,85,247,.12);
+
+    --bg:#0b0d14;
+    --surface:#111421;
+    --surface-2:#161a2a;
+    --ink:#f8fafc;
+    --ink-2:#cbd5e1;
+    --mute:#94a3b8;
+    --mute-2:#64748b;
+    --line:rgba(255,255,255,.08);
+    --top-bg:rgba(17,20,33,.6);
+    --glow-pink:.08;
+    --glow-violet:.08;
+    --qr-bg:#fff;
+    --qr-ink:#0b0d14;
+
+    --gradient:linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+    --font:'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* ===== LIGHT THEME ===== */
+  html[data-theme="light"]{
+    --bg:#f3f4f7;
+    --surface:#ffffff;
+    --surface-2:#f8f9fc;
+    --ink:#0f172a;
+    --ink-2:#334155;
+    --mute:#64748b;
+    --mute-2:#94a3b8;
+    --line:rgba(15,23,42,.08);
+    --top-bg:rgba(255,255,255,.75);
+    --glow-pink:.14;
+    --glow-violet:.12;
+    --qr-bg:#0b0d14;
+    --qr-ink:#ffffff;
+  }
+  html[data-theme="light"] body::before,
+  html[data-theme="light"] body::after{opacity:.6}
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+  body{width:100vw;height:100vh;display:flex;flex-direction:column;position:relative}
+
+  /* Ambient background glow */
+  body::before{content:"";position:absolute;top:-20%;right:-10%;width:70vw;height:70vw;background:radial-gradient(circle, rgba(236,72,153,var(--glow-pink)) 0%, transparent 60%);pointer-events:none;transition:opacity .3s}
+  body::after{content:"";position:absolute;bottom:-20%;left:-10%;width:70vw;height:70vw;background:radial-gradient(circle, rgba(168,85,247,var(--glow-violet)) 0%, transparent 60%);pointer-events:none;transition:opacity .3s}
+
+  /* ===== TOP STRIP ===== */
+  .top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:22px 44px;border-bottom:1px solid var(--line);background:var(--top-bg);backdrop-filter:blur(10px)}
+  .top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gradient)}
+
+  .top-l{display:flex;align-items:center;gap:28px;min-width:0}
+  .brand-logo{font-size:24px;font-weight:900;letter-spacing:-0.8px;color:var(--ink);text-decoration:none;white-space:nowrap}
+  .brand-logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .ev-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .ev-kicker{font-size:11px;font-weight:800;letter-spacing:3px;color:var(--amber);text-transform:uppercase}
+  .ev-title{font-size:19px;font-weight:900;letter-spacing:-0.4px;line-height:1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .top-r{display:flex;align-items:center;gap:18px}
+  .wall-clock{font-family:var(--mono);font-size:44px;font-weight:900;color:var(--ink);letter-spacing:-2px;line-height:1}
+
+  /* Lang indicator (auto-rotating) */
+  .lang-ind{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .lang-ind .flag{display:inline-block;border-radius:2px;overflow:hidden;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.08);transition:opacity .3s}
+  .lang-ind .lang-code{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--ink-2)}
+
+  /* Theme toggle */
+  .theme-tog{width:38px;height:38px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+  .theme-tog:hover{background:var(--surface-2);color:var(--amber)}
+  .theme-tog .ico-moon{display:block}
+  .theme-tog .ico-sun{display:none}
+  html[data-theme="light"] .theme-tog .ico-moon{display:none}
+  html[data-theme="light"] .theme-tog .ico-sun{display:block}
+
+  /* Fade i18n swap */
+  [data-i18n]{transition:opacity .25s ease}
+  .i18n-fade{opacity:0}
+
+  /* ===== MAIN STAGE ===== */
+  .stage{position:relative;z-index:1;flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 44px;min-height:0;gap:28px}
+
+  .state-row{display:inline-flex;align-items:center;gap:14px;background:rgba(236,72,153,.08);border:1px solid rgba(236,72,153,.25);border-radius:999px;padding:10px 22px}
+  .state-row .dot{width:12px;height:12px;border-radius:50%;background:var(--sagrado);box-shadow:0 0 0 5px rgba(236,72,153,.15);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.2)}}
+  .state-row .s-label{font-size:13px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--sagrado)}
+  .state-row .s-round{font-size:14px;font-weight:900;color:var(--ink);letter-spacing:0.3px}
+  .state-row .s-round b{font-family:var(--mono);font-size:16px;letter-spacing:-0.5px;margin:0 2px}
+
+  /* Fullscreen monumental timer */
+  .timer{text-align:center;line-height:0.9}
+  .timer .t-label{font-size:14px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--mute);margin-bottom:18px}
+  .timer .t-time{font-family:var(--mono);font-size:clamp(140px, 24vw, 340px);font-weight:900;letter-spacing:-12px;line-height:0.9;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+
+  /* Progress bar */
+  .progress-wrap{width:min(80vw, 1100px);display:flex;flex-direction:column;gap:10px}
+  .progress-meta{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--mute)}
+  .progress-meta .pm-r{color:var(--ink-2)}
+  .progress{position:relative;width:100%;height:14px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .progress-fill{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--gradient);border-radius:999px;transition:width 1s linear;box-shadow:0 0 24px rgba(236,72,153,.4)}
+  .progress-fill::after{content:"";position:absolute;top:0;right:0;bottom:0;width:60px;background:linear-gradient(90deg, transparent, rgba(255,255,255,.3));border-radius:999px}
+
+  /* Next up strip */
+  .next{display:inline-flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 24px}
+  .next .n-label{font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--fluido)}
+  .next .n-divider{width:1px;height:20px;background:var(--line)}
+  .next .n-text{font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-0.2px;display:inline-flex;align-items:center;gap:10px}
+  .next .n-text svg{color:var(--fluido);flex-shrink:0}
+  .next .n-chip{font-family:var(--mono);font-size:13px;font-weight:800;color:var(--mute);letter-spacing:0.3px;background:var(--surface-2);padding:5px 12px;border-radius:999px}
+
+  /* ===== FOOTER with QR ===== */
+  .foot{position:relative;z-index:2;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:18px 44px;background:rgba(17,20,33,.6);backdrop-filter:blur(10px);border-top:1px solid var(--line);gap:24px}
+  .foot-l{display:flex;align-items:center;gap:18px;min-width:0}
+  .qr{width:72px;height:72px;background:#fff;border-radius:12px;padding:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .qr svg{width:100%;height:100%;display:block}
+  .foot-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .foot-kicker{font-size:10.5px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--amber)}
+  .foot-url{font-size:17px;font-weight:900;color:var(--ink);letter-spacing:-0.3px}
+  .foot-sub{font-size:12px;color:var(--mute);font-weight:600}
+  .foot-r{display:inline-flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:0.5px;color:var(--mute-2);white-space:nowrap}
+  .foot-r .live{display:inline-flex;align-items:center;gap:6px;color:var(--sagrado);font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+  .foot-r .live .d{width:7px;height:7px;border-radius:50%;background:var(--sagrado);animation:pulse 1.6s ease-in-out infinite}
+
+  /* Warning state (last 60s): pulse the timer glow */
+  .timer.warn .t-time{animation:warn-pulse 1s ease-in-out infinite}
+  @keyframes warn-pulse{0%,100%{filter:drop-shadow(0 0 0 rgba(236,72,153,0))}50%{filter:drop-shadow(0 0 32px rgba(236,72,153,.5))}}
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width:900px){
+    .top{padding:14px 20px}
+    .ev-title{font-size:15px}
+    .wall-clock{font-size:32px;letter-spacing:-1.5px}
+    .stage{padding:24px 20px;gap:20px}
+    .state-row{padding:7px 16px}
+    .state-row .s-label{font-size:11px;letter-spacing:2px}
+    .state-row .s-round{font-size:12px}
+    .timer .t-label{font-size:11px;letter-spacing:3px;margin-bottom:10px}
+    .timer .t-time{letter-spacing:-6px}
+    .next{padding:10px 16px;gap:10px}
+    .next .n-text{font-size:14px}
+    .next .n-chip{font-size:11px}
+    .foot{padding:12px 20px;gap:12px}
+    .qr{width:56px;height:56px;padding:5px}
+    .foot-url{font-size:14px}
+    .foot-sub{font-size:10.5px}
+    .foot-kicker{font-size:9.5px}
+  }
+  @media (max-width:560px){
+    .top-l{gap:14px}
+    .brand-logo{font-size:18px}
+    .ev-info{display:none}
+    .stage{gap:16px}
+    .next{flex-direction:column;align-items:flex-start;gap:6px}
+    .next .n-divider{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== TOP STRIP ========== -->
+<header class="top">
+  <div class="top-l">
+    <a href="/" class="brand-logo">SONORO <span>CMS</span></a>
+    <div class="ev-info">
+      <div class="ev-kicker" data-i18n="kicker">Rueda de Negocios</div>
+      <h1 class="ev-title">Macrorrueda AgroExport 2026 · Hotel Tequendama</h1>
+    </div>
+  </div>
+  <div class="top-r">
+    <div class="lang-ind" id="langInd" aria-live="polite">
+      <span class="flag" id="langFlag"></span>
+      <span class="lang-code" id="langCode">ES</span>
+    </div>
+    <button class="theme-tog" id="themeTog" aria-label="Cambiar tema" title="Claro / Oscuro">
+      <svg class="ico-moon" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23Z"/></svg>
+      <svg class="ico-sun" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg>
+    </button>
+    <div class="wall-clock">11:42</div>
+  </div>
+</header>
+
+<!-- ========== MAIN STAGE ========== -->
+<section class="stage">
+
+  <!-- State pill -->
+  <div class="state-row">
+    <span class="dot"></span>
+    <span class="s-label" data-i18n="state">Ronda en curso</span>
+    <span class="s-round"><span data-i18n="round">Ronda</span> <b>4</b> <span data-i18n="of">de</span> <b>8</b></span>
+  </div>
+
+  <!-- Monumental timer -->
+  <div class="timer">
+    <div class="t-label" data-i18n="endsIn">Termina en</div>
+    <span class="t-time">07:24</span>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span class="pm-l"><span data-i18n="start">Inicio</span> · 11:35</span>
+      <span class="pm-c">4:36 <span data-i18n="progOf">de</span> 12:00 min</span>
+      <span class="pm-r"><span data-i18n="end">Fin</span> · 11:47</span>
+    </div>
+    <div class="progress">
+      <div class="progress-fill" style="width:38%"></div>
+    </div>
+  </div>
+
+  <!-- Next up -->
+  <div class="next">
+    <span class="n-label" data-i18n="next">Siguiente</span>
+    <span class="n-divider"></span>
+    <span class="n-text">
+      <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96a16,16,0,0,0-16-16H56A16,16,0,0,0,40,96v24a88.08,88.08,0,0,0,80,87.63V216H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16H136V207.63a88.26,88.26,0,0,0,69.9-57.63H208a24,24,0,0,0,24-24ZM120,191.52A72.09,72.09,0,0,1,56,120V96H200v24A72.09,72.09,0,0,1,136,191.52ZM208,134h-.73a89,89,0,0,0,.73-14V96h8v30A8,8,0,0,1,208,134Z"/></svg>
+      <span data-i18n="coffee">Coffee break</span>
+    </span>
+    <span class="n-chip">10 min · 11:49</span>
+  </div>
+
+</section>
+
+<!-- ========== FOOTER with QR ========== -->
+<footer class="foot">
+  <div class="foot-l">
+    <div class="qr" aria-hidden="true">
+      <!-- QR placeholder (grid pattern) -->
+      <svg viewBox="0 0 29 29" shape-rendering="crispEdges">
+        <rect width="29" height="29" fill="var(--qr-bg)"/>
+        <g fill="var(--qr-ink)">
+          <!-- Finder patterns -->
+          <rect x="0" y="0" width="7" height="7"/>
+          <rect x="1" y="1" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="2" y="2" width="3" height="3"/>
+          <rect x="22" y="0" width="7" height="7"/>
+          <rect x="23" y="1" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="24" y="2" width="3" height="3"/>
+          <rect x="0" y="22" width="7" height="7"/>
+          <rect x="1" y="23" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="2" y="24" width="3" height="3"/>
+          <!-- Timing + data noise -->
+          <rect x="8" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="12" y="6" width="1" height="1"/><rect x="14" y="6" width="1" height="1"/><rect x="16" y="6" width="1" height="1"/><rect x="18" y="6" width="1" height="1"/><rect x="20" y="6" width="1" height="1"/>
+          <rect x="6" y="8" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="6" y="12" width="1" height="1"/><rect x="6" y="14" width="1" height="1"/><rect x="6" y="16" width="1" height="1"/><rect x="6" y="18" width="1" height="1"/><rect x="6" y="20" width="1" height="1"/>
+          <rect x="9" y="9" width="2" height="2"/><rect x="13" y="8" width="1" height="3"/><rect x="16" y="9" width="2" height="1"/><rect x="19" y="10" width="2" height="2"/>
+          <rect x="10" y="13" width="1" height="2"/><rect x="12" y="12" width="2" height="1"/><rect x="15" y="13" width="3" height="2"/><rect x="20" y="14" width="1" height="2"/>
+          <rect x="8" y="16" width="2" height="1"/><rect x="11" y="17" width="1" height="2"/><rect x="14" y="16" width="2" height="2"/><rect x="18" y="17" width="1" height="1"/><rect x="20" y="18" width="2" height="1"/>
+          <rect x="9" y="20" width="1" height="2"/><rect x="12" y="21" width="3" height="1"/><rect x="17" y="20" width="2" height="2"/><rect x="21" y="20" width="1" height="3"/>
+          <rect x="10" y="24" width="2" height="1"/><rect x="14" y="23" width="1" height="3"/><rect x="17" y="25" width="2" height="1"/><rect x="20" y="24" width="1" height="2"/>
+          <rect x="8" y="27" width="1" height="1"/><rect x="12" y="27" width="2" height="1"/><rect x="16" y="27" width="1" height="1"/><rect x="19" y="27" width="2" height="1"/>
+        </g>
+      </svg>
+    </div>
+    <div class="foot-txt">
+      <div class="foot-kicker" data-i18n="footKicker">Tu agenda personal</div>
+      <div class="foot-url">cms.sonoro.com.co/rueda/agroexport</div>
+      <div class="foot-sub" data-i18n="footSub">Escanea el QR o abre el enlace en tu celular</div>
+    </div>
+  </div>
+  <div class="foot-r">
+    <span class="live"><span class="d"></span><span data-i18n="live">En vivo</span></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // ===== i18n dictionary =====
+  const DICT = {
+    es: { kicker:'Rueda de Negocios', state:'Ronda en curso', round:'Ronda', of:'de', endsIn:'Termina en', start:'Inicio', progOf:'de', end:'Fin', next:'Siguiente', coffee:'Coffee break', footKicker:'Tu agenda personal', footSub:'Escanea el QR o abre el enlace en tu celular', live:'En vivo', themeLabel:'Claro / Oscuro' },
+    en: { kicker:'Business Matchmaking', state:'Round in progress', round:'Round', of:'of', endsIn:'Ends in', start:'Start', progOf:'of', end:'End', next:'Next', coffee:'Coffee break', footKicker:'Your personal agenda', footSub:'Scan the QR or open the link on your phone', live:'Live', themeLabel:'Light / Dark' },
+    pt: { kicker:'Rodada de Negócios', state:'Rodada em curso', round:'Rodada', of:'de', endsIn:'Termina em', start:'Início', progOf:'de', end:'Fim', next:'Próximo', coffee:'Coffee break', footKicker:'Sua agenda pessoal', footSub:'Escaneie o QR ou abra o link no seu celular', live:'Ao vivo', themeLabel:'Claro / Escuro' }
+  };
+  const FLAGS = {
+    es: '<svg viewBox="0 0 6 4" width="16" height="11" aria-hidden="true"><rect width="6" height="2" fill="#FCD116"/><rect y="2" width="6" height="1" fill="#003893"/><rect y="3" width="6" height="1" fill="#CE1126"/></svg>',
+    en: '<svg viewBox="0 0 19 10" width="16" height="11" aria-hidden="true"><rect width="19" height="10" fill="#fff"/><g fill="#B22234"><rect width="19" height="1"/><rect y="2" width="19" height="1"/><rect y="4" width="19" height="1"/><rect y="6" width="19" height="1"/><rect y="8" width="19" height="1"/></g><rect width="8" height="5" fill="#3C3B6E"/></svg>',
+    pt: '<svg viewBox="0 0 14 10" width="16" height="11" aria-hidden="true"><rect width="14" height="10" fill="#009739"/><polygon points="7,1 13,5 7,9 1,5" fill="#FEDD00"/><circle cx="7" cy="5" r="2" fill="#002776"/></svg>'
+  };
+  const LANGS = ['es','en','pt'];
+  let idx = 0;
+
+  const nodes = document.querySelectorAll('[data-i18n]');
+  const flagHolder = document.getElementById('langFlag');
+  const codeHolder = document.getElementById('langCode');
+  const tog = document.getElementById('themeTog');
+
+  function applyLang(code){
+    const d = DICT[code];
+    nodes.forEach(n => { const k = n.getAttribute('data-i18n'); if (d[k]) n.textContent = d[k]; });
+    flagHolder.innerHTML = FLAGS[code];
+    codeHolder.textContent = code.toUpperCase();
+    document.documentElement.lang = code === 'pt' ? 'pt-BR' : code;
+    tog.setAttribute('aria-label', d.themeLabel);
+    tog.setAttribute('title', d.themeLabel);
+  }
+
+  function rotate(){
+    const stage = document.body;
+    stage.classList.add('i18n-fade');
+    nodes.forEach(n => n.classList.add('i18n-fade'));
+    setTimeout(() => {
+      idx = (idx + 1) % LANGS.length;
+      applyLang(LANGS[idx]);
+      nodes.forEach(n => n.classList.remove('i18n-fade'));
+    }, 250);
+  }
+
+  // ===== Theme =====
+  const saved = localStorage.getItem('callboard-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  tog.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const nxt = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', nxt);
+    localStorage.setItem('callboard-theme', nxt);
+  });
+
+  // ===== Init + rotation =====
+  applyLang('es');
+  setInterval(rotate, 10000);
+})();
+</script>
+
+</body>
+</html>

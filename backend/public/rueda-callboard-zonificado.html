@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0d14">
+<title>Callboard Zonificado · Rueda · SONORO CMS</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --brand-1:#f97316; --brand-2:#ec4899; --brand-3:#a855f7;
+    --amber:#d97706;
+    --sagrado:#ec4899;
+    --fluido:#a855f7;
+
+    --bg:#0b0d14;
+    --surface:#111421;
+    --surface-2:#161a2a;
+    --ink:#f8fafc;
+    --ink-2:#cbd5e1;
+    --mute:#94a3b8;
+    --mute-2:#64748b;
+    --line:rgba(255,255,255,.08);
+    --top-bg:rgba(17,20,33,.6);
+    --glow-pink:.08;
+    --glow-violet:.08;
+    --qr-bg:#fff;
+    --qr-ink:#0b0d14;
+
+    --gradient:linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+    --font:'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    /* zone color injected via JS */
+    --zone:#FF8C00;
+    --zone-soft:rgba(255,140,0,.14);
+  }
+
+  html[data-theme="light"]{
+    --bg:#f3f4f7;
+    --surface:#ffffff;
+    --surface-2:#f8f9fc;
+    --ink:#0f172a;
+    --ink-2:#334155;
+    --mute:#64748b;
+    --mute-2:#94a3b8;
+    --line:rgba(15,23,42,.08);
+    --top-bg:rgba(255,255,255,.75);
+    --glow-pink:.14;
+    --glow-violet:.12;
+    --qr-bg:#0b0d14;
+    --qr-ink:#ffffff;
+  }
+  html[data-theme="light"] body::before,
+  html[data-theme="light"] body::after{opacity:.6}
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+  body{width:100vw;height:100vh;display:flex;flex-direction:column;position:relative}
+
+  body::before{content:"";position:absolute;top:-20%;right:-10%;width:70vw;height:70vw;background:radial-gradient(circle, rgba(236,72,153,var(--glow-pink)) 0%, transparent 60%);pointer-events:none;transition:opacity .3s}
+  body::after{content:"";position:absolute;bottom:-20%;left:-10%;width:70vw;height:70vw;background:radial-gradient(circle, rgba(168,85,247,var(--glow-violet)) 0%, transparent 60%);pointer-events:none;transition:opacity .3s}
+
+  /* ===== TOP STRIP ===== */
+  .top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:22px 44px;border-bottom:1px solid var(--line);background:var(--top-bg);backdrop-filter:blur(10px);gap:16px}
+  .top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gradient)}
+
+  .top-l{display:flex;align-items:center;gap:22px;min-width:0;flex-wrap:wrap}
+  .brand-logo{font-size:22px;font-weight:900;letter-spacing:-0.8px;color:var(--ink);text-decoration:none;white-space:nowrap}
+  .brand-logo span{background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .ev-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .ev-kicker{font-size:11px;font-weight:800;letter-spacing:3px;color:var(--amber);text-transform:uppercase}
+  .ev-title{font-size:17px;font-weight:900;letter-spacing:-0.4px;line-height:1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48ch}
+
+  /* Zone pill */
+  .zone-pill{display:inline-flex;align-items:center;gap:10px;background:var(--zone-soft);border:1.5px solid var(--zone);border-radius:999px;padding:8px 16px;transition:all .3s}
+  .zone-pill .zp-dot{width:10px;height:10px;border-radius:50%;background:var(--zone);box-shadow:0 0 0 4px color-mix(in srgb, var(--zone) 18%, transparent)}
+  .zone-pill .zp-kicker{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--mute)}
+  .zone-pill .zp-name{font-size:14px;font-weight:900;color:var(--ink);letter-spacing:0.2px}
+  .zone-pill .zp-sep{color:var(--mute-2);font-weight:700}
+  .zone-pill .zp-room{font-size:13px;font-weight:700;color:var(--ink-2)}
+
+  .top-r{display:flex;align-items:center;gap:14px}
+  .wall-clock{font-family:var(--mono);font-size:36px;font-weight:900;color:var(--ink);letter-spacing:-2px;line-height:1}
+
+  /* Zone switcher (demo only — pill cluster) */
+  .zswitch{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;gap:2px}
+  .zswitch button{appearance:none;background:transparent;border:0;color:var(--mute);font-family:var(--font);font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:7px 12px;border-radius:999px;cursor:pointer;transition:all .2s}
+  .zswitch button:hover{color:var(--ink-2)}
+  .zswitch button.active{background:var(--zone);color:#fff}
+  html[data-theme="light"] .zswitch button.active{color:#fff}
+
+  .lang-ind{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+  .lang-ind .flag{display:inline-block;border-radius:2px;overflow:hidden;flex-shrink:0;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+  .lang-ind .lang-code{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--ink-2)}
+
+  .theme-tog{width:36px;height:36px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+  .theme-tog:hover{background:var(--surface-2);color:var(--zone)}
+  .theme-tog .ico-moon{display:block}
+  .theme-tog .ico-sun{display:none}
+  html[data-theme="light"] .theme-tog .ico-moon{display:none}
+  html[data-theme="light"] .theme-tog .ico-sun{display:block}
+
+  [data-i18n]{transition:opacity .25s ease}
+  .i18n-fade{opacity:0}
+
+  /* ===== MAIN STAGE ===== */
+  .stage{position:relative;z-index:1;flex:1 1 auto;display:grid;grid-template-columns:minmax(0, 1.4fr) minmax(0, 1fr);gap:28px;padding:28px 44px;min-height:0;align-items:center}
+
+  .stage-l{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;min-height:0}
+
+  .state-row{display:inline-flex;align-items:center;gap:14px;background:var(--zone-soft);border:1px solid color-mix(in srgb, var(--zone) 35%, transparent);border-radius:999px;padding:9px 20px}
+  .state-row .dot{width:11px;height:11px;border-radius:50%;background:var(--zone);box-shadow:0 0 0 5px color-mix(in srgb, var(--zone) 18%, transparent);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.2)}}
+  .state-row .s-label{font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--zone)}
+  .state-row .s-round{font-size:13px;font-weight:900;color:var(--ink);letter-spacing:0.3px}
+  .state-row .s-round b{font-family:var(--mono);font-size:15px;letter-spacing:-0.5px;margin:0 2px}
+
+  .timer{text-align:center;line-height:0.9}
+  .timer .t-label{font-size:13px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+  .timer .t-time{font-family:var(--mono);font-size:clamp(160px, 22vw, 360px);font-weight:900;letter-spacing:-14px;line-height:0.9;background:var(--gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:block}
+
+  .progress-wrap{width:min(90%, 640px);display:flex;flex-direction:column;gap:8px}
+  .progress-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--mute)}
+  .progress-meta .pm-r{color:var(--ink-2)}
+  .progress{position:relative;width:100%;height:12px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .progress-fill{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--gradient);border-radius:999px;transition:width 1s linear;box-shadow:0 0 20px rgba(236,72,153,.4)}
+
+  /* ===== ZONE SUMMARY (right column) ===== */
+  .zsum{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:20px;min-height:0}
+  .zsum-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .zsum-title{font-size:12px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:var(--mute)}
+  .zsum-chip{font-family:var(--mono);font-size:11px;font-weight:800;color:var(--zone);background:var(--zone-soft);border:1px solid color-mix(in srgb, var(--zone) 35%, transparent);padding:4px 10px;border-radius:999px;letter-spacing:0.5px}
+
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .kpi{background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+  .kpi .k-label{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--mute)}
+  .kpi .k-val{font-family:var(--mono);font-size:36px;font-weight:900;line-height:1;letter-spacing:-2px;color:var(--ink)}
+  .kpi .k-val.z{color:var(--zone)}
+  .kpi .k-sub{font-size:11px;color:var(--mute-2);font-weight:600}
+
+  .zsum-next{display:flex;align-items:center;gap:14px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .zsum-next .zn-ico{width:36px;height:36px;border-radius:10px;background:var(--zone-soft);color:var(--zone);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .zsum-next .zn-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .zsum-next .zn-label{font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--mute)}
+  .zsum-next .zn-val{font-size:15px;font-weight:900;color:var(--ink);letter-spacing:-0.3px}
+  .zsum-next .zn-chip{margin-left:auto;font-family:var(--mono);font-size:12px;font-weight:800;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);padding:6px 10px;border-radius:999px;white-space:nowrap}
+
+  .anchor-row{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--amber)}
+
+  /* ===== FOOTER with QR ===== */
+  .foot{position:relative;z-index:2;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:16px 44px;background:rgba(17,20,33,.6);backdrop-filter:blur(10px);border-top:1px solid var(--line);gap:24px}
+  .foot-l{display:flex;align-items:center;gap:16px;min-width:0}
+  .qr{width:64px;height:64px;background:#fff;border-radius:10px;padding:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .qr svg{width:100%;height:100%;display:block}
+  .foot-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .foot-kicker{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--zone)}
+  .foot-url{font-size:15px;font-weight:900;color:var(--ink);letter-spacing:-0.3px}
+  .foot-sub{font-size:11.5px;color:var(--mute);font-weight:600}
+  .foot-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-family:var(--mono);font-size:11px;letter-spacing:0.5px;color:var(--mute-2);white-space:nowrap}
+  .foot-r .live{display:inline-flex;align-items:center;gap:6px;color:var(--zone);font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+  .foot-r .live .d{width:7px;height:7px;border-radius:50%;background:var(--zone);animation:pulse 1.6s ease-in-out infinite}
+  .foot-r .zcount{color:var(--mute);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:10px}
+
+  @media (max-width:1100px){
+    .stage{grid-template-columns:1fr;padding:20px 24px}
+    .zsum{display:none}
+    .ev-title{font-size:14px;max-width:36ch}
+  }
+  @media (max-width:720px){
+    .top{padding:14px 20px}
+    .top-l{gap:12px}
+    .brand-logo{font-size:18px}
+    .ev-info{display:none}
+    .wall-clock{font-size:36px;letter-spacing:-2px}
+    .foot{padding:12px 20px}
+    .foot-url{font-size:13px}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-l">
+    <a href="/" class="brand-logo">SONORO <span>CMS</span></a>
+    <div class="ev-info">
+      <div class="ev-kicker" data-i18n="kicker">Rueda de Negocios</div>
+      <h1 class="ev-title">Macrorrueda AgroExport 2026 · Hotel Tequendama</h1>
+    </div>
+    <div class="zone-pill" id="zonePill">
+      <span class="zp-dot"></span>
+      <span class="zp-kicker" data-i18n="zoneKicker">Zona</span>
+      <span class="zp-name" id="zoneName">Agro</span>
+      <span class="zp-sep">·</span>
+      <span class="zp-room" id="zoneRoom">Salón Caribe</span>
+    </div>
+  </div>
+  <div class="top-r">
+    <div class="zswitch" role="tablist" aria-label="Demo zonas">
+      <button type="button" data-z="agro" class="active" onclick="setZone('agro')">Agro</button>
+      <button type="button" data-z="fin" onclick="setZone('fin')">Finanzas</button>
+      <button type="button" data-z="log" onclick="setZone('log')">Logística</button>
+    </div>
+    <div class="lang-ind" id="langInd" aria-live="polite">
+      <span class="flag" id="langFlag"></span>
+      <span class="lang-code" id="langCode">ES</span>
+    </div>
+    <button class="theme-tog" id="themeTog" aria-label="Cambiar tema" title="Claro / Oscuro">
+      <svg class="ico-moon" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23Z"/></svg>
+      <svg class="ico-sun" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg>
+    </button>
+    <div class="wall-clock">11:42</div>
+  </div>
+</header>
+
+<section class="stage">
+
+  <div class="stage-l">
+    <div class="state-row">
+      <span class="dot"></span>
+      <span class="s-label" data-i18n="state">Ronda en curso</span>
+      <span class="s-round"><span data-i18n="round">Ronda</span> <b>4</b> <span data-i18n="of">de</span> <b>8</b></span>
+    </div>
+
+    <div class="timer">
+      <div class="t-label" data-i18n="endsIn">Termina en</div>
+      <span class="t-time">07:24</span>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span class="pm-l"><span data-i18n="start">Inicio</span> · 11:35</span>
+        <span class="pm-c">4:36 <span data-i18n="progOf">de</span> 12:00 min</span>
+        <span class="pm-r"><span data-i18n="end">Fin</span> · 11:47</span>
+      </div>
+      <div class="progress">
+        <div class="progress-fill" style="width:38%"></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="zsum" aria-label="Resumen de zona">
+    <div class="zsum-head">
+      <div class="zsum-title" data-i18n="zsumTitle">Resumen de la zona</div>
+      <div class="zsum-chip"><span id="zsumMesas">42</span> <span data-i18n="mesasWord">mesas</span></div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <span class="k-label" data-i18n="kpiActivas">Mesas activas</span>
+        <span class="k-val z" id="kpiActivas">38</span>
+        <span class="k-sub"><span id="kpiNoShow">4</span> <span data-i18n="kpiNoShowSub">sin presentarse</span></span>
+      </div>
+      <div class="kpi">
+        <span class="k-label" data-i18n="kpiReuniones">Reuniones hoy</span>
+        <span class="k-val" id="kpiReuniones">184</span>
+        <span class="k-sub"><span id="kpiDone">92</span> <span data-i18n="kpiDoneSub">completadas</span></span>
+      </div>
+      <div class="kpi">
+        <span class="k-label" data-i18n="kpiEmpresas">Empresas</span>
+        <span class="k-val" id="kpiEmpresas">76</span>
+        <span class="k-sub" data-i18n="kpiEmpresasSub">en esta zona</span>
+      </div>
+      <div class="kpi">
+        <span class="k-label" data-i18n="kpiProx">Ronda siguiente</span>
+        <span class="k-val" id="kpiProx">R5</span>
+        <span class="k-sub"><span data-i18n="kpiProxSub">empieza</span> 11:49</span>
+      </div>
+    </div>
+    <div class="zsum-next">
+      <div class="zn-txt">
+        <span class="zn-label" data-i18n="next">Siguiente</span>
+        <span class="zn-val" data-i18n="coffee">Coffee break</span>
+      </div>
+      <span class="zn-chip">10 min · 11:49</span>
+    </div>
+  </aside>
+
+</section>
+
+<footer class="foot">
+  <div class="foot-l">
+    <div class="qr" aria-hidden="true">
+      <svg viewBox="0 0 29 29" shape-rendering="crispEdges">
+        <rect width="29" height="29" fill="var(--qr-bg)"/>
+        <g fill="var(--qr-ink)">
+          <rect x="0" y="0" width="7" height="7"/>
+          <rect x="1" y="1" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="2" y="2" width="3" height="3"/>
+          <rect x="22" y="0" width="7" height="7"/>
+          <rect x="23" y="1" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="24" y="2" width="3" height="3"/>
+          <rect x="0" y="22" width="7" height="7"/>
+          <rect x="1" y="23" width="5" height="5" fill="var(--qr-bg)"/>
+          <rect x="2" y="24" width="3" height="3"/>
+          <rect x="8" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="12" y="6" width="1" height="1"/><rect x="14" y="6" width="1" height="1"/><rect x="16" y="6" width="1" height="1"/><rect x="18" y="6" width="1" height="1"/><rect x="20" y="6" width="1" height="1"/>
+          <rect x="6" y="8" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="6" y="12" width="1" height="1"/><rect x="6" y="14" width="1" height="1"/><rect x="6" y="16" width="1" height="1"/><rect x="6" y="18" width="1" height="1"/><rect x="6" y="20" width="1" height="1"/>
+          <rect x="9" y="9" width="2" height="2"/><rect x="13" y="8" width="1" height="3"/><rect x="16" y="9" width="2" height="1"/><rect x="19" y="10" width="2" height="2"/>
+          <rect x="10" y="13" width="1" height="2"/><rect x="12" y="12" width="2" height="1"/><rect x="15" y="13" width="3" height="2"/><rect x="20" y="14" width="1" height="2"/>
+          <rect x="8" y="16" width="2" height="1"/><rect x="11" y="17" width="1" height="2"/><rect x="14" y="16" width="2" height="2"/><rect x="18" y="17" width="1" height="1"/><rect x="20" y="18" width="2" height="1"/>
+          <rect x="9" y="20" width="1" height="2"/><rect x="12" y="21" width="3" height="1"/><rect x="17" y="20" width="2" height="2"/><rect x="21" y="20" width="1" height="3"/>
+          <rect x="10" y="24" width="2" height="1"/><rect x="14" y="23" width="1" height="3"/><rect x="17" y="25" width="2" height="1"/><rect x="20" y="24" width="1" height="2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="foot-txt">
+      <div class="foot-kicker" data-i18n="footKicker">Agenda de esta zona</div>
+      <div class="foot-url" id="footUrl">cms.sonoro.com.co/rueda/agroexport/zona/agro</div>
+      <div class="foot-sub" data-i18n="footSub">Escanea el QR o abre el enlace en tu celular</div>
+    </div>
+  </div>
+  <div class="foot-r">
+    <span class="live"><span class="d"></span><span data-i18n="live">En vivo</span></span>
+    <span class="zcount"><span data-i18n="footZcount">Zona</span> <span id="zIdx">1</span> <span data-i18n="of">de</span> 3 · <span id="mesasTotal2">6</span> <span data-i18n="mesasWord">mesas</span></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // ===== Zonas demo =====
+  const ZONES = {
+    agro: {
+      name:{es:'Agro',en:'Agro',pt:'Agro'},
+      room:{es:'Salón Caribe',en:'Caribe Hall',pt:'Salão Caribe'},
+      colorDark:'#FF8C00', softDark:'rgba(255,140,0,.14)',
+      colorLight:'#C2410C', softLight:'rgba(194,65,12,.10)',
+      slug:'agro', idx:1, mesas:42, activas:38, noshow:4, reuniones:184, done:92, empresas:76
+    },
+    fin: {
+      name:{es:'Finanzas',en:'Finance',pt:'Finanças'},
+      room:{es:'Salón Andes',en:'Andes Hall',pt:'Salão Andes'},
+      colorDark:'#FF1B8D', softDark:'rgba(255,27,141,.14)',
+      colorLight:'#BE185D', softLight:'rgba(190,24,93,.10)',
+      slug:'finanzas', idx:2, mesas:34, activas:31, noshow:3, reuniones:148, done:74, empresas:62
+    },
+    log: {
+      name:{es:'Logística',en:'Logistics',pt:'Logística'},
+      room:{es:'Salón Pacífico',en:'Pacífico Hall',pt:'Salão Pacífico'},
+      colorDark:'#FFE566', softDark:'rgba(255,229,102,.18)',
+      colorLight:'#92610A', softLight:'rgba(146,97,10,.10)',
+      slug:'logistica', idx:3, mesas:28, activas:25, noshow:3, reuniones:124, done:61, empresas:52
+    }
+  };
+
+  let currentZone = 'agro';
+  let currentLang = 'es';
+
+  // ===== i18n =====
+  const DICT = {
+    es: { kicker:'Rueda de Negocios', zoneKicker:'Zona', state:'Ronda en curso', round:'Ronda', of:'de', endsIn:'Termina en', start:'Inicio', progOf:'de', end:'Fin', zsumTitle:'Resumen de la zona', mesasWord:'mesas', kpiActivas:'Mesas activas', kpiNoShowSub:'sin presentarse', kpiReuniones:'Reuniones hoy', kpiDoneSub:'completadas', kpiEmpresas:'Empresas', kpiEmpresasSub:'en esta zona', kpiProx:'Ronda siguiente', kpiProxSub:'empieza', next:'Siguiente', coffee:'Coffee break', footKicker:'Agenda de esta zona', footSub:'Escanea el QR o abre el enlace en tu celular', footZcount:'Zona', live:'En vivo', themeLabel:'Claro / Oscuro' },
+    en: { kicker:'Business Matchmaking', zoneKicker:'Zone', state:'Round in progress', round:'Round', of:'of', endsIn:'Ends in', start:'Start', progOf:'of', end:'End', zsumTitle:'Zone summary', mesasWord:'tables', kpiActivas:'Active tables', kpiNoShowSub:'no-shows', kpiReuniones:'Meetings today', kpiDoneSub:'completed', kpiEmpresas:'Companies', kpiEmpresasSub:'in this zone', kpiProx:'Next round', kpiProxSub:'starts', next:'Next', coffee:'Coffee break', footKicker:'Agenda for this zone', footSub:'Scan the QR or open the link on your phone', footZcount:'Zone', live:'Live', themeLabel:'Light / Dark' },
+    pt: { kicker:'Rodada de Negócios', zoneKicker:'Zona', state:'Rodada em curso', round:'Rodada', of:'de', endsIn:'Termina em', start:'Início', progOf:'de', end:'Fim', zsumTitle:'Resumo da zona', mesasWord:'mesas', kpiActivas:'Mesas ativas', kpiNoShowSub:'faltaram', kpiReuniones:'Reuniões hoje', kpiDoneSub:'concluídas', kpiEmpresas:'Empresas', kpiEmpresasSub:'nesta zona', kpiProx:'Próxima rodada', kpiProxSub:'começa', next:'Próximo', coffee:'Coffee break', footKicker:'Agenda desta zona', footSub:'Escaneie o QR ou abra o link no seu celular', footZcount:'Zona', live:'Ao vivo', themeLabel:'Claro / Escuro' }
+  };
+  const FLAGS = {
+    es: '<svg viewBox="0 0 6 4" width="16" height="11" aria-hidden="true"><rect width="6" height="2" fill="#FCD116"/><rect y="2" width="6" height="1" fill="#003893"/><rect y="3" width="6" height="1" fill="#CE1126"/></svg>',
+    en: '<svg viewBox="0 0 19 10" width="16" height="11" aria-hidden="true"><rect width="19" height="10" fill="#fff"/><g fill="#B22234"><rect width="19" height="1"/><rect y="2" width="19" height="1"/><rect y="4" width="19" height="1"/><rect y="6" width="19" height="1"/><rect y="8" width="19" height="1"/></g><rect width="8" height="5" fill="#3C3B6E"/></svg>',
+    pt: '<svg viewBox="0 0 14 10" width="16" height="11" aria-hidden="true"><rect width="14" height="10" fill="#009739"/><polygon points="7,1 13,5 7,9 1,5" fill="#FEDD00"/><circle cx="7" cy="5" r="2" fill="#002776"/></svg>'
+  };
+  const LANGS = ['es','en','pt'];
+  let idx = 0;
+
+  const nodes = () => document.querySelectorAll('[data-i18n]');
+  const flagHolder = document.getElementById('langFlag');
+  const codeHolder = document.getElementById('langCode');
+  const tog = document.getElementById('themeTog');
+
+  function applyLang(code){
+    currentLang = code;
+    const d = DICT[code];
+    nodes().forEach(n => { const k = n.getAttribute('data-i18n'); if (d[k]) n.textContent = d[k]; });
+    flagHolder.innerHTML = FLAGS[code];
+    codeHolder.textContent = code.toUpperCase();
+    document.documentElement.lang = code === 'pt' ? 'pt-BR' : code;
+    tog.setAttribute('aria-label', d.themeLabel);
+    tog.setAttribute('title', d.themeLabel);
+    // Also refresh zone text in current language
+    const z = ZONES[currentZone];
+    document.getElementById('zoneName').textContent = z.name[code];
+    document.getElementById('zoneRoom').textContent = z.room[code];
+  }
+
+  function rotate(){
+    nodes().forEach(n => n.classList.add('i18n-fade'));
+    setTimeout(() => {
+      idx = (idx + 1) % LANGS.length;
+      applyLang(LANGS[idx]);
+      nodes().forEach(n => n.classList.remove('i18n-fade'));
+    }, 250);
+  }
+
+  // ===== Zone switching =====
+  function applyZoneColor(z){
+    const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const color = theme === 'light' ? z.colorLight : z.colorDark;
+    const soft  = theme === 'light' ? z.softLight  : z.softDark;
+    document.documentElement.style.setProperty('--zone', color);
+    document.documentElement.style.setProperty('--zone-soft', soft);
+  }
+
+  function renderSummary(z){
+    document.getElementById('zsumMesas').textContent = z.mesas;
+    document.getElementById('kpiActivas').textContent = z.activas;
+    document.getElementById('kpiNoShow').textContent = z.noshow;
+    document.getElementById('kpiReuniones').textContent = z.reuniones;
+    document.getElementById('kpiDone').textContent = z.done;
+    document.getElementById('kpiEmpresas').textContent = z.empresas;
+    document.getElementById('mesasTotal2').textContent = z.mesas;
+  }
+
+  window.setZone = function(key){
+    currentZone = key;
+    const z = ZONES[key];
+    applyZoneColor(z);
+    document.querySelectorAll('.zswitch button').forEach(b => b.classList.toggle('active', b.dataset.z === key));
+    document.getElementById('zoneName').textContent = z.name[currentLang];
+    document.getElementById('zoneRoom').textContent = z.room[currentLang];
+    document.getElementById('zIdx').textContent = z.idx;
+    document.getElementById('footUrl').textContent = `cms.sonoro.com.co/rueda/agroexport/zona/${z.slug}`;
+    renderSummary(z);
+  };
+
+  // ===== Theme =====
+  const saved = localStorage.getItem('callboard-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  tog.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    const nxt = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', nxt);
+    localStorage.setItem('callboard-theme', nxt);
+    applyZoneColor(ZONES[currentZone]);
+  });
+
+  // ===== Init =====
+  setZone('agro');
+  applyLang('es');
+  setInterval(rotate, 10000);
+
+  // ===== Timer demo tick =====
+  let secs = 7*60 + 24;
+  const tTime = document.querySelector('.t-time');
+  const pFill = document.querySelector('.progress-fill');
+  setInterval(() => {
+    if (secs <= 0) return;
+    secs--;
+    const m = String(Math.floor(secs/60)).padStart(2,'0');
+    const s = String(secs%60).padStart(2,'0');
+    tTime.textContent = `${m}:${s}`;
+    const totalRound = 12*60;
+    const elapsed = totalRound - secs;
+    pFill.style.width = Math.min(100, (elapsed/totalRound)*100) + '%';
+  }, 1000);
+})();
+</script>
+
+</body>
+</html>

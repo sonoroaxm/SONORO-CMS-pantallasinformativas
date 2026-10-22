@@ -9089,6 +9089,13 @@ app.get('/evento/:slug/orador/:session_id', (req, res) => {
 app.get('/evento/:slug/kiosko', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
 });
+// Rueda de Negocios v1 — pantallas públicas (E-RN-4)
+app.get('/rueda/callboard/:slug/:zoneSlug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard-zonificado.html'));
+});
+app.get('/rueda/callboard/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard.html'));
+});
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
 });

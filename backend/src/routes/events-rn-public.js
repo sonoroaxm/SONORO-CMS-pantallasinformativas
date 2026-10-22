@@ -748,4 +748,133 @@ router.get('/requests', rnReadLimiter, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET requests'); }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-4 — Callboard público
+// GET /api/rn/public/callboard/:eventSlug           Modo Clásico (todas las mesas)
+// GET /api/rn/public/callboard/:eventSlug/:zoneSlug Modo Zonificado (filtra por zona)
+//
+// Devuelve estado para render fullscreen:
+//   { event: {name,slug,status,timezone}, mode: 'classic'|'zoned',
+//     zone?: {slug,name,color_hex,venue_label},
+//     round: { current, next, total_estimated, timer: {starts_at, ends_at, now} },
+//     meetings: [{ table_label, company_a, company_b, status }],
+//     empty_tables: [table_label] }
+//
+// Framework §6.3 — WebSocket (sala `event_rueda_callboard_<eventId>_<zoneSlug?>`)
+// se despliega en E-RN-5 junto con timer runtime; v1 el cliente puede hacer polling.
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/callboard/:eventSlug/:zoneSlug?', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await pool.query(
+      `SELECT id, user_id, name, slug, status, config, timezone
+         FROM events.events
+        WHERE slug = $1`,
+      [req.params.eventSlug]
+    );
+    if (ev.rowCount === 0) return res.status(404).json({ error: 'Evento no encontrado' });
+    const event = ev.rows[0];
+    const cfg = event.config || {};
+    if ((cfg.event_type) !== 'matchmaking') {
+      return res.status(400).json({ error: 'Evento no es rueda de negocios' });
+    }
+
+    const mode = (cfg.matchmaking && cfg.matchmaking.mode) || 'classic';
+    let zone = null;
+    if (req.params.zoneSlug) {
+      const zq = await pool.query(
+        `SELECT id, slug, name, venue_label, color_hex
+           FROM events.rn_zones
+          WHERE event_id = $1 AND slug = $2`,
+        [event.id, req.params.zoneSlug]
+      );
+      if (zq.rowCount === 0) return res.status(404).json({ error: 'Zona no encontrada' });
+      zone = zq.rows[0];
+    }
+
+    // Rondas (filtra 'meeting' kind). current = una ronda ongoing (now ∈ [starts_at, ends_at)),
+    // o si ninguna, la próxima que arranque.
+    const rounds = (await pool.query(
+      `SELECT id, round_number, starts_at, ends_at, kind, label
+         FROM events.rn_rounds
+        WHERE event_id = $1
+        ORDER BY round_number`,
+      [event.id]
+    )).rows;
+    const now = new Date();
+    let current = null, next = null;
+    for (const r of rounds) {
+      const starts = new Date(r.starts_at), ends = new Date(r.ends_at);
+      if (now >= starts && now < ends) { current = r; }
+      else if (now < starts && !next) { next = r; }
+      if (current && next) break;
+    }
+    const totalEstimated = (cfg.matchmaking && cfg.matchmaking.total_rounds_estimated) || rounds.length;
+
+    // Mesas (opcionalmente filtradas por zona)
+    const tablesQ = zone
+      ? await pool.query(
+          `SELECT id, label, zone_id FROM events.rn_tables
+            WHERE event_id = $1 AND zone_id = $2 AND active = TRUE
+            ORDER BY display_order, label`,
+          [event.id, zone.id])
+      : await pool.query(
+          `SELECT id, label, zone_id FROM events.rn_tables
+            WHERE event_id = $1 AND active = TRUE
+            ORDER BY display_order, label`,
+          [event.id]);
+    const tables = tablesQ.rows;
+
+    // Meetings de la ronda current (si existe)
+    let meetings = [];
+    if (current) {
+      const meetingsQ = await pool.query(
+        `SELECT m.id, m.table_id, m.status,
+                t.label AS table_label,
+                ra.custom_fields->>'company_name' AS company_a,
+                rb.custom_fields->>'company_name' AS company_b
+           FROM events.rn_meetings m
+           JOIN events.rn_tables t          ON t.id = m.table_id
+           JOIN events.registrations ra     ON ra.id = m.company_a_id
+           JOIN events.registrations rb     ON rb.id = m.company_b_id
+          WHERE m.event_id = $1
+            AND m.round_id = $2
+            AND m.table_id = ANY($3::uuid[])`,
+        [event.id, current.id, tables.map(t => t.id)]
+      );
+      meetings = meetingsQ.rows.map(r => ({
+        table_label: r.table_label,
+        company_a: r.company_a || '—',
+        company_b: r.company_b || '—',
+        status: r.status,
+      }));
+    }
+    const occupiedTables = new Set(meetings.map(m => m.table_label));
+    const emptyTables = tables.filter(t => !occupiedTables.has(t.label)).map(t => t.label);
+
+    res.json({
+      event: {
+        name: event.name,
+        slug: event.slug,
+        status: event.status,
+        timezone: event.timezone,
+      },
+      mode,
+      zone,
+      round: {
+        current: current ? { number: current.round_number, label: current.label } : null,
+        next: next ? { number: next.round_number, starts_at: next.starts_at } : null,
+        total_estimated: totalEstimated,
+        timer: current ? {
+          starts_at: current.starts_at,
+          ends_at: current.ends_at,
+          now: now.toISOString(),
+        } : null,
+      },
+      meetings,
+      empty_tables: emptyTables,
+    });
+  } catch (err) { handleError(res, err, 'GET callboard'); }
+});
+
 module.exports = router;
