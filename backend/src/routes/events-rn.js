@@ -504,6 +504,15 @@ router.post('/events/:eventId/solver/preview', auth, async (req, res) => {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
     const result = await withTransaction(pool, async (client) => {
+      // Advisory lock por event_id — serializa solver concurrente (S211j, Hallazgo B).
+      // El lock se libera auto al COMMIT/ROLLBACK (incluido __dryRun).
+      const lk = await client.query(
+        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
+        [req.params.eventId]
+      );
+      if (!lk.rows[0].got) {
+        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
+      }
       const out = await solver.runPreEvent(client, {
         eventId: req.params.eventId,
         dryRun: true,
@@ -527,6 +536,14 @@ router.post('/events/:eventId/solver/run', auth, async (req, res) => {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
     const result = await withTransaction(pool, async (client) => {
+      // Advisory lock por event_id — serializa solver concurrente (S211j, Hallazgo B).
+      const lk = await client.query(
+        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
+        [req.params.eventId]
+      );
+      if (!lk.rows[0].got) {
+        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
+      }
       return solver.runPreEvent(client, {
         eventId: req.params.eventId,
         dryRun: false,

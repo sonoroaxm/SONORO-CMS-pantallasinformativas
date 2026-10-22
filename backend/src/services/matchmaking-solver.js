@@ -93,11 +93,15 @@ async function loadInputs(client, eventId) {
   }
 
   // Requests aceptados (orden FIFO por responded_at)
+  // Filtra requests cuyas empresas estén cancelled (JOIN con registrations activas).
   const requests = (await client.query(
-    `SELECT id, from_registration_id, to_registration_id, responded_at
-       FROM events.rn_meeting_requests
-      WHERE event_id = $1 AND status = 'accepted'
-      ORDER BY responded_at ASC NULLS LAST, created_at ASC`,
+    `SELECT mr.id, mr.from_registration_id, mr.to_registration_id, mr.responded_at
+       FROM events.rn_meeting_requests mr
+       JOIN events.registrations rf ON rf.id = mr.from_registration_id AND rf.status != 'cancelled'
+       JOIN events.registrations rt ON rt.id = mr.to_registration_id   AND rt.status != 'cancelled'
+      WHERE mr.event_id = $1 AND mr.status = 'accepted'
+        AND mr.from_registration_id <> mr.to_registration_id
+      ORDER BY mr.responded_at ASC NULLS LAST, mr.created_at ASC`,
     [eventId]
   )).rows;
 
@@ -222,13 +226,21 @@ class Grid {
           x.round_id === this.rounds[r].id && x.table_id === this.tables[t].id
         );
         if (!m || m.locked) continue;
+        // Si alguna empresa tiene ancla, respetarla al compactar (no mover a mesa distinta)
+        const anchA = this.anchors.get(cell.a);
+        const anchB = this.anchors.get(cell.b);
+        if (anchA && anchB && anchA !== anchB) continue;
+        const forcedTable = anchA || anchB || null;
         // Buscar primera ronda anterior libre para ambos
         for (let r2 = 0; r2 < r; r2++) {
           if (this.regBusy[r2].has(cell.a) || this.regBusy[r2].has(cell.b)) continue;
-          // Preferir misma mesa si libre; si no, cualquiera
           let t2 = -1;
-          if (this.occ[r2][t] === null) t2 = t;
-          else {
+          if (forcedTable) {
+            const ti = this.tableIndexById(forcedTable);
+            if (ti >= 0 && this.occ[r2][ti] === null) t2 = ti;
+          } else if (this.occ[r2][t] === null) {
+            t2 = t;
+          } else {
             for (let tt = 0; tt < this.T; tt++) {
               if (this.occ[r2][tt] === null) { t2 = tt; break; }
             }
@@ -280,12 +292,32 @@ async function runPreEvent(client, { eventId, dryRun = false, manualMeetings = [
   const grid = new Grid(input);
   const unschedulable = [];
 
+  // Paso 0 — Seed grid con meetings locked ya persistidas (re-entrant preserva sagradas).
+  // Sin esto, un re-run tras reset genera doble-booking vs. requested existentes.
+  const existingLocked = (await client.query(
+    `SELECT round_id, table_id, company_a_id, company_b_id
+       FROM events.rn_meetings WHERE event_id=$1 AND locked = TRUE`,
+    [eventId]
+  )).rows;
+  const roundIdx = new Map(input.rounds.map((r, i) => [r.id, i]));
+  const tableIdx = new Map(input.tables.map((t, i) => [t.id, i]));
+  for (const m of existingLocked) {
+    const r = roundIdx.get(m.round_id);
+    const t = tableIdx.get(m.table_id);
+    if (r == null || t == null) continue;
+    grid.occ[r][t] = { a: m.company_a_id, b: m.company_b_id };
+    grid.regBusy[r].add(m.company_a_id);
+    grid.regBusy[r].add(m.company_b_id);
+    grid.pairsDone.add(pairKey(m.company_a_id, m.company_b_id));
+  }
+
   // Paso 1 — requests aceptados → origin='requested' locked=true
   for (const req of input.requests) {
     if (input.blocklist.has(pairKey(req.from_registration_id, req.to_registration_id))) {
       unschedulable.push({ request_id: req.id, reason: 'blocklist' });
       continue;
     }
+    if (grid.pairsDone.has(pairKey(req.from_registration_id, req.to_registration_id))) continue;
     const placed = grid.place(
       req.from_registration_id, req.to_registration_id,
       'requested', true,
@@ -384,8 +416,8 @@ async function runPreEvent(client, { eventId, dryRun = false, manualMeetings = [
   return {
     ok: true,
     stats: {
-      meetings_total: grid.meetings.length,
-      requested: grid.meetings.filter(m => m.origin === 'requested').length,
+      meetings_total: grid.meetings.length + existingLocked.length,
+      requested: grid.meetings.filter(m => m.origin === 'requested').length + existingLocked.length,
       manual:    grid.meetings.filter(m => m.origin === 'manual').length,
       matched:   grid.meetings.filter(m => m.origin === 'matched').length,
       total_rounds_effective: totalRounds,
