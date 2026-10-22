@@ -592,4 +592,31 @@ router.post('/events/:eventId/rounds/:roundId/open', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'POST rounds/open'); }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-7a — Listado de meetings para UI productor
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/events/:eventId/meetings', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const r = await pool.query(
+      `SELECT m.id, m.round_id, m.table_id, m.origin, m.locked, m.status,
+              m.tag_overlap_score,
+              rd.round_number,
+              t.label AS table_label,
+              ra.custom_fields->>'company_name' AS company_a,
+              rb.custom_fields->>'company_name' AS company_b
+         FROM events.rn_meetings m
+         JOIN events.rn_rounds rd ON rd.id = m.round_id
+         JOIN events.rn_tables t  ON t.id  = m.table_id
+         JOIN events.registrations ra ON ra.id = m.company_a_id
+         JOIN events.registrations rb ON rb.id = m.company_b_id
+        WHERE m.event_id = $1
+        ORDER BY rd.round_number ASC, t.display_order ASC NULLS LAST, t.label ASC`,
+      [req.params.eventId]
+    );
+    res.json(r.rows);
+  } catch (err) { handleError(res, err, 'GET meetings'); }
+});
+
 module.exports = router;

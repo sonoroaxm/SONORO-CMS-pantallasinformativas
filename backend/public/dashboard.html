@@ -635,6 +635,7 @@
       from { transform: translateY(20px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
     #statusMessage.success { background: rgba(0,200,100,0.18); border-color: var(--online); color: #00e676; }
     #statusMessage.error { background: rgba(255,23,68,0.18); border-color: var(--offline); color: #ff5252; }
     #statusMessage.info { background: rgba(255,27,141,0.18); border-color: var(--magenta); color: var(--magenta); }
@@ -2851,6 +2852,11 @@
             </div>
           </div>
 
+          <!-- E-RN-7a: chip filter tipo -->
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="evp-chip active" data-ev-filter="all" onclick="evSetListFilter('all')">Todos</button>
+            <button class="evp-chip" data-ev-filter="matchmaking" onclick="evSetListFilter('matchmaking')">Ruedas</button>
+          </div>
           <div id="ev-list-grid" style="display:grid;gap:16px;"></div>
         </div>
 
@@ -2861,6 +2867,36 @@
             <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="ev.back">Volver</span></button>
           </div>
           <div class="card" style="max-width:700px;">
+            <!-- E-RN-7a: tipo de evento -->
+            <div style="margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Tipo</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="radio" name="ev-new-type" value="standard" id="ev-new-type-std" checked onchange="evNewToggleType()">
+                  <span>Evento estándar</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="radio" name="ev-new-type" value="matchmaking" id="ev-new-type-mm" onchange="evNewToggleType()">
+                  <span style="display:inline-flex;align-items:center;gap:6px;">Rueda de Negocios <span style="font-size:10px;padding:2px 7px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;">RN</span></span>
+                </label>
+              </div>
+              <div id="ev-new-rn-opts" class="hidden" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Modo de matching</label>
+                  <select id="ev-new-rn-mode">
+                    <option value="tags">Automático por intereses (tags)</option>
+                    <option value="manual_only">Solo manual</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Zona</label>
+                  <select id="ev-new-rn-zone">
+                    <option value="classic">Clásica (una sola zona)</option>
+                    <option value="zoned">Zonificada</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
               <div class="form-group" style="grid-column:1/-1;margin:0;">
                 <label data-i18n="ev.f_name">Nombre del evento *</label>
@@ -4028,6 +4064,63 @@
           </div><!-- /ev-sub-certs -->
 
         </div><!-- /ev-detail-view -->
+
+        <!-- VISTA: Detalle Rueda de Negocios (E-RN-7a MVP) -->
+        <div id="ev-rueda-detail-view" class="hidden">
+          <div class="section-header">
+            <div>
+              <div class="section-title">
+                <span id="ev-rn-title">Rueda</span>
+                <span style="font-size:10px;padding:3px 9px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:8px;vertical-align:middle;">RUEDA DE NEGOCIOS</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="ev-rn-sub"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Mis Eventos</button>
+          </div>
+
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title">Solver</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
+                <span class="ev-rn-btn-label">Preview</span>
+                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+              </button>
+              <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
+                <span class="ev-rn-btn-label">Run solver</span>
+                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+              </button>
+              <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
+                <span class="ev-rn-btn-label">Reset</span>
+                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+              </button>
+            </div>
+            <div id="ev-rn-stats" style="margin-top:14px;font-size:12px;color:var(--text-muted);"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Meetings</span>
+              <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()">↻ Refrescar</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border);">
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Ronda</th>
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Mesa</th>
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa A</th>
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa B</th>
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Origen</th>
+                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Lock</th>
+                  </tr>
+                </thead>
+                <tbody id="ev-rn-meetings-tbody">
+                  <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- /ev-rueda-detail-view -->
 
       </div><!-- /events-tab -->
 
@@ -9005,6 +9098,57 @@ function evShowView(view) {
   document.getElementById('ev-list-view').classList.toggle('hidden', view !== 'list');
   document.getElementById('ev-new-view').classList.toggle('hidden', view !== 'new');
   document.getElementById('ev-detail-view').classList.toggle('hidden', view !== 'detail');
+  const rn = document.getElementById('ev-rueda-detail-view');
+  if (rn) rn.classList.toggle('hidden', view !== 'rueda');
+}
+
+// E-RN-7a MVP: toggle Rueda options en form Nuevo Evento
+function evNewToggleType() {
+  const isRN = document.getElementById('ev-new-type-mm')?.checked;
+  document.getElementById('ev-new-rn-opts')?.classList.toggle('hidden', !isRN);
+}
+
+// E-RN-7a MVP: filter list por tipo
+let evListFilter = 'all';
+let evListCache = [];
+function evSetListFilter(f) {
+  evListFilter = f;
+  document.querySelectorAll('[data-ev-filter]').forEach(b => b.classList.toggle('active', b.dataset.evFilter === f));
+  evRenderList();
+}
+function evRenderList() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const grid = document.getElementById('ev-list-grid');
+  if (!grid) return;
+  const data = evListFilter === 'all' ? evListCache
+             : evListCache.filter(ev => (ev.config && ev.config.event_type) === evListFilter);
+  if (!data.length) {
+    grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${t('ev.list_empty_title')}</div>
+      <div style="font-size:13px;color:var(--text-muted);">${t('ev.list_empty_sub')}</div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.map(ev => {
+    const tz = ev.timezone || 'UTC';
+    const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
+    const isRN = ev.config && ev.config.event_type === 'matchmaking';
+    const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">Rueda de Negocios</span>` : '';
+    return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}${pill}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${ev.venue_name ? ev.venue_name + ' &middot; ' : ''}${start} — ${end}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── SECCIÓN GLOBAL: switcher + CRM proveedores ─────────────────
@@ -9789,32 +9933,8 @@ async function evLoadList() {
   } catch(e){}
   try {
     const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const data = await res.json();
-    if (!data.length) {
-      grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${t('ev.list_empty_title')}</div>
-        <div style="font-size:13px;color:var(--text-muted);">${t('ev.list_empty_sub')}</div>
-      </div>`;
-      return;
-    }
-    grid.innerHTML = data.map(ev => {
-      const tz = ev.timezone || 'UTC';
-      const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
-      const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
-      const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
-      return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-          <div style="flex:1;">
-            <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);">${ev.venue_name ? ev.venue_name + ' &middot; ' : ''}${start} — ${end}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-            <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    evListCache = await res.json();
+    evRenderList();
   } catch(e) {
     grid.innerHTML = `<div style="color:#ff4444;font-size:13px;">${t('ev.list_error')}</div>`;
   }
@@ -9830,17 +9950,29 @@ async function evSaveNew() {
   const desc = document.getElementById('ev-new-desc').value.trim();
   const venue = document.getElementById('ev-new-venue').value.trim();
   if (!name || !start || !end) { showStatus(evI18n('ev.err_name_dates_short'), 'error'); return; }
+  // E-RN-7a: tipo de evento + config matchmaking
+  const isRN = document.getElementById('ev-new-type-mm')?.checked;
+  const config = {};
+  if (isRN) {
+    config.event_type = 'matchmaking';
+    config.matchmaking = {
+      matching_mode: document.getElementById('ev-new-rn-mode')?.value || 'tags',
+      zone_mode:     document.getElementById('ev-new-rn-zone')?.value || 'classic',
+    };
+  }
   try {
     const res = await fetch(`${API_URL}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue })
+      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue, config })
     });
     const data = await res.json();
     if (data.id) {
       showStatus(evI18n('ev.toast_ev_created'), 'success');
       ['ev-new-name','ev-new-start','ev-new-end','ev-new-capacity','ev-new-desc','ev-new-venue'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('ev-new-tz').value = 'America/Bogota';
+      const stdRadio = document.getElementById('ev-new-type-std'); if (stdRadio) stdRadio.checked = true;
+      evNewToggleType();
       await evOpenDetail(data.id);
     } else { showStatus(data.error || evI18n('ev.err_create_event'), 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
@@ -9852,12 +9984,111 @@ async function evOpenDetail(eventId) {
   try {
     const res = await fetch(`${API_URL}/api/events/${eventId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     evCurrentEvent = await res.json();
+    // E-RN-7a MVP: rutea a vista Rueda si event_type === 'matchmaking'
+    if (evCurrentEvent.config && evCurrentEvent.config.event_type === 'matchmaking') {
+      evOpenRueda(evCurrentEvent);
+      return;
+    }
     evPopulateInfo(evCurrentEvent);
     evFields = (evCurrentEvent.config && evCurrentEvent.config.registration_fields) ? JSON.parse(JSON.stringify(evCurrentEvent.config.registration_fields)) : [];
     evInitCatalog();
     evSwitchSubTab('info');
     evShowView('detail');
   } catch(e) { showStatus(evI18n('ev.err_load_event'), 'error'); }
+}
+
+// ── E-RN-7a MVP: Rueda de Negocios · detail + solver ─────────────
+function evOpenRueda(ev) {
+  const tz = ev.timezone || 'UTC';
+  const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  const mm = (ev.config && ev.config.matchmaking) || {};
+  document.getElementById('ev-rn-title').textContent = ev.name;
+  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · modo: ${mm.matching_mode || 'tags'} · zona: ${mm.zone_mode || 'classic'}`;
+  document.getElementById('ev-rn-stats').textContent = '';
+  document.getElementById('ev-rn-meetings-tbody').innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  evShowView('rueda');
+  evRnLoadMeetings();
+}
+
+function evRnBtnBusy(action, busy) {
+  const btn = document.getElementById('ev-rn-btn-' + action);
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.style.opacity = busy ? '0.6' : '1';
+  btn.style.pointerEvents = busy ? 'none' : '';
+  btn.querySelector('.ev-rn-btn-spin')?.classList.toggle('hidden', !busy);
+}
+
+async function evRnSolver(action) {
+  if (!evCurrentEventId) return;
+  if (action === 'reset' && !confirm('¿Eliminar todas las meetings no bloqueadas?')) return;
+  evRnBtnBusy(action, true);
+  try {
+    const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/solver/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (res.status === 409 && data.error === 'solver_already_running') {
+      showStatus('Solver ya está corriendo. Espera a que termine.', 'error');
+      return;
+    }
+    if (res.status === 400 && data.error === 'setup_incompleto') {
+      const details = Array.isArray(data.details) ? data.details.join(' · ') : '';
+      showStatus('Setup incompleto' + (details ? ': ' + details : ''), 'error');
+      return;
+    }
+    if (!res.ok) {
+      showStatus(data.error || 'Error en solver', 'error');
+      return;
+    }
+    if (action === 'reset') {
+      showStatus(`Reset OK · ${data.deleted || 0} meetings eliminadas`, 'success');
+      document.getElementById('ev-rn-stats').textContent = '';
+    } else {
+      const s = data.stats || {};
+      const prefix = action === 'preview' ? 'Preview' : 'Solver OK';
+      document.getElementById('ev-rn-stats').textContent =
+        `${prefix} · total ${s.meetings_total||0} (requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}) · rondas efectivas ${s.total_rounds_effective||0}${s.unschedulable_count?` · unschedulable ${s.unschedulable_count}`:''}`;
+      showStatus(`${prefix}: ${s.meetings_total||0} meetings`, 'success');
+    }
+    if (action !== 'preview') await evRnLoadMeetings();
+  } catch(e) {
+    showStatus('Error de conexión', 'error');
+  } finally {
+    evRnBtnBusy(action, false);
+  }
+}
+
+async function evRnLoadMeetings() {
+  const tbody = document.getElementById('ev-rn-meetings-tbody');
+  if (!tbody || !evCurrentEventId) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  try {
+    const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/meetings`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings. Corre el solver para generarlas.</td></tr>';
+      return;
+    }
+    const originColor = { requested:'#FF1B8D', manual:'#f59e0b', matched:'#a855f7' };
+    tbody.innerHTML = data.map(m => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;font-weight:700;">${m.round_number ?? '—'}</td>
+        <td style="padding:8px;">${m.table_label ?? '—'}</td>
+        <td style="padding:8px;">${m.company_a ?? '—'}</td>
+        <td style="padding:8px;">${m.company_b ?? '—'}</td>
+        <td style="padding:8px;"><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${originColor[m.origin]||'#64748b'};color:#fff;font-weight:700;text-transform:uppercase;">${m.origin}</span></td>
+        <td style="padding:8px;">${m.locked ? '<svg width="12" height="12" style="fill:#FF1B8D"><use href="#ph-lock"/></svg>' : '—'}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:#ef4444;">Error cargando meetings.</td></tr>';
+  }
 }
 
 function evSwitchSubTab(tab) {
