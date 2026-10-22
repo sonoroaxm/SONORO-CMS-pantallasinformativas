@@ -373,4 +373,125 @@ router.delete('/events/:eventId/anchors/:regId', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'DELETE anchor'); }
 });
 
+// ------------------------------------------------------------------
+// Delegados bulk — carga masiva productor (E-RN-1b · framework §3.10 D-RN-13)
+// Body: { items: [{ registration_id, full_name, email, phone?, role_title? }, ...] }
+// Crea rn_delegates secundarios por lote. Trigger email a cada uno.
+// Nunca marca is_primary=TRUE (el primario ya existe desde inscripción).
+// ------------------------------------------------------------------
+router.post('/events/:eventId/delegates/bulk', auth, async (req, res) => {
+  const pool = global.pool;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  try {
+    const ev = await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const items = Array.isArray(req.body?.items) ? req.body.items : null;
+    if (!items || !items.length) return res.status(400).json({ error: 'items[] requerido' });
+    if (items.length > 500) return res.status(400).json({ error: 'Máximo 500 por lote' });
+
+    // Pre-validar formato de todos los items ANTES de abrir transacción
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i] || {};
+      if (!it.registration_id || !UUID_RE.test(String(it.registration_id))) {
+        return res.status(400).json({ error: `items[${i}].registration_id inválido` });
+      }
+      if (!it.full_name || !String(it.full_name).trim()) {
+        return res.status(400).json({ error: `items[${i}].full_name requerido` });
+      }
+      if (!it.email || !EMAIL_RE.test(String(it.email))) {
+        return res.status(400).json({ error: `items[${i}].email inválido` });
+      }
+    }
+
+    const { sendRnDelegateInvitedEmail } = require('../services/email');
+    const baseUrl = (process.env.CMS_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+
+    const result = await withTransaction(pool, async (client) => {
+      // Validar que todos los registration_id pertenecen al evento
+      const regIds = [...new Set(items.map(i => i.registration_id))];
+      const regCheck = await client.query(
+        `SELECT id FROM events.registrations WHERE event_id = $1 AND id = ANY($2::uuid[])`,
+        [req.params.eventId, regIds]
+      );
+      const validRegs = new Set(regCheck.rows.map(r => r.id));
+      const invalid = regIds.filter(id => !validRegs.has(id));
+      if (invalid.length) {
+        const err = new Error(`registration_id no pertenece al evento: ${invalid[0]}`);
+        err.httpStatus = 400; throw err;
+      }
+
+      // Cargar primarios para enriquecer el email con inviter + company
+      const primariesRes = await client.query(
+        `SELECT d.registration_id, d.full_name AS inviter_name, d.id AS primary_id,
+                r.custom_fields->>'company_name' AS company_name
+           FROM events.rn_delegates d
+           JOIN events.registrations r ON r.id = d.registration_id
+          WHERE d.registration_id = ANY($1::uuid[]) AND d.is_primary = TRUE`,
+        [regIds]
+      );
+      const primaries = {};
+      for (const p of primariesRes.rows) primaries[p.registration_id] = p;
+
+      const inserted = [];
+      const skipped = [];
+      for (const it of items) {
+        const cleanEmail = String(it.email).toLowerCase().trim();
+        const cleanName  = String(it.full_name).trim();
+        const dup = await client.query(
+          `SELECT 1 FROM events.rn_delegates
+            WHERE registration_id = $1 AND LOWER(email) = $2`,
+          [it.registration_id, cleanEmail]
+        );
+        if (dup.rowCount > 0) {
+          skipped.push({ email: cleanEmail, registration_id: it.registration_id, reason: 'duplicate' });
+          continue;
+        }
+        const prim = primaries[it.registration_id] || null;
+        const r = await client.query(
+          `INSERT INTO events.rn_delegates
+             (registration_id, full_name, email, phone, role_title, is_primary, can_manage_team, invited_by, invited_at)
+           VALUES ($1,$2,$3,$4,$5,FALSE,FALSE,$6,NOW())
+           RETURNING id, agenda_token`,
+          [it.registration_id, cleanName, cleanEmail, it.phone || null, it.role_title || null, prim?.primary_id || null]
+        );
+        inserted.push({
+          delegate_id: r.rows[0].id,
+          registration_id: it.registration_id,
+          email: cleanEmail,
+          agenda_token: r.rows[0].agenda_token,
+          inviter_name: prim?.inviter_name || null,
+          company_name: prim?.company_name || null,
+          full_name: cleanName,
+        });
+      }
+      return { inserted, skipped };
+    });
+
+    // Dispara emails fuera de la transacción (no bloquea respuesta)
+    for (const d of result.inserted) {
+      const agendaUrl = `${baseUrl}/rueda/mi-agenda/${d.agenda_token}`;
+      sendRnDelegateInvitedEmail({
+        to: d.email,
+        delegateName: d.full_name,
+        inviterName: d.inviter_name || 'Productor',
+        companyName: d.company_name || '',
+        eventName: ev.config?.event_name || '',
+        agendaUrl,
+      }).catch(e => console.error('⚠️ Email bulk invite fallido:', e.message));
+    }
+
+    console.log(`[rn] bulk delegates event=${req.params.eventId} inserted=${result.inserted.length} skipped=${result.skipped.length}`);
+    res.status(201).json({
+      inserted_count: result.inserted.length,
+      skipped_count:  result.skipped.length,
+      inserted: result.inserted.map(d => ({
+        delegate_id: d.delegate_id,
+        registration_id: d.registration_id,
+        email: d.email,
+      })),
+      skipped: result.skipped,
+    });
+  } catch (err) { handleError(res, err, 'POST delegates/bulk'); }
+});
+
 module.exports = router;
