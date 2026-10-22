@@ -29,7 +29,7 @@ function slugify(s) {
 
 async function assertRnEventOwned(pool, eventId, userId) {
   const r = await pool.query(
-    `SELECT id, user_id, config FROM events.events WHERE id = $1`, [eventId]
+    `SELECT id, user_id, name, status, config FROM events.events WHERE id = $1`, [eventId]
   );
   if (r.rowCount === 0) {
     const err = new Error('Evento no encontrado'); err.httpStatus = 404; throw err;
@@ -777,6 +777,19 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
     const eventId = ev.id;
     const baseUrl = (process.env.CMS_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 
+    // S211o · Idempotencia — si ya se envió y no viene ?force=1 → 409
+    const prevSentAt = ev.config?.rn_report_sent_at || null;
+    const prevSentCount = ev.config?.rn_report_sent_count || 0;
+    const force = req.query.force === '1' || req.query.force === 'true';
+    if (prevSentAt && !force) {
+      return res.status(409).json({
+        error: 'Reporte ya enviado',
+        sent_at: prevSentAt,
+        sent_count: prevSentCount,
+        hint: 'Usa ?force=1 para reenviar',
+      });
+    }
+
     // Payload productor (reusa misma semántica del GET /report)
     const perMeeting = (await pool.query(
       `SELECT m.id,
@@ -897,11 +910,25 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
       } catch (e) { console.error(`[rn-report/send] delegate email error ${d.email}:`, e.message); }
     }
 
+    // S211o · Marcar enviado (idempotencia). jsonb_set aditivo, no reescribe otras keys.
+    const sentAt = new Date().toISOString();
+    await pool.query(
+      `UPDATE events.events
+          SET config = jsonb_set(
+            jsonb_set(COALESCE(config,'{}'::jsonb), '{rn_report_sent_at}', to_jsonb($2::text), TRUE),
+            '{rn_report_sent_count}', to_jsonb(($3::int)), TRUE)
+        WHERE id = $1`,
+      [eventId, sentAt, prevSentCount + 1]
+    );
+
     res.json({
       event_id: eventId,
       sent_to_delegates: sentDelegates,
       delegates_total: delegates.length,
       sent_to_producer: sentProducer,
+      sent_at: sentAt,
+      sent_count: prevSentCount + 1,
+      resend: force && prevSentAt != null,
     });
   } catch (err) { handleError(res, err, 'POST report/send'); }
 });

@@ -41,15 +41,23 @@ const email = require('../src/services/email.js');
 // ── Helpers del router (reimpl 1:1) ─────────────────────────────────────────
 async function assertRnEventOwned(eventId, userId) {
   const r = await pool.query(
-    `SELECT id, user_id, name, status FROM events.events WHERE id=$1`, [eventId]);
+    `SELECT id, user_id, name, status, config FROM events.events WHERE id=$1`, [eventId]);
   if (!r.rows[0] || r.rows[0].user_id !== userId) {
     const e = new Error('Evento no encontrado'); e.httpStatus = 404; throw e;
   }
   return r.rows[0];
 }
 
-async function reportSend(eventId, userId) {
+async function reportSend(eventId, userId, { force = false } = {}) {
   const ev = await assertRnEventOwned(eventId, userId);
+  const prevSentAt = ev.config?.rn_report_sent_at || null;
+  const prevSentCount = ev.config?.rn_report_sent_count || 0;
+  if (prevSentAt && !force) {
+    const e = new Error('Reporte ya enviado');
+    e.httpStatus = 409;
+    e.payload = { sent_at: prevSentAt, sent_count: prevSentCount };
+    throw e;
+  }
   const baseUrl = (process.env.CMS_URL || 'https://smoke.local').replace(/\/$/, '');
 
   const perMeeting = (await pool.query(
@@ -131,7 +139,20 @@ async function reportSend(eventId, userId) {
     });
     sentDelegates++;
   }
-  return { sent_to_producer: sentProducer, sent_to_delegates: sentDelegates, delegates_total: delegates.length };
+  const sentAt = new Date().toISOString();
+  await pool.query(
+    `UPDATE events.events
+        SET config = jsonb_set(
+          jsonb_set(COALESCE(config,'{}'::jsonb), '{rn_report_sent_at}', to_jsonb($2::text), TRUE),
+          '{rn_report_sent_count}', to_jsonb(($3::int)), TRUE)
+      WHERE id = $1`,
+    [eventId, sentAt, prevSentCount + 1]
+  );
+  return {
+    sent_to_producer: sentProducer, sent_to_delegates: sentDelegates,
+    delegates_total: delegates.length, sent_at: sentAt, sent_count: prevSentCount + 1,
+    resend: force && prevSentAt != null,
+  };
 }
 
 // ── Harness ────────────────────────────────────────────────────────────────
@@ -331,6 +352,44 @@ async function test7_MultiTenancy() {
   await cleanupSlug(slug);
 }
 
+async function test8_IdempotencySecondSend409() {
+  console.log('\n═══ T8 · IDEMPOTENCIA · segundo send sin force → 409 ═══');
+  await ensureUser(USER_ID, 'prod@smoke.local', 'Daniel');
+  const slug = 'em-t8';
+  sentBox.length = 0;
+  const { eventId } = await seed(slug, { numCompanies: 2 });
+  const r1 = await reportSend(eventId, USER_ID);
+  ok('primer send ok (sent_count=1)', r1.sent_count === 1);
+  ok('primer send sent_at es ISO string', typeof r1.sent_at === 'string' && r1.sent_at.includes('T'));
+  const emailsAfter1 = sentBox.length;
+  await expectHttp('segundo send sin force → 409', 409, () => reportSend(eventId, USER_ID));
+  ok('segundo send NO disparó emails adicionales', sentBox.length === emailsAfter1);
+  // Verificar stamp en DB
+  const cfg = (await pool.query(`SELECT config FROM events.events WHERE id=$1`, [eventId])).rows[0].config;
+  ok('DB config.rn_report_sent_count=1', cfg?.rn_report_sent_count === 1);
+  ok('DB config.rn_report_sent_at presente', !!cfg?.rn_report_sent_at);
+  await cleanupSlug(slug);
+}
+
+async function test9_IdempotencyForceOverride() {
+  console.log('\n═══ T9 · IDEMPOTENCIA · ?force=1 reenvía e incrementa contador ═══');
+  await ensureUser(USER_ID, 'prod@smoke.local', 'Daniel');
+  const slug = 'em-t9';
+  sentBox.length = 0;
+  const { eventId } = await seed(slug, { numCompanies: 2 });
+  const r1 = await reportSend(eventId, USER_ID);
+  const emailsAfter1 = sentBox.length;
+  const r2 = await reportSend(eventId, USER_ID, { force: true });
+  ok('segundo send con force → sent_count=2', r2.sent_count === 2);
+  ok('segundo send con force → resend=true', r2.resend === true);
+  ok('segundo send envió emails (acumulado > 1er send)', sentBox.length > emailsAfter1);
+  const cfg = (await pool.query(`SELECT config FROM events.events WHERE id=$1`, [eventId])).rows[0].config;
+  ok('DB config.rn_report_sent_count=2', cfg?.rn_report_sent_count === 2);
+  // r1.sent_at <= r2.sent_at (string ISO comparable)
+  ok('sent_at avanzó en el reenvío', r2.sent_at >= r1.sent_at);
+  await cleanupSlug(slug);
+}
+
 (async () => {
   const t0 = Date.now();
   try {
@@ -341,6 +400,8 @@ async function test7_MultiTenancy() {
     await test5_ProducerPayloadAggregate();
     await test6_ReferentialFlag();
     await test7_MultiTenancy();
+    await test8_IdempotencySecondSend409();
+    await test9_IdempotencyForceOverride();
   } catch (e) {
     console.error('\n💥 EXCEPCIÓN NO MANEJADA:', e);
     fail++;
