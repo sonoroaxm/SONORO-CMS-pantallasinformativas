@@ -525,6 +525,17 @@ function EVTT(locale, key, vars = {}) {
 // Default preserva comportamiento legacy "CMS · Pantallas Informativas" para signage/licencias.
 function baseTemplate(content, opts = {}) {
   const tagline = opts.tagline || 'CMS &nbsp;·&nbsp; Pantallas Informativas';
+  // Events v1 privacy link in footer (Ley 1581 — consentimiento informado).
+  // Detect scope via tagline keywords or explicit opts.product='events'.
+  const isEvents = opts.product === 'events' ||
+    /event|rueda|gest[aã]o/i.test(String(tagline));
+  const loc = (opts.locale || 'es').toLowerCase();
+  const privacyLabel = loc.startsWith('en') ? 'Privacy policy'
+                     : loc.startsWith('pt') ? 'Política de privacidade'
+                     : 'Política de privacidad';
+  const privacyLine = isEvents
+    ? `<br><a href="${CMS_URL}/legal/privacidad-events.html" style="color:#999;text-decoration:underline;">${privacyLabel}</a>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -567,7 +578,7 @@ function baseTemplate(content, opts = {}) {
             <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
                 Este correo fue enviado por <strong style="color:#666;">SONORO CMS</strong><br>
-                Si tienes dudas escríbenos a <a href="mailto:cms@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">cms@sonoro.com.co</a>
+                Si tienes dudas escríbenos a <a href="mailto:cms@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">cms@sonoro.com.co</a>${privacyLine}
               </p>
             </td>
           </tr>
@@ -1100,7 +1111,7 @@ async function sendEventPendingEmail(attendee, event, emailConfig = {}) {
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'pending.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'pending.tagline') });
+  `, { tagline: EVTT(loc, 'pending.tagline'), locale: loc });
 
   const _fromPend = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moP = { from: _fromPend, to: attendee.email, subject: EVTT(loc, 'pending.subject', { event: event.name }), html };
@@ -1184,7 +1195,7 @@ async function sendEventRegistrationEmail(attendee, event, registration, emailCo
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'registration.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _fromReg = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moR = { from: _fromReg, to: attendee.email, subject: EVTT(loc, 'registration.subject', { event: event.name }), html, attachments };
@@ -1233,7 +1244,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'supplier_quote.single_use', { name: supplier_name })}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _fromQ = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moQ = { from: _fromQ, to: contact_email, subject: EVTT(loc, 'supplier_quote.subject', { event: event_name }), html };
   if (emailConfig.reply_to) moQ.replyTo = emailConfig.reply_to;
@@ -1264,7 +1275,7 @@ async function sendSupplierAcceptedEmail({ supplier_name, contact_email, event_n
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_accepted.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _fromA = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moA = { from: _fromA, to: contact_email, subject: EVTT(loc, 'supplier_accepted.subject', { event: event_name }), html };
   if (emailConfig.reply_to) moA.replyTo = emailConfig.reply_to;
@@ -1300,7 +1311,7 @@ async function sendSupplierDepositEmail({ supplier_name, contact_email, event_na
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_deposit.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: EVTT(loc, 'supplier_deposit.subject', { event: event_name }), html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -1336,7 +1347,7 @@ async function sendSupplierPaidEmail({ supplier_name, contact_email, event_name,
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_paid.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: EVTT(loc, 'supplier_paid.subject', { event: event_name }), html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -1431,7 +1442,7 @@ async function sendInvitationConfirmedEmail(attendee, event, registration, batch
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'invitation_confirmed.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: EVTT(loc, 'invitation_confirmed.subject', { event: event.name }), html, attachments };
@@ -1490,7 +1501,7 @@ async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = 
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'invitation_pending.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: EVTT(loc, 'invitation_pending.subject', { event: event.name }), html };
@@ -1644,7 +1655,7 @@ async function sendStaffCredentialsEmail(staff, event, producer) {
         ${EVTT(loc, 'staff_credentials.briefing_note')}
       </p>
     </div>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   await transporter.sendMail({
     from: FROM,
@@ -1739,7 +1750,7 @@ async function sendStaffBriefingEmail(staff, event, producer) {
         ${EVTT(loc, 'staff_briefing.help_note', { producer: producerName, email: producerEmail })}
       </p>
     </div>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   await transporter.sendMail({
     from: FROM,
