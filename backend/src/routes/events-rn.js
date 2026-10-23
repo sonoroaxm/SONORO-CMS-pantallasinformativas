@@ -8,8 +8,12 @@
 const express = require('express');
 const router  = express.Router();
 const jwt     = require('jsonwebtoken');
+const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
 const solver = require('../services/matchmaking-solver');
+const tagsSvc = require('../services/matchmaking-tags');
+
+const uploadTags = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 function auth(req, res, next) {
   const token = (req.headers['authorization'] || '').split(' ')[1];
@@ -303,16 +307,53 @@ router.get('/tags', auth, async (req, res) => {
 router.post('/tags', auth, async (req, res) => {
   const pool = global.pool;
   try {
-    const { label, category } = req.body || {};
+    const label = tagsSvc.cleanLabel(req.body && req.body.label);
     if (!label) return res.status(400).json({ error: 'label requerido' });
-    const slug = slugify(label);
+    const slug = tagsSvc.normalizeTagSlug(label);
+    if (!slug) return res.status(400).json({ error: 'label no genera slug válido' });
+    const category = tagsSvc.cleanLabel(req.body && req.body.category) || null;
     const r = await pool.query(
       `INSERT INTO events.rn_tags (user_id, slug, label, category)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user.id, slug, label, category || null]
+      [req.user.id, slug, label, category]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { handleError(res, err, 'POST tag'); }
+});
+
+router.patch('/tags/:tagId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const own = await pool.query(
+      `SELECT id FROM events.rn_tags WHERE id = $1 AND user_id = $2`,
+      [req.params.tagId, req.user.id]
+    );
+    if (own.rowCount === 0) return res.status(404).json({ error: 'Tag no encontrado' });
+
+    const fields = [];
+    const values = [];
+    if (req.body && typeof req.body.label === 'string') {
+      const label = tagsSvc.cleanLabel(req.body.label);
+      if (!label) return res.status(400).json({ error: 'label vacío' });
+      values.push(label); fields.push(`label = $${values.length}`);
+      const slug = tagsSvc.normalizeTagSlug(label);
+      values.push(slug); fields.push(`slug = $${values.length}`);
+    }
+    if (req.body && 'category' in req.body) {
+      values.push(tagsSvc.cleanLabel(req.body.category) || null);
+      fields.push(`category = $${values.length}`);
+    }
+    if (fields.length === 0) return res.status(400).json({ error: 'nada que actualizar' });
+
+    values.push(req.params.tagId, req.user.id);
+    const r = await pool.query(
+      `UPDATE events.rn_tags SET ${fields.join(', ')}
+         WHERE id = $${values.length - 1} AND user_id = $${values.length}
+         RETURNING *`,
+      values
+    );
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'PATCH tag'); }
 });
 
 router.delete('/tags/:tagId', auth, async (req, res) => {
@@ -325,6 +366,90 @@ router.delete('/tags/:tagId', auth, async (req, res) => {
     if (r.rowCount === 0) return res.status(404).json({ error: 'Tag no encontrado' });
     res.status(204).end();
   } catch (err) { handleError(res, err, 'DELETE tag'); }
+});
+
+// ------------------------------------------------------------------
+// B.0 Taxonomía — fuzzy, bulk, export, template
+// ------------------------------------------------------------------
+
+// Fuzzy similar — modal "nuevo manual: ¿quisiste decir X?"
+router.get('/tags/similar', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const label = tagsSvc.cleanLabel(req.query && req.query.label);
+    if (!label) return res.status(400).json({ error: 'label requerido' });
+    const r = await pool.query(
+      `SELECT id, slug, label, category, similarity(label, $2) AS score
+         FROM events.rn_tags
+        WHERE user_id = $1 AND similarity(label, $2) >= $3
+        ORDER BY score DESC
+        LIMIT 5`,
+      [req.user.id, label, tagsSvc.SIMILARITY_THRESHOLD]
+    );
+    res.json({ label, threshold: tagsSvc.SIMILARITY_THRESHOLD,
+               candidates: r.rows.map(x => ({ ...x, score: Number(x.score.toFixed(3)) })) });
+  } catch (err) { handleError(res, err, 'GET tags/similar'); }
+});
+
+// Template xlsx
+router.get('/tags/template.xlsx', auth, async (req, res) => {
+  try {
+    const buf = tagsSvc.buildTemplateBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="sonoro-tags-template.xlsx"');
+    res.send(buf);
+  } catch (err) { handleError(res, err, 'GET tags/template'); }
+});
+
+// Export catálogo actual
+router.get('/events/:eventId/tags/export', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const r = await pool.query(
+      `SELECT label, category FROM events.rn_tags
+        WHERE user_id = $1 ORDER BY category NULLS LAST, label`,
+      [req.user.id]
+    );
+    const buf = tagsSvc.buildExportBuffer(r.rows);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="sonoro-tags-export.xlsx"');
+    res.send(buf);
+  } catch (err) { handleError(res, err, 'GET tags/export'); }
+});
+
+// Bulk preview — parse y diffing, NO persiste
+router.post('/events/:eventId/tags/bulk', auth, uploadTags.single('file'), async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'file requerido' });
+
+    let parsed;
+    try { parsed = tagsSvc.parseBulkBuffer(req.file.buffer); }
+    catch (e) { return res.status(400).json({ error: e.message }); }
+
+    const client = await pool.connect();
+    try {
+      const preview = await tagsSvc.buildBulkPreview(client, req.user.id, parsed);
+      res.json(preview);
+    } finally { client.release(); }
+  } catch (err) { handleError(res, err, 'POST tags/bulk'); }
+});
+
+// Bulk confirm — persiste resolución del productor
+router.post('/events/:eventId/tags/bulk/confirm', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const rows = (req.body && req.body.rows) || [];
+    if (!Array.isArray(rows)) return res.status(400).json({ error: 'rows debe ser array' });
+
+    const stats = await withTransaction(pool, async (client) => {
+      return tagsSvc.persistBulkRows(client, req.user.id, rows);
+    });
+    res.json({ ok: true, ...stats });
+  } catch (err) { handleError(res, err, 'POST tags/bulk/confirm'); }
 });
 
 // ------------------------------------------------------------------
