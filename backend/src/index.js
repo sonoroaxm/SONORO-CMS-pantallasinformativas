@@ -19,6 +19,8 @@ const eventsProductionPublicRouter = require('./routes/events-production-public'
 const eventsStaffRouter  = require('./routes/events-staff');
 const eventsCalendarRouter = require('./routes/events-calendar');
 const eventsCertificatesRouter = require('./routes/events-certificates');
+const eventsRnRouter     = require('./routes/events-rn');
+const eventsRnPublicRouter = require('./routes/events-rn-public');
 const licensesRouter     = require('./routes/licenses');
 const licensesAdminRouter = require('./routes/licenses-admin');
 const licensesApprovalRouter = require('./routes/licenses-approval');
@@ -9009,6 +9011,10 @@ app.use('/api/events/staff',  eventsStaffRouter);
 app.use('/api/events/calendar', requireEventsAccess, eventsCalendarRouter);
 app.use('/api/events',          requireEventsAccess, eventsCertificatesRouter);
 app.use('/api/events',          requireEventsAccess, eventsRouter);
+// Rueda de Negocios v1 — rutas públicas (E-RN-1b: inscripción + delegates por token). SIN gate.
+app.use('/api/rn/public',       eventsRnPublicRouter);
+// Rueda de Negocios v1 (E-RN-1) — hereda gate Events (productor con JWT)
+app.use('/api/rn',              requireEventsAccess, eventsRnRouter);
 
 // LICENSES-V1 — router expone /api/licenses/* + /api/orders/* (paths completos internos)
 app.use('/api', licensesRouter);
@@ -9082,6 +9088,21 @@ app.get('/evento/:slug/orador/:session_id', (req, res) => {
 });
 app.get('/evento/:slug/kiosko', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
+});
+// Rueda de Negocios v1 — pantallas públicas (E-RN-4)
+app.get('/rueda/callboard/:slug/:zoneSlug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard-zonificado.html'));
+});
+app.get('/rueda/callboard/:slug', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard.html'));
+});
+// S211t B.1 — landing pública de registro empresa
+app.get('/rueda/:slug/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
+});
+// S211t B.1 — mi agenda (delegado por token)
+app.get('/rueda/mi-agenda/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-mi-agenda.html'));
 });
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));

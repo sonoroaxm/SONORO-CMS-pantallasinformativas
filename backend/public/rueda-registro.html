@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Registro — Rueda de Negocios · SONORO</title>
+<style>
+  :root{
+    --bg:#0b0b0f; --card:#15151c; --card2:#1c1c25; --border:#2a2a35;
+    --text:#f4f4f6; --mute:#9a9aa8; --magenta:#FF1B8D; --orange:#FF8C00;
+    --ok:#22c55e; --err:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+  .wrap{max-width:720px;margin:0 auto;padding:28px 20px 80px}
+  .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--magenta),var(--orange))}
+  .lang-sw{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .lang-sw button{background:transparent;border:0;color:var(--mute);padding:5px 11px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600}
+  .lang-sw button.active{background:var(--magenta);color:#fff}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px}
+  h1{margin:0 0 6px;font-size:22px}
+  .ev-meta{color:var(--mute);font-size:13px}
+  .ev-meta span{margin-right:12px}
+  .section-title{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--mute);margin:0 0 10px}
+  label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+  input[type=text],input[type=email],input[type=url],input[type=tel],textarea,select{
+    width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;color:var(--text);font:inherit;font-size:16px
+  }
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--magenta)}
+  textarea{min-height:70px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:520px){.row2{grid-template-columns:1fr}}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;min-height:34px;padding:6px;background:var(--card2);border:1px solid var(--border);border-radius:10px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#2a2a35;color:#fff;border-radius:999px;padding:4px 10px;font-size:12px}
+  .chip button{background:transparent;border:0;color:#fff;cursor:pointer;font-size:14px;line-height:1}
+  .chip.offer{background:rgba(255,27,141,.2);border:1px solid var(--magenta)}
+  .chip.demand{background:rgba(255,140,0,.2);border:1px solid var(--orange)}
+  .consent{display:flex;gap:10px;align-items:flex-start;padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border);margin-top:12px}
+  .consent input{margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--magenta)}
+  .consent label{margin:0;color:var(--text);font-size:13px}
+  .consent a{color:var(--magenta);text-decoration:underline}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--magenta),var(--orange));color:#fff;border:0;padding:12px 20px;border-radius:10px;font-weight:600;cursor:pointer;font-size:14px;width:100%}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .alert{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
+  .alert.err{background:rgba(239,68,68,.15);border:1px solid var(--err);color:#fecaca;display:block}
+  .alert.ok{background:rgba(34,197,94,.15);border:1px solid var(--ok);color:#bbf7d0;display:block}
+  .vis-opt{display:flex;gap:10px;margin-top:6px}
+  .vis-opt label{flex:1;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;cursor:pointer;margin:0;color:var(--text);display:flex;gap:8px;align-items:center;font-size:13px}
+  @media (max-width:520px){.vis-opt{flex-direction:column}}
+  .vis-opt input[type=radio]{accent-color:var(--magenta)}
+  .hp{position:absolute;left:-9999px;top:-9999px}
+  .footer{text-align:center;color:var(--mute);font-size:11px;margin-top:20px}
+  .success-view{text-align:center;padding:30px 20px}
+  .success-view .big{font-size:52px;line-height:1;color:var(--ok);margin-bottom:12px}
+  .success-view p{color:var(--mute);margin:6px 0}
+  .success-view a{color:var(--magenta);word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="brand"><span class="dot"></span><span>SONORO Events</span></div>
+    <div class="lang-sw" id="langSw">
+      <button data-lang="es" class="active">ES</button>
+      <button data-lang="en">EN</button>
+      <button data-lang="pt">PT</button>
+    </div>
+  </div>
+
+  <div id="loading" class="card" style="text-align:center;color:var(--mute)">
+    <span data-i18n-es="Cargando rueda..." data-i18n-en="Loading..." data-i18n-pt="Carregando...">Cargando rueda...</span>
+  </div>
+
+  <div id="notfound" class="card" style="display:none;text-align:center">
+    <h1 data-i18n-es="Rueda no disponible" data-i18n-en="Not available" data-i18n-pt="Indisponível">Rueda no disponible</h1>
+    <p class="ev-meta" data-i18n-es="Esta rueda no existe o la inscripción está cerrada." data-i18n-en="This event doesn't exist or registration is closed." data-i18n-pt="Este evento não existe ou a inscrição está encerrada.">Esta rueda no existe o la inscripción está cerrada.</p>
+  </div>
+
+  <div id="formWrap" style="display:none">
+    <div class="card">
+      <h1 id="evName">—</h1>
+      <div class="ev-meta">
+        <span id="evWhen"></span>
+        <span id="evWhere"></span>
+      </div>
+    </div>
+
+    <div class="alert" id="alertBox"></div>
+
+    <div class="card">
+      <p class="section-title" data-i18n-es="Empresa" data-i18n-en="Company" data-i18n-pt="Empresa">Empresa</p>
+      <label data-i18n-es="Razón social *" data-i18n-en="Company name *" data-i18n-pt="Razão social *">Razón social *</label>
+      <input type="text" id="f_company" maxlength="200" required>
+      <div class="row2">
+        <div>
+          <label data-i18n-es="Sitio web" data-i18n-en="Website" data-i18n-pt="Site">Sitio web</label>
+          <input type="url" id="f_website" placeholder="https://" maxlength="300">
+        </div>
+        <div>
+          <label data-i18n-es="¿Qué ofreces? (pitch 1 línea)" data-i18n-en="What do you offer? (1-line pitch)" data-i18n-pt="O que você oferece? (1 linha)">¿Qué ofreces? (pitch 1 línea)</label>
+          <input type="text" id="f_pitch" maxlength="200">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title" data-i18n-es="Delegado principal" data-i18n-en="Primary delegate" data-i18n-pt="Delegado principal">Delegado principal</p>
+      <div class="row2">
+        <div>
+          <label data-i18n-es="Nombre completo *" data-i18n-en="Full name *" data-i18n-pt="Nome completo *">Nombre completo *</label>
+          <input type="text" id="f_name" maxlength="200" required>
+        </div>
+        <div>
+          <label data-i18n-es="Cargo" data-i18n-en="Job title" data-i18n-pt="Cargo">Cargo</label>
+          <input type="text" id="f_role" maxlength="100">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label data-i18n-es="Correo *" data-i18n-en="Email *" data-i18n-pt="E-mail *">Correo *</label>
+          <input type="email" id="f_email" maxlength="200" required>
+        </div>
+        <div>
+          <label data-i18n-es="Teléfono" data-i18n-en="Phone" data-i18n-pt="Telefone">Teléfono</label>
+          <input type="tel" id="f_phone" maxlength="40">
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="tagsCard" style="display:none">
+      <p class="section-title" data-i18n-es="Qué buscas en la rueda" data-i18n-en="What you want from this event" data-i18n-pt="O que você busca">Qué buscas en la rueda</p>
+      <label data-i18n-es="Lo que ofreces (compradores buscarán esto)" data-i18n-en="What you offer (buyers will find you here)" data-i18n-pt="O que você oferece">Lo que ofreces (compradores buscarán esto)</label>
+      <select id="selOffer" onchange="tagAdd('offer', this)"><option value=""></option></select>
+      <div class="chips" id="chipsOffer"></div>
+      <label data-i18n-es="Lo que buscas (ofertantes te encontrarán)" data-i18n-en="What you're looking for (sellers will find you)" data-i18n-pt="O que você procura">Lo que buscas (ofertantes te encontrarán)</label>
+      <select id="selDemand" onchange="tagAdd('demand', this)"><option value=""></option></select>
+      <div class="chips" id="chipsDemand"></div>
+    </div>
+
+    <div class="card" id="visCard" style="display:none">
+      <p class="section-title" data-i18n-es="Visibilidad en el directorio" data-i18n-en="Directory visibility" data-i18n-pt="Visibilidade">Visibilidad en el directorio</p>
+      <div class="vis-opt">
+        <label><input type="radio" name="vis" value="public" checked> <span data-i18n-es="Pública — otras empresas pueden encontrarme" data-i18n-en="Public — other companies can find me" data-i18n-pt="Pública">Pública — otras empresas pueden encontrarme</span></label>
+        <label><input type="radio" name="vis" value="private"> <span data-i18n-es="Privada — solo yo solicito reuniones" data-i18n-en="Private — only I request meetings" data-i18n-pt="Privada">Privada — solo yo solicito reuniones</span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="consent">
+        <input type="checkbox" id="f_consent">
+        <label for="f_consent" id="consentText">
+          <span data-i18n-es="Autorizo el tratamiento de mis datos personales por" data-i18n-en="I authorize the processing of my personal data by" data-i18n-pt="Autorizo o tratamento dos meus dados pessoais por">Autorizo el tratamiento de mis datos personales por</span>
+          <strong id="orgName">el organizador</strong>
+          <span data-i18n-es="como Responsable, y por SONORO AV SAS como Encargado, conforme a la" data-i18n-en="as Controller, and SONORO AV SAS as Processor, pursuant to the" data-i18n-pt="como Responsável, e pela SONORO AV SAS como Operador, nos termos da">como Responsable, y por SONORO AV SAS como Encargado, conforme a la</span>
+          <a id="privLink" target="_blank" rel="noopener" data-i18n-es="Política de privacidad Events" data-i18n-en="Events privacy policy" data-i18n-pt="Política de privacidade Events">Política de privacidad Events</a>.
+        </label>
+      </div>
+      <input type="text" class="hp" id="f_hp" autocomplete="off" tabindex="-1">
+      <button class="btn" id="btnSubmit" onclick="submitForm()" style="margin-top:14px">
+        <span data-i18n-es="Inscribir empresa" data-i18n-en="Register company" data-i18n-pt="Inscrever empresa">Inscribir empresa</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="successWrap" style="display:none">
+    <div class="card success-view">
+      <div class="big">✓</div>
+      <h1 data-i18n-es="¡Inscripción confirmada!" data-i18n-en="Registration confirmed!" data-i18n-pt="Inscrição confirmada!">¡Inscripción confirmada!</h1>
+      <p data-i18n-es="Enviamos a tu correo el link de tu agenda personal." data-i18n-en="We sent your personal agenda link to your email." data-i18n-pt="Enviamos para o seu e-mail o link da sua agenda.">Enviamos a tu correo el link de tu agenda personal.</p>
+      <p><a id="agendaLink" href="#"></a></p>
+    </div>
+  </div>
+
+  <div class="footer">SONORO CMS · Events v1 · Rueda de Negocios</div>
+</div>
+
+<script>
+const slug = location.pathname.split('/')[2];
+let LANG = 'es';
+let ev = null, tagsCat = { offer: [], demand: [] }, availableTags = [];
+let consentFullText = '';
+
+function t(key){
+  const map = {
+    required:   {es:'Completa los campos requeridos', en:'Fill required fields', pt:'Preencha os campos obrigatórios'},
+    consent:    {es:'Debes aceptar la política de privacidad', en:'You must accept the privacy policy', pt:'Você deve aceitar a política'},
+    submitting: {es:'Enviando...', en:'Submitting...', pt:'Enviando...'},
+    btn:        {es:'Inscribir empresa', en:'Register company', pt:'Inscrever empresa'},
+  };
+  return (map[key] && map[key][LANG]) || key;
+}
+
+function applyLang(){
+  document.documentElement.lang = LANG === 'pt' ? 'pt-BR' : LANG;
+  document.querySelectorAll('[data-i18n-'+LANG+']').forEach(el=>{
+    el.innerHTML = el.getAttribute('data-i18n-'+LANG);
+  });
+  document.getElementById('langSw').querySelectorAll('button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === LANG);
+  });
+  if (ev) renderEventMeta();
+}
+
+document.getElementById('langSw').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if (!b) return;
+  LANG = b.dataset.lang; applyLang();
+});
+
+function renderEventMeta(){
+  document.getElementById('evName').textContent = ev.name;
+  const d1 = new Date(ev.starts_at), d2 = new Date(ev.ends_at);
+  const loc = LANG === 'pt' ? 'pt-BR' : LANG === 'en' ? 'en-US' : 'es-CO';
+  const fmt = {year:'numeric',month:'short',day:'numeric'};
+  document.getElementById('evWhen').textContent = '📅 ' + d1.toLocaleDateString(loc, fmt) +
+    (d1.toDateString() !== d2.toDateString() ? ' → ' + d2.toLocaleDateString(loc, fmt) : '');
+  document.getElementById('evWhere').textContent = ev.venue_name ? '📍 ' + ev.venue_name : '';
+}
+
+async function load(){
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug));
+    if (!r.ok){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; return; }
+    const data = await r.json();
+    ev = data.event;
+    if (!ev.registration_open){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; return; }
+    document.getElementById('loading').style.display='none';
+    document.getElementById('formWrap').style.display='block';
+    renderEventMeta();
+    if (data.organizer && data.organizer.legal_name) document.getElementById('orgName').textContent = data.organizer.legal_name;
+    if (data.privacy && data.privacy.url){
+      document.getElementById('privLink').href = data.privacy.url;
+    }
+    window.__policyVersion = (data.privacy && data.privacy.version) || '1.0';
+    if (ev.matchmaking && ev.matchmaking.visibility === 'mixed') document.getElementById('visCard').style.display='block';
+    if (ev.matchmaking && ev.matchmaking.matching_mode !== 'manual_only') await loadTags();
+  } catch(e){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; }
+}
+
+async function loadTags(){
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug) + '/tags');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.matching_mode === 'manual_only' || !data.tags || !data.tags.length) return;
+    availableTags = data.tags;
+    document.getElementById('tagsCard').style.display='block';
+    const fill = (sel) => {
+      sel.innerHTML = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>' +
+        availableTags.map(t=>'<option value="'+t.id+'">'+esc(t.label)+(t.category?' · '+esc(t.category):'')+'</option>').join('');
+    };
+    fill(document.getElementById('selOffer')); fill(document.getElementById('selDemand'));
+  } catch(e){}
+}
+
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function tagAdd(kind, sel){
+  const id = sel.value; if (!id) return;
+  if (tagsCat[kind].includes(id)) { sel.value=''; return; }
+  tagsCat[kind].push(id);
+  renderChips(kind);
+  sel.value='';
+}
+function tagRemove(kind, id){ tagsCat[kind] = tagsCat[kind].filter(x => x !== id); renderChips(kind); }
+function renderChips(kind){
+  const c = document.getElementById(kind==='offer'?'chipsOffer':'chipsDemand');
+  c.innerHTML = tagsCat[kind].map(id=>{
+    const t = availableTags.find(x=>x.id===id); if (!t) return '';
+    return '<span class="chip '+kind+'">'+esc(t.label)+' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button></span>';
+  }).join('');
+}
+
+function alertBox(msg, type){
+  const el = document.getElementById('alertBox');
+  el.className = 'alert ' + type;
+  el.textContent = msg;
+  if (type==='ok') setTimeout(()=>{ el.className='alert'; }, 4000);
+}
+
+async function submitForm(){
+  const company = document.getElementById('f_company').value.trim();
+  const name    = document.getElementById('f_name').value.trim();
+  const email   = document.getElementById('f_email').value.trim();
+  const consent = document.getElementById('f_consent').checked;
+  if (!company || !name || !email){ alertBox(t('required'), 'err'); return; }
+  if (!consent){ alertBox(t('consent'), 'err'); return; }
+
+  // Snapshot literal del texto de consentimiento mostrado al titular (SHA-256 audit)
+  const txt = document.getElementById('consentText').innerText.replace(/\s+/g,' ').trim();
+
+  const visEl = document.querySelector('input[name=vis]:checked');
+  const payload = {
+    company_name: company,
+    pitch:   document.getElementById('f_pitch').value.trim() || null,
+    website: document.getElementById('f_website').value.trim() || null,
+    delegate: {
+      full_name:  name,
+      email:      email,
+      phone:      document.getElementById('f_phone').value.trim() || null,
+      role_title: document.getElementById('f_role').value.trim() || null,
+    },
+    tags: tagsCat,
+    visibility_choice: visEl ? visEl.value : null,
+    accepted_terms: true,
+    consent_text: txt,
+    consent_policy_version: window.__policyVersion || '1.0',
+    hp_field: document.getElementById('f_hp').value,
+    locale: LANG === 'pt' ? 'pt-BR' : LANG,
+  };
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.querySelector('span').textContent = t('submitting');
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug) + '/register', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok){
+      alertBox(data.error || 'Error', 'err');
+      btn.disabled = false; btn.querySelector('span').textContent = t('btn');
+      return;
+    }
+    document.getElementById('formWrap').style.display='none';
+    document.getElementById('successWrap').style.display='block';
+    const a = document.getElementById('agendaLink');
+    a.href = data.agenda_url; a.textContent = data.agenda_url;
+  } catch(e){
+    alertBox('Network error', 'err');
+    btn.disabled = false; btn.querySelector('span').textContent = t('btn');
+  }
+}
+
+applyLang();
+load();
+</script>
+</body>
+</html>

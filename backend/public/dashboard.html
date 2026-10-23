@@ -575,6 +575,54 @@
     .ev-sub-tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
     .ev-sub-panel { }
 
+    /* ── RUEDA DE NEGOCIOS · panel productor (E-RN-7b-1) ── */
+    .ev-rn-donuts { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+    .ev-rn-donut-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:16px; }
+    .ev-rn-donut-svg { width:80px; height:80px; flex-shrink:0; position:relative; }
+    .ev-rn-donut-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; letter-spacing:-.5px; color:var(--text); }
+    .ev-rn-donut-k { font-size:10.5px; font-weight:800; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+    .ev-rn-donut-legend { display:flex; flex-direction:column; gap:5px; }
+    .ev-rn-donut-legend > div { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-muted); font-weight:600; }
+    .ev-rn-donut-legend i { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+    .ev-rn-donut-legend strong { color:var(--text); font-weight:800; margin-left:auto; font-variant-numeric:tabular-nums; }
+
+    .ev-rn-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .ev-rn-kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+    .ev-rn-kpi .k { font-size:10.5px; font-weight:800; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+    .ev-rn-kpi .v { font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--text); line-height:1; font-variant-numeric:tabular-nums; }
+    .ev-rn-kpi .sub { margin-top:6px; font-size:11.5px; font-weight:600; color:var(--text-muted); min-height:14px; }
+
+    .ev-rn-subtabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px; overflow-x:auto; }
+    .ev-rn-subtab { background:transparent; border:0; border-bottom:2px solid transparent; color:var(--text-muted); font-family:inherit; font-size:13px; font-weight:700; padding:12px 16px; cursor:pointer; letter-spacing:.3px; white-space:nowrap; }
+    .ev-rn-subtab:hover { color:var(--text); }
+    .ev-rn-subtab.on { color:#FF1B8D; border-bottom-color:#FF1B8D; }
+    .ev-rn-subtab .n { font-size:11px; background:var(--surface3); color:var(--text-muted); padding:2px 7px; border-radius:999px; margin-left:6px; font-weight:800; }
+    .ev-rn-subtab.on .n { background:rgba(255,27,141,0.14); color:#FF1B8D; }
+
+    @media (max-width:900px) {
+      .ev-rn-donuts { grid-template-columns:1fr; }
+      .ev-rn-kpis { grid-template-columns:repeat(2,1fr); }
+    }
+
+    /* ── E-RN-7b-2 wizard setup ── */
+    .ev-rn-cfg-lbl { display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:5px; }
+    .ev-rn-cfg-inp { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:7px; background:var(--surface2); color:var(--text); font-size:13px; font-family:inherit; box-sizing:border-box; }
+    .ev-rn-cfg-inp:focus { outline:none; border-color:#FF1B8D; }
+    .ev-rn-radiogrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .ev-rn-radiogrid-3 { grid-template-columns:repeat(3,1fr); }
+    .ev-rn-radiogrid label { display:block; cursor:pointer; }
+    .ev-rn-radiogrid input { display:none; }
+    .ev-rn-radiogrid label span { display:block; padding:12px 14px; border:1.5px solid var(--border); border-radius:9px; background:var(--surface2); font-size:13px; transition:all .15s; }
+    .ev-rn-radiogrid label span small { color:var(--text-muted); font-size:11px; font-weight:500; }
+    .ev-rn-radiogrid input:checked + span { border-color:#FF1B8D; background:rgba(255,27,141,0.07); }
+    .ev-rn-chip { display:inline-flex; align-items:center; cursor:pointer; }
+    .ev-rn-chip input { display:none; }
+    .ev-rn-chip span { padding:6px 14px; border:1.5px solid var(--border); border-radius:999px; background:var(--surface2); font-size:12px; font-weight:700; transition:all .15s; }
+    .ev-rn-chip input:checked + span { border-color:#FF1B8D; background:rgba(255,27,141,0.09); color:#FF1B8D; }
+    @media (max-width:900px) {
+      .ev-rn-radiogrid, .ev-rn-radiogrid-3 { grid-template-columns:1fr; }
+    }
+
     /* ── EVENTOS field chip ── */
     .ev-field-chip {
       display: flex; align-items: center; gap: 8px;
@@ -635,6 +683,7 @@
       from { transform: translateY(20px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
     #statusMessage.success { background: rgba(0,200,100,0.18); border-color: var(--online); color: #00e676; }
     #statusMessage.error { background: rgba(255,23,68,0.18); border-color: var(--offline); color: #ff5252; }
     #statusMessage.info { background: rgba(255,27,141,0.18); border-color: var(--magenta); color: var(--magenta); }
@@ -2851,6 +2900,11 @@
             </div>
           </div>
 
+          <!-- E-RN-7a: chip filter tipo -->
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="evp-chip active" data-ev-filter="all" onclick="evSetListFilter('all')">Todos</button>
+            <button class="evp-chip" data-ev-filter="matchmaking" onclick="evSetListFilter('matchmaking')">Ruedas</button>
+          </div>
           <div id="ev-list-grid" style="display:grid;gap:16px;"></div>
         </div>
 
@@ -2861,6 +2915,36 @@
             <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="ev.back">Volver</span></button>
           </div>
           <div class="card" style="max-width:700px;">
+            <!-- E-RN-7a: tipo de evento -->
+            <div style="margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
+              <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Tipo</div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="radio" name="ev-new-type" value="standard" id="ev-new-type-std" checked onchange="evNewToggleType()">
+                  <span>Evento estándar</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="radio" name="ev-new-type" value="matchmaking" id="ev-new-type-mm" onchange="evNewToggleType()">
+                  <span style="display:inline-flex;align-items:center;gap:6px;">Rueda de Negocios <span style="font-size:10px;padding:2px 7px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;">RN</span></span>
+                </label>
+              </div>
+              <div id="ev-new-rn-opts" class="hidden" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Modo de matching</label>
+                  <select id="ev-new-rn-mode">
+                    <option value="tags">Automático por intereses (tags)</option>
+                    <option value="manual_only">Solo manual</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Zona</label>
+                  <select id="ev-new-rn-zone">
+                    <option value="classic">Clásica (una sola zona)</option>
+                    <option value="zoned">Zonificada</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
               <div class="form-group" style="grid-column:1/-1;margin:0;">
                 <label data-i18n="ev.f_name">Nombre del evento *</label>
@@ -4028,6 +4112,526 @@
           </div><!-- /ev-sub-certs -->
 
         </div><!-- /ev-detail-view -->
+
+        <!-- VISTA: Detalle Rueda de Negocios (E-RN-7b-1 panel productor) -->
+        <div id="ev-rueda-detail-view" class="hidden">
+          <!-- SVG gradient defs reutilizables para donuts -->
+          <svg width="0" height="0" style="position:absolute">
+            <defs>
+              <linearGradient id="evRnGradMO" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FF1B8D"/>
+                <stop offset="100%" stop-color="#FF8C00"/>
+              </linearGradient>
+            </defs>
+          </svg>
+
+          <div class="section-header" style="padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:20px;">
+            <div>
+              <div style="font-size:10.5px;font-weight:800;letter-spacing:2px;color:#FF1B8D;text-transform:uppercase;margin-bottom:4px;">Panel del productor</div>
+              <div class="section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span id="ev-rn-title">Rueda</span>
+                <span id="ev-rn-status-pill" style="font-size:10px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,0.14);color:#22c55e;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Publicada</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:6px;font-weight:600;" id="ev-rn-sub"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" title="Copiar link publico"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> Link</button>
+              <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Mis Eventos</button>
+            </div>
+          </div>
+
+          <!-- Donuts: completeness · role mix · utilization -->
+          <div class="ev-rn-donuts">
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                  <circle id="ev-rn-donut-complete" cx="18" cy="18" r="15.9" fill="none" stroke="url(#evRnGradMO)" stroke-width="3.6" stroke-dasharray="0 100" stroke-linecap="round"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-complete-pct">0%</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Listas para emparejar</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:linear-gradient(135deg,#FF1B8D,#FF8C00)"></i>Completas <strong id="ev-rn-stat-completas">—</strong></div>
+                  <div><i style="background:var(--surface3);border:1px solid var(--border)"></i>Incompletas <strong id="ev-rn-stat-incompletas">—</strong></div>
+                </div>
+              </div>
+            </div>
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg id="ev-rn-donut-mix-svg" viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-mix-center">0</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Mix de empresas</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:#FF1B8D"></i>Ofrece <strong id="ev-rn-stat-ofrece">—</strong></div>
+                  <div><i style="background:#FF8C00"></i>Busca <strong id="ev-rn-stat-busca">—</strong></div>
+                  <div><i style="background:#FFE566"></i>Ambos <strong id="ev-rn-stat-ambos">—</strong></div>
+                </div>
+              </div>
+            </div>
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                  <circle id="ev-rn-donut-util" cx="18" cy="18" r="15.9" fill="none" stroke="url(#evRnGradMO)" stroke-width="3.6" stroke-dasharray="0 100" stroke-linecap="round"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-util-pct">0%</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Utilizacion de slots</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:linear-gradient(135deg,#FF1B8D,#FF8C00)"></i>Agendados <strong id="ev-rn-stat-agendados">—</strong></div>
+                  <div><i style="background:var(--surface3);border:1px solid var(--border)"></i>Libres <strong id="ev-rn-stat-libres">—</strong></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- KPIs row -->
+          <div class="ev-rn-kpis">
+            <div class="ev-rn-kpi"><div class="k">Empresas inscritas</div><div class="v" id="ev-rn-kpi-regs">—</div><div class="sub" id="ev-rn-kpi-regs-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Con intereses completos</div><div class="v" id="ev-rn-kpi-complete">—</div><div class="sub" id="ev-rn-kpi-complete-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Solicitudes directas</div><div class="v" id="ev-rn-kpi-requests">—</div><div class="sub" id="ev-rn-kpi-requests-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Utilizacion prevista</div><div class="v" id="ev-rn-kpi-util">—</div><div class="sub" id="ev-rn-kpi-util-sub">&nbsp;</div></div>
+          </div>
+
+          <!-- Sub-tabs -->
+          <div class="ev-rn-subtabs">
+            <button class="ev-rn-subtab on" data-rntab="setup" onclick="evRnSwitchPanelTab('setup')">Setup</button>
+            <button class="ev-rn-subtab" data-rntab="tags" onclick="evRnSwitchPanelTab('tags')">Tags <span class="n" id="ev-rn-subtab-n-tags">—</span></button>
+            <button class="ev-rn-subtab" data-rntab="directorio" onclick="evRnSwitchPanelTab('directorio')">Directorio <span class="n" id="ev-rn-subtab-n-dir">—</span></button>
+            <button class="ev-rn-subtab" data-rntab="agenda" onclick="evRnSwitchPanelTab('agenda')">Agenda <span class="n" id="ev-rn-subtab-n-ag">—</span></button>
+            <button class="ev-rn-subtab" data-rntab="live" onclick="evRnSwitchPanelTab('live')">Live</button>
+            <button class="ev-rn-subtab" data-rntab="reporte" onclick="evRnSwitchPanelTab('reporte')">Reporte</button>
+          </div>
+
+          <!-- SETUP panel · E-RN-7b-2 wizard (6 cards config) -->
+          <div class="ev-rn-panel" id="ev-rn-panel-setup">
+            <!-- Card 01 Info -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">01 · Información básica</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div style="grid-column:1/-1">
+                  <label class="ev-rn-cfg-lbl">Nombre</label>
+                  <input id="ev-rn-cfg-name" type="text" class="ev-rn-cfg-inp">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">URL pública: <span id="ev-rn-cfg-slug-preview" style="font-family:monospace;color:#FF1B8D"></span></div>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Inicio</label>
+                  <input id="ev-rn-cfg-starts" type="datetime-local" class="ev-rn-cfg-inp">
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Fin</label>
+                  <input id="ev-rn-cfg-ends" type="datetime-local" class="ev-rn-cfg-inp">
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Timezone</label>
+                  <select id="ev-rn-cfg-tz" class="ev-rn-cfg-inp">
+                    <option value="America/Bogota">America/Bogota</option>
+                    <option value="America/Mexico_City">America/Mexico_City</option>
+                    <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                    <option value="America/Lima">America/Lima</option>
+                    <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Moneda base (EBV)</label>
+                  <select id="ev-rn-cfg-currency" class="ev-rn-cfg-inp">
+                    <option value="COP">COP</option><option value="USD">USD</option><option value="MXN">MXN</option><option value="BRL">BRL</option>
+                  </select>
+                </div>
+                <div style="grid-column:1/-1">
+                  <label class="ev-rn-cfg-lbl">Sede</label>
+                  <input id="ev-rn-cfg-venue" type="text" class="ev-rn-cfg-inp" placeholder="Hotel, centro de convenciones…">
+                </div>
+              </div>
+            </div>
+            <!-- Card 02 Modo -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">02 · Modo de operación</div>
+              <div class="ev-rn-radiogrid">
+                <label><input type="radio" name="ev-rn-cfg-zone" value="classic"><span><b>Classic</b><br><small>Un único piso de mesas</small></span></label>
+                <label><input type="radio" name="ev-rn-cfg-zone" value="zoned"><span><b>Zoned</b><br><small>Mesas agrupadas en zonas</small></span></label>
+              </div>
+            </div>
+            <!-- Card 03 Matching -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">03 · Matching</div>
+              <div class="ev-rn-radiogrid">
+                <label><input type="radio" name="ev-rn-cfg-match" value="tags"><span><b>Por intereses (tags)</b><br><small>Solver propone citas por overlap de intereses</small></span></label>
+                <label><input type="radio" name="ev-rn-cfg-match" value="manual_only"><span><b>Solo manual</b><br><small>Todas las citas las eligen los asistentes</small></span></label>
+              </div>
+              <div style="margin-top:12px;">
+                <label class="ev-rn-cfg-lbl">Vista por defecto del directorio</label>
+                <select id="ev-rn-cfg-dirview" class="ev-rn-cfg-inp" style="max-width:260px;">
+                  <option value="match">Solo con match</option>
+                  <option value="all">Todos los asistentes</option>
+                </select>
+              </div>
+            </div>
+            <!-- Card 04 Visibility -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">04 · Visibilidad</div>
+              <div class="ev-rn-radiogrid ev-rn-radiogrid-3">
+                <label><input type="radio" name="ev-rn-cfg-vis" value="public"><span><b>Pública</b><br><small>Registro abierto</small></span></label>
+                <label><input type="radio" name="ev-rn-cfg-vis" value="mixed"><span><b>Mixta</b><br><small>Pública + invitaciones</small></span></label>
+                <label><input type="radio" name="ev-rn-cfg-vis" value="private"><span><b>Privada</b><br><small>Solo invitados</small></span></label>
+              </div>
+            </div>
+            <!-- Card 05 Horarios -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">05 · Horarios</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label class="ev-rn-cfg-lbl">Duración por cita</label>
+                  <select id="ev-rn-cfg-dur" class="ev-rn-cfg-inp">
+                    <option value="15">15 min</option><option value="20" selected>20 min</option>
+                    <option value="25">25 min</option><option value="30">30 min</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">No-show policy</label>
+                  <select id="ev-rn-cfg-noshow" class="ev-rn-cfg-inp">
+                    <option value="30">30 min</option><option value="60" selected>1 hora</option>
+                    <option value="120">2 horas</option><option value="0">Sin bloqueo</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Buffer entre rondas</label>
+                  <select id="ev-rn-cfg-buffer" class="ev-rn-cfg-inp">
+                    <option value="0">Sin buffer</option><option value="1">1 min</option>
+                    <option value="2" selected>2 min</option><option value="3">3 min</option><option value="5">5 min</option>
+                  </select>
+                </div>
+                <div style="display:flex;align-items:flex-end;">
+                  <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                    <input id="ev-rn-cfg-autoadv" type="checkbox"><span style="font-size:13px">Pasar automáticamente de ronda</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <!-- Card 06 Opciones -->
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">06 · Opciones</div>
+              <div>
+                <label class="ev-rn-cfg-lbl">Idiomas aceptados</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;" id="ev-rn-cfg-langs">
+                  <label class="ev-rn-chip"><input type="checkbox" value="es"><span>ES</span></label>
+                  <label class="ev-rn-chip"><input type="checkbox" value="en"><span>EN</span></label>
+                  <label class="ev-rn-chip"><input type="checkbox" value="pt"><span>PT</span></label>
+                </div>
+              </div>
+              <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+                <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                  <input id="ev-rn-cfg-twodel" type="checkbox"><span style="font-size:13px">Permitir dos asistentes por empresa</span>
+                </label>
+                <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                  <input id="ev-rn-cfg-ebv" type="checkbox"><span style="font-size:13px">Capturar valor estimado de negocio (EBV)</span>
+                </label>
+                <label style="display:flex;gap:8px;align-items:center;cursor:pointer;">
+                  <input id="ev-rn-cfg-team" type="checkbox"><span style="font-size:13px">Permitir invitar equipo</span>
+                </label>
+              </div>
+            </div>
+            <!-- Sticky save bar -->
+            <div style="position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 0;margin-top:8px;display:flex;justify-content:flex-end;gap:10px;align-items:center;z-index:5;">
+              <span id="ev-rn-cfg-savestate" style="font-size:11px;color:var(--text-muted);"></span>
+              <button class="btn btn-outline btn-sm" onclick="evRnLoadConfig()">Descartar cambios</button>
+              <button class="btn btn-grad" onclick="evRnSaveConfig()">Guardar configuración</button>
+            </div>
+          </div>
+
+          <!-- TAGS panel · B.0 taxonomía (port rueda-setup-tags-card-v1.html) -->
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-tags">
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div>Mi catálogo</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-weight:400;margin-top:2px;">
+                    <span id="ev-rn-tags-count">0</span> tags · se reutiliza entre todas tus ruedas
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn btn-outline btn-sm" onclick="evRnTagsDownloadTemplate()">Plantilla</button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnTagsExport()">Exportar</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-rn-tags-file-inp').click()">Importar Excel</button>
+                  <button class="btn btn-grad btn-sm" onclick="evRnTagOpenNew()">+ Nuevo tag</button>
+                </div>
+                <input type="file" id="ev-rn-tags-file-inp" accept=".xlsx,.xls,.csv"
+                  style="display:none;" onchange="evRnTagsBulkUpload(this.files && this.files[0])">
+              </div>
+
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:rgba(255,27,141,0.06);border:1px solid rgba(255,27,141,0.25);border-left:3px solid #FF1B8D;border-radius:8px;margin-bottom:14px;font-size:12.5px;">
+                <div>
+                  <div style="color:#FF1B8D;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">¿Qué es el catálogo de tags?</div>
+                  <p style="margin:6px 0 0;">Los tags son las categorías de oferta (lo que una empresa vende) y demanda (lo que busca comprar) que el asistente marca al inscribirse. El motor de la Rueda sólo empareja empresas usando los tags de este catálogo — por eso debe estar listo antes de abrir inscripciones.</p>
+                  <p style="margin:6px 0 0;">¿Primera rueda? Descarga una plantilla de Excel con 2 columnas (Nombre, Categoría), llénala con los tags de tu sector y súbela aquí.</p>
+                </div>
+              </div>
+
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Nombre</th>
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;" title="Versión normalizada del nombre, generada automáticamente">Identificador</th>
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Categoría</th>
+                      <th style="text-align:right;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-tags-tbody">
+                    <tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Nuevo tag + fuzzy -->
+          <div id="ev-rn-tag-new-modal" class="modal" onclick="if(event.target.id==='ev-rn-tag-new-modal') evRnTagCloseNew()">
+            <div class="modal-content" style="max-width:540px;">
+              <div class="modal-header">
+                <h3 id="ev-rn-tag-new-title">Nuevo tag</h3>
+                <button class="modal-close" onclick="evRnTagCloseNew()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div>
+                  <label class="ev-rn-cfg-lbl">Nombre</label>
+                  <input id="ev-rn-tag-new-label" type="text" class="ev-rn-cfg-inp" placeholder="Ej. Software hecho a medida" oninput="evRnTagFuzzyDebounced(this.value)">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Es lo que verá el asistente al elegir sus tags. Usa 1 a 5 palabras.</div>
+                </div>
+                <div id="ev-rn-tag-fuzzy-warn" style="display:none;padding:12px 14px;background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:8px;font-size:12.5px;">
+                  <div style="color:#FF8C00;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">¿Quisiste decir alguno de estos?</div>
+                  <div id="ev-rn-tag-fuzzy-list"></div>
+                  <div style="margin-top:8px;color:var(--text-muted);font-size:11.5px;">Si ninguno aplica, continúa con tu tag. Evitar duplicados mejora el emparejamiento.</div>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Categoría (opcional)</label>
+                  <input id="ev-rn-tag-new-category" type="text" class="ev-rn-cfg-inp" placeholder="Ej. Tecnología">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Agrupa tags relacionados en el formulario del asistente (ej. Logística, Tecnología, Agro).</div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnTagCloseNew()">Cancelar</button>
+                <button class="btn btn-grad" id="ev-rn-tag-new-save-btn" onclick="evRnTagSaveNew()">Crear tag</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Preview bulk import -->
+          <div id="ev-rn-tag-bulk-modal" class="modal" onclick="if(event.target.id==='ev-rn-tag-bulk-modal') evRnTagCloseBulk()">
+            <div class="modal-content" style="max-width:760px;">
+              <div class="modal-header">
+                <h3>Previsualización · importar catálogo</h3>
+                <button class="modal-close" onclick="evRnTagCloseBulk()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:12px;">
+                <div id="ev-rn-tag-bulk-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;" id="ev-rn-tag-bulk-n-det">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Detectados</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#22c55e;" id="ev-rn-tag-bulk-n-new">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Nuevos</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#FF8C00;" id="ev-rn-tag-bulk-n-sim">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Similares</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#ef4444;" id="ev-rn-tag-bulk-n-dup">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Duplicados</div></div>
+                </div>
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">Revisa cada fila y decide. Nada se guarda hasta confirmar.</p>
+                <div id="ev-rn-tag-bulk-list" style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;"></div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnTagCloseBulk()">Cancelar</button>
+                <button class="btn btn-grad" id="ev-rn-tag-bulk-confirm-btn" onclick="evRnTagBulkConfirm()">Confirmar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-directorio">
+            <div class="card">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span>Asistentes inscritos</span>
+                <input id="ev-rn-dir-search" type="text" placeholder="Buscar empresa, nombre, tag…"
+                  oninput="evRnDirRender()"
+                  style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;min-width:220px;">
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Contacto</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ofrece</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Busca</th>
+                      <th style="text-align:center;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Req. in/out</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-dir-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- AGENDA panel · rondas + mesas + solver (relocado desde Setup) -->
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-agenda">
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">Planificar rondas</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end;">
+                <div><label class="ev-rn-cfg-lbl">Inicio</label><input id="ev-rn-plan-starts" type="datetime-local" class="ev-rn-cfg-inp"></div>
+                <div><label class="ev-rn-cfg-lbl">Rondas</label><input id="ev-rn-plan-total" type="number" min="1" max="50" value="10" class="ev-rn-cfg-inp"></div>
+                <div><label class="ev-rn-cfg-lbl">Break c/N</label><input id="ev-rn-plan-breakev" type="number" min="0" max="20" value="0" class="ev-rn-cfg-inp"></div>
+                <div><button class="btn btn-grad btn-sm" onclick="evRnPlanRounds()">Generar</button></div>
+              </div>
+              <div id="ev-rn-rounds-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);">—</div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Mesas</span>
+                <div style="display:flex;gap:6px;">
+                  <input id="ev-rn-table-label" type="text" placeholder="Mesa 01" style="padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-size:12px;">
+                  <button class="btn btn-outline btn-sm" onclick="evRnAddTable()">+ Agregar</button>
+                </div>
+              </div>
+              <div id="ev-rn-tables-list" style="font-size:12px;color:var(--text-muted);">—</div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">Solver</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
+                  <span class="ev-rn-btn-label">Preview</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+                <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
+                  <span class="ev-rn-btn-label">Run solver</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+                <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
+                  <span class="ev-rn-btn-label">Reset</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+              </div>
+              <div id="ev-rn-stats" style="margin-top:14px;font-size:12px;color:var(--text-muted);"></div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Meetings</span>
+                <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()">Refrescar</button>
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Ronda</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Origen</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Lock</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-meetings-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-live">
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <span>Callboard productor</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <span id="ev-rn-live-checkins" style="font-size:11px;color:var(--text-muted);">— check-ins</span>
+                  <button class="btn btn-outline btn-sm" onclick="evRnLoadLive()">Refrescar</button>
+                </div>
+              </div>
+              <div id="ev-rn-live-active" style="padding:14px;background:var(--surface2);border-radius:9px;margin-top:6px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Ronda activa</div>
+                <div id="ev-rn-live-active-txt" style="font-size:14px;font-weight:700;">Sin ronda abierta</div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">Rondas programadas</div>
+              <div id="ev-rn-live-rounds" style="display:flex;flex-direction:column;gap:6px;font-size:12px;">—</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Meetings en vivo</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Origen</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-live-tbody"><tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings — abre una ronda</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-reporte">
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+              <div>
+                <div style="font-size:15px;font-weight:800;">Reporte post-evento</div>
+                <div id="ev-rn-report-status" style="font-size:11px;color:var(--text-muted);margin-top:2px;">—</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-outline btn-sm" onclick="evRnLoadReport()">Refrescar</button>
+                <button class="btn btn-grad btn-sm" id="ev-rn-report-send-btn" onclick="evRnSendReport(false)">Enviar reporte por email</button>
+              </div>
+            </div>
+            <!-- Banners -->
+            <div id="ev-rn-report-banner-ref" class="hidden" style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(255,140,0,0.1);border:1px solid rgba(255,140,0,0.35);color:#FF8C00;font-size:12px;font-weight:600;">
+              Dato referencial · cobertura EBV &lt; 20%. Interpreta con cautela.
+            </div>
+            <div id="ev-rn-report-banner-fx" class="hidden" style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(255,27,141,0.08);border:1px solid rgba(255,27,141,0.3);color:#FF1B8D;font-size:12px;font-weight:600;">
+              Varias monedas detectadas · v1 asume COP, totales son aproximados.
+            </div>
+            <!-- KPIs -->
+            <div class="ev-rn-kpis" style="margin-bottom:14px;">
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">Meetings totales</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-total">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">Con EBV</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-ebv">—</div><div id="ev-rn-rep-k-cov" style="font-size:10px;color:var(--text-muted);margin-top:2px;">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">EBV promedio / meeting</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-avg">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">EBV total estimado</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-sum">—</div></div>
+            </div>
+            <!-- EBV detalle -->
+            <div class="card" style="margin-bottom:14px;"><div class="card-body" style="padding:16px;">
+              <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Distribución EBV</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px;">
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mediana</div><div id="ev-rn-rep-median" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mínimo</div><div id="ev-rn-rep-min" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Máximo</div><div id="ev-rn-rep-max" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Bilateral</div><div id="ev-rn-rep-bilat" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Unilateral</div><div id="ev-rn-rep-unilat" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Sin EBV</div><div id="ev-rn-rep-empty" style="font-weight:700;">—</div></div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;" id="ev-rn-rep-horizon-pills"></div>
+            </div></div>
+            <!-- Top meetings -->
+            <div class="card"><div class="card-body" style="padding:16px;">
+              <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Top meetings por valor esperado</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">#</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ronda · Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Tipo</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Horizonte</th>
+                      <th style="text-align:right;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-rep-tbody"><tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Sin datos — carga el reporte</td></tr></tbody>
+                </table>
+              </div>
+            </div></div>
+          </div>
+        </div><!-- /ev-rueda-detail-view -->
 
       </div><!-- /events-tab -->
 
@@ -9005,6 +9609,57 @@ function evShowView(view) {
   document.getElementById('ev-list-view').classList.toggle('hidden', view !== 'list');
   document.getElementById('ev-new-view').classList.toggle('hidden', view !== 'new');
   document.getElementById('ev-detail-view').classList.toggle('hidden', view !== 'detail');
+  const rn = document.getElementById('ev-rueda-detail-view');
+  if (rn) rn.classList.toggle('hidden', view !== 'rueda');
+}
+
+// E-RN-7a MVP: toggle Rueda options en form Nuevo Evento
+function evNewToggleType() {
+  const isRN = document.getElementById('ev-new-type-mm')?.checked;
+  document.getElementById('ev-new-rn-opts')?.classList.toggle('hidden', !isRN);
+}
+
+// E-RN-7a MVP: filter list por tipo
+let evListFilter = 'all';
+let evListCache = [];
+function evSetListFilter(f) {
+  evListFilter = f;
+  document.querySelectorAll('[data-ev-filter]').forEach(b => b.classList.toggle('active', b.dataset.evFilter === f));
+  evRenderList();
+}
+function evRenderList() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
+  const grid = document.getElementById('ev-list-grid');
+  if (!grid) return;
+  const data = evListFilter === 'all' ? evListCache
+             : evListCache.filter(ev => (ev.config && ev.config.event_type) === evListFilter);
+  if (!data.length) {
+    grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${t('ev.list_empty_title')}</div>
+      <div style="font-size:13px;color:var(--text-muted);">${t('ev.list_empty_sub')}</div>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.map(ev => {
+    const tz = ev.timezone || 'UTC';
+    const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
+    const isRN = ev.config && ev.config.event_type === 'matchmaking';
+    const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">Rueda de Negocios</span>` : '';
+    return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}${pill}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${ev.venue_name ? ev.venue_name + ' &middot; ' : ''}${start} — ${end}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+          <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── SECCIÓN GLOBAL: switcher + CRM proveedores ─────────────────
@@ -9789,32 +10444,8 @@ async function evLoadList() {
   } catch(e){}
   try {
     const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
-    const data = await res.json();
-    if (!data.length) {
-      grid.innerHTML = `<div class="card" style="text-align:center;padding:40px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${t('ev.list_empty_title')}</div>
-        <div style="font-size:13px;color:var(--text-muted);">${t('ev.list_empty_sub')}</div>
-      </div>`;
-      return;
-    }
-    grid.innerHTML = data.map(ev => {
-      const tz = ev.timezone || 'UTC';
-      const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
-      const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
-      const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
-      return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-          <div style="flex:1;">
-            <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);">${ev.venue_name ? ev.venue_name + ' &middot; ' : ''}${start} — ${end}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-            <span style="width:8px;height:8px;border-radius:50%;background:${statusColor};display:inline-block;" title="${ev.status}"></span>
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    evListCache = await res.json();
+    evRenderList();
   } catch(e) {
     grid.innerHTML = `<div style="color:#ff4444;font-size:13px;">${t('ev.list_error')}</div>`;
   }
@@ -9830,17 +10461,29 @@ async function evSaveNew() {
   const desc = document.getElementById('ev-new-desc').value.trim();
   const venue = document.getElementById('ev-new-venue').value.trim();
   if (!name || !start || !end) { showStatus(evI18n('ev.err_name_dates_short'), 'error'); return; }
+  // E-RN-7a: tipo de evento + config matchmaking
+  const isRN = document.getElementById('ev-new-type-mm')?.checked;
+  const config = {};
+  if (isRN) {
+    config.event_type = 'matchmaking';
+    config.matchmaking = {
+      matching_mode: document.getElementById('ev-new-rn-mode')?.value || 'tags',
+      zone_mode:     document.getElementById('ev-new-rn-zone')?.value || 'classic',
+    };
+  }
   try {
     const res = await fetch(`${API_URL}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue })
+      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue, config })
     });
     const data = await res.json();
     if (data.id) {
       showStatus(evI18n('ev.toast_ev_created'), 'success');
       ['ev-new-name','ev-new-start','ev-new-end','ev-new-capacity','ev-new-desc','ev-new-venue'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('ev-new-tz').value = 'America/Bogota';
+      const stdRadio = document.getElementById('ev-new-type-std'); if (stdRadio) stdRadio.checked = true;
+      evNewToggleType();
       await evOpenDetail(data.id);
     } else { showStatus(data.error || evI18n('ev.err_create_event'), 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
@@ -9852,12 +10495,912 @@ async function evOpenDetail(eventId) {
   try {
     const res = await fetch(`${API_URL}/api/events/${eventId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
     evCurrentEvent = await res.json();
+    // E-RN-7a MVP: rutea a vista Rueda si event_type === 'matchmaking'
+    if (evCurrentEvent.config && evCurrentEvent.config.event_type === 'matchmaking') {
+      evOpenRueda(evCurrentEvent);
+      return;
+    }
     evPopulateInfo(evCurrentEvent);
     evFields = (evCurrentEvent.config && evCurrentEvent.config.registration_fields) ? JSON.parse(JSON.stringify(evCurrentEvent.config.registration_fields)) : [];
     evInitCatalog();
     evSwitchSubTab('info');
     evShowView('detail');
   } catch(e) { showStatus(evI18n('ev.err_load_event'), 'error'); }
+}
+
+// ── E-RN-7b-1: Rueda de Negocios · panel productor ───────────────
+let evRnCurrentEvent = null;
+
+function evOpenRueda(ev) {
+  evRnCurrentEvent = ev;
+  const tz = ev.timezone || 'UTC';
+  const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+  const mm = (ev.config && ev.config.matchmaking) || {};
+  document.getElementById('ev-rn-title').textContent = ev.name;
+  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · modo: ${mm.matching_mode || 'tags'} · zona: ${mm.zone_mode || 'classic'}`;
+  // Status pill
+  const pill = document.getElementById('ev-rn-status-pill');
+  const statusMap = {
+    draft:     { label:'Borrador',    bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    published: { label:'Publicada',   bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
+    live:      { label:'En curso',    bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
+    closed:    { label:'Cerrada',     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    archived:  { label:'Archivada',   bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
+  };
+  const s = statusMap[ev.status] || statusMap.draft;
+  pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+
+  document.getElementById('ev-rn-stats').textContent = '';
+  document.getElementById('ev-rn-meetings-tbody').innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  evRnSwitchPanelTab('setup');
+  evShowView('rueda');
+  evRnLoadStats();
+  evRnLoadMeetings();
+  evRnLoadConfig();
+  evRnLoadRounds();
+  evRnLoadTables();
+  evRnTagsLoad();
+  evRnSubscribeSocket(ev.id);
+}
+
+// ── E-RN-7b-2 wizard setup helpers ──────────────────────────────
+function evRnSlugify(s) {
+  return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+}
+function evRnToLocal(iso, tz) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'UTC',
+      year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }).formatToParts(d);
+    const g = {}; parts.forEach(p => g[p.type] = p.value);
+    return `${g.year}-${g.month}-${g.day}T${g.hour}:${g.minute}`;
+  } catch(_) { return ''; }
+}
+function evRnLoadConfig() {
+  const ev = evRnCurrentEvent; if (!ev) return;
+  const mm = (ev.config && ev.config.matchmaking) || {};
+  const tz = ev.timezone || 'America/Bogota';
+  document.getElementById('ev-rn-cfg-name').value = ev.name || '';
+  document.getElementById('ev-rn-cfg-slug-preview').textContent = `/rueda/${ev.slug || evRnSlugify(ev.name)}`;
+  document.getElementById('ev-rn-cfg-starts').value = evRnToLocal(ev.starts_at, tz);
+  document.getElementById('ev-rn-cfg-ends').value   = evRnToLocal(ev.ends_at, tz);
+  document.getElementById('ev-rn-cfg-tz').value = tz;
+  document.getElementById('ev-rn-cfg-currency').value = mm.base_currency || 'COP';
+  document.getElementById('ev-rn-cfg-venue').value = ev.venue_name || '';
+  const setRadio = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if (el) el.checked = true; };
+  setRadio('ev-rn-cfg-zone',  mm.zone_mode || 'classic');
+  setRadio('ev-rn-cfg-match', mm.matching_mode || 'tags');
+  setRadio('ev-rn-cfg-vis',   mm.visibility || 'public');
+  document.getElementById('ev-rn-cfg-dirview').value = mm.default_directory_view || 'match';
+  document.getElementById('ev-rn-cfg-dur').value     = String(mm.meeting_duration_minutes || 20);
+  document.getElementById('ev-rn-cfg-noshow').value  = String(mm.no_show_policy_minutes ?? 60);
+  document.getElementById('ev-rn-cfg-buffer').value  = String(mm.round_buffer_minutes ?? 2);
+  document.getElementById('ev-rn-cfg-autoadv').checked = !!mm.auto_advance;
+  const langs = Array.isArray(mm.languages) ? mm.languages : ['es'];
+  document.querySelectorAll('#ev-rn-cfg-langs input').forEach(i => { i.checked = langs.includes(i.value); });
+  document.getElementById('ev-rn-cfg-twodel').checked = !!mm.allow_two_delegates;
+  document.getElementById('ev-rn-cfg-ebv').checked    = !!mm.capture_ebv;
+  document.getElementById('ev-rn-cfg-team').checked   = !!mm.allow_team_invite;
+  document.getElementById('ev-rn-cfg-savestate').textContent = '';
+}
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'ev-rn-cfg-name') {
+    const el = document.getElementById('ev-rn-cfg-slug-preview');
+    if (el) el.textContent = `/rueda/${evRnSlugify(e.target.value)}`;
+  }
+});
+async function evRnSaveConfig() {
+  if (!evCurrentEventId) return;
+  const getRadio = (name) => (document.querySelector(`input[name="${name}"]:checked`) || {}).value;
+  const langs = Array.from(document.querySelectorAll('#ev-rn-cfg-langs input:checked')).map(i => i.value);
+  const tz = document.getElementById('ev-rn-cfg-tz').value;
+  const starts = document.getElementById('ev-rn-cfg-starts').value;
+  const ends   = document.getElementById('ev-rn-cfg-ends').value;
+  const body = {
+    name: document.getElementById('ev-rn-cfg-name').value.trim(),
+    timezone: tz,
+    venue_name: document.getElementById('ev-rn-cfg-venue').value.trim() || null,
+    config_patch: {
+      matchmaking: {
+        zone_mode:               getRadio('ev-rn-cfg-zone')  || 'classic',
+        matching_mode:           getRadio('ev-rn-cfg-match') || 'tags',
+        visibility:              getRadio('ev-rn-cfg-vis')   || 'public',
+        default_directory_view:  document.getElementById('ev-rn-cfg-dirview').value,
+        base_currency:           document.getElementById('ev-rn-cfg-currency').value,
+        meeting_duration_minutes: parseInt(document.getElementById('ev-rn-cfg-dur').value, 10),
+        no_show_policy_minutes:   parseInt(document.getElementById('ev-rn-cfg-noshow').value, 10),
+        round_buffer_minutes:     parseInt(document.getElementById('ev-rn-cfg-buffer').value, 10),
+        auto_advance:             document.getElementById('ev-rn-cfg-autoadv').checked,
+        languages:                langs.length ? langs : ['es'],
+        allow_two_delegates:      document.getElementById('ev-rn-cfg-twodel').checked,
+        capture_ebv:              document.getElementById('ev-rn-cfg-ebv').checked,
+        allow_team_invite:        document.getElementById('ev-rn-cfg-team').checked,
+      }
+    }
+  };
+  if (starts) body.starts_at = new Date(starts).toISOString();
+  if (ends)   body.ends_at   = new Date(ends).toISOString();
+  if (!body.name) { showStatus('Nombre requerido', 'error'); return; }
+  const state = document.getElementById('ev-rn-cfg-savestate');
+  state.textContent = 'Guardando…';
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) { state.textContent = ''; showStatus(data.error || 'Error al guardar', 'error'); return; }
+    evRnCurrentEvent = data; evCurrentEvent = data;
+    state.textContent = 'Guardado · ' + new Date().toLocaleTimeString('es-CO');
+    showStatus('Configuración guardada', 'success');
+  } catch(_) { state.textContent=''; showStatus('Error de conexión', 'error'); }
+}
+
+async function evRnLoadRounds() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    const rows = r.ok ? await r.json() : [];
+    const el = document.getElementById('ev-rn-rounds-list'); if (!el) return;
+    if (!rows.length) { el.textContent = 'Sin rondas planificadas'; return; }
+    const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+    el.innerHTML = rows.map(rd => {
+      const t = new Date(rd.starts_at).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz });
+      const kind = rd.kind === 'break' ? ' · ☕ break' : '';
+      return `<div style="padding:4px 0;border-bottom:1px solid var(--border);">R${rd.round_number} · ${t}${kind}${rd.label?' · '+rd.label:''}</div>`;
+    }).join('');
+  } catch(_) {}
+}
+async function evRnPlanRounds() {
+  if (!evCurrentEventId) return;
+  const starts = document.getElementById('ev-rn-plan-starts').value;
+  const total = parseInt(document.getElementById('ev-rn-plan-total').value, 10);
+  const breakEv = parseInt(document.getElementById('ev-rn-plan-breakev').value, 10) || 0;
+  const mm = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
+  if (!starts) { showStatus('Inicio requerido', 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/plan`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({
+        starts_at: new Date(starts).toISOString(),
+        meeting_minutes: mm.meeting_duration_minutes || 20,
+        total_rounds: total || 10,
+        break_every: breakEv,
+        break_minutes: 10,
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) { showStatus(data.error || 'Error al planificar', 'error'); return; }
+    showStatus(`Plan OK · ${data.length} rondas`, 'success');
+    evRnLoadRounds(); evRnLoadStats();
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
+async function evRnLoadTables() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    const rows = r.ok ? await r.json() : [];
+    const el = document.getElementById('ev-rn-tables-list'); if (!el) return;
+    if (!rows.length) { el.textContent = 'Sin mesas configuradas'; return; }
+    el.innerHTML = rows.map(t =>
+      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span>${t.label}${t.zone_name?' · '+t.zone_name:''}</span>
+        <button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px;" onclick="evRnDeleteTable(${t.id})">✕</button>
+      </div>`
+    ).join('');
+  } catch(_) {}
+}
+async function evRnAddTable() {
+  if (!evCurrentEventId) return;
+  const label = document.getElementById('ev-rn-table-label').value.trim();
+  if (!label) { showStatus('Label requerido', 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ label })
+    });
+    if (!r.ok) { const d = await r.json(); showStatus(d.error||'Error', 'error'); return; }
+    document.getElementById('ev-rn-table-label').value = '';
+    evRnLoadTables();
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+async function evRnDeleteTable(id) {
+  if (!evCurrentEventId || !confirm('¿Eliminar mesa?')) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables/${id}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { showStatus('No se pudo eliminar', 'error'); return; }
+    evRnLoadTables();
+  } catch(_) {}
+}
+
+// ── E-RN-7b-3 Directorio + Live ─────────────────────────────────
+let evRnDirCache = [];
+let evRnLiveCache = null;
+let evRnSocketRoom = null;
+
+async function evRnLoadDirectory() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnDirCache = r.ok ? await r.json() : [];
+    evRnDirRender();
+  } catch(_) { evRnDirCache = []; evRnDirRender(); }
+}
+function evRnEscape(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function evRnDirRender() {
+  const tb = document.getElementById('ev-rn-dir-tbody'); if (!tb) return;
+  const q = (document.getElementById('ev-rn-dir-search')?.value || '').toLowerCase().trim();
+  const filtered = evRnDirCache.filter(r => {
+    if (!q) return true;
+    const hay = [r.company_name, r.contact_name, r.attendee_name, r.email,
+                 ...(r.offer_tags||[]), ...(r.demand_tags||[])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin inscritos</td></tr>'; return; }
+  const statusPill = (s) => {
+    const m = { pending:['#9ca3af','Pendiente'], approved:['#22c55e','Aprobada'], confirmed:['#22c55e','Confirmada'], cancelled:['#ef4444','Cancelada'] };
+    const [c, l] = m[s] || ['#9ca3af', s||'—'];
+    return `<span style="padding:2px 8px;border-radius:999px;background:${c}22;color:${c};font-size:10px;font-weight:700;">${l}</span>`;
+  };
+  const tagList = (arr) => (arr||[]).length ? (arr||[]).slice(0,3).map(t => `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(255,27,141,0.09);color:#FF1B8D;font-size:10px;font-weight:700;margin-right:3px;">${evRnEscape(t)}</span>`).join('') + ((arr.length>3)?` <span style="color:var(--text-muted);font-size:10px">+${arr.length-3}</span>`:'') : '<span style="color:var(--text-muted)">—</span>';
+  tb.innerHTML = filtered.map(r => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || r.attendee_name || '—')}</td>
+      <td style="padding:8px;color:var(--text-muted);">${evRnEscape(r.contact_name || r.email || '—')}</td>
+      <td style="padding:8px;">${tagList(r.offer_tags)}</td>
+      <td style="padding:8px;">${tagList(r.demand_tags)}</td>
+      <td style="padding:8px;text-align:center;color:var(--text-muted);">${r.requests_received||0} / ${r.requests_sent||0}</td>
+      <td style="padding:8px;">${statusPill(r.status)}</td>
+    </tr>
+  `).join('');
+}
+
+async function evRnLoadLive() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/live`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnLiveCache = r.ok ? await r.json() : null;
+    evRnLiveRender();
+  } catch(_) {}
+}
+function evRnLiveRender() {
+  if (!evRnLiveCache) return;
+  const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+  const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz }) : '';
+  document.getElementById('ev-rn-live-checkins').textContent = `${evRnLiveCache.checkins_total||0} check-ins`;
+  const ar = evRnLiveCache.active_round;
+  document.getElementById('ev-rn-live-active-txt').innerHTML = ar
+    ? `R${ar.round_number} · ${fmt(ar.starts_at)}–${fmt(ar.ends_at)}${ar.label?' · '+evRnEscape(ar.label):''} <span style="color:#FF1B8D;font-size:11px;margin-left:8px;">● en curso</span>`
+    : 'Sin ronda abierta';
+  // Rondas list
+  const rl = document.getElementById('ev-rn-live-rounds');
+  const meetingRounds = (evRnLiveCache.rounds||[]).filter(r => r.kind === 'meeting');
+  if (!meetingRounds.length) rl.textContent = 'Sin rondas planificadas (ver Agenda)';
+  else rl.innerHTML = meetingRounds.map(r => {
+    const isOpen = !!r.opened_at;
+    const isActive = ar && ar.id === r.id;
+    const btn = isOpen
+      ? `<span style="font-size:11px;color:${isActive?'#FF1B8D':'#22c55e'};font-weight:700;">${isActive?'● activa':'✓ abierta'}</span>`
+      : `<button class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:11px;" onclick="evRnOpenRound('${r.id}')">Abrir</button>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid var(--border);border-radius:7px;${isActive?'background:rgba(255,27,141,0.06);border-color:#FF1B8D;':''}">
+      <span>R${r.round_number} · ${fmt(r.starts_at)}–${fmt(r.ends_at)}</span>${btn}</div>`;
+  }).join('');
+  // Meetings tbody
+  const tb = document.getElementById('ev-rn-live-tbody');
+  const ms = evRnLiveCache.meetings || [];
+  if (!ms.length) tb.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings — abre una ronda</td></tr>';
+  else tb.innerHTML = ms.map(m => {
+    const originColor = { requested:'#22c55e', matched:'#FF1B8D', manual:'#FF8C00' }[m.origin] || '#9ca3af';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px;font-weight:700;">${evRnEscape(m.table_label)}</td>
+      <td style="padding:8px;">${evRnEscape(m.company_a||'—')}</td>
+      <td style="padding:8px;">${evRnEscape(m.company_b||'—')}</td>
+      <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${originColor}22;color:${originColor};font-size:10px;font-weight:700;">${m.origin||'—'}</span>${m.locked?' 🔒':''}</td>
+      <td style="padding:8px;color:var(--text-muted);">${evRnEscape(m.status||'scheduled')}</td>
+    </tr>`;
+  }).join('');
+}
+async function evRnOpenRound(roundId) {
+  if (!evCurrentEventId || !confirm('¿Abrir esta ronda?')) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/${roundId}/open`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body:'{}'
+    });
+    const data = await r.json();
+    if (!r.ok) { showStatus(data.error||'Error', 'error'); return; }
+    showStatus(`Ronda abierta · ${data.deferred_count||0} deferred`, 'success');
+    evRnLoadLive();
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
+function evRnSubscribeSocket(eventId) {
+  if (!window.socket) return;
+  if (evRnSocketRoom && evRnSocketRoom !== eventId) {
+    try { socket.emit('leave', `event_rueda_${evRnSocketRoom}`); } catch(_) {}
+  }
+  evRnSocketRoom = eventId;
+  try { socket.emit('join', `event_rueda_${eventId}`); } catch(_) {}
+  if (!socket.__rnBound) {
+    socket.__rnBound = true;
+    socket.on('rn.round.opened', () => { evRnLoadLive(); evRnLoadStats(); });
+    socket.on('rn.checkin',      () => { evRnLoadLive(); });
+    socket.on('rn.request.created', () => { evRnLoadDirectory(); evRnLoadStats(); });
+  }
+}
+
+function evRnCopyPublicLink() {
+  if (!evRnCurrentEvent || !evRnCurrentEvent.slug) { showStatus('Sin slug publico', 'error'); return; }
+  const url = `${location.origin}/rueda/${evRnCurrentEvent.slug}`;
+  (navigator.clipboard?.writeText(url) || Promise.reject())
+    .then(() => showStatus('Link copiado: ' + url, 'success'))
+    .catch(() => { prompt('Copia el link:', url); });
+}
+
+function evRnSwitchPanelTab(tab) {
+  document.querySelectorAll('.ev-rn-subtab').forEach(b => b.classList.toggle('on', b.dataset.rntab === tab));
+  document.querySelectorAll('.ev-rn-panel').forEach(p => p.classList.add('hidden'));
+  const el = document.getElementById('ev-rn-panel-' + tab);
+  if (el) el.classList.remove('hidden');
+  if (tab === 'directorio') evRnLoadDirectory();
+  else if (tab === 'live')  evRnLoadLive();
+  else if (tab === 'reporte') evRnLoadReport();
+  else if (tab === 'tags')  evRnTagsLoad();
+}
+
+// ── B.0 Taxonomía · catálogo de tags ────────────────────────────
+let evRnTagsCache = [];
+async function evRnTagsLoad() {
+  const tbody = document.getElementById('ev-rn-tags-tbody');
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    evRnTagsCache = await r.json();
+    document.getElementById('ev-rn-tags-count').textContent = evRnTagsCache.length;
+    const nSub = document.getElementById('ev-rn-subtab-n-tags');
+    if (nSub) nSub.textContent = evRnTagsCache.length;
+    if (evRnTagsCache.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">Sin tags · importa Excel o crea el primero</td></tr>';
+      return;
+    }
+    tbody.innerHTML = evRnTagsCache.map(t => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px 8px;">${evRnEsc(t.label)}</td>
+        <td style="padding:10px 8px;"><code style="font-size:11.5px;color:var(--text-muted);">${evRnEsc(t.slug)}</code></td>
+        <td style="padding:10px 8px;color:var(--text-muted);">${evRnEsc(t.category || '—')}</td>
+        <td style="padding:10px 8px;text-align:right;">
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;" onclick="evRnTagEdit('${t.id}')">Editar</button>
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;color:#ef4444;border-color:rgba(239,68,68,0.3);" onclick="evRnTagDelete('${t.id}')">×</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;">Error cargando catálogo: ${evRnEsc(e.message)}</td></tr>`;
+  }
+}
+function evRnEsc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function evRnTagOpenNew(editTag) {
+  const modal = document.getElementById('ev-rn-tag-new-modal');
+  document.getElementById('ev-rn-tag-new-label').value    = editTag ? (editTag.label || '') : '';
+  document.getElementById('ev-rn-tag-new-category').value = editTag ? (editTag.category || '') : '';
+  document.getElementById('ev-rn-tag-fuzzy-warn').style.display = 'none';
+  document.getElementById('ev-rn-tag-new-title').textContent = editTag ? 'Editar tag' : 'Nuevo tag';
+  document.getElementById('ev-rn-tag-new-save-btn').textContent = editTag ? 'Guardar cambios' : 'Crear tag';
+  modal.dataset.editId = editTag ? editTag.id : '';
+  modal.classList.add('active');
+}
+function evRnTagCloseNew() {
+  const modal = document.getElementById('ev-rn-tag-new-modal');
+  modal.classList.remove('active');
+  modal.dataset.editId = '';
+}
+function evRnTagEdit(tagId) {
+  const t = evRnTagsCache.find(x => String(x.id) === String(tagId));
+  if (!t) return;
+  evRnTagOpenNew(t);
+}
+async function evRnTagDelete(tagId) {
+  const t = evRnTagsCache.find(x => String(x.id) === String(tagId));
+  if (!t) return;
+  if (!confirm(`Eliminar tag "${t.label}"? Las registraciones existentes que lo usaban lo pierden.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/${tagId}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok && r.status !== 204) throw new Error('HTTP ' + r.status);
+    showStatus('Tag eliminado', 'success');
+    evRnTagsLoad();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+let evRnTagFuzzyTimer = null;
+function evRnTagFuzzyDebounced(v) {
+  clearTimeout(evRnTagFuzzyTimer);
+  evRnTagFuzzyTimer = setTimeout(() => evRnTagFuzzyRun(v), 300);
+}
+async function evRnTagFuzzyRun(v) {
+  const box = document.getElementById('ev-rn-tag-fuzzy-warn');
+  const list = document.getElementById('ev-rn-tag-fuzzy-list');
+  const label = (v || '').trim();
+  if (label.length < 2) { box.style.display = 'none'; return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/similar?label=${encodeURIComponent(label)}`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { box.style.display = 'none'; return; }
+    const data = await r.json();
+    const cands = (data.candidates || []).filter(c =>
+      !document.getElementById('ev-rn-tag-new-modal').dataset.editId || String(c.id) !== document.getElementById('ev-rn-tag-new-modal').dataset.editId
+    );
+    if (cands.length === 0) { box.style.display = 'none'; return; }
+    list.innerHTML = cands.slice(0,3).map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-top:6px;font-size:13px;">
+        <div><strong>${evRnEsc(c.label)}</strong> <span style="font-size:11px;color:var(--text-muted);">score ${Number(c.score).toFixed(2)}</span></div>
+        <button class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:11px;" onclick="evRnTagUseExisting('${c.id}')">Usar este</button>
+      </div>
+    `).join('');
+    box.style.display = 'block';
+  } catch(_) { box.style.display = 'none'; }
+}
+function evRnTagUseExisting(tagId) {
+  evRnTagCloseNew();
+  const el = document.querySelector(`#ev-rn-tags-tbody tr`);
+  showStatus('Usa el tag existente desde el catálogo', 'info');
+}
+
+async function evRnTagSaveNew() {
+  const label = (document.getElementById('ev-rn-tag-new-label').value || '').trim();
+  const category = (document.getElementById('ev-rn-tag-new-category').value || '').trim();
+  if (!label) { showStatus('Nombre requerido', 'error'); return; }
+  const editId = document.getElementById('ev-rn-tag-new-modal').dataset.editId;
+  const btn = document.getElementById('ev-rn-tag-new-save-btn');
+  btn.disabled = true;
+  try {
+    const url    = editId ? `${API_URL}/api/rn/tags/${editId}` : `${API_URL}/api/rn/tags`;
+    const method = editId ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method, headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ label, category: category || null })
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    showStatus(editId ? 'Tag actualizado' : 'Tag creado', 'success');
+    evRnTagCloseNew();
+    evRnTagsLoad();
+  } catch (e) {
+    showStatus('Error: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function evRnTagsDownloadTemplate() {
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/template.xlsx`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    evRnTagsDownloadBlob(blob, 'sonoro-tags-template.xlsx');
+  } catch (e) { showStatus('Error plantilla: ' + e.message, 'error'); }
+}
+async function evRnTagsExport() {
+  if (!evCurrentEventId) { showStatus('Abre una rueda primero', 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/export`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    evRnTagsDownloadBlob(blob, 'sonoro-tags-export.xlsx');
+  } catch (e) { showStatus('Error export: ' + e.message, 'error'); }
+}
+function evRnTagsDownloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+let evRnTagBulkPreview = null;
+async function evRnTagsBulkUpload(file) {
+  if (!file) return;
+  if (!evCurrentEventId) { showStatus('Abre una rueda primero', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/bulk`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${authToken}` }, body: fd
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    evRnTagBulkPreview = await r.json();
+    evRnTagBulkRenderPreview();
+    document.getElementById('ev-rn-tag-bulk-modal').classList.add('active');
+  } catch (e) { showStatus('Error import: ' + e.message, 'error'); }
+  finally { document.getElementById('ev-rn-tags-file-inp').value = ''; }
+}
+function evRnTagBulkRenderPreview() {
+  const p = evRnTagBulkPreview; if (!p) return;
+  document.getElementById('ev-rn-tag-bulk-n-det').textContent = p.detected || 0;
+  document.getElementById('ev-rn-tag-bulk-n-new').textContent = p.new || 0;
+  document.getElementById('ev-rn-tag-bulk-n-sim').textContent = (p.similar || []).length;
+  document.getElementById('ev-rn-tag-bulk-n-dup').textContent = (p.duplicates || []).length;
+
+  const rows = p.rows || [];
+  const invalid = p.invalid || [];
+  const html = [];
+  rows.forEach((row, idx) => {
+    const st = row.status;
+    const bg = st==='new'?'rgba(34,197,94,0.05)' : st==='duplicate'?'rgba(239,68,68,0.05)' : st==='similar'?'rgba(255,140,0,0.05)' : 'transparent';
+    const pill = st==='new'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#22c55e;background:rgba(34,197,94,0.14);text-transform:uppercase;letter-spacing:.5px;">Nuevo</span>'
+               : st==='duplicate'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#ef4444;background:rgba(239,68,68,0.14);text-transform:uppercase;letter-spacing:.5px;">Duplicado</span>'
+               : st==='similar'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#FF8C00;background:rgba(255,140,0,0.14);text-transform:uppercase;letter-spacing:.5px;">Similar</span>'
+               : '';
+    const meta = st==='duplicate' ? `Ya existe (${evRnEsc(row.existing_slug||'')})`
+              : st==='similar'    ? `Parecido a: ${(row.candidates||[]).map(evRnEsc).join(', ')}`
+              : row.category      ? `Categoría: ${evRnEsc(row.category)}`
+              : '';
+    let actionSel = '';
+    if (st === 'new') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="create" selected>Crear</option><option value="skip">Omitir</option></select>`;
+    } else if (st === 'duplicate') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="skip" selected>Omitir</option><option value="merge">Fusionar</option></select>`;
+    } else if (st === 'similar') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="create" selected>Crear como nuevo</option><option value="merge">Fusionar</option><option value="skip">Omitir</option></select>`;
+    }
+    html.push(`
+      <div style="display:grid;grid-template-columns:40px 1fr 110px 150px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;background:${bg};">
+        <div style="color:var(--text-muted);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">#${row.row}</div>
+        <div><div>${evRnEsc(row.label||'')}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${meta}</div></div>
+        <div>${pill}</div>
+        <div>${actionSel}</div>
+      </div>
+    `);
+  });
+  invalid.forEach(iv => {
+    html.push(`
+      <div style="display:grid;grid-template-columns:40px 1fr 110px 150px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;background:rgba(239,68,68,0.1);color:var(--text-muted);">
+        <div style="font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">#${iv.row}</div>
+        <div><div>(inválido)</div><div style="font-size:11px;margin-top:2px;">${evRnEsc(iv.reason||'')}</div></div>
+        <div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:var(--text-muted);background:var(--surface2);text-transform:uppercase;letter-spacing:.5px;">Inválido</span></div>
+        <div>—</div>
+      </div>
+    `);
+  });
+  document.getElementById('ev-rn-tag-bulk-list').innerHTML = html.join('') || '<div style="padding:16px;text-align:center;color:var(--text-muted);">Sin filas</div>';
+  const toCreate = rows.filter(r => r.status === 'new').length;
+  document.getElementById('ev-rn-tag-bulk-confirm-btn').textContent = `Confirmar y crear ${toCreate} tag${toCreate===1?'':'s'}`;
+}
+function evRnTagCloseBulk() {
+  document.getElementById('ev-rn-tag-bulk-modal').classList.remove('active');
+  evRnTagBulkPreview = null;
+}
+async function evRnTagBulkConfirm() {
+  if (!evRnTagBulkPreview || !evCurrentEventId) return;
+  const sels = document.querySelectorAll('.ev-rn-tag-bulk-sel');
+  const rows = (evRnTagBulkPreview.rows || []).map((r, i) => {
+    const sel = Array.from(sels).find(s => Number(s.dataset.idx) === i);
+    const action = sel ? sel.value : (r.status === 'new' ? 'create' : 'skip');
+    return { label: r.label, category: r.category, action, merge_into_slug: r.existing_slug || (r.candidates && r.candidates[0]) || null };
+  });
+  const btn = document.getElementById('ev-rn-tag-bulk-confirm-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/bulk/confirm`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ rows })
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    const stats = await r.json();
+    showStatus(`✅ ${stats.created} creados · ${stats.merged} fusionados · ${stats.skipped} omitidos`, 'success');
+    evRnTagCloseBulk();
+    evRnTagsLoad();
+  } catch (e) { showStatus('Error confirm: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+// ── E-RN-7b-4 · Reporte productor ──────────────────────────────────────────────
+let evRnReportCache = null;
+function evRnFmtCop(n) {
+  if (n === null || n === undefined || isNaN(Number(n))) return '—';
+  try {
+    return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(Number(n));
+  } catch(_) { return '$' + Math.round(Number(n)).toLocaleString('es-CO'); }
+}
+function evRnFmtDateTz(iso) {
+  if (!iso) return '—';
+  const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+  try {
+    return new Date(iso).toLocaleString('es-CO', {
+      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: tz
+    });
+  } catch(_) { return iso; }
+}
+async function evRnLoadReport() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/report`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnReportCache = r.ok ? await r.json() : null;
+    evRnReportRender();
+  } catch(_) { evRnReportCache = null; evRnReportRender(); }
+}
+function evRnReportRender() {
+  const d = evRnReportCache;
+  const statusEl = document.getElementById('ev-rn-report-status');
+  if (!d) {
+    if (statusEl) statusEl.textContent = 'No se pudo cargar el reporte';
+    return;
+  }
+  // Estado envío: la info live viene del evento. Lo tomamos de evRnCurrentEvent.config si está, si no "No enviado".
+  const sentAt = evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_at;
+  const sentCount = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_count) || 0;
+  if (statusEl) {
+    statusEl.textContent = sentAt
+      ? `Enviado · ${evRnFmtDateTz(sentAt)} · ${sentCount} envío${sentCount===1?'':'s'}`
+      : 'No enviado todavía';
+  }
+  // Banners
+  document.getElementById('ev-rn-report-banner-ref').classList.toggle('hidden', !d.ebv || !d.ebv.referential);
+  document.getElementById('ev-rn-report-banner-fx').classList.toggle('hidden', !d.ebv || !d.ebv.mixed_currencies);
+  // KPIs
+  const m = d.meetings || {};
+  const e = d.ebv || {};
+  const cov = (e.coverage || 0) * 100;
+  document.getElementById('ev-rn-rep-k-total').textContent = m.total ?? '—';
+  document.getElementById('ev-rn-rep-k-ebv').textContent   = m.with_ebv ?? '—';
+  document.getElementById('ev-rn-rep-k-cov').textContent   = `${cov.toFixed(0)}% cobertura`;
+  document.getElementById('ev-rn-rep-k-avg').textContent   = evRnFmtCop(e.avg_per_meeting);
+  document.getElementById('ev-rn-rep-k-sum').textContent   = evRnFmtCop(e.total_estimated);
+  // Detalle
+  document.getElementById('ev-rn-rep-median').textContent  = evRnFmtCop(e.median_per_meeting);
+  document.getElementById('ev-rn-rep-min').textContent     = evRnFmtCop(e.min);
+  document.getElementById('ev-rn-rep-max').textContent     = evRnFmtCop(e.max);
+  document.getElementById('ev-rn-rep-bilat').textContent   = m.bilateral ?? '—';
+  document.getElementById('ev-rn-rep-unilat').textContent  = m.unilateral ?? '—';
+  document.getElementById('ev-rn-rep-empty').textContent   = m.empty ?? '—';
+  // Horizon pills
+  const hb = (e.horizon_breakdown) || {};
+  const hLabels = { short:'Corto plazo', long:'Largo plazo', mixed:'Mixto', unknown:'Sin horizonte' };
+  const hColors = { short:'#22c55e', long:'#FF1B8D', mixed:'#FF8C00', unknown:'#9ca3af' };
+  const pillsEl = document.getElementById('ev-rn-rep-horizon-pills');
+  pillsEl.innerHTML = Object.keys(hLabels).map(k => {
+    const n = hb[k] || 0;
+    const c = hColors[k];
+    return `<span style="padding:3px 10px;border-radius:999px;background:${c}1a;color:${c};font-size:11px;font-weight:700;">${hLabels[k]} · ${n}</span>`;
+  }).join('');
+  // Top table
+  const tb = document.getElementById('ev-rn-rep-tbody');
+  const top = Array.isArray(d.top) ? d.top : [];
+  if (!top.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings con EBV capturado</td></tr>';
+  } else {
+    tb.innerHTML = top.map((t, i) => {
+      const fillColor = t.fill_type === 'bilateral' ? '#22c55e' : '#FF8C00';
+      const fillLabel = t.fill_type === 'bilateral' ? 'Bilateral' : 'Unilateral';
+      const horLabel = hLabels[t.horizon] || '—';
+      const horColor = hColors[t.horizon] || '#9ca3af';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;color:var(--text-muted);font-weight:700;">${i+1}</td>
+        <td style="padding:8px;">${evRnEscape(t.company_a||'—')}</td>
+        <td style="padding:8px;">${evRnEscape(t.company_b||'—')}</td>
+        <td style="padding:8px;color:var(--text-muted);">R${t.round ?? '—'} · ${evRnEscape(t.table_label||'—')}</td>
+        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${fillColor}22;color:${fillColor};font-size:10px;font-weight:700;">${fillLabel}</span></td>
+        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${horColor}22;color:${horColor};font-size:10px;font-weight:700;">${horLabel}</span></td>
+        <td style="padding:8px;text-align:right;font-weight:700;">${evRnFmtCop(t.value)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+async function evRnSendReport(force) {
+  if (!evCurrentEventId) return;
+  const btn = document.getElementById('ev-rn-report-send-btn');
+  if (!force && !confirm('¿Enviar reporte post-evento por email al productor y delegados primarios?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const url = `${API_URL}/api/rn/events/${evCurrentEventId}/report/send${force ? '?force=1' : ''}`;
+    const r = await fetch(url, { method:'POST', headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' }, body:'{}' });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409) {
+      const prev = data.sent_at ? evRnFmtDateTz(data.sent_at) : 'antes';
+      if (confirm(`Ya se envió el ${prev}. ¿Reenviar de todas formas?`)) {
+        return evRnSendReport(true);
+      }
+      showStatus('Envío cancelado', 'info');
+    } else if (!r.ok) {
+      showStatus(data.error || 'Error al enviar reporte', 'error');
+    } else {
+      showStatus('Reporte enviado correctamente', 'success');
+      // Patch local cache del evento con sent_at devuelto para refrescar status sin otro GET
+      if (evRnCurrentEvent) {
+        evRnCurrentEvent.config = evRnCurrentEvent.config || {};
+        evRnCurrentEvent.config.rn_report_sent_at = data.sent_at || new Date().toISOString();
+        evRnCurrentEvent.config.rn_report_sent_count = (evRnCurrentEvent.config.rn_report_sent_count || 0) + 1;
+      }
+      evRnLoadReport();
+    }
+  } catch(_) {
+    showStatus('Error de conexión', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar reporte por email'; }
+  }
+}
+
+async function evRnLoadStats() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/stats`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('stats');
+    const s = await r.json();
+    evRnRenderStats(s);
+  } catch (_) {
+    // Silent: panel sigue utilizable; placeholders quedan en "—"
+  }
+}
+
+function evRnRenderStats(s) {
+  const regs = s.registrations || {};
+  const mix  = s.role_mix || {};
+  const reqs = s.requests || {};
+  const slots = s.slots || {};
+
+  // Donut 1: completeness
+  const cPct = regs.completeness_pct || 0;
+  const dC = document.getElementById('ev-rn-donut-complete');
+  if (dC) dC.setAttribute('stroke-dasharray', `${cPct} 100`);
+  document.getElementById('ev-rn-donut-complete-pct').textContent = cPct + '%';
+  document.getElementById('ev-rn-stat-completas').textContent = regs.completas ?? '—';
+  document.getElementById('ev-rn-stat-incompletas').textContent = regs.incompletas ?? '—';
+
+  // Donut 2: mix stacked
+  const total = (mix.ofrece||0) + (mix.busca||0) + (mix.ambos||0);
+  const svg = document.getElementById('ev-rn-donut-mix-svg');
+  // Keep base circle; remove previous stacked arcs
+  Array.from(svg.querySelectorAll('circle[data-mix]')).forEach(n => n.remove());
+  if (total > 0) {
+    const segs = [
+      { k:'ofrece', v: mix.ofrece||0, color:'#FF1B8D' },
+      { k:'busca',  v: mix.busca||0,  color:'#FF8C00' },
+      { k:'ambos',  v: mix.ambos||0,  color:'#FFE566' },
+    ];
+    let offset = 0;
+    for (const sg of segs) {
+      const dash = Math.round((sg.v * 100) / total);
+      if (dash <= 0) continue;
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx','18'); c.setAttribute('cy','18'); c.setAttribute('r','15.9');
+      c.setAttribute('fill','none'); c.setAttribute('stroke', sg.color);
+      c.setAttribute('stroke-width','3.6');
+      c.setAttribute('stroke-dasharray', `${dash} 100`);
+      c.setAttribute('stroke-dashoffset', `${-offset}`);
+      c.setAttribute('data-mix', sg.k);
+      svg.appendChild(c);
+      offset += dash;
+    }
+  }
+  document.getElementById('ev-rn-donut-mix-center').textContent = total;
+  document.getElementById('ev-rn-stat-ofrece').textContent = mix.ofrece ?? '—';
+  document.getElementById('ev-rn-stat-busca').textContent  = mix.busca  ?? '—';
+  document.getElementById('ev-rn-stat-ambos').textContent  = mix.ambos  ?? '—';
+
+  // Donut 3: utilization
+  const uPct = slots.utilization_pct || 0;
+  const dU = document.getElementById('ev-rn-donut-util');
+  if (dU) dU.setAttribute('stroke-dasharray', `${uPct} 100`);
+  document.getElementById('ev-rn-donut-util-pct').textContent = uPct + '%';
+  document.getElementById('ev-rn-stat-agendados').textContent = slots.meetings_total ?? '—';
+  const libres = Math.max((slots.available||0) - (slots.meetings_total||0), 0);
+  document.getElementById('ev-rn-stat-libres').textContent = slots.available ? libres : '—';
+
+  // KPIs
+  document.getElementById('ev-rn-kpi-regs').textContent = regs.total ?? '—';
+  document.getElementById('ev-rn-kpi-regs-sub').textContent = regs.total ? `${regs.incompletas||0} con intereses incompletos` : ' ';
+  document.getElementById('ev-rn-kpi-complete').innerHTML = `${regs.completas ?? '—'} <span style="font-size:14px;color:var(--text-muted);font-weight:700">/ ${regs.total ?? '—'}</span>`;
+  document.getElementById('ev-rn-kpi-complete-sub').textContent = regs.total ? `${regs.completeness_pct}% listas para emparejar` : ' ';
+  document.getElementById('ev-rn-kpi-requests').textContent = reqs.total ?? '—';
+  document.getElementById('ev-rn-kpi-requests-sub').textContent = reqs.total ? `${reqs.accepted||0} aceptadas · ${reqs.pending||0} pendientes` : ' ';
+  document.getElementById('ev-rn-kpi-util').textContent = (slots.utilization_pct ?? 0) + '%';
+  document.getElementById('ev-rn-kpi-util-sub').textContent = slots.available ? `${slots.meetings_total||0} reuniones · ${slots.rounds_total||0} rondas` : ' ';
+
+  // Sub-tab counters
+  const nd = document.getElementById('ev-rn-subtab-n-dir'); if (nd) nd.textContent = regs.total ?? '—';
+  const na = document.getElementById('ev-rn-subtab-n-ag');  if (na) na.textContent = slots.rounds_total ?? '—';
+}
+
+function evRnBtnBusy(action, busy) {
+  const btn = document.getElementById('ev-rn-btn-' + action);
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.style.opacity = busy ? '0.6' : '1';
+  btn.style.pointerEvents = busy ? 'none' : '';
+  btn.querySelector('.ev-rn-btn-spin')?.classList.toggle('hidden', !busy);
+}
+
+async function evRnSolver(action) {
+  if (!evCurrentEventId) return;
+  if (action === 'reset' && !confirm('¿Eliminar todas las meetings no bloqueadas?')) return;
+  evRnBtnBusy(action, true);
+  try {
+    const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/solver/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (res.status === 409 && data.error === 'solver_already_running') {
+      showStatus('Solver ya está corriendo. Espera a que termine.', 'error');
+      return;
+    }
+    if (res.status === 400 && data.error === 'setup_incompleto') {
+      const details = Array.isArray(data.details) ? data.details.join(' · ') : '';
+      showStatus('Setup incompleto' + (details ? ': ' + details : ''), 'error');
+      return;
+    }
+    if (!res.ok) {
+      showStatus(data.error || 'Error en solver', 'error');
+      return;
+    }
+    if (action === 'reset') {
+      showStatus(`Reset OK · ${data.deleted || 0} meetings eliminadas`, 'success');
+      document.getElementById('ev-rn-stats').textContent = '';
+    } else {
+      const s = data.stats || {};
+      const prefix = action === 'preview' ? 'Preview' : 'Solver OK';
+      document.getElementById('ev-rn-stats').textContent =
+        `${prefix} · total ${s.meetings_total||0} (requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}) · rondas efectivas ${s.total_rounds_effective||0}${s.unschedulable_count?` · unschedulable ${s.unschedulable_count}`:''}`;
+      showStatus(`${prefix}: ${s.meetings_total||0} meetings`, 'success');
+    }
+    if (action !== 'preview') { await evRnLoadMeetings(); evRnLoadStats(); }
+  } catch(e) {
+    showStatus('Error de conexión', 'error');
+  } finally {
+    evRnBtnBusy(action, false);
+  }
+}
+
+async function evRnLoadMeetings() {
+  const tbody = document.getElementById('ev-rn-meetings-tbody');
+  if (!tbody || !evCurrentEventId) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  try {
+    const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/meetings`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings. Corre el solver para generarlas.</td></tr>';
+      return;
+    }
+    const originColor = { requested:'#FF1B8D', manual:'#f59e0b', matched:'#a855f7' };
+    tbody.innerHTML = data.map(m => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;font-weight:700;">${m.round_number ?? '—'}</td>
+        <td style="padding:8px;">${m.table_label ?? '—'}</td>
+        <td style="padding:8px;">${m.company_a ?? '—'}</td>
+        <td style="padding:8px;">${m.company_b ?? '—'}</td>
+        <td style="padding:8px;"><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${originColor[m.origin]||'#64748b'};color:#fff;font-weight:700;text-transform:uppercase;">${m.origin}</span></td>
+        <td style="padding:8px;">${m.locked ? '<svg width="12" height="12" style="fill:#FF1B8D"><use href="#ph-lock"/></svg>' : '—'}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:#ef4444;">Error cargando meetings.</td></tr>';
+  }
 }
 
 function evSwitchSubTab(tab) {

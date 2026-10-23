@@ -525,6 +525,17 @@ function EVTT(locale, key, vars = {}) {
 // Default preserva comportamiento legacy "CMS · Pantallas Informativas" para signage/licencias.
 function baseTemplate(content, opts = {}) {
   const tagline = opts.tagline || 'CMS &nbsp;·&nbsp; Pantallas Informativas';
+  // Events v1 privacy link in footer (Ley 1581 — consentimiento informado).
+  // Detect scope via tagline keywords or explicit opts.product='events'.
+  const isEvents = opts.product === 'events' ||
+    /event|rueda|gest[aã]o/i.test(String(tagline));
+  const loc = (opts.locale || 'es').toLowerCase();
+  const privacyLabel = loc.startsWith('en') ? 'Privacy policy'
+                     : loc.startsWith('pt') ? 'Política de privacidade'
+                     : 'Política de privacidad';
+  const privacyLine = isEvents
+    ? `<br><a href="${CMS_URL}/legal/privacidad-events.html" style="color:#999;text-decoration:underline;">${privacyLabel}</a>`
+    : '';
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -567,7 +578,7 @@ function baseTemplate(content, opts = {}) {
             <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #eee;text-align:center;">
               <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
                 Este correo fue enviado por <strong style="color:#666;">SONORO CMS</strong><br>
-                Si tienes dudas escríbenos a <a href="mailto:cms@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">cms@sonoro.com.co</a>
+                Si tienes dudas escríbenos a <a href="mailto:cms@sonoro.com.co" style="color:#FF1B8D;text-decoration:none;">cms@sonoro.com.co</a>${privacyLine}
               </p>
             </td>
           </tr>
@@ -1100,7 +1111,7 @@ async function sendEventPendingEmail(attendee, event, emailConfig = {}) {
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'pending.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'pending.tagline') });
+  `, { tagline: EVTT(loc, 'pending.tagline'), locale: loc });
 
   const _fromPend = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moP = { from: _fromPend, to: attendee.email, subject: EVTT(loc, 'pending.subject', { event: event.name }), html };
@@ -1184,7 +1195,7 @@ async function sendEventRegistrationEmail(attendee, event, registration, emailCo
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'registration.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _fromReg = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moR = { from: _fromReg, to: attendee.email, subject: EVTT(loc, 'registration.subject', { event: event.name }), html, attachments };
@@ -1233,7 +1244,7 @@ async function sendSupplierQuoteEmail({ supplier_name, contact_email, event_name
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'supplier_quote.single_use', { name: supplier_name })}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _fromQ = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moQ = { from: _fromQ, to: contact_email, subject: EVTT(loc, 'supplier_quote.subject', { event: event_name }), html };
   if (emailConfig.reply_to) moQ.replyTo = emailConfig.reply_to;
@@ -1264,7 +1275,7 @@ async function sendSupplierAcceptedEmail({ supplier_name, contact_email, event_n
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_accepted.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _fromA = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const moA = { from: _fromA, to: contact_email, subject: EVTT(loc, 'supplier_accepted.subject', { event: event_name }), html };
   if (emailConfig.reply_to) moA.replyTo = emailConfig.reply_to;
@@ -1300,7 +1311,7 @@ async function sendSupplierDepositEmail({ supplier_name, contact_email, event_na
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_deposit.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: EVTT(loc, 'supplier_deposit.subject', { event: event_name }), html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -1336,7 +1347,7 @@ async function sendSupplierPaidEmail({ supplier_name, contact_email, event_name,
     <p style="margin:0;font-size:14px;color:#555;line-height:1.6;">
       ${EVTT(loc, 'supplier_paid.closing')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: contact_email, subject: EVTT(loc, 'supplier_paid.subject', { event: event_name }), html };
   if (emailConfig.reply_to) mo.replyTo = emailConfig.reply_to;
@@ -1431,7 +1442,7 @@ async function sendInvitationConfirmedEmail(attendee, event, registration, batch
     <p style="margin:24px 0 0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'invitation_confirmed.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: EVTT(loc, 'invitation_confirmed.subject', { event: event.name }), html, attachments };
@@ -1490,7 +1501,7 @@ async function sendInvitationPendingEmail(attendee, event, batch, emailConfig = 
     <p style="margin:0;font-size:11px;color:#bbb;text-align:center;line-height:1.6;">
       ${EVTT(loc, 'invitation_pending.disclaimer')}
     </p>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   const _from = emailConfig.from_name ? `"${emailConfig.from_name}" <${process.env.SMTP_USER || 'cms@sonoro.com.co'}>` : FROM;
   const mo = { from: _from, to: attendee.email, subject: EVTT(loc, 'invitation_pending.subject', { event: event.name }), html };
@@ -1644,7 +1655,7 @@ async function sendStaffCredentialsEmail(staff, event, producer) {
         ${EVTT(loc, 'staff_credentials.briefing_note')}
       </p>
     </div>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   await transporter.sendMail({
     from: FROM,
@@ -1739,7 +1750,7 @@ async function sendStaffBriefingEmail(staff, event, producer) {
         ${EVTT(loc, 'staff_briefing.help_note', { producer: producerName, email: producerEmail })}
       </p>
     </div>
-  `, { tagline: EVTT(loc, 'tagline') });
+  `, { tagline: EVTT(loc, 'tagline'), locale: loc });
 
   await transporter.sendMail({
     from: FROM,
@@ -1832,4 +1843,311 @@ async function sendCertificateEmail({ to, attendeeName, eventName, certUrl, pdfP
   console.log(`✅ Certificado enviado a ${to} (${eventName})`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, verifyConnection };
+// ── EMAIL — RUEDA DE NEGOCIOS: BIENVENIDA PRIMARIO (E-RN-1b) ─────────────────
+async function sendRnWelcomeEmail({ to, delegateName, companyName, eventName, eventSlug, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${companyName} quedó inscrita en ${eventName}
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, confirmamos tu inscripción como delegado primario.
+      Tu agenda personal queda en el enlace de abajo &mdash; guárdalo, es tu acceso durante todo el evento.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Abrir mi agenda
+        </a>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0;font-size:12px;color:#999;line-height:1.5;word-break:break-all;">
+          ${agendaUrl}
+        </p>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Como delegado primario puedes invitar a tu equipo desde la misma página, pedir reuniones con otras empresas y revisar tu agenda en tiempo real.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Inscripción confirmada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN welcome enviado a ${to} (${eventSlug})`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: INVITACIÓN DELEGADO SECUNDARIO (E-RN-1b) ──────
+async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, companyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${inviterName} te invitó a ${eventName}
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, representas a
+      <strong style="color:#0f0f0f;">${companyName}</strong> en esta rueda de negocios.
+      Tu agenda es independiente: el solver te asigna reuniones propias y puedes pedir las tuyas.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Aceptar y abrir mi agenda
+        </a>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+      <tr><td style="padding:14px 20px;">
+        <p style="margin:0;font-size:12px;color:#999;line-height:1.5;word-break:break-all;">
+          ${agendaUrl}
+        </p>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Al abrir el enlace completas tu perfil. Puedes editar tu nombre, teléfono y cargo en cualquier momento.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Fuiste invitado a ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN delegate-invited enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD DE REUNIÓN RECIBIDA (E-RN-2) ────────
+async function sendRnRequestReceivedEmail({ to, delegateName, fromCompanyName, eventName, agendaUrl, message }) {
+  if (!to || !agendaUrl) return;
+  const msgBlock = message
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
+        <tr><td style="padding:14px 20px;">
+          <p style="margin:0;font-size:13px;color:#444;line-height:1.6;font-style:italic;">&ldquo;${message}&rdquo;</p>
+        </td></tr>
+      </table>`
+    : '';
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${fromCompanyName} quiere reunirse contigo
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, recibiste una nueva solicitud de reunión para
+      <strong style="color:#0f0f0f;">${eventName}</strong>. Revisa y responde desde tu agenda.
+    </p>
+    ${msgBlock}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Revisar solicitud
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
+      Si aceptas, el solver intentará ubicar la reunión en una ronda disponible. Las solicitudes aceptadas son prioritarias (<em>requested</em>).
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Nueva solicitud de reunión &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-received enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD ACEPTADA (E-RN-2) ───────────────────
+async function sendRnRequestAcceptedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      ${targetCompanyName} aceptó tu solicitud
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, tu solicitud de reunión para
+      <strong style="color:#0f0f0f;">${eventName}</strong> fue aceptada. La asignación de ronda y mesa aparecerá en tu agenda
+      cuando el productor publique el pool.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver mi agenda
+        </a>
+      </td></tr>
+    </table>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Solicitud aceptada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-accepted enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD RECHAZADA (E-RN-2) ──────────────────
+async function sendRnRequestRejectedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+  if (!to || !agendaUrl) return;
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Solicitud no aceptada
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} no aceptó tu solicitud de reunión en
+      <strong style="color:#0f0f0f;">${eventName}</strong>. El solver puede proponerte alternativas con tags coincidentes.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Explorar directorio
+        </a>
+      </td></tr>
+    </table>
+  `, { tagline: 'Rueda de Negocios' });
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Solicitud no aceptada &mdash; ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN request-rejected enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO DELEGADO (E-RN-6b · D-RN-9) ──
+async function sendRnEventSummaryEmail({ to, delegateName, companyName, eventName, agendaUrl, meetings, myEbv, aggregate }) {
+  if (!to || !agendaUrl) return;
+  const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+
+  const meetingRows = (meetings || []).slice(0, 20).map(m => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;">
+        <strong>${safe(m.counterpart_company)}</strong>
+        ${m.tags_matched && m.tags_matched.length ? `<div style="margin-top:3px;font-size:11px;color:#888;">${m.tags_matched.map(safe).join(' · ')}</div>` : ''}
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;text-align:right;">
+        Ronda ${m.round} · Mesa ${safe(m.table_label)}
+      </td>
+    </tr>`).join('');
+
+  const myEbvBlock = myEbv && myEbv.sum ? `
+    <div style="margin:0 0 20px;padding:16px 18px;background:#faf5ff;border-left:3px solid #a855f7;border-radius:4px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Tus cifras privadas</div>
+      <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(myEbv.sum)}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">Potencial estimado por ti en ${myEbv.filled} de ${meetings.length} reuniones. Solo tú ves este valor.</div>
+    </div>` : '';
+
+  const aggBlock = aggregate ? `
+    <div style="margin:0 0 20px;padding:16px 18px;background:#f9fafb;border-radius:6px;">
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Agregado anónimo del evento</div>
+      <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(aggregate.total_estimated)}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">
+        ${aggregate.with_ebv} de ${aggregate.total_meetings} reuniones aportaron cifra
+        ${aggregate.referential ? ' · <strong style="color:#c2410c;">cifra referencial, muestra insuficiente</strong>' : ''}.
+      </div>
+    </div>` : '';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Resumen de tu rueda
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, estas son las empresas con las que
+      <strong style="color:#0f0f0f;">${safe(companyName)}</strong> se reunió en <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
+      Los próximos pasos están en tus manos.
+    </p>
+    ${myEbvBlock}
+    ${aggBlock}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
+      ${meetingRows || '<tr><td style="padding:16px;text-align:center;color:#888;font-size:13px;">No se registraron reuniones.</td></tr>'}
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver detalle completo
+        </a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
+      Guarda este correo: contiene los contactos de las empresas con las que te reuniste.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Resumen de tu rueda — ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN event-summary enviado a ${to}`);
+}
+
+// ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO PRODUCTOR (E-RN-6b · D-RN-9) ──
+async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics, top, reportUrl }) {
+  if (!to) return;
+  const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+
+  const metricCard = (label, value) => `
+    <td width="33%" style="padding:14px 10px;background:#f9fafb;border-radius:6px;text-align:center;">
+      <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${label}</div>
+      <div style="font-size:18px;font-weight:800;color:#0f0f0f;">${value}</div>
+    </td>`;
+
+  const topRows = (top || []).slice(0, 10).map((m, i) => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;width:32px;">${i+1}.</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;">
+        <strong>${safe(m.company_a)}</strong> ↔ <strong>${safe(m.company_b)}</strong>
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#0f0f0f;text-align:right;font-weight:700;">
+        COP $${fmtMoney(m.value)}
+      </td>
+    </tr>`).join('');
+
+  const refFlag = metrics.referential
+    ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff7ed;border-left:3px solid #c2410c;border-radius:4px;font-size:12px;color:#9a3412;">
+         Cobertura ${(metrics.coverage*100).toFixed(0)}% &mdash; las cifras EBV son <strong>referenciales</strong> (muestra insuficiente, &lt;20%).
+       </div>` : '';
+
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
+      Resumen de la rueda
+    </h1>
+    <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
+      Hola <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, cierre de
+      <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
+    </p>
+    ${refFlag}
+    <table width="100%" cellpadding="0" cellspacing="6" style="margin:0 0 20px;">
+      <tr>
+        ${metricCard('Reuniones', metrics.total)}
+        ${metricCard('Con EBV', `${metrics.with_ebv} <span style="font-size:12px;color:#888;">(${(metrics.coverage*100).toFixed(0)}%)</span>`)}
+        ${metricCard('Agregado', `COP $${fmtMoney(metrics.total_estimated)}`)}
+      </tr>
+    </table>
+    ${top && top.length ? `
+    <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Top reuniones por potencial</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
+      ${topRows}
+    </table>` : ''}
+    ${reportUrl ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+      <tr><td align="center">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          Ver reporte completo
+        </a>
+      </td></tr>
+    </table>` : ''}
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
+      Agregado calculado con semántica D-RN-15: valor por reunión = promedio bilateral o lado único.
+      Nunca se suma lado A + lado B.
+    </p>
+  `, { tagline: 'Rueda de Negocios' });
+
+  await transporter.sendMail({
+    from: FROM, to,
+    subject: `Resumen de la rueda — ${eventName}`,
+    html,
+  });
+  console.log(`✅ RN producer-summary enviado a ${to}`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, verifyConnection };

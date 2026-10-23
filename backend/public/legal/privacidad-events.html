@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Política de Tratamiento de Datos — SONORO CMS Events</title>
+<meta name="description" content="Política de tratamiento de datos personales del módulo de Gestión de Eventos de SONORO CMS. SONORO AV SAS actúa como Encargado del Tratamiento.">
+<style>
+  :root{
+    --bg:#0A0A0F; --surface:#13131A; --border:#2A2A35;
+    --text:#F5F5F7; --muted:#9A9AAD;
+    --magenta:#FF1B8D; --orange:#FF8C00;
+    --radius:14px;
+  }
+  [data-theme="light"]{
+    --bg:#FAFAFA; --surface:#FFFFFF; --border:#E5E5EA;
+    --text:#1D1D1F; --muted:#6E6E73;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--text);
+    line-height:1.65; font-size:15px;
+    padding:0 20px 80px;
+  }
+  .wrap{max-width:820px;margin:0 auto}
+  header.top{
+    padding:40px 0 24px; border-bottom:1px solid var(--border);
+    margin-bottom:32px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  }
+  .brand{font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
+  h1{font-size:28px; font-weight:700; letter-spacing:-0.3px; margin-bottom:8px}
+  .sub{color:var(--muted); font-size:14px}
+  .meta{
+    display:flex; flex-wrap:wrap; gap:16px 24px;
+    margin:24px 0; padding:16px 20px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    font-size:13px;
+  }
+  .meta div{display:flex;flex-direction:column;gap:2px}
+  .meta .k{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.5px}
+  .meta .v{color:var(--text); font-weight:500}
+  h2{font-size:19px; font-weight:600; margin:36px 0 12px; letter-spacing:-0.2px}
+  h2 .num{color:var(--magenta); margin-right:8px; font-weight:700}
+  h3{font-size:15px; font-weight:600; margin:20px 0 8px; color:var(--text)}
+  p{margin:0 0 12px; color:var(--text)}
+  p.lead{color:var(--muted)}
+  ul,ol{margin:0 0 12px 20px}
+  li{margin-bottom:6px}
+  a{color:var(--magenta); text-decoration:none}
+  a:hover{text-decoration:underline}
+  table{
+    width:100%; border-collapse:collapse; margin:12px 0 20px;
+    font-size:13px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;
+  }
+  th,td{padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top}
+  th{background:rgba(255,27,141,0.06); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  .callout{
+    padding:16px 20px; margin:16px 0;
+    background:var(--surface); border:1px solid var(--border);
+    border-left:3px solid var(--magenta); border-radius:var(--radius);
+    font-size:14px;
+  }
+  .callout strong{color:var(--text)}
+  footer{margin-top:48px; padding-top:24px; border-top:1px solid var(--border); color:var(--muted); font-size:12px}
+  footer a{color:var(--muted); text-decoration:underline}
+  .top-tools{display:flex; gap:6px}
+  .top-tools button{
+    background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:8px;
+    padding:6px 10px; font-size:12px; cursor:pointer;
+  }
+  .top-tools button.active{border-color:var(--magenta); color:var(--magenta)}
+  .toc{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 20px; margin:0 0 24px; font-size:13px;
+  }
+  .toc h4{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px; font-weight:600}
+  .toc ol{margin:0 0 0 20px; columns:2; column-gap:24px}
+  .toc li{margin-bottom:4px; break-inside:avoid}
+  .toc a{color:var(--text)}
+  @media (max-width:640px){
+    .toc ol{columns:1}
+    h1{font-size:22px}
+    header.top{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <div class="brand">SONORO CMS · Events</div>
+    <h1 data-i18n-es="Política de Tratamiento de Datos Personales"
+        data-i18n-en="Personal Data Processing Policy"
+        data-i18n-pt="Política de Tratamento de Dados Pessoais">Política de Tratamiento de Datos Personales</h1>
+    <div class="sub"
+         data-i18n-es="Módulo de Gestión de Eventos — SONORO AV SAS"
+         data-i18n-en="Event Management Module — SONORO AV SAS"
+         data-i18n-pt="Módulo de Gestão de Eventos — SONORO AV SAS">Módulo de Gestión de Eventos — SONORO AV SAS</div>
+  </div>
+  <div class="top-tools">
+    <button id="btn-theme" onclick="toggleTheme()" title="Tema">◐</button>
+    <button onclick="setLang('es')" id="lang-es" class="active">ES</button>
+    <button onclick="setLang('en')" id="lang-en">EN</button>
+    <button onclick="setLang('pt')" id="lang-pt">PT</button>
+  </div>
+</header>
+
+<div class="meta">
+  <div><span class="k" data-i18n-es="Versión" data-i18n-en="Version" data-i18n-pt="Versão">Versión</span><span class="v">1.0</span></div>
+  <div><span class="k" data-i18n-es="Fecha" data-i18n-en="Date" data-i18n-pt="Data">Fecha</span><span class="v">2026-10-23</span></div>
+  <div><span class="k" data-i18n-es="Vigencia" data-i18n-en="Effective period" data-i18n-pt="Vigência">Vigencia</span>
+       <span class="v" data-i18n-es="Indefinida" data-i18n-en="Indefinite" data-i18n-pt="Indefinida">Indefinida</span></div>
+  <div><span class="k" data-i18n-es="Rol SONORO" data-i18n-en="SONORO role" data-i18n-pt="Papel SONORO">Rol SONORO</span>
+       <span class="v" data-i18n-es="Encargado del Tratamiento" data-i18n-en="Data Processor" data-i18n-pt="Operador do Tratamento">Encargado del Tratamiento</span></div>
+</div>
+
+<p class="lead"
+   data-i18n-es='Esta política extiende el marco general de protección de datos de SONORO AV SAS para cubrir las particularidades del módulo <strong>Gestión de Eventos (Events v1)</strong> de SONORO CMS. No reemplaza la política marco; la complementa.'
+   data-i18n-en='This policy extends the general data protection framework of SONORO AV SAS to cover the specifics of the <strong>Event Management (Events v1)</strong> module of SONORO CMS. It does not replace the master policy; it complements it.'
+   data-i18n-pt='Esta política estende o marco geral de proteção de dados da SONORO AV SAS para cobrir as particularidades do módulo <strong>Gestão de Eventos (Events v1)</strong> do SONORO CMS. Não substitui a política principal; a complementa.'>Esta política extiende el marco general de protección de datos de SONORO AV SAS para cubrir las particularidades del módulo <strong>Gestión de Eventos (Events v1)</strong> de SONORO CMS. No reemplaza la política marco; la complementa.</p>
+
+<div class="toc">
+  <h4 data-i18n-es="Contenido" data-i18n-en="Contents" data-i18n-pt="Conteúdo">Contenido</h4>
+  <ol>
+    <li><a href="#s1" data-i18n-es="Identificación" data-i18n-en="Identification" data-i18n-pt="Identificação">Identificación</a></li>
+    <li><a href="#s2" data-i18n-es="Marco legal" data-i18n-en="Legal framework" data-i18n-pt="Marco legal">Marco legal</a></li>
+    <li><a href="#s3" data-i18n-es="Alcance del módulo" data-i18n-en="Module scope" data-i18n-pt="Alcance do módulo">Alcance del módulo</a></li>
+    <li><a href="#s4" data-i18n-es="Dualidad de roles" data-i18n-en="Dual roles" data-i18n-pt="Dualidade de papéis">Dualidad de roles</a></li>
+    <li><a href="#s5" data-i18n-es="Bases de datos" data-i18n-en="Databases" data-i18n-pt="Bases de dados">Bases de datos</a></li>
+    <li><a href="#s6" data-i18n-es="Finalidades" data-i18n-en="Purposes" data-i18n-pt="Finalidades">Finalidades</a></li>
+    <li><a href="#s7" data-i18n-es="Consentimiento" data-i18n-en="Consent" data-i18n-pt="Consentimento">Consentimiento</a></li>
+    <li><a href="#s8" data-i18n-es="Transferencias" data-i18n-en="Transfers" data-i18n-pt="Transferências">Transferencias</a></li>
+    <li><a href="#s9" data-i18n-es="Derechos ARCO" data-i18n-en="Data subject rights" data-i18n-pt="Direitos do titular">Derechos ARCO</a></li>
+    <li><a href="#s10" data-i18n-es="Seguridad" data-i18n-en="Security" data-i18n-pt="Segurança">Seguridad</a></li>
+    <li><a href="#s11" data-i18n-es="Incidentes" data-i18n-en="Incidents" data-i18n-pt="Incidentes">Incidentes</a></li>
+    <li><a href="#s12" data-i18n-es="Conservación" data-i18n-en="Retention" data-i18n-pt="Retenção">Conservación</a></li>
+    <li><a href="#s13" data-i18n-es="Deberes del organizador" data-i18n-en="Organizer duties" data-i18n-pt="Deveres do organizador">Deberes del organizador</a></li>
+    <li><a href="#s14" data-i18n-es="Revisión" data-i18n-en="Review" data-i18n-pt="Revisão">Revisión</a></li>
+  </ol>
+</div>
+
+<h2 id="s1"><span class="num">1.</span><span data-i18n-es="Identificación" data-i18n-en="Identification" data-i18n-pt="Identificação">Identificación</span></h2>
+<table>
+  <tr><th data-i18n-es="Razón social" data-i18n-en="Legal name" data-i18n-pt="Razão social">Razón social</th><td>SONORO AV SAS</td></tr>
+  <tr><th>NIT</th><td>901.641.013-4</td></tr>
+  <tr><th data-i18n-es="Domicilio" data-i18n-en="Address" data-i18n-pt="Endereço">Domicilio</th><td>Carrera 18 # 29 Norte - 10, Armenia, Quindío, Colombia</td></tr>
+  <tr><th data-i18n-es="Sitio web" data-i18n-en="Website" data-i18n-pt="Site">Sitio web</th><td>https://sonoro.com.co · https://cms.sonoro.com.co</td></tr>
+  <tr><th data-i18n-es="Producto" data-i18n-en="Product" data-i18n-pt="Produto">Producto</th><td>SONORO CMS (módulo Events v1)</td></tr>
+  <tr><th data-i18n-es="Rol" data-i18n-en="Role" data-i18n-pt="Papel">Rol</th>
+      <td data-i18n-es='<strong>Encargado del Tratamiento</strong> (procesa datos en nombre del organizador del evento)'
+          data-i18n-en='<strong>Data Processor</strong> (processes data on behalf of the event organizer)'
+          data-i18n-pt='<strong>Operador do Tratamento</strong> (processa dados em nome do organizador do evento)'><strong>Encargado del Tratamiento</strong> (procesa datos en nombre del organizador del evento)</td></tr>
+</table>
+
+<h3 data-i18n-es="Oficial de Protección de Datos — producto SONORO CMS"
+    data-i18n-en="Data Protection Officer — SONORO CMS product"
+    data-i18n-pt="Encarregado de Proteção de Dados — produto SONORO CMS">Oficial de Protección de Datos — producto SONORO CMS</h3>
+<table>
+  <tr><th data-i18n-es="Nombre" data-i18n-en="Name" data-i18n-pt="Nome">Nombre</th><td>Daniel E. Pulgarín</td></tr>
+  <tr><th data-i18n-es="Correo" data-i18n-en="Email" data-i18n-pt="E-mail">Correo</th><td><a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a></td></tr>
+  <tr><th data-i18n-es="Teléfono" data-i18n-en="Phone" data-i18n-pt="Telefone">Teléfono</th><td>+57 314 446 0990</td></tr>
+  <tr><th data-i18n-es="Horario" data-i18n-en="Hours" data-i18n-pt="Horário">Horario</th>
+      <td data-i18n-es="Lunes a viernes, 8:00 a.m. – 6:00 p.m."
+          data-i18n-en="Monday to Friday, 8:00 a.m. – 6:00 p.m."
+          data-i18n-pt="Segunda a sexta, 8h – 18h">Lunes a viernes, 8:00 a.m. – 6:00 p.m.</td></tr>
+</table>
+
+<div class="callout"
+     data-i18n-es='<strong>Nota:</strong> el OPD institucional de SONORO AV SAS (Julián Andrés Carmona Serrato — <a href="mailto:desarrollo@sonoro.com.co">desarrollo@sonoro.com.co</a>) mantiene su rol general. El OPD designado arriba es específico para solicitudes relacionadas con el producto SONORO CMS.'
+     data-i18n-en='<strong>Note:</strong> the institutional DPO of SONORO AV SAS (Julián Andrés Carmona Serrato — <a href="mailto:desarrollo@sonoro.com.co">desarrollo@sonoro.com.co</a>) retains the general role. The DPO designated above handles requests specific to the SONORO CMS product.'
+     data-i18n-pt='<strong>Observação:</strong> o DPO institucional da SONORO AV SAS (Julián Andrés Carmona Serrato — <a href="mailto:desarrollo@sonoro.com.co">desarrollo@sonoro.com.co</a>) mantém seu papel geral. O DPO designado acima trata solicitações específicas do produto SONORO CMS.'>
+<strong>Nota:</strong> el OPD institucional de SONORO AV SAS (Julián Andrés Carmona Serrato — <a href="mailto:desarrollo@sonoro.com.co">desarrollo@sonoro.com.co</a>) mantiene su rol general. El OPD designado arriba es específico para solicitudes relacionadas con el producto SONORO CMS.
+</div>
+
+<h2 id="s2"><span class="num">2.</span><span data-i18n-es="Marco legal" data-i18n-en="Legal framework" data-i18n-pt="Marco legal">Marco legal</span></h2>
+<ul>
+  <li data-i18n-es="Ley 1581 de 2012 — Régimen General de Protección de Datos Personales."
+      data-i18n-en="Law 1581 of 2012 — Colombian General Personal Data Protection Act."
+      data-i18n-pt="Lei 1581 de 2012 — Regime Geral Colombiano de Proteção de Dados Pessoais.">Ley 1581 de 2012 — Régimen General de Protección de Datos Personales.</li>
+  <li data-i18n-es="Decreto 1377 de 2013 — Reglamentario parcial."
+      data-i18n-en="Decree 1377 of 2013 — Partial regulation."
+      data-i18n-pt="Decreto 1377 de 2013 — Regulamentação parcial.">Decreto 1377 de 2013 — Reglamentario parcial.</li>
+  <li data-i18n-es="Decreto 1074 de 2015 — Único reglamentario del sector comercio."
+      data-i18n-en="Decree 1074 of 2015 — Single commerce-sector regulation."
+      data-i18n-pt="Decreto 1074 de 2015 — Regulamentação única do setor comercial.">Decreto 1074 de 2015 — Único reglamentario del sector comercio.</li>
+  <li data-i18n-es="Decreto 255 de 2022."
+      data-i18n-en="Decree 255 of 2022."
+      data-i18n-pt="Decreto 255 de 2022.">Decreto 255 de 2022.</li>
+  <li data-i18n-es="Circulares vigentes de la Superintendencia de Industria y Comercio (SIC)."
+      data-i18n-en="Current circulars from the Superintendence of Industry and Commerce (SIC)."
+      data-i18n-pt="Circulares vigentes da Superintendência de Indústria e Comércio (SIC).">Circulares vigentes de la Superintendencia de Industria y Comercio (SIC).</li>
+</ul>
+
+<h2 id="s3"><span class="num">3.</span><span data-i18n-es="Alcance del módulo Events v1" data-i18n-en="Scope of the Events v1 module" data-i18n-pt="Alcance do módulo Events v1">Alcance del módulo Events v1</span></h2>
+<p data-i18n-es="El módulo gestiona los siguientes flujos:"
+   data-i18n-en="The module manages the following flows:"
+   data-i18n-pt="O módulo gerencia os seguintes fluxos:">El módulo gestiona los siguientes flujos:</p>
+<ol>
+  <li data-i18n-es="Creación y configuración de eventos por parte del organizador."
+      data-i18n-en="Event creation and configuration by the organizer."
+      data-i18n-pt="Criação e configuração de eventos pelo organizador.">Creación y configuración de eventos por parte del organizador.</li>
+  <li data-i18n-es="Registro público de asistentes mediante formulario web."
+      data-i18n-en="Public attendee registration via web form."
+      data-i18n-pt="Registro público de participantes via formulário web.">Registro público de asistentes mediante formulario web.</li>
+  <li data-i18n-es="Control de acceso con código QR y check-in multi-día."
+      data-i18n-en="QR-based access control and multi-day check-in."
+      data-i18n-pt="Controle de acesso por código QR e check-in multi-dia.">Control de acceso con código QR y check-in multi-día.</li>
+  <li data-i18n-es="Rueda de Negocios (matchmaking B2B) por tags de oferta/demanda."
+      data-i18n-en="Business Round (B2B matchmaking) based on offer/demand tags."
+      data-i18n-pt="Rodada de Negócios (matchmaking B2B) por tags de oferta/demanda.">Rueda de Negocios (matchmaking B2B) por tags de oferta/demanda.</li>
+  <li data-i18n-es="Pantallas informativas del evento."
+      data-i18n-en="Event information screens."
+      data-i18n-pt="Telas informativas do evento.">Pantallas informativas del evento.</li>
+  <li data-i18n-es="Comunicaciones automáticas por correo (confirmación, recordatorio, reporte)."
+      data-i18n-en="Automated email communications (confirmation, reminder, report)."
+      data-i18n-pt="Comunicações automáticas por e-mail (confirmação, lembrete, relatório).">Comunicaciones automáticas por correo (confirmación, recordatorio, reporte).</li>
+  <li data-i18n-es="Certificados de asistencia generados post-evento."
+      data-i18n-en="Attendance certificates generated post-event."
+      data-i18n-pt="Certificados de presença gerados pós-evento.">Certificados de asistencia generados post-evento.</li>
+  <li data-i18n-es="Reportes agregados para el organizador."
+      data-i18n-en="Aggregate reports for the organizer."
+      data-i18n-pt="Relatórios agregados para o organizador.">Reportes agregados para el organizador.</li>
+</ol>
+
+<h2 id="s4"><span class="num">4.</span><span data-i18n-es="Dualidad de roles" data-i18n-en="Dual roles" data-i18n-pt="Dualidade de papéis">Dualidad de roles</span></h2>
+<table>
+  <tr>
+    <th data-i18n-es="Flujo" data-i18n-en="Flow" data-i18n-pt="Fluxo">Flujo</th>
+    <th data-i18n-es="Responsable" data-i18n-en="Controller" data-i18n-pt="Controlador">Responsable</th>
+    <th data-i18n-es="Encargado" data-i18n-en="Processor" data-i18n-pt="Operador">Encargado</th>
+  </tr>
+  <tr>
+    <td data-i18n-es="Datos del asistente (nombre, correo, empresa, tags, etc.)"
+        data-i18n-en="Attendee data (name, email, company, tags, etc.)"
+        data-i18n-pt="Dados do participante (nome, e-mail, empresa, tags, etc.)">Datos del asistente (nombre, correo, empresa, tags, etc.)</td>
+    <td data-i18n-es='El <strong>organizador del evento</strong> (razón social y NIT capturados en el setup)'
+        data-i18n-en='The <strong>event organizer</strong> (legal name and tax ID captured in setup)'
+        data-i18n-pt='O <strong>organizador do evento</strong> (razão social e CNPJ/ID fiscal capturados no setup)'>El <strong>organizador del evento</strong> (razón social y NIT capturados en el setup)</td>
+    <td data-i18n-es="SONORO AV SAS a través de SONORO CMS"
+        data-i18n-en="SONORO AV SAS through SONORO CMS"
+        data-i18n-pt="SONORO AV SAS através do SONORO CMS">SONORO AV SAS a través de SONORO CMS</td>
+  </tr>
+  <tr>
+    <td data-i18n-es="Datos del organizador como usuario de la plataforma"
+        data-i18n-en="Organizer's data as platform user"
+        data-i18n-pt="Dados do organizador como usuário da plataforma">Datos del organizador como usuario de la plataforma</td>
+    <td>SONORO AV SAS</td>
+    <td>—</td>
+  </tr>
+</table>
+<div class="callout"
+     data-i18n-es='La autorización del asistente al momento del registro se dirige al <strong>organizador</strong> (Responsable). SONORO AV SAS aparece explícitamente como <strong>Encargado</strong>.'
+     data-i18n-en='The attendee authorization at registration is addressed to the <strong>organizer</strong> (Controller). SONORO AV SAS appears explicitly as <strong>Processor</strong>.'
+     data-i18n-pt='A autorização do participante no momento do registro é dirigida ao <strong>organizador</strong> (Controlador). A SONORO AV SAS aparece explicitamente como <strong>Operador</strong>.'>La autorización del asistente al momento del registro se dirige al <strong>organizador</strong> (Responsable). SONORO AV SAS aparece explícitamente como <strong>Encargado</strong>.</div>
+
+<h2 id="s5"><span class="num">5.</span><span data-i18n-es="Bases de datos del módulo" data-i18n-en="Module databases" data-i18n-pt="Bases de dados do módulo">Bases de datos del módulo</span></h2>
+<table>
+  <tr>
+    <th>ID</th>
+    <th data-i18n-es="Nombre" data-i18n-en="Name" data-i18n-pt="Nome">Nombre</th>
+    <th data-i18n-es="Retención" data-i18n-en="Retention" data-i18n-pt="Retenção">Retención</th>
+  </tr>
+  <tr><td>BD-CMS-E-001</td>
+      <td data-i18n-es="Asistentes a eventos" data-i18n-en="Event attendees" data-i18n-pt="Participantes de eventos">Asistentes a eventos</td>
+      <td data-i18n-es="Fin del evento + 24 meses" data-i18n-en="Event end + 24 months" data-i18n-pt="Fim do evento + 24 meses">Fin del evento + 24 meses</td></tr>
+  <tr><td>BD-CMS-E-002</td>
+      <td data-i18n-es="Registros de check-in" data-i18n-en="Check-in records" data-i18n-pt="Registros de check-in">Registros de check-in</td>
+      <td data-i18n-es="Fin del evento + 90 días" data-i18n-en="Event end + 90 days" data-i18n-pt="Fim do evento + 90 dias">Fin del evento + 90 días</td></tr>
+  <tr><td>BD-CMS-E-003</td>
+      <td data-i18n-es="Delegados y agenda Rueda de Negocios" data-i18n-en="Business Round delegates and agenda" data-i18n-pt="Delegados e agenda da Rodada de Negócios">Delegados y agenda Rueda de Negocios</td>
+      <td data-i18n-es="Fin del evento + 12 meses" data-i18n-en="Event end + 12 months" data-i18n-pt="Fim do evento + 12 meses">Fin del evento + 12 meses</td></tr>
+  <tr><td>BD-CMS-E-004</td>
+      <td data-i18n-es="Certificados de asistencia" data-i18n-en="Attendance certificates" data-i18n-pt="Certificados de presença">Certificados de asistencia</td>
+      <td data-i18n-es="5 años desde emisión" data-i18n-en="5 years from issuance" data-i18n-pt="5 anos a partir da emissão">5 años desde emisión</td></tr>
+  <tr><td>BD-CMS-E-005</td>
+      <td data-i18n-es="Reportes y métricas post-evento" data-i18n-en="Post-event reports and metrics" data-i18n-pt="Relatórios e métricas pós-evento">Reportes y métricas post-evento</td>
+      <td data-i18n-es="Fin del evento + 24 meses" data-i18n-en="Event end + 24 months" data-i18n-pt="Fim do evento + 24 meses">Fin del evento + 24 meses</td></tr>
+</table>
+
+<h2 id="s6"><span class="num">6.</span><span data-i18n-es="Finalidades del tratamiento" data-i18n-en="Processing purposes" data-i18n-pt="Finalidades do tratamento">Finalidades del tratamiento</span></h2>
+<ol>
+  <li data-i18n-es="Procesar la inscripción del asistente al evento."
+      data-i18n-en="Process the attendee's event registration."
+      data-i18n-pt="Processar a inscrição do participante no evento.">Procesar la inscripción del asistente al evento.</li>
+  <li data-i18n-es="Generar y validar códigos QR para control de acceso."
+      data-i18n-en="Generate and validate QR codes for access control."
+      data-i18n-pt="Gerar e validar códigos QR para controle de acesso.">Generar y validar códigos QR para control de acceso.</li>
+  <li data-i18n-es="Registrar entrada, salida y permanencia (incluyendo eventos multi-día)."
+      data-i18n-en="Record entry, exit and attendance time (including multi-day events)."
+      data-i18n-pt="Registrar entrada, saída e permanência (incluindo eventos multi-dia).">Registrar entrada, salida y permanencia (incluyendo eventos multi-día).</li>
+  <li data-i18n-es="Facilitar comunicaciones del organizador al asistente (confirmación, recordatorios, cambios, resultados)."
+      data-i18n-en="Enable communications from the organizer to attendees (confirmation, reminders, changes, results)."
+      data-i18n-pt="Facilitar comunicações do organizador ao participante (confirmação, lembretes, mudanças, resultados).">Facilitar comunicaciones del organizador al asistente (confirmación, recordatorios, cambios, resultados).</li>
+  <li data-i18n-es="Facilitar matchmaking B2B (Rueda de Negocios): emparejar por afinidad de oferta/demanda y agendar reuniones físicas. <strong>El módulo no comparte ni intercambia correos personales, teléfonos u otros datos de contacto directo entre asistentes.</strong> La contraparte agendada se identifica únicamente por nombre, empresa y cargo."
+      data-i18n-en="Enable B2B matchmaking (Business Round): pair attendees by offer/demand affinity and schedule physical meetings. <strong>The module does not share or exchange personal emails, phone numbers or other direct contact data between attendees.</strong> The scheduled counterpart is identified solely by name, company and job title."
+      data-i18n-pt="Facilitar matchmaking B2B (Rodada de Negócios): emparelhar por afinidade de oferta/demanda e agendar reuniões físicas. <strong>O módulo não compartilha nem troca e-mails pessoais, telefones ou outros dados de contato direto entre participantes.</strong> A contraparte agendada é identificada apenas por nome, empresa e cargo.">Facilitar matchmaking B2B (Rueda de Negocios): emparejar por afinidad de oferta/demanda y agendar reuniones físicas. <strong>El módulo no comparte ni intercambia correos personales, teléfonos u otros datos de contacto directo entre asistentes.</strong> La contraparte agendada se identifica únicamente por nombre, empresa y cargo.</li>
+  <li data-i18n-es="Emitir y conservar certificados digitales de asistencia."
+      data-i18n-en="Issue and retain digital attendance certificates."
+      data-i18n-pt="Emitir e conservar certificados digitais de presença.">Emitir y conservar certificados digitales de asistencia.</li>
+  <li data-i18n-es="Generar reportes agregados (asistencia, EBV estimado, cobertura sectorial, procedencia geográfica)."
+      data-i18n-en="Generate aggregate reports (attendance, estimated EBV, sector coverage, geographic origin)."
+      data-i18n-pt="Gerar relatórios agregados (presença, EBV estimado, cobertura setorial, procedência geográfica).">Generar reportes agregados (asistencia, EBV estimado, cobertura sectorial, procedencia geográfica).</li>
+  <li data-i18n-es="Dar cumplimiento a obligaciones contractuales entre SONORO AV SAS y el organizador."
+      data-i18n-en="Comply with contractual obligations between SONORO AV SAS and the organizer."
+      data-i18n-pt="Cumprir obrigações contratuais entre a SONORO AV SAS e o organizador.">Dar cumplimiento a obligaciones contractuales entre SONORO AV SAS y el organizador.</li>
+  <li data-i18n-es="Atender auditorías y requerimientos de autoridades competentes."
+      data-i18n-en="Address audits and requests from competent authorities."
+      data-i18n-pt="Atender auditorias e requerimentos de autoridades competentes.">Atender auditorías y requerimientos de autoridades competentes.</li>
+</ol>
+
+<h2 id="s7"><span class="num">7.</span><span data-i18n-es="Consentimiento del asistente" data-i18n-en="Attendee consent" data-i18n-pt="Consentimento do participante">Consentimiento del asistente</span></h2>
+<p data-i18n-es='El consentimiento es <strong>previo, expreso e informado</strong>. Al registrarse al evento, el asistente visualiza y acepta un texto que:'
+   data-i18n-en='Consent is <strong>prior, express and informed</strong>. When registering for the event, the attendee views and accepts a text that:'
+   data-i18n-pt='O consentimento é <strong>prévio, expresso e informado</strong>. Ao se registrar no evento, o participante visualiza e aceita um texto que:'>El consentimiento es <strong>previo, expreso e informado</strong>. Al registrarse al evento, el asistente visualiza y acepta un texto que:</p>
+<ul>
+  <li data-i18n-es="Identifica al organizador como Responsable (razón social, NIT)."
+      data-i18n-en="Identifies the organizer as Controller (legal name, tax ID)."
+      data-i18n-pt="Identifica o organizador como Controlador (razão social, ID fiscal).">Identifica al organizador como Responsable (razón social, NIT).</li>
+  <li data-i18n-es="Identifica a SONORO AV SAS como Encargado."
+      data-i18n-en="Identifies SONORO AV SAS as Processor."
+      data-i18n-pt="Identifica a SONORO AV SAS como Operador.">Identifica a SONORO AV SAS como Encargado.</li>
+  <li data-i18n-es="Enumera las finalidades aplicables al evento."
+      data-i18n-en="Lists the purposes applicable to the event."
+      data-i18n-pt="Enumera as finalidades aplicáveis ao evento.">Enumera las finalidades aplicables al evento.</li>
+  <li data-i18n-es="Si aplica Rueda de Negocios, informa explícitamente que la plataforma no comparte datos de contacto directo entre asistentes."
+      data-i18n-en="If Business Round applies, explicitly states that the platform does not share direct contact data between attendees."
+      data-i18n-pt="Se aplica Rodada de Negócios, informa explicitamente que a plataforma não compartilha dados de contato direto entre participantes.">Si aplica Rueda de Negocios, informa explícitamente que la plataforma no comparte datos de contacto directo entre asistentes.</li>
+  <li data-i18n-es="Enlaza a la política del organizador y a esta política."
+      data-i18n-en="Links to the organizer's policy and to this policy."
+      data-i18n-pt="Vincula à política do organizador e a esta política.">Enlaza a la política del organizador y a esta política.</li>
+</ul>
+<p data-i18n-es="Cada consentimiento se audita con: timestamp, IP, versión del texto (hash SHA-256), versión de la política vigente."
+   data-i18n-en="Each consent is audited with: timestamp, IP, text version (SHA-256 hash), and current policy version."
+   data-i18n-pt="Cada consentimento é auditado com: timestamp, IP, versão do texto (hash SHA-256) e versão da política vigente.">Cada consentimiento se audita con: timestamp, IP, versión del texto (hash SHA-256), versión de la política vigente.</p>
+
+<h2 id="s8"><span class="num">8.</span><span data-i18n-es="Transferencias" data-i18n-en="Transfers" data-i18n-pt="Transferências">Transferencias</span></h2>
+
+<h3 data-i18n-es="Entre asistentes (Rueda de Negocios)"
+    data-i18n-en="Between attendees (Business Round)"
+    data-i18n-pt="Entre participantes (Rodada de Negócios)">Entre asistentes (Rueda de Negocios)</h3>
+<p data-i18n-es='<strong>No aplica.</strong> El módulo <strong>no transfiere, intercambia ni expone</strong> datos de contacto directo (correo, teléfono, dirección) entre asistentes. La única información visible sobre la contraparte agendada es <strong>nombre, empresa y cargo</strong>, requeridos exclusivamente para identificarse en el lugar físico del evento. Cualquier intercambio posterior es decisión personal de cada asistente y ocurre fuera de la plataforma.'
+   data-i18n-en='<strong>Not applicable.</strong> The module <strong>does not transfer, exchange or disclose</strong> direct contact data (email, phone, address) between attendees. The only information visible about the scheduled counterpart is <strong>name, company and job title</strong>, required solely to identify each other at the physical venue. Any subsequent exchange is a personal decision by each attendee and occurs outside the platform.'
+   data-i18n-pt='<strong>Não se aplica.</strong> O módulo <strong>não transfere, não troca nem expõe</strong> dados de contato direto (e-mail, telefone, endereço) entre participantes. A única informação visível sobre a contraparte agendada é <strong>nome, empresa e cargo</strong>, exigidos exclusivamente para identificação no local físico do evento. Qualquer troca posterior é decisão pessoal de cada participante e ocorre fora da plataforma.'><strong>No aplica.</strong> El módulo <strong>no transfiere, intercambia ni expone</strong> datos de contacto directo (correo, teléfono, dirección) entre asistentes. La única información visible sobre la contraparte agendada es <strong>nombre, empresa y cargo</strong>, requeridos exclusivamente para identificarse en el lugar físico del evento. Cualquier intercambio posterior es decisión personal de cada asistente y ocurre fuera de la plataforma.</p>
+
+<h3 data-i18n-es="A subencargados de SONORO AV SAS"
+    data-i18n-en="To SONORO AV SAS sub-processors"
+    data-i18n-pt="A suboperadores da SONORO AV SAS">A subencargados de SONORO AV SAS</h3>
+<table>
+  <tr>
+    <th data-i18n-es="Tercero" data-i18n-en="Third party" data-i18n-pt="Terceiro">Tercero</th>
+    <th data-i18n-es="Finalidad" data-i18n-en="Purpose" data-i18n-pt="Finalidade">Finalidad</th>
+  </tr>
+  <tr><td>Servicio SMTP (mail.sonoro.com.co)</td>
+      <td data-i18n-es="Envío de correos transaccionales"
+          data-i18n-en="Transactional email delivery"
+          data-i18n-pt="Envio de e-mails transacionais">Envío de correos transaccionales</td></tr>
+  <tr><td>Google LLC (Calendar API, OAuth)</td>
+      <td data-i18n-es="Sincronización agenda del organizador"
+          data-i18n-en="Organizer calendar sync"
+          data-i18n-pt="Sincronização da agenda do organizador">Sincronización agenda del organizador</td></tr>
+  <tr><td>Microsoft Corporation (Outlook Calendar API, OAuth)</td>
+      <td data-i18n-es="Sincronización agenda del organizador"
+          data-i18n-en="Organizer calendar sync"
+          data-i18n-pt="Sincronização da agenda do organizador">Sincronización agenda del organizador</td></tr>
+  <tr><td data-i18n-es="Proveedor VPS (infraestructura)" data-i18n-en="VPS provider (infrastructure)" data-i18n-pt="Provedor VPS (infraestrutura)">Proveedor VPS (infraestructura)</td>
+      <td data-i18n-es="Alojamiento cifrado en reposo"
+          data-i18n-en="Hosting with encryption at rest"
+          data-i18n-pt="Hospedagem com criptografia em repouso">Alojamiento cifrado en reposo</td></tr>
+</table>
+
+<h2 id="s9"><span class="num">9.</span><span data-i18n-es="Derechos del titular (ARCO)" data-i18n-en="Data subject rights" data-i18n-pt="Direitos do titular">Derechos del titular (ARCO)</span></h2>
+<p data-i18n-es="El titular puede ejercer los derechos de Acceso, Rectificación, Cancelación y Oposición en cualquier momento:"
+   data-i18n-en="The data subject may exercise the rights of Access, Rectification, Erasure and Objection at any time:"
+   data-i18n-pt="O titular pode exercer os direitos de Acesso, Retificação, Eliminação e Oposição a qualquer momento:">El titular puede ejercer los derechos de Acceso, Rectificación, Cancelación y Oposición en cualquier momento:</p>
+<ul>
+  <li data-i18n-es='<strong>Correo:</strong> <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>'
+      data-i18n-en='<strong>Email:</strong> <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>'
+      data-i18n-pt='<strong>E-mail:</strong> <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>'><strong>Correo:</strong> <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a></li>
+  <li data-i18n-es='<strong>Teléfono:</strong> +57 314 446 0990'
+      data-i18n-en='<strong>Phone:</strong> +57 314 446 0990'
+      data-i18n-pt='<strong>Telefone:</strong> +57 314 446 0990'><strong>Teléfono:</strong> +57 314 446 0990</li>
+  <li data-i18n-es='<strong>Horario:</strong> lunes a viernes, 8:00 a.m. – 6:00 p.m.'
+      data-i18n-en='<strong>Hours:</strong> Monday to Friday, 8:00 a.m. – 6:00 p.m.'
+      data-i18n-pt='<strong>Horário:</strong> segunda a sexta, 8h – 18h.'><strong>Horario:</strong> lunes a viernes, 8:00 a.m. – 6:00 p.m.</li>
+</ul>
+<p data-i18n-es='<strong>Plazos:</strong> consultas 10 días hábiles (prorrogables 5); reclamos 15 días hábiles (prorrogables 8).'
+   data-i18n-en='<strong>Deadlines:</strong> inquiries 10 business days (extendable 5); complaints 15 business days (extendable 8).'
+   data-i18n-pt='<strong>Prazos:</strong> consultas 10 dias úteis (prorrogáveis 5); reclamações 15 dias úteis (prorrogáveis 8).'><strong>Plazos:</strong> consultas 10 días hábiles (prorrogables 5); reclamos 15 días hábiles (prorrogables 8).</p>
+
+<h3 data-i18n-es="Casos especiales" data-i18n-en="Special cases" data-i18n-pt="Casos especiais">Casos especiales</h3>
+<table>
+  <tr>
+    <th data-i18n-es="Solicitud" data-i18n-en="Request" data-i18n-pt="Solicitação">Solicitud</th>
+    <th data-i18n-es="Tratamiento" data-i18n-en="Handling" data-i18n-pt="Tratamento">Tratamiento</th>
+  </tr>
+  <tr><td data-i18n-es="Supresión antes del evento" data-i18n-en="Erasure before the event" data-i18n-pt="Eliminação antes do evento">Supresión antes del evento</td>
+      <td data-i18n-es="Se elimina el registro, invalida el QR y se confirma al titular."
+          data-i18n-en="The record is deleted, the QR is invalidated and the subject is notified."
+          data-i18n-pt="O registro é excluído, o QR é invalidado e o titular é notificado.">Se elimina el registro, invalida el QR y se confirma al titular.</td></tr>
+  <tr><td data-i18n-es="Supresión durante el evento" data-i18n-en="Erasure during the event" data-i18n-pt="Eliminação durante o evento">Supresión durante el evento</td>
+      <td data-i18n-es="Se eliminan los datos personales; se conserva anonimizado el check-in por integridad de aforo."
+          data-i18n-en="Personal data is deleted; the check-in record is kept anonymized to preserve attendance integrity."
+          data-i18n-pt="Os dados pessoais são excluídos; o registro de check-in é mantido anonimizado para preservar a integridade da lotação.">Se eliminan los datos personales; se conserva anonimizado el check-in por integridad de aforo.</td></tr>
+  <tr><td data-i18n-es="Supresión posterior con certificado emitido"
+          data-i18n-en="Later erasure when certificate was issued"
+          data-i18n-pt="Eliminação posterior com certificado emitido">Supresión posterior con certificado emitido</td>
+      <td data-i18n-es="El certificado permanece inmutable por auditabilidad; se anonimiza el registro asociado."
+          data-i18n-en="The certificate remains immutable for auditability; the associated record is anonymized."
+          data-i18n-pt="O certificado permanece imutável por auditabilidade; o registro associado é anonimizado.">El certificado permanece inmutable por auditabilidad; se anonimiza el registro asociado.</td></tr>
+  <tr><td data-i18n-es="Oposición al matchmaking" data-i18n-en="Objection to matchmaking" data-i18n-pt="Oposição ao matchmaking">Oposición al matchmaking</td>
+      <td data-i18n-es="Se marca opt-out; el solver no asigna más reuniones y las ya agendadas se cancelan."
+          data-i18n-en="An opt-out flag is set; the solver stops assigning meetings and the already-scheduled ones are cancelled."
+          data-i18n-pt="O opt-out é registrado; o solver não atribui mais reuniões e as já agendadas são canceladas.">Se marca opt-out; el solver no asigna más reuniones y las ya agendadas se cancelan.</td></tr>
+</table>
+
+<h2 id="s10"><span class="num">10.</span><span data-i18n-es="Seguridad" data-i18n-en="Security" data-i18n-pt="Segurança">Seguridad</span></h2>
+<ul>
+  <li data-i18n-es="Los códigos QR <strong>no contienen datos personales en claro</strong>: codifican un token UUID validado server-side."
+      data-i18n-en="QR codes <strong>contain no personal data in cleartext</strong>: they encode a UUID token validated server-side."
+      data-i18n-pt="Os códigos QR <strong>não contêm dados pessoais em texto claro</strong>: codificam um token UUID validado no servidor.">Los códigos QR <strong>no contienen datos personales en claro</strong>: codifican un token UUID validado server-side.</li>
+  <li data-i18n-es="Audit trail de check-in y matchmaking cifrado en reposo."
+      data-i18n-en="Check-in and matchmaking audit trail encrypted at rest."
+      data-i18n-pt="Trilha de auditoria de check-in e matchmaking criptografada em repouso.">Audit trail de check-in y matchmaking cifrado en reposo.</li>
+  <li data-i18n-es="Certificados firmados digitalmente con ID verificable."
+      data-i18n-en="Certificates digitally signed with verifiable ID."
+      data-i18n-pt="Certificados assinados digitalmente com ID verificável.">Certificados firmados digitalmente con ID verificable.</li>
+  <li data-i18n-es="Backups incrementales diarios y completos semanales."
+      data-i18n-en="Daily incremental and weekly full backups."
+      data-i18n-pt="Backups incrementais diários e completos semanais.">Backups incrementales diarios y completos semanales.</li>
+  <li data-i18n-es="Multi-tenancy estricta: cero cruce de datos entre organizadores."
+      data-i18n-en="Strict multi-tenancy: zero data crossing between organizers."
+      data-i18n-pt="Multi-tenancy estrita: zero cruzamento de dados entre organizadores.">Multi-tenancy estricta: cero cruce de datos entre organizadores.</li>
+  <li data-i18n-es="Pruebas de seguridad OWASP anuales sobre los endpoints del módulo."
+      data-i18n-en="Annual OWASP security testing on the module's endpoints."
+      data-i18n-pt="Testes de segurança OWASP anuais sobre os endpoints do módulo.">Pruebas de seguridad OWASP anuales sobre los endpoints del módulo.</li>
+</ul>
+
+<h2 id="s11"><span class="num">11.</span><span data-i18n-es="Gestión de incidentes" data-i18n-en="Incident management" data-i18n-pt="Gestão de incidentes">Gestión de incidentes</span></h2>
+<p data-i18n-es='Aplica el protocolo institucional de SONORO AV SAS. Notificación: <strong>72 horas</strong> al organizador (Responsable), quien evalúa reporte a SIC y a titulares; <strong>24 horas</strong> al OPD del producto por parte del equipo técnico.'
+   data-i18n-en='The institutional SONORO AV SAS protocol applies. Notification: <strong>72 hours</strong> to the organizer (Controller), who assesses reporting to the SIC and to data subjects; <strong>24 hours</strong> to the product DPO from the technical team.'
+   data-i18n-pt='Aplica-se o protocolo institucional da SONORO AV SAS. Notificação: <strong>72 horas</strong> ao organizador (Controlador), que avalia o reporte à SIC e aos titulares; <strong>24 horas</strong> ao DPO do produto pela equipe técnica.'>Aplica el protocolo institucional de SONORO AV SAS. Notificación: <strong>72 horas</strong> al organizador (Responsable), quien evalúa reporte a SIC y a titulares; <strong>24 horas</strong> al OPD del producto por parte del equipo técnico.</p>
+
+<h2 id="s12"><span class="num">12.</span><span data-i18n-es="Conservación y supresión" data-i18n-en="Retention and erasure" data-i18n-pt="Retenção e eliminação">Conservación y supresión</span></h2>
+<p data-i18n-es="Cada base de datos se suprime físicamente según la tabla de la sección 5. El organizador puede solicitar supresión anticipada en cualquier momento vía contrato o canal operativo."
+   data-i18n-en="Each database is physically deleted according to the table in section 5. The organizer may request early erasure at any time via contract or operational channel."
+   data-i18n-pt="Cada base de dados é fisicamente excluída conforme a tabela da seção 5. O organizador pode solicitar eliminação antecipada a qualquer momento via contrato ou canal operacional.">Cada base de datos se suprime físicamente según la tabla de la sección 5. El organizador puede solicitar supresión anticipada en cualquier momento vía contrato o canal operativo.</p>
+
+<h2 id="s13"><span class="num">13.</span><span data-i18n-es="Deberes del organizador (Responsable)" data-i18n-en="Organizer duties (Controller)" data-i18n-pt="Deveres do organizador (Controlador)">Deberes del organizador (Responsable)</span></h2>
+<p data-i18n-es="El organizador que utiliza SONORO CMS Events acepta:"
+   data-i18n-en="The organizer using SONORO CMS Events agrees to:"
+   data-i18n-pt="O organizador que utiliza SONORO CMS Events aceita:">El organizador que utiliza SONORO CMS Events acepta:</p>
+<ul>
+  <li data-i18n-es="Capturar y mantener actualizada su razón social, NIT, correo del OPD y URL de su política en el setup del evento."
+      data-i18n-en="Capture and keep up to date its legal name, tax ID, DPO email and policy URL in the event setup."
+      data-i18n-pt="Capturar e manter atualizados razão social, ID fiscal, e-mail do DPO e URL da sua política no setup do evento.">Capturar y mantener actualizada su razón social, NIT, correo del OPD y URL de su política en el setup del evento.</li>
+  <li data-i18n-es="Garantizar que el consentimiento se obtiene antes de recolectar datos."
+      data-i18n-en="Ensure consent is obtained before collecting data."
+      data-i18n-pt="Garantir que o consentimento é obtido antes da coleta de dados.">Garantizar que el consentimiento se obtiene antes de recolectar datos.</li>
+  <li data-i18n-es="Atender en primer lugar las solicitudes ARCO de sus asistentes."
+      data-i18n-en="Address data subject requests from attendees as first point of contact."
+      data-i18n-pt="Atender em primeiro lugar as solicitações dos titulares (participantes).">Atender en primer lugar las solicitudes ARCO de sus asistentes.</li>
+  <li data-i18n-es="Notificar incidentes a SONORO AV SAS dentro de 24 horas."
+      data-i18n-en="Notify SONORO AV SAS of incidents within 24 hours."
+      data-i18n-pt="Notificar incidentes à SONORO AV SAS em até 24 horas.">Notificar incidentes a SONORO AV SAS dentro de 24 horas.</li>
+  <li data-i18n-es="No subir datos sensibles sin fundamento legal previo."
+      data-i18n-en="Not upload sensitive data without prior legal basis."
+      data-i18n-pt="Não enviar dados sensíveis sem fundamento legal prévio.">No subir datos sensibles sin fundamento legal previo.</li>
+</ul>
+
+<h2 id="s14"><span class="num">14.</span><span data-i18n-es="Revisión y actualización" data-i18n-en="Review and updates" data-i18n-pt="Revisão e atualização">Revisión y actualización</span></h2>
+<p data-i18n-es="Esta política se revisa anualmente por los OPDs, ante cambios normativos, cambios materiales del módulo o incidentes relevantes. El historial de versiones se mantiene en el repositorio documental de SONORO."
+   data-i18n-en="This policy is reviewed annually by the DPOs, upon regulatory changes, material changes to the module, or relevant incidents. The version history is kept in SONORO's document repository."
+   data-i18n-pt="Esta política é revisada anualmente pelos DPOs, diante de mudanças normativas, mudanças materiais do módulo ou incidentes relevantes. O histórico de versões é mantido no repositório documental da SONORO.">Esta política se revisa anualmente por los OPDs, ante cambios normativos, cambios materiales del módulo o incidentes relevantes. El historial de versiones se mantiene en el repositorio documental de SONORO.</p>
+
+<footer>
+  <p>SONORO AV SAS · NIT 901.641.013-4 · Armenia, Quindío, Colombia</p>
+  <p data-i18n-es='Versión 1.0 — publicada 2026-10-23. Para versiones anteriores o inquietudes, escribir a <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>.'
+     data-i18n-en='Version 1.0 — published 2026-10-23. For previous versions or inquiries, write to <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>.'
+     data-i18n-pt='Versão 1.0 — publicada em 2026-10-23. Para versões anteriores ou dúvidas, escrever para <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>.'>Versión 1.0 — publicada 2026-10-23. Para versiones anteriores o inquietudes, escribir a <a href="mailto:cms@sonoro.com.co">cms@sonoro.com.co</a>.</p>
+  <p><a href="/legal/privacidad" data-i18n-es="Política general SONORO AV SAS" data-i18n-en="SONORO AV SAS master policy" data-i18n-pt="Política geral SONORO AV SAS">Política general SONORO AV SAS</a> · <a href="/legal/terminos" data-i18n-es="Términos de uso SONORO CMS" data-i18n-en="SONORO CMS terms of use" data-i18n-pt="Termos de uso SONORO CMS">Términos de uso SONORO CMS</a></p>
+</footer>
+
+</div>
+
+<script>
+  const I18N_KEYS = ['es','en','pt'];
+  const I18N_TITLES = {
+    es: 'Política de Tratamiento de Datos — SONORO CMS Events',
+    en: 'Personal Data Processing Policy — SONORO CMS Events',
+    pt: 'Política de Tratamento de Dados — SONORO CMS Events'
+  };
+  function setLang(l){
+    if (!I18N_KEYS.includes(l)) l = 'es';
+    document.documentElement.lang = l;
+    document.title = I18N_TITLES[l];
+    document.querySelectorAll('[data-i18n-'+l+']').forEach(el=>{
+      const v = el.getAttribute('data-i18n-'+l);
+      if(v == null) return;
+      el.innerHTML = v;
+    });
+    I18N_KEYS.forEach(k=>{
+      const b = document.getElementById('lang-'+k);
+      if(b) b.classList.toggle('active', k===l);
+    });
+    try{ localStorage.setItem('sonoro-lang', l); }catch(e){}
+  }
+  function toggleTheme(){
+    const cur = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    try{ localStorage.setItem('sonoro-theme', next); }catch(e){}
+  }
+  (function init(){
+    try{
+      const t = localStorage.getItem('sonoro-theme');
+      if(t) document.documentElement.setAttribute('data-theme', t);
+      const l = localStorage.getItem('sonoro-lang');
+      if(l) setLang(l);
+    }catch(e){}
+  })();
+</script>
+</body>
+</html>
