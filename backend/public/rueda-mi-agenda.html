@@ -47,6 +47,39 @@
   .nav-card:hover{border-color:var(--magenta)}
   .nav-card .t{font-weight:600;margin-bottom:3px}
   .nav-card .d{color:var(--mute);font-size:12px}
+  .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:14px;overflow-x:auto}
+  .tabs button{flex:1;background:transparent;border:0;color:var(--mute);padding:9px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap}
+  .tabs button.active{background:var(--magenta);color:#fff}
+  .tab{display:none}
+  .tab.active{display:block}
+  input[type=text],input[type=search]{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:14px}
+  input[type=text]:focus,input[type=search]:focus{outline:none;border-color:var(--magenta)}
+  .filters{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:12px}
+  @media (max-width:520px){.filters{grid-template-columns:1fr}}
+  .company-row{display:flex;gap:12px;padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;align-items:flex-start}
+  .company-row .info{flex:1;min-width:0}
+  .company-row .cname{font-weight:600;margin-bottom:3px}
+  .company-row .cpitch{color:var(--mute);font-size:13px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .company-row .cweb{color:var(--mute);font-size:12px}
+  .company-row .cweb a{color:var(--magenta);text-decoration:none}
+  .score-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(255,27,141,.15);border:1px solid var(--magenta);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:600}
+  .pager{display:flex;justify-content:space-between;align-items:center;margin-top:14px;color:var(--mute);font-size:12px;gap:10px}
+  .req-row{padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+  .req-row .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;flex-wrap:wrap}
+  .req-row .co{font-weight:600}
+  .req-row .msg{color:var(--mute);font-size:13px;font-style:italic;margin:6px 0 10px}
+  .status{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+  .status.pending{background:rgba(255,140,0,.2);border:1px solid var(--orange);color:#fed7aa}
+  .status.accepted{background:rgba(34,197,94,.2);border:1px solid var(--ok);color:#bbf7d0}
+  .status.rejected{background:rgba(239,68,68,.2);border:1px solid var(--err);color:#fecaca}
+  .status.expired{background:#2a2a35;border:1px solid var(--border);color:var(--mute)}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:16px}
+  .modal-bg.active{display:flex}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:460px;width:100%}
+  .modal h3{margin:0 0 10px;font-size:17px}
+  .modal textarea{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:14px;min-height:90px;resize:vertical}
+  .modal textarea:focus{outline:none;border-color:var(--magenta)}
+  .empty{text-align:center;padding:40px 20px;color:var(--mute);font-size:13px}
   .footer{text-align:center;color:var(--mute);font-size:11px;margin-top:20px}
 </style>
 </head>
@@ -81,6 +114,14 @@
 
     <div class="alert" id="alertBox"></div>
 
+    <div class="tabs" id="tabs">
+      <button class="active" data-tab="tags" data-i18n-es="Mis tags" data-i18n-en="My tags" data-i18n-pt="Minhas tags">Mis tags</button>
+      <button data-tab="directory" data-i18n-es="Directorio" data-i18n-en="Directory" data-i18n-pt="Diretório">Directorio</button>
+      <button data-tab="requests" data-i18n-es="Mis solicitudes" data-i18n-en="My requests" data-i18n-pt="Minhas solicitações">Mis solicitudes</button>
+      <button data-tab="privacy" data-i18n-es="Privacidad" data-i18n-en="Privacy" data-i18n-pt="Privacidade">Privacidad</button>
+    </div>
+
+    <div class="tab active" data-tab="tags">
     <div class="card" id="tagsCard" style="display:none">
       <p class="section-title" data-i18n-es="Mis tags · Qué busco en la rueda" data-i18n-en="My tags · What I'm looking for" data-i18n-pt="Minhas tags">Mis tags · Qué busco en la rueda</p>
       <label data-i18n-es="Lo que ofrezco" data-i18n-en="What I offer" data-i18n-pt="O que eu ofereço">Lo que ofrezco</label>
@@ -95,29 +136,68 @@
       </div>
     </div>
 
-    <div class="card">
-      <p class="section-title" data-i18n-es="Siguientes pasos" data-i18n-en="Next steps" data-i18n-pt="Próximos passos">Siguientes pasos</p>
-      <div class="nav-grid">
-        <div class="nav-card">
-          <div class="t" data-i18n-es="Directorio de empresas" data-i18n-en="Company directory" data-i18n-pt="Diretório">Directorio de empresas</div>
-          <div class="d" data-i18n-es="Explora quién vendrá a la rueda y solicita reuniones." data-i18n-en="Browse attending companies and request meetings." data-i18n-pt="Explore empresas e solicite reuniões.">Explora quién vendrá a la rueda y solicita reuniones.</div>
-          <div class="d" style="margin-top:4px;color:var(--orange)" data-i18n-es="(próximamente)" data-i18n-en="(coming soon)" data-i18n-pt="(em breve)">(próximamente)</div>
+    </div><!-- /tab tags -->
+
+    <div class="tab" data-tab="directory">
+      <div class="card">
+        <p class="section-title" data-i18n-es="Directorio de empresas" data-i18n-en="Company directory" data-i18n-pt="Diretório de empresas">Directorio de empresas</p>
+        <div class="filters">
+          <input type="search" id="dirQ" placeholder="Buscar empresa o pitch..." data-ph-es="Buscar empresa o pitch..." data-ph-en="Search company or pitch..." data-ph-pt="Buscar empresa ou pitch...">
+          <select id="dirView">
+            <option value="match" data-i18n-es="Mejores matches" data-i18n-en="Best matches" data-i18n-pt="Melhores matches">Mejores matches</option>
+            <option value="all" data-i18n-es="Todas" data-i18n-en="All" data-i18n-pt="Todas">Todas</option>
+          </select>
+          <select id="dirRole">
+            <option value="" data-i18n-es="Cualquier rol" data-i18n-en="Any role" data-i18n-pt="Qualquer papel">Cualquier rol</option>
+            <option value="seller" data-i18n-es="Vendedores" data-i18n-en="Sellers" data-i18n-pt="Vendedores">Vendedores</option>
+            <option value="buyer" data-i18n-es="Compradores" data-i18n-en="Buyers" data-i18n-pt="Compradores">Compradores</option>
+            <option value="both" data-i18n-es="Ambos" data-i18n-en="Both" data-i18n-pt="Ambos">Ambos</option>
+          </select>
         </div>
-        <div class="nav-card">
-          <div class="t" data-i18n-es="Mis reuniones" data-i18n-en="My meetings" data-i18n-pt="Minhas reuniões">Mis reuniones</div>
-          <div class="d" data-i18n-es="Agenda detallada el día del evento." data-i18n-en="Full schedule on event day." data-i18n-pt="Agenda detalhada no dia do evento.">Agenda detallada el día del evento.</div>
-          <div class="d" style="margin-top:4px;color:var(--orange)" data-i18n-es="(próximamente)" data-i18n-en="(coming soon)" data-i18n-pt="(em breve)">(próximamente)</div>
+        <div id="dirList"></div>
+        <div class="pager" id="dirPager" style="display:none">
+          <button class="btn ghost" id="pagerPrev" onclick="dirPage(-1)">←</button>
+          <span id="pagerInfo"></span>
+          <button class="btn ghost" id="pagerNext" onclick="dirPage(1)">→</button>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <p class="section-title" data-i18n-es="Privacidad y oposición (ARCO)" data-i18n-en="Privacy & opt-out (ARCO)" data-i18n-pt="Privacidade (ARCO)">Privacidad y oposición (ARCO)</p>
-      <div class="meta" data-i18n-es="Si prefieres no aparecer en el matchmaking, puedes retirarte sin borrar tu registro." data-i18n-en="If you prefer not to appear in matchmaking, you can opt out without deleting your registration." data-i18n-pt="Se preferir, você pode optar por não participar do matchmaking.">Si prefieres no aparecer en el matchmaking, puedes retirarte sin borrar tu registro.</div>
-      <div class="row">
-        <button class="btn danger" onclick="optOut()" data-i18n-es="Oponerme al matchmaking" data-i18n-en="Opt out of matchmaking" data-i18n-pt="Opor-me ao matchmaking">Oponerme al matchmaking</button>
+    <div class="tab" data-tab="requests">
+      <div class="card">
+        <p class="section-title" data-i18n-es="Mis solicitudes de reunión" data-i18n-en="My meeting requests" data-i18n-pt="Minhas solicitações de reunião">Mis solicitudes de reunión</p>
+        <div class="tabs" style="margin-bottom:12px">
+          <button class="active" data-reqdir="in"  onclick="reqSwitch('in')"  data-i18n-es="Recibidas" data-i18n-en="Received" data-i18n-pt="Recebidas">Recibidas</button>
+          <button data-reqdir="out" onclick="reqSwitch('out')" data-i18n-es="Enviadas"  data-i18n-en="Sent"     data-i18n-pt="Enviadas">Enviadas</button>
+        </div>
+        <div id="reqList"></div>
       </div>
-      <div class="meta" style="margin-top:10px" id="optOutState"></div>
+    </div>
+
+    <div class="tab" data-tab="privacy">
+      <div class="card">
+        <p class="section-title" data-i18n-es="Privacidad y oposición (ARCO)" data-i18n-en="Privacy & opt-out (ARCO)" data-i18n-pt="Privacidade (ARCO)">Privacidad y oposición (ARCO)</p>
+        <div class="meta" data-i18n-es="Si prefieres no aparecer en el matchmaking, puedes retirarte sin borrar tu registro." data-i18n-en="If you prefer not to appear in matchmaking, you can opt out without deleting your registration." data-i18n-pt="Se preferir, você pode optar por não participar do matchmaking.">Si prefieres no aparecer en el matchmaking, puedes retirarte sin borrar tu registro.</div>
+        <div class="row">
+          <button class="btn danger" onclick="optOut()" data-i18n-es="Oponerme al matchmaking" data-i18n-en="Opt out of matchmaking" data-i18n-pt="Opor-me ao matchmaking">Oponerme al matchmaking</button>
+          <a class="btn ghost" id="privLink" target="_blank" rel="noopener" data-i18n-es="Ver política completa" data-i18n-en="View full policy" data-i18n-pt="Ver política completa">Ver política completa</a>
+        </div>
+        <div class="meta" style="margin-top:10px" id="optOutState"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: solicitar reunión -->
+  <div class="modal-bg" id="reqModal">
+    <div class="modal">
+      <h3 id="reqModalTitle" data-i18n-es="Solicitar reunión" data-i18n-en="Request meeting" data-i18n-pt="Solicitar reunião">Solicitar reunión</h3>
+      <div class="meta" id="reqModalTarget" style="margin-bottom:10px"></div>
+      <label data-i18n-es="Mensaje opcional" data-i18n-en="Optional message" data-i18n-pt="Mensagem opcional">Mensaje opcional</label>
+      <textarea id="reqMsg" maxlength="500" placeholder="Hola, nos interesa conversar sobre..." data-ph-es="Hola, nos interesa conversar sobre..." data-ph-en="Hi, we'd like to talk about..." data-ph-pt="Olá, gostaríamos de conversar sobre..."></textarea>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn ghost" onclick="reqCloseModal()" data-i18n-es="Cancelar" data-i18n-en="Cancel" data-i18n-pt="Cancelar">Cancelar</button>
+        <button class="btn" id="reqSendBtn" onclick="reqSend()" data-i18n-es="Enviar solicitud" data-i18n-en="Send request" data-i18n-pt="Enviar solicitação">Enviar solicitud</button>
+      </div>
     </div>
   </div>
 
@@ -134,6 +214,9 @@ function applyLang(){
   document.documentElement.lang = LANG === 'pt' ? 'pt-BR' : LANG;
   document.querySelectorAll('[data-i18n-'+LANG+']').forEach(el=>{
     el.innerHTML = el.getAttribute('data-i18n-'+LANG);
+  });
+  document.querySelectorAll('[data-ph-'+LANG+']').forEach(el=>{
+    el.setAttribute('placeholder', el.getAttribute('data-ph-'+LANG));
   });
   document.getElementById('langSw').querySelectorAll('button').forEach(b=>{
     b.classList.toggle('active', b.dataset.lang === LANG);
@@ -241,7 +324,150 @@ async function optOut(){
   } catch(e){ alertBox('Network error', 'err'); }
 }
 
-applyLang(); load();
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+let activeTab = 'tags';
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-tab]'); if (!b) return;
+  activeTab = b.dataset.tab;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
+  document.querySelectorAll('.tab[data-tab]').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
+  if (activeTab === 'directory' && !dirLoadedOnce) dirLoad();
+  if (activeTab === 'requests'  && !reqLoadedOnce) reqLoad();
+});
+
+// ─── Directorio ───────────────────────────────────────────────────────────────
+let dirLoadedOnce = false, dirCurPage = 1, dirTotal = 0, dirPageSize = 24;
+let dirQT = null;
+['dirQ','dirView','dirRole'].forEach(id => {
+  document.getElementById(id).addEventListener('input', ()=>{
+    clearTimeout(dirQT); dirQT = setTimeout(()=>{ dirCurPage = 1; dirLoad(); }, 300);
+  });
+});
+
+async function dirLoad(){
+  dirLoadedOnce = true;
+  const q = document.getElementById('dirQ').value.trim();
+  const view = document.getElementById('dirView').value;
+  const role = document.getElementById('dirRole').value;
+  const params = new URLSearchParams({ token, view, page: String(dirCurPage) });
+  if (q) params.set('q', q);
+  if (role) params.set('role', role);
+  const list = document.getElementById('dirList');
+  list.innerHTML = '<div class="empty">...</div>';
+  try {
+    const r = await fetch('/api/rn/public/directory/' + encodeURIComponent(ctx.event.slug) + '?' + params.toString());
+    if (!r.ok){ list.innerHTML = '<div class="empty">Error</div>'; return; }
+    const data = await r.json();
+    dirTotal = data.total; dirPageSize = data.page_size;
+    if (!data.results.length){
+      list.innerHTML = '<div class="empty">' + (LANG==='en'?'No companies found':LANG==='pt'?'Nenhuma empresa encontrada':'Sin empresas') + '</div>';
+      document.getElementById('dirPager').style.display='none';
+      return;
+    }
+    list.innerHTML = data.results.map(c => {
+      const site = c.website ? '<div class="cweb">🔗 <a href="'+esc(c.website)+'" target="_blank" rel="noopener">'+esc(c.website)+'</a></div>' : '';
+      const pitch = c.pitch ? '<div class="cpitch">'+esc(c.pitch)+'</div>' : '';
+      const score = (c.score > 0) ? '<span class="score-pill">★ '+c.score+'</span>' : '';
+      const btnLbl = LANG==='en'?'Request':LANG==='pt'?'Solicitar':'Solicitar';
+      return '<div class="company-row">' +
+        '<div class="info"><div class="cname">'+esc(c.company_name)+' '+score+'</div>'+pitch+site+'</div>' +
+        '<button class="btn" onclick="reqOpenModal(\''+c.id+'\',\''+esc(c.company_name).replace(/\'/g,'&#39;')+'\')">'+btnLbl+'</button>' +
+      '</div>';
+    }).join('');
+    const totalPages = Math.max(1, Math.ceil(dirTotal / dirPageSize));
+    document.getElementById('dirPager').style.display = totalPages > 1 ? 'flex' : 'none';
+    document.getElementById('pagerInfo').textContent = dirCurPage + ' / ' + totalPages + ' · ' + dirTotal;
+    document.getElementById('pagerPrev').disabled = dirCurPage <= 1;
+    document.getElementById('pagerNext').disabled = dirCurPage >= totalPages;
+  } catch(e){ list.innerHTML = '<div class="empty">Error</div>'; }
+}
+function dirPage(delta){ dirCurPage = Math.max(1, dirCurPage + delta); dirLoad(); }
+
+// ─── Modal solicitar reunión ──────────────────────────────────────────────────
+let reqTargetId = null;
+function reqOpenModal(id, name){
+  reqTargetId = id;
+  document.getElementById('reqModalTarget').textContent = (LANG==='en'?'To: ':LANG==='pt'?'Para: ':'Para: ') + name;
+  document.getElementById('reqMsg').value = '';
+  document.getElementById('reqModal').classList.add('active');
+}
+function reqCloseModal(){ document.getElementById('reqModal').classList.remove('active'); reqTargetId = null; }
+async function reqSend(){
+  if (!reqTargetId) return;
+  const btn = document.getElementById('reqSendBtn'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/rn/public/requests?token=' + encodeURIComponent(token), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ to_registration_id: reqTargetId, message: document.getElementById('reqMsg').value.trim() || null }),
+    });
+    const data = await r.json();
+    if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
+    reqCloseModal();
+    alertBox(LANG==='en'?'Request sent':LANG==='pt'?'Solicitação enviada':'Solicitud enviada', 'ok');
+    reqLoadedOnce = false; // invalidate out tab
+  } catch(e){ alertBox('Network error', 'err'); }
+  finally { btn.disabled = false; }
+}
+
+// ─── Mis solicitudes ──────────────────────────────────────────────────────────
+let reqLoadedOnce = false, reqDir = 'in';
+function reqSwitch(dir){
+  reqDir = dir;
+  document.querySelectorAll('button[data-reqdir]').forEach(b => b.classList.toggle('active', b.dataset.reqdir === dir));
+  reqLoad();
+}
+async function reqLoad(){
+  reqLoadedOnce = true;
+  const list = document.getElementById('reqList');
+  list.innerHTML = '<div class="empty">...</div>';
+  try {
+    const r = await fetch('/api/rn/public/requests?token=' + encodeURIComponent(token) + '&direction=' + reqDir);
+    if (!r.ok){ list.innerHTML = '<div class="empty">Error</div>'; return; }
+    const data = await r.json();
+    if (!data.requests.length){
+      list.innerHTML = '<div class="empty">' + (LANG==='en'?'No requests':LANG==='pt'?'Sem solicitações':'Sin solicitudes') + '</div>';
+      return;
+    }
+    const statusLabel = s => (LANG==='en'
+      ? {pending:'Pending',accepted:'Accepted',rejected:'Rejected',expired:'Expired'}[s]
+      : LANG==='pt'
+      ? {pending:'Pendente',accepted:'Aceita',rejected:'Recusada',expired:'Expirada'}[s]
+      : {pending:'Pendiente',accepted:'Aceptada',rejected:'Rechazada',expired:'Expirada'}[s]) || s;
+    list.innerHTML = data.requests.map(q => {
+      const msg = q.message ? '<div class="msg">"'+esc(q.message)+'"</div>' : '';
+      let actions = '';
+      if (reqDir === 'in' && q.status === 'pending'){
+        actions = '<div class="row">' +
+          '<button class="btn" onclick="reqRespond(\''+q.id+'\',\'accept\')">'+(LANG==='en'?'Accept':LANG==='pt'?'Aceitar':'Aceptar')+'</button>' +
+          '<button class="btn ghost" onclick="reqRespond(\''+q.id+'\',\'reject\')">'+(LANG==='en'?'Reject':LANG==='pt'?'Recusar':'Rechazar')+'</button>' +
+        '</div>';
+      }
+      return '<div class="req-row">' +
+        '<div class="top"><div class="co">'+esc(q.other_company || '—')+'</div><span class="status '+q.status+'">'+statusLabel(q.status)+'</span></div>' +
+        msg + actions +
+      '</div>';
+    }).join('');
+  } catch(e){ list.innerHTML = '<div class="empty">Error</div>'; }
+}
+async function reqRespond(id, action){
+  try {
+    const r = await fetch('/api/rn/public/requests/' + encodeURIComponent(id) + '/respond?token=' + encodeURIComponent(token), {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action }),
+    });
+    const data = await r.json();
+    if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
+    alertBox(LANG==='en'?'Response saved':LANG==='pt'?'Resposta salva':'Respuesta guardada', 'ok');
+    reqLoad();
+  } catch(e){ alertBox('Network error', 'err'); }
+}
+
+// ─── Link política de privacidad ──────────────────────────────────────────────
+function wirePrivLink(){
+  const a = document.getElementById('privLink');
+  if (a) a.href = (location.origin || '') + '/legal/privacidad-events.html';
+}
+
+applyLang(); wirePrivLink(); load();
 </script>
 </body>
 </html>
