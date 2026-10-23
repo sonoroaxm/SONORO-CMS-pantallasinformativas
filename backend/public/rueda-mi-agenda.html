@@ -118,6 +118,7 @@
       <button class="active" data-tab="tags" data-i18n-es="Mis tags" data-i18n-en="My tags" data-i18n-pt="Minhas tags">Mis tags</button>
       <button data-tab="directory" data-i18n-es="Directorio" data-i18n-en="Directory" data-i18n-pt="Diretório">Directorio</button>
       <button data-tab="requests" data-i18n-es="Mis solicitudes" data-i18n-en="My requests" data-i18n-pt="Minhas solicitações">Mis solicitudes</button>
+      <button data-tab="meetings" data-i18n-es="Reuniones" data-i18n-en="Meetings" data-i18n-pt="Reuniões">Reuniones</button>
       <button data-tab="privacy" data-i18n-es="Privacidad" data-i18n-en="Privacy" data-i18n-pt="Privacidade">Privacidad</button>
     </div>
 
@@ -174,6 +175,14 @@
       </div>
     </div>
 
+    <div class="tab" data-tab="meetings">
+      <div class="card">
+        <p class="section-title" data-i18n-es="Mi agenda de reuniones" data-i18n-en="My meeting schedule" data-i18n-pt="Minha agenda de reuniões">Mi agenda de reuniones</p>
+        <div class="meta" data-i18n-es="Horarios se asignan cuando el productor abre las rondas. EBV = valor esperado del negocio, privado por lado." data-i18n-en="Times assigned when the producer opens the rounds. EBV = expected business value, private per side." data-i18n-pt="Horários atribuídos quando o produtor abre as rodadas.">Horarios se asignan cuando el productor abre las rondas. EBV = valor esperado del negocio, privado por lado.</div>
+        <div id="mtgList" style="margin-top:14px"></div>
+      </div>
+    </div>
+
     <div class="tab" data-tab="privacy">
       <div class="card">
         <p class="section-title" data-i18n-es="Privacidad y oposición (ARCO)" data-i18n-en="Privacy & opt-out (ARCO)" data-i18n-pt="Privacidade (ARCO)">Privacidad y oposición (ARCO)</p>
@@ -183,6 +192,35 @@
           <a class="btn ghost" id="privLink" target="_blank" rel="noopener" data-i18n-es="Ver política completa" data-i18n-en="View full policy" data-i18n-pt="Ver política completa">Ver política completa</a>
         </div>
         <div class="meta" style="margin-top:10px" id="optOutState"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: EBV -->
+  <div class="modal-bg" id="ebvModal">
+    <div class="modal">
+      <h3 data-i18n-es="Valor esperado (EBV)" data-i18n-en="Expected business value (EBV)" data-i18n-pt="Valor esperado (EBV)">Valor esperado (EBV)</h3>
+      <div class="meta" id="ebvTarget" style="margin-bottom:10px"></div>
+      <div class="meta" style="margin-bottom:14px" data-i18n-es="Solo tú ves este valor. La contraparte nunca lo verá." data-i18n-en="Only you see this value. The counterpart will never see it." data-i18n-pt="Somente você vê este valor.">Solo tú ves este valor. La contraparte nunca lo verá.</div>
+      <div class="row2" style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <div>
+          <label data-i18n-es="Monto" data-i18n-en="Amount" data-i18n-pt="Valor">Monto</label>
+          <input type="text" id="ebvAmt" inputmode="decimal" placeholder="0">
+        </div>
+        <div>
+          <label data-i18n-es="Moneda" data-i18n-en="Currency" data-i18n-pt="Moeda">Moneda</label>
+          <select id="ebvCur"><option>COP</option><option>USD</option><option>EUR</option><option>BRL</option></select>
+        </div>
+      </div>
+      <label data-i18n-es="Horizonte" data-i18n-en="Horizon" data-i18n-pt="Horizonte">Horizonte</label>
+      <select id="ebvHor">
+        <option value="" data-i18n-es="— elegir —" data-i18n-en="— pick —" data-i18n-pt="— escolher —">— elegir —</option>
+        <option value="short" data-i18n-es="Corto plazo (3-6 meses)" data-i18n-en="Short (3-6 months)" data-i18n-pt="Curto (3-6 meses)">Corto plazo (3-6 meses)</option>
+        <option value="long"  data-i18n-es="Largo plazo (> 6 meses)" data-i18n-en="Long (> 6 months)" data-i18n-pt="Longo (> 6 meses)">Largo plazo (> 6 meses)</option>
+      </select>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn ghost" onclick="ebvClose()" data-i18n-es="Cancelar" data-i18n-en="Cancel" data-i18n-pt="Cancelar">Cancelar</button>
+        <button class="btn" id="ebvSaveBtn" onclick="ebvSave()" data-i18n-es="Guardar" data-i18n-en="Save" data-i18n-pt="Salvar">Guardar</button>
       </div>
     </div>
   </div>
@@ -333,6 +371,7 @@ document.getElementById('tabs').addEventListener('click', e=>{
   document.querySelectorAll('.tab[data-tab]').forEach(x => x.classList.toggle('active', x.dataset.tab === activeTab));
   if (activeTab === 'directory' && !dirLoadedOnce) dirLoad();
   if (activeTab === 'requests'  && !reqLoadedOnce) reqLoad();
+  if (activeTab === 'meetings')                    mtgLoad();
 });
 
 // ─── Directorio ───────────────────────────────────────────────────────────────
@@ -459,6 +498,94 @@ async function reqRespond(id, action){
     alertBox(LANG==='en'?'Response saved':LANG==='pt'?'Resposta salva':'Respuesta guardada', 'ok');
     reqLoad();
   } catch(e){ alertBox('Network error', 'err'); }
+}
+
+// ─── Reuniones (agenda personal) ──────────────────────────────────────────────
+let mtgCache = [];
+function fmtTime(iso, tz){
+  if (!iso) return '';
+  const d = new Date(iso);
+  const loc = LANG==='pt'?'pt-BR':LANG==='en'?'en-US':'es-CO';
+  const opts = { hour:'2-digit', minute:'2-digit', timeZone: tz || undefined };
+  const dateOpts = { month:'short', day:'numeric', timeZone: tz || undefined };
+  return d.toLocaleDateString(loc, dateOpts) + ' · ' + d.toLocaleTimeString(loc, opts);
+}
+function fmtMoney(n, cur){
+  if (n == null) return '';
+  const loc = LANG==='pt'?'pt-BR':LANG==='en'?'en-US':'es-CO';
+  try { return new Intl.NumberFormat(loc, { style:'currency', currency: cur || 'COP', maximumFractionDigits: 0 }).format(Number(n)); }
+  catch(e){ return (cur||'') + ' ' + n; }
+}
+async function mtgLoad(){
+  const list = document.getElementById('mtgList');
+  list.innerHTML = '<div class="empty">...</div>';
+  try {
+    const r = await fetch('/api/rn/public/meetings?token=' + encodeURIComponent(token));
+    if (!r.ok){ list.innerHTML = '<div class="empty">Error</div>'; return; }
+    const data = await r.json();
+    mtgCache = data.meetings || [];
+    if (!mtgCache.length){
+      list.innerHTML = '<div class="empty">' + (LANG==='en'?'No meetings scheduled yet':LANG==='pt'?'Sem reuniões ainda':'Sin reuniones agendadas aún') + '</div>';
+      return;
+    }
+    const tz = (data.event && data.event.timezone) || null;
+    const statusLabel = s => (LANG==='en'
+      ? {scheduled:'Scheduled',active:'Active',completed:'Completed',no_show:'No show',deferred:'Deferred'}[s]
+      : LANG==='pt'
+      ? {scheduled:'Agendada',active:'Em curso',completed:'Concluída',no_show:'Faltou',deferred:'Adiada'}[s]
+      : {scheduled:'Agendada',active:'En curso',completed:'Finalizada',no_show:'No asistió',deferred:'Diferida'}[s]) || s;
+    list.innerHTML = mtgCache.map(m => {
+      const roundLbl = (m.round_label || ('R' + m.round_number));
+      const score = (m.tag_overlap_score > 0) ? '<span class="score-pill">★ '+m.tag_overlap_score+'</span>' : '';
+      const ebv = (m.my_ebv_amount != null)
+        ? '<div class="meta" style="margin-top:6px">💼 ' + fmtMoney(m.my_ebv_amount, m.my_ebv_currency) + (m.my_ebv_horizon ? ' · '+m.my_ebv_horizon : '') + '</div>'
+        : '';
+      const ebvBtn = (m.status === 'completed' || m.status === 'active' || m.status === 'scheduled')
+        ? '<button class="btn ghost" onclick="ebvOpen(\''+m.id+'\')" data-i18n-'+LANG+'="'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'">'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'</button>'
+        : '';
+      return '<div class="req-row">' +
+        '<div class="top">' +
+          '<div><div class="co">🏢 '+esc(m.other_company || '—')+' '+score+'</div>' +
+          '<div class="meta">🗓 '+esc(roundLbl)+' · 🪑 '+esc(m.table_label || '')+' · '+fmtTime(m.round_starts_at, tz)+'</div></div>' +
+          '<span class="status '+m.status+'">'+statusLabel(m.status)+'</span>' +
+        '</div>' +
+        (m.other_pitch ? '<div class="msg">'+esc(m.other_pitch)+'</div>' : '') +
+        ebv +
+        '<div class="row">'+ebvBtn+'</div>' +
+      '</div>';
+    }).join('');
+  } catch(e){ list.innerHTML = '<div class="empty">Error</div>'; }
+}
+
+// ─── EBV modal ────────────────────────────────────────────────────────────────
+let ebvMtgId = null;
+function ebvOpen(id){
+  const m = mtgCache.find(x => x.id === id); if (!m) return;
+  ebvMtgId = id;
+  document.getElementById('ebvTarget').textContent = (LANG==='en'?'Meeting with: ':LANG==='pt'?'Reunião com: ':'Reunión con: ') + (m.other_company || '—');
+  document.getElementById('ebvAmt').value = m.my_ebv_amount != null ? String(m.my_ebv_amount) : '';
+  document.getElementById('ebvCur').value = m.my_ebv_currency || 'COP';
+  document.getElementById('ebvHor').value = m.my_ebv_horizon || '';
+  document.getElementById('ebvModal').classList.add('active');
+}
+function ebvClose(){ document.getElementById('ebvModal').classList.remove('active'); ebvMtgId = null; }
+async function ebvSave(){
+  if (!ebvMtgId) return;
+  const amt = parseFloat(document.getElementById('ebvAmt').value.replace(/[^\d.-]/g,''));
+  if (!isFinite(amt) || amt < 0){ alertBox(LANG==='en'?'Invalid amount':LANG==='pt'?'Valor inválido':'Monto inválido', 'err'); return; }
+  const btn = document.getElementById('ebvSaveBtn'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/rn/public/meetings/' + encodeURIComponent(ebvMtgId) + '/ebv?token=' + encodeURIComponent(token), {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ amount: amt, currency: document.getElementById('ebvCur').value, horizon: document.getElementById('ebvHor').value || null }),
+    });
+    const data = await r.json();
+    if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
+    ebvClose();
+    alertBox(LANG==='en'?'EBV saved':LANG==='pt'?'EBV salvo':'EBV guardado', 'ok');
+    mtgLoad();
+  } catch(e){ alertBox('Network error', 'err'); }
+  finally { btn.disabled = false; }
 }
 
 // ─── Link política de privacidad ──────────────────────────────────────────────

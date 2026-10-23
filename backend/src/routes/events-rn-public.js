@@ -1108,6 +1108,50 @@ async function assertMeetingDelegate(pool, meetingId, delegateId) {
 }
 
 // POST /meetings/:id/start?token=<agenda_token>
+// ──────────────────────────────────────────────────────────────────────────────
+// S211t B.1 · GET /api/rn/public/meetings?token=<agenda_token>
+// Agenda personal del delegado — reuniones (scheduled|active|completed) donde
+// mi company es A o B, con horario (round) + mesa + contraparte.
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/meetings', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const { rows } = await pool.query(
+      `SELECT m.id, m.status, m.origin, m.locked,
+              m.started_at, m.ended_at, m.tag_overlap_score,
+              r.round_number, r.starts_at AS round_starts_at, r.ends_at AS round_ends_at, r.kind AS round_kind, r.label AS round_label,
+              t.label AS table_label,
+              CASE WHEN m.company_a_id = $1 THEN 'a' ELSE 'b' END AS my_side,
+              CASE WHEN m.company_a_id = $1 THEN m.company_b_id ELSE m.company_a_id END AS other_registration_id,
+              CASE WHEN m.company_a_id = $1
+                   THEN rb.custom_fields->>'company_name'
+                   ELSE ra.custom_fields->>'company_name' END AS other_company,
+              CASE WHEN m.company_a_id = $1
+                   THEN rb.custom_fields->>'pitch'
+                   ELSE ra.custom_fields->>'pitch' END AS other_pitch,
+              CASE WHEN m.company_a_id = $1 THEN m.notes_a               ELSE m.notes_b               END AS my_notes,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_amount   ELSE m.expected_value_b_amount   END AS my_ebv_amount,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_currency ELSE m.expected_value_b_currency END AS my_ebv_currency,
+              CASE WHEN m.company_a_id = $1 THEN m.expected_value_a_horizon  ELSE m.expected_value_b_horizon  END AS my_ebv_horizon
+         FROM events.rn_meetings m
+         JOIN events.rn_rounds r         ON r.id = m.round_id
+         JOIN events.rn_tables t         ON t.id = m.table_id
+         JOIN events.registrations ra    ON ra.id = m.company_a_id
+         JOIN events.registrations rb    ON rb.id = m.company_b_id
+        WHERE m.event_id = $2
+          AND (m.company_a_id = $1 OR m.company_b_id = $1)
+          AND m.status != 'cancelled'
+        ORDER BY r.starts_at ASC, t.label ASC`,
+      [ctx.registration_id, ctx.event_id]
+    );
+    res.json({
+      event: { name: ctx.event_name, slug: ctx.event_slug, timezone: ctx.event_timezone },
+      meetings: rows,
+    });
+  } catch (err) { handleError(res, err, 'GET meetings'); }
+});
+
 router.post('/meetings/:id/start', rnTokenMutationLimiter, async (req, res) => {
   const pool = global.pool;
   try {
