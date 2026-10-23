@@ -4347,7 +4347,29 @@
           </div>
 
           <div class="ev-rn-panel hidden" id="ev-rn-panel-directorio">
-            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Directorio y solicitudes · se habilita en E-RN-7b-3</div></div>
+            <div class="card">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span>Asistentes inscritos</span>
+                <input id="ev-rn-dir-search" type="text" placeholder="Buscar empresa, nombre, tag…"
+                  oninput="evRnDirRender()"
+                  style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;min-width:220px;">
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Contacto</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ofrece</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Busca</th>
+                      <th style="text-align:center;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Req. in/out</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-dir-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                </table>
+              </div>
+            </div>
           </div>
           <!-- AGENDA panel · rondas + mesas + solver (relocado desde Setup) -->
           <div class="ev-rn-panel hidden" id="ev-rn-panel-agenda">
@@ -4412,7 +4434,40 @@
             </div>
           </div>
           <div class="ev-rn-panel hidden" id="ev-rn-panel-live">
-            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Callboard productor · se habilita en E-RN-7b-3</div></div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <span>Callboard productor</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <span id="ev-rn-live-checkins" style="font-size:11px;color:var(--text-muted);">— check-ins</span>
+                  <button class="btn btn-outline btn-sm" onclick="evRnLoadLive()">Refrescar</button>
+                </div>
+              </div>
+              <div id="ev-rn-live-active" style="padding:14px;background:var(--surface2);border-radius:9px;margin-top:6px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Ronda activa</div>
+                <div id="ev-rn-live-active-txt" style="font-size:14px;font-weight:700;">Sin ronda abierta</div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title">Rondas programadas</div>
+              <div id="ev-rn-live-rounds" style="display:flex;flex-direction:column;gap:6px;font-size:12px;">—</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Meetings en vivo</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Origen</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-live-tbody"><tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings — abre una ronda</td></tr></tbody>
+                </table>
+              </div>
+            </div>
           </div>
           <div class="ev-rn-panel hidden" id="ev-rn-panel-reporte">
             <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Reporte post-evento · se habilita en E-RN-7b-4</div></div>
@@ -10326,6 +10381,7 @@ function evOpenRueda(ev) {
   evRnLoadConfig();
   evRnLoadRounds();
   evRnLoadTables();
+  evRnSubscribeSocket(ev.id);
 }
 
 // ── E-RN-7b-2 wizard setup helpers ──────────────────────────────
@@ -10504,6 +10560,126 @@ async function evRnDeleteTable(id) {
   } catch(_) {}
 }
 
+// ── E-RN-7b-3 Directorio + Live ─────────────────────────────────
+let evRnDirCache = [];
+let evRnLiveCache = null;
+let evRnSocketRoom = null;
+
+async function evRnLoadDirectory() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnDirCache = r.ok ? await r.json() : [];
+    evRnDirRender();
+  } catch(_) { evRnDirCache = []; evRnDirRender(); }
+}
+function evRnEscape(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function evRnDirRender() {
+  const tb = document.getElementById('ev-rn-dir-tbody'); if (!tb) return;
+  const q = (document.getElementById('ev-rn-dir-search')?.value || '').toLowerCase().trim();
+  const filtered = evRnDirCache.filter(r => {
+    if (!q) return true;
+    const hay = [r.company_name, r.contact_name, r.attendee_name, r.email,
+                 ...(r.offer_tags||[]), ...(r.demand_tags||[])].join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin inscritos</td></tr>'; return; }
+  const statusPill = (s) => {
+    const m = { pending:['#9ca3af','Pendiente'], approved:['#22c55e','Aprobada'], confirmed:['#22c55e','Confirmada'], cancelled:['#ef4444','Cancelada'] };
+    const [c, l] = m[s] || ['#9ca3af', s||'—'];
+    return `<span style="padding:2px 8px;border-radius:999px;background:${c}22;color:${c};font-size:10px;font-weight:700;">${l}</span>`;
+  };
+  const tagList = (arr) => (arr||[]).length ? (arr||[]).slice(0,3).map(t => `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(255,27,141,0.09);color:#FF1B8D;font-size:10px;font-weight:700;margin-right:3px;">${evRnEscape(t)}</span>`).join('') + ((arr.length>3)?` <span style="color:var(--text-muted);font-size:10px">+${arr.length-3}</span>`:'') : '<span style="color:var(--text-muted)">—</span>';
+  tb.innerHTML = filtered.map(r => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || r.attendee_name || '—')}</td>
+      <td style="padding:8px;color:var(--text-muted);">${evRnEscape(r.contact_name || r.email || '—')}</td>
+      <td style="padding:8px;">${tagList(r.offer_tags)}</td>
+      <td style="padding:8px;">${tagList(r.demand_tags)}</td>
+      <td style="padding:8px;text-align:center;color:var(--text-muted);">${r.requests_received||0} / ${r.requests_sent||0}</td>
+      <td style="padding:8px;">${statusPill(r.status)}</td>
+    </tr>
+  `).join('');
+}
+
+async function evRnLoadLive() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/live`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnLiveCache = r.ok ? await r.json() : null;
+    evRnLiveRender();
+  } catch(_) {}
+}
+function evRnLiveRender() {
+  if (!evRnLiveCache) return;
+  const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+  const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz }) : '';
+  document.getElementById('ev-rn-live-checkins').textContent = `${evRnLiveCache.checkins_total||0} check-ins`;
+  const ar = evRnLiveCache.active_round;
+  document.getElementById('ev-rn-live-active-txt').innerHTML = ar
+    ? `R${ar.round_number} · ${fmt(ar.starts_at)}–${fmt(ar.ends_at)}${ar.label?' · '+evRnEscape(ar.label):''} <span style="color:#FF1B8D;font-size:11px;margin-left:8px;">● en curso</span>`
+    : 'Sin ronda abierta';
+  // Rondas list
+  const rl = document.getElementById('ev-rn-live-rounds');
+  const meetingRounds = (evRnLiveCache.rounds||[]).filter(r => r.kind === 'meeting');
+  if (!meetingRounds.length) rl.textContent = 'Sin rondas planificadas (ver Agenda)';
+  else rl.innerHTML = meetingRounds.map(r => {
+    const isOpen = !!r.opened_at;
+    const isActive = ar && ar.id === r.id;
+    const btn = isOpen
+      ? `<span style="font-size:11px;color:${isActive?'#FF1B8D':'#22c55e'};font-weight:700;">${isActive?'● activa':'✓ abierta'}</span>`
+      : `<button class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:11px;" onclick="evRnOpenRound('${r.id}')">Abrir</button>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid var(--border);border-radius:7px;${isActive?'background:rgba(255,27,141,0.06);border-color:#FF1B8D;':''}">
+      <span>R${r.round_number} · ${fmt(r.starts_at)}–${fmt(r.ends_at)}</span>${btn}</div>`;
+  }).join('');
+  // Meetings tbody
+  const tb = document.getElementById('ev-rn-live-tbody');
+  const ms = evRnLiveCache.meetings || [];
+  if (!ms.length) tb.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings — abre una ronda</td></tr>';
+  else tb.innerHTML = ms.map(m => {
+    const originColor = { requested:'#22c55e', matched:'#FF1B8D', manual:'#FF8C00' }[m.origin] || '#9ca3af';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px;font-weight:700;">${evRnEscape(m.table_label)}</td>
+      <td style="padding:8px;">${evRnEscape(m.company_a||'—')}</td>
+      <td style="padding:8px;">${evRnEscape(m.company_b||'—')}</td>
+      <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${originColor}22;color:${originColor};font-size:10px;font-weight:700;">${m.origin||'—'}</span>${m.locked?' 🔒':''}</td>
+      <td style="padding:8px;color:var(--text-muted);">${evRnEscape(m.status||'scheduled')}</td>
+    </tr>`;
+  }).join('');
+}
+async function evRnOpenRound(roundId) {
+  if (!evCurrentEventId || !confirm('¿Abrir esta ronda?')) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/${roundId}/open`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body:'{}'
+    });
+    const data = await r.json();
+    if (!r.ok) { showStatus(data.error||'Error', 'error'); return; }
+    showStatus(`Ronda abierta · ${data.deferred_count||0} deferred`, 'success');
+    evRnLoadLive();
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
+function evRnSubscribeSocket(eventId) {
+  if (!window.socket) return;
+  if (evRnSocketRoom && evRnSocketRoom !== eventId) {
+    try { socket.emit('leave', `event_rueda_${evRnSocketRoom}`); } catch(_) {}
+  }
+  evRnSocketRoom = eventId;
+  try { socket.emit('join', `event_rueda_${eventId}`); } catch(_) {}
+  if (!socket.__rnBound) {
+    socket.__rnBound = true;
+    socket.on('rn.round.opened', () => { evRnLoadLive(); evRnLoadStats(); });
+    socket.on('rn.checkin',      () => { evRnLoadLive(); });
+    socket.on('rn.request.created', () => { evRnLoadDirectory(); evRnLoadStats(); });
+  }
+}
+
 function evRnCopyPublicLink() {
   if (!evRnCurrentEvent || !evRnCurrentEvent.slug) { showStatus('Sin slug publico', 'error'); return; }
   const url = `${location.origin}/rueda/${evRnCurrentEvent.slug}`;
@@ -10517,6 +10693,8 @@ function evRnSwitchPanelTab(tab) {
   document.querySelectorAll('.ev-rn-panel').forEach(p => p.classList.add('hidden'));
   const el = document.getElementById('ev-rn-panel-' + tab);
   if (el) el.classList.remove('hidden');
+  if (tab === 'directorio') evRnLoadDirectory();
+  else if (tab === 'live')  evRnLoadLive();
 }
 
 async function evRnLoadStats() {

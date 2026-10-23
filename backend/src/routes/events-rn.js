@@ -682,6 +682,100 @@ router.get('/events/:eventId/stats', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET stats'); }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-7b-3 · Directorio productor (listado de registrations con tags + requests)
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/events/:eventId/registrations', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const r = await pool.query(
+      `SELECT
+         r.id,
+         r.status,
+         r.custom_fields->>'company_name' AS company_name,
+         r.custom_fields->>'contact_name' AS contact_name,
+         a.email,
+         a.name AS attendee_name,
+         COALESCE(off.tags, ARRAY[]::text[]) AS offer_tags,
+         COALESCE(dem.tags, ARRAY[]::text[]) AS demand_tags,
+         COALESCE(reqs_in.n, 0)::int  AS requests_received,
+         COALESCE(reqs_out.n, 0)::int AS requests_sent
+       FROM events.registrations r
+       JOIN events.attendees a ON a.id = r.attendee_id
+       LEFT JOIN (
+         SELECT rt.registration_id, array_agg(t.label ORDER BY t.label) AS tags
+           FROM events.rn_registration_tags rt
+           JOIN events.rn_tags t ON t.id = rt.tag_id
+          WHERE rt.kind = 'offer' GROUP BY rt.registration_id
+       ) off ON off.registration_id = r.id
+       LEFT JOIN (
+         SELECT rt.registration_id, array_agg(t.label ORDER BY t.label) AS tags
+           FROM events.rn_registration_tags rt
+           JOIN events.rn_tags t ON t.id = rt.tag_id
+          WHERE rt.kind = 'demand' GROUP BY rt.registration_id
+       ) dem ON dem.registration_id = r.id
+       LEFT JOIN (
+         SELECT to_registration_id AS rid, COUNT(*) AS n
+           FROM events.rn_meeting_requests
+          WHERE event_id = $1 GROUP BY to_registration_id
+       ) reqs_in ON reqs_in.rid = r.id
+       LEFT JOIN (
+         SELECT from_registration_id AS rid, COUNT(*) AS n
+           FROM events.rn_meeting_requests
+          WHERE event_id = $1 GROUP BY from_registration_id
+       ) reqs_out ON reqs_out.rid = r.id
+       WHERE r.event_id = $1 AND r.ticket_type = 'rueda'
+       ORDER BY r.created_at ASC`,
+      [req.params.eventId]
+    );
+    res.json(r.rows);
+  } catch (err) { handleError(res, err, 'GET registrations'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-7b-3 · Live callboard productor (rondas + meetings de ronda activa)
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/events/:eventId/live', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const eventId = req.params.eventId;
+    const rounds = await pool.query(
+      `SELECT id, round_number, starts_at, ends_at, kind, label, opened_at
+         FROM events.rn_rounds WHERE event_id = $1 ORDER BY round_number ASC`,
+      [eventId]
+    );
+    const openRow = rounds.rows.find(r => r.opened_at && r.kind === 'meeting') || null;
+    const activeId = openRow ? openRow.id : null;
+    let meetings = [];
+    if (activeId) {
+      const m = await pool.query(
+        `SELECT m.id, m.table_id, m.status, m.origin, m.locked,
+                t.label AS table_label,
+                ra.custom_fields->>'company_name' AS company_a,
+                rb.custom_fields->>'company_name' AS company_b
+           FROM events.rn_meetings m
+           JOIN events.rn_tables t ON t.id = m.table_id
+           JOIN events.registrations ra ON ra.id = m.company_a_id
+           JOIN events.registrations rb ON rb.id = m.company_b_id
+          WHERE m.event_id = $1 AND m.round_id = $2
+          ORDER BY t.display_order ASC NULLS LAST, t.label ASC`,
+        [eventId, activeId]
+      );
+      meetings = m.rows;
+    }
+    const chk = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM events.rn_checkins WHERE event_id = $1`, [eventId]);
+    res.json({
+      rounds: rounds.rows,
+      active_round: openRow,
+      meetings,
+      checkins_total: chk.rows[0].n,
+    });
+  } catch (err) { handleError(res, err, 'GET live'); }
+});
+
 // E-RN-6a · Reporte post-evento productor (D-RN-9 + D-RN-15)
 router.get('/events/:eventId/report', auth, async (req, res) => {
   const pool = global.pool;
