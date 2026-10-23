@@ -685,7 +685,17 @@ router.post('/events/:eventId/solver/reset', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const result = await withTransaction(pool, async (client) => solver.resetMeetings(client, req.params.eventId));
+    const result = await withTransaction(pool, async (client) => {
+      // Advisory lock por event_id — serializa reset vs solver preview/run concurrente (B.2).
+      const lk = await client.query(
+        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
+        [req.params.eventId]
+      );
+      if (!lk.rows[0].got) {
+        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
+      }
+      return solver.resetMeetings(client, req.params.eventId);
+    });
     console.log(`[rn-solver] reset event=${req.params.eventId} deleted=${result.deleted}`);
     res.json(result);
   } catch (err) { handleError(res, err, 'POST solver/reset'); }
@@ -703,9 +713,18 @@ router.post('/events/:eventId/rounds/:roundId/open', auth, async (req, res) => {
     );
     if (chk.rowCount === 0) return res.status(404).json({ error: 'Ronda no encontrada' });
 
-    const result = await withTransaction(pool, async (client) =>
-      solver.runRuntimeRound(client, { eventId: req.params.eventId, roundId: req.params.roundId })
-    );
+    const result = await withTransaction(pool, async (client) => {
+      // Advisory lock por event_id — evita doble procesamiento ante doble-click
+      // y serializa runtime vs solver pre-event (B.2).
+      const lk = await client.query(
+        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
+        [req.params.eventId]
+      );
+      if (!lk.rows[0].got) {
+        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
+      }
+      return solver.runRuntimeRound(client, { eventId: req.params.eventId, roundId: req.params.roundId });
+    });
     console.log(`[rn-solver] runtime event=${req.params.eventId} round=${req.params.roundId} deferred=${result.deferred_count}`);
     global.io?.to(`event_rueda_${req.params.eventId}`).emit('rn.round.opened', {
       event_id: req.params.eventId,
