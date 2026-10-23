@@ -575,6 +575,35 @@
     .ev-sub-tab.active { color: #f59e0b; border-bottom-color: #f59e0b; }
     .ev-sub-panel { }
 
+    /* ── RUEDA DE NEGOCIOS · panel productor (E-RN-7b-1) ── */
+    .ev-rn-donuts { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+    .ev-rn-donut-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; display:flex; align-items:center; gap:16px; }
+    .ev-rn-donut-svg { width:80px; height:80px; flex-shrink:0; position:relative; }
+    .ev-rn-donut-center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:800; letter-spacing:-.5px; color:var(--text); }
+    .ev-rn-donut-k { font-size:10.5px; font-weight:800; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+    .ev-rn-donut-legend { display:flex; flex-direction:column; gap:5px; }
+    .ev-rn-donut-legend > div { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text-muted); font-weight:600; }
+    .ev-rn-donut-legend i { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+    .ev-rn-donut-legend strong { color:var(--text); font-weight:800; margin-left:auto; font-variant-numeric:tabular-nums; }
+
+    .ev-rn-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+    .ev-rn-kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+    .ev-rn-kpi .k { font-size:10.5px; font-weight:800; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px; }
+    .ev-rn-kpi .v { font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--text); line-height:1; font-variant-numeric:tabular-nums; }
+    .ev-rn-kpi .sub { margin-top:6px; font-size:11.5px; font-weight:600; color:var(--text-muted); min-height:14px; }
+
+    .ev-rn-subtabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px; overflow-x:auto; }
+    .ev-rn-subtab { background:transparent; border:0; border-bottom:2px solid transparent; color:var(--text-muted); font-family:inherit; font-size:13px; font-weight:700; padding:12px 16px; cursor:pointer; letter-spacing:.3px; white-space:nowrap; }
+    .ev-rn-subtab:hover { color:var(--text); }
+    .ev-rn-subtab.on { color:#FF1B8D; border-bottom-color:#FF1B8D; }
+    .ev-rn-subtab .n { font-size:11px; background:var(--surface3); color:var(--text-muted); padding:2px 7px; border-radius:999px; margin-left:6px; font-weight:800; }
+    .ev-rn-subtab.on .n { background:rgba(255,27,141,0.14); color:#FF1B8D; }
+
+    @media (max-width:900px) {
+      .ev-rn-donuts { grid-template-columns:1fr; }
+      .ev-rn-kpis { grid-template-columns:repeat(2,1fr); }
+    }
+
     /* ── EVENTOS field chip ── */
     .ev-field-chip {
       display: flex; align-items: center; gap: 8px;
@@ -4065,60 +4094,156 @@
 
         </div><!-- /ev-detail-view -->
 
-        <!-- VISTA: Detalle Rueda de Negocios (E-RN-7a MVP) -->
+        <!-- VISTA: Detalle Rueda de Negocios (E-RN-7b-1 panel productor) -->
         <div id="ev-rueda-detail-view" class="hidden">
-          <div class="section-header">
+          <!-- SVG gradient defs reutilizables para donuts -->
+          <svg width="0" height="0" style="position:absolute">
+            <defs>
+              <linearGradient id="evRnGradMO" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FF1B8D"/>
+                <stop offset="100%" stop-color="#FF8C00"/>
+              </linearGradient>
+            </defs>
+          </svg>
+
+          <div class="section-header" style="padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:20px;">
             <div>
-              <div class="section-title">
+              <div style="font-size:10.5px;font-weight:800;letter-spacing:2px;color:#FF1B8D;text-transform:uppercase;margin-bottom:4px;">Panel del productor</div>
+              <div class="section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <span id="ev-rn-title">Rueda</span>
-                <span style="font-size:10px;padding:3px 9px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:8px;vertical-align:middle;">RUEDA DE NEGOCIOS</span>
+                <span id="ev-rn-status-pill" style="font-size:10px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,0.14);color:#22c55e;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Publicada</span>
               </div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="ev-rn-sub"></div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:6px;font-weight:600;" id="ev-rn-sub"></div>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Mis Eventos</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" title="Copiar link publico"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> Link</button>
+              <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> Mis Eventos</button>
+            </div>
           </div>
 
-          <div class="card" style="margin-bottom:16px;">
-            <div class="card-title">Solver</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-              <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
-                <span class="ev-rn-btn-label">Preview</span>
-                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-              </button>
-              <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
-                <span class="ev-rn-btn-label">Run solver</span>
-                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-              </button>
-              <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
-                <span class="ev-rn-btn-label">Reset</span>
-                <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-              </button>
+          <!-- Donuts: completeness · role mix · utilization -->
+          <div class="ev-rn-donuts">
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                  <circle id="ev-rn-donut-complete" cx="18" cy="18" r="15.9" fill="none" stroke="url(#evRnGradMO)" stroke-width="3.6" stroke-dasharray="0 100" stroke-linecap="round"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-complete-pct">0%</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Listas para emparejar</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:linear-gradient(135deg,#FF1B8D,#FF8C00)"></i>Completas <strong id="ev-rn-stat-completas">—</strong></div>
+                  <div><i style="background:var(--surface3);border:1px solid var(--border)"></i>Incompletas <strong id="ev-rn-stat-incompletas">—</strong></div>
+                </div>
+              </div>
             </div>
-            <div id="ev-rn-stats" style="margin-top:14px;font-size:12px;color:var(--text-muted);"></div>
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg id="ev-rn-donut-mix-svg" viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-mix-center">0</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Mix de empresas</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:#FF1B8D"></i>Ofrece <strong id="ev-rn-stat-ofrece">—</strong></div>
+                  <div><i style="background:#FF8C00"></i>Busca <strong id="ev-rn-stat-busca">—</strong></div>
+                  <div><i style="background:#FFE566"></i>Ambos <strong id="ev-rn-stat-ambos">—</strong></div>
+                </div>
+              </div>
+            </div>
+            <div class="ev-rn-donut-card">
+              <div class="ev-rn-donut-svg">
+                <svg viewBox="0 0 36 36" width="80" height="80" style="transform:rotate(-90deg)">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+                  <circle id="ev-rn-donut-util" cx="18" cy="18" r="15.9" fill="none" stroke="url(#evRnGradMO)" stroke-width="3.6" stroke-dasharray="0 100" stroke-linecap="round"/>
+                </svg>
+                <div class="ev-rn-donut-center" id="ev-rn-donut-util-pct">0%</div>
+              </div>
+              <div style="min-width:0;flex:1;">
+                <div class="ev-rn-donut-k">Utilizacion de slots</div>
+                <div class="ev-rn-donut-legend">
+                  <div><i style="background:linear-gradient(135deg,#FF1B8D,#FF8C00)"></i>Agendados <strong id="ev-rn-stat-agendados">—</strong></div>
+                  <div><i style="background:var(--surface3);border:1px solid var(--border)"></i>Libres <strong id="ev-rn-stat-libres">—</strong></div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="card">
-            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-              <span>Meetings</span>
-              <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()">↻ Refrescar</button>
+          <!-- KPIs row -->
+          <div class="ev-rn-kpis">
+            <div class="ev-rn-kpi"><div class="k">Empresas inscritas</div><div class="v" id="ev-rn-kpi-regs">—</div><div class="sub" id="ev-rn-kpi-regs-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Con intereses completos</div><div class="v" id="ev-rn-kpi-complete">—</div><div class="sub" id="ev-rn-kpi-complete-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Solicitudes directas</div><div class="v" id="ev-rn-kpi-requests">—</div><div class="sub" id="ev-rn-kpi-requests-sub">&nbsp;</div></div>
+            <div class="ev-rn-kpi"><div class="k">Utilizacion prevista</div><div class="v" id="ev-rn-kpi-util">—</div><div class="sub" id="ev-rn-kpi-util-sub">&nbsp;</div></div>
+          </div>
+
+          <!-- Sub-tabs -->
+          <div class="ev-rn-subtabs">
+            <button class="ev-rn-subtab on" data-rntab="setup" onclick="evRnSwitchPanelTab('setup')">Setup</button>
+            <button class="ev-rn-subtab" data-rntab="directorio" onclick="evRnSwitchPanelTab('directorio')">Directorio <span class="n" id="ev-rn-subtab-n-dir">—</span></button>
+            <button class="ev-rn-subtab" data-rntab="agenda" onclick="evRnSwitchPanelTab('agenda')">Agenda <span class="n" id="ev-rn-subtab-n-ag">—</span></button>
+            <button class="ev-rn-subtab" data-rntab="live" onclick="evRnSwitchPanelTab('live')">Live</button>
+            <button class="ev-rn-subtab" data-rntab="reporte" onclick="evRnSwitchPanelTab('reporte')">Reporte</button>
+          </div>
+
+          <!-- SETUP panel (MVP solver + meetings mantenido como riel; wizard full en 7b-2) -->
+          <div class="ev-rn-panel" id="ev-rn-panel-setup">
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-title">Solver</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
+                  <span class="ev-rn-btn-label">Preview</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+                <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
+                  <span class="ev-rn-btn-label">Run solver</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+                <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
+                  <span class="ev-rn-btn-label">Reset</span>
+                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                </button>
+              </div>
+              <div id="ev-rn-stats" style="margin-top:14px;font-size:12px;color:var(--text-muted);"></div>
             </div>
-            <div style="overflow-x:auto;">
-              <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                <thead>
-                  <tr style="border-bottom:1px solid var(--border);">
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Ronda</th>
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Mesa</th>
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa A</th>
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa B</th>
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Origen</th>
-                    <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Lock</th>
-                  </tr>
-                </thead>
-                <tbody id="ev-rn-meetings-tbody">
-                  <tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr>
-                </tbody>
-              </table>
+            <div class="card">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Meetings</span>
+                <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()">Refrescar</button>
+              </div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Ronda</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Origen</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Lock</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-meetings-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                </table>
+              </div>
             </div>
+          </div>
+
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-directorio">
+            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Directorio y solicitudes · se habilita en E-RN-7b-3</div></div>
+          </div>
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-agenda">
+            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Rondas y mesas · se habilita con wizard E-RN-7b-2</div></div>
+          </div>
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-live">
+            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Callboard productor · se habilita en E-RN-7b-3</div></div>
+          </div>
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-reporte">
+            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Reporte post-evento · se habilita en E-RN-7b-4</div></div>
           </div>
         </div><!-- /ev-rueda-detail-view -->
 
@@ -9997,18 +10122,133 @@ async function evOpenDetail(eventId) {
   } catch(e) { showStatus(evI18n('ev.err_load_event'), 'error'); }
 }
 
-// ── E-RN-7a MVP: Rueda de Negocios · detail + solver ─────────────
+// ── E-RN-7b-1: Rueda de Negocios · panel productor ───────────────
+let evRnCurrentEvent = null;
+
 function evOpenRueda(ev) {
+  evRnCurrentEvent = ev;
   const tz = ev.timezone || 'UTC';
   const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   const mm = (ev.config && ev.config.matchmaking) || {};
   document.getElementById('ev-rn-title').textContent = ev.name;
   document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · modo: ${mm.matching_mode || 'tags'} · zona: ${mm.zone_mode || 'classic'}`;
+  // Status pill
+  const pill = document.getElementById('ev-rn-status-pill');
+  const statusMap = {
+    draft:     { label:'Borrador',    bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    published: { label:'Publicada',   bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
+    live:      { label:'En curso',    bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
+    closed:    { label:'Cerrada',     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    archived:  { label:'Archivada',   bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
+  };
+  const s = statusMap[ev.status] || statusMap.draft;
+  pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+
   document.getElementById('ev-rn-stats').textContent = '';
   document.getElementById('ev-rn-meetings-tbody').innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  evRnSwitchPanelTab('setup');
   evShowView('rueda');
+  evRnLoadStats();
   evRnLoadMeetings();
+}
+
+function evRnCopyPublicLink() {
+  if (!evRnCurrentEvent || !evRnCurrentEvent.slug) { showStatus('Sin slug publico', 'error'); return; }
+  const url = `${location.origin}/rueda/${evRnCurrentEvent.slug}`;
+  (navigator.clipboard?.writeText(url) || Promise.reject())
+    .then(() => showStatus('Link copiado: ' + url, 'success'))
+    .catch(() => { prompt('Copia el link:', url); });
+}
+
+function evRnSwitchPanelTab(tab) {
+  document.querySelectorAll('.ev-rn-subtab').forEach(b => b.classList.toggle('on', b.dataset.rntab === tab));
+  document.querySelectorAll('.ev-rn-panel').forEach(p => p.classList.add('hidden'));
+  const el = document.getElementById('ev-rn-panel-' + tab);
+  if (el) el.classList.remove('hidden');
+}
+
+async function evRnLoadStats() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/stats`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('stats');
+    const s = await r.json();
+    evRnRenderStats(s);
+  } catch (_) {
+    // Silent: panel sigue utilizable; placeholders quedan en "—"
+  }
+}
+
+function evRnRenderStats(s) {
+  const regs = s.registrations || {};
+  const mix  = s.role_mix || {};
+  const reqs = s.requests || {};
+  const slots = s.slots || {};
+
+  // Donut 1: completeness
+  const cPct = regs.completeness_pct || 0;
+  const dC = document.getElementById('ev-rn-donut-complete');
+  if (dC) dC.setAttribute('stroke-dasharray', `${cPct} 100`);
+  document.getElementById('ev-rn-donut-complete-pct').textContent = cPct + '%';
+  document.getElementById('ev-rn-stat-completas').textContent = regs.completas ?? '—';
+  document.getElementById('ev-rn-stat-incompletas').textContent = regs.incompletas ?? '—';
+
+  // Donut 2: mix stacked
+  const total = (mix.ofrece||0) + (mix.busca||0) + (mix.ambos||0);
+  const svg = document.getElementById('ev-rn-donut-mix-svg');
+  // Keep base circle; remove previous stacked arcs
+  Array.from(svg.querySelectorAll('circle[data-mix]')).forEach(n => n.remove());
+  if (total > 0) {
+    const segs = [
+      { k:'ofrece', v: mix.ofrece||0, color:'#FF1B8D' },
+      { k:'busca',  v: mix.busca||0,  color:'#FF8C00' },
+      { k:'ambos',  v: mix.ambos||0,  color:'#FFE566' },
+    ];
+    let offset = 0;
+    for (const sg of segs) {
+      const dash = Math.round((sg.v * 100) / total);
+      if (dash <= 0) continue;
+      const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx','18'); c.setAttribute('cy','18'); c.setAttribute('r','15.9');
+      c.setAttribute('fill','none'); c.setAttribute('stroke', sg.color);
+      c.setAttribute('stroke-width','3.6');
+      c.setAttribute('stroke-dasharray', `${dash} 100`);
+      c.setAttribute('stroke-dashoffset', `${-offset}`);
+      c.setAttribute('data-mix', sg.k);
+      svg.appendChild(c);
+      offset += dash;
+    }
+  }
+  document.getElementById('ev-rn-donut-mix-center').textContent = total;
+  document.getElementById('ev-rn-stat-ofrece').textContent = mix.ofrece ?? '—';
+  document.getElementById('ev-rn-stat-busca').textContent  = mix.busca  ?? '—';
+  document.getElementById('ev-rn-stat-ambos').textContent  = mix.ambos  ?? '—';
+
+  // Donut 3: utilization
+  const uPct = slots.utilization_pct || 0;
+  const dU = document.getElementById('ev-rn-donut-util');
+  if (dU) dU.setAttribute('stroke-dasharray', `${uPct} 100`);
+  document.getElementById('ev-rn-donut-util-pct').textContent = uPct + '%';
+  document.getElementById('ev-rn-stat-agendados').textContent = slots.meetings_total ?? '—';
+  const libres = Math.max((slots.available||0) - (slots.meetings_total||0), 0);
+  document.getElementById('ev-rn-stat-libres').textContent = slots.available ? libres : '—';
+
+  // KPIs
+  document.getElementById('ev-rn-kpi-regs').textContent = regs.total ?? '—';
+  document.getElementById('ev-rn-kpi-regs-sub').textContent = regs.total ? `${regs.incompletas||0} con intereses incompletos` : ' ';
+  document.getElementById('ev-rn-kpi-complete').innerHTML = `${regs.completas ?? '—'} <span style="font-size:14px;color:var(--text-muted);font-weight:700">/ ${regs.total ?? '—'}</span>`;
+  document.getElementById('ev-rn-kpi-complete-sub').textContent = regs.total ? `${regs.completeness_pct}% listas para emparejar` : ' ';
+  document.getElementById('ev-rn-kpi-requests').textContent = reqs.total ?? '—';
+  document.getElementById('ev-rn-kpi-requests-sub').textContent = reqs.total ? `${reqs.accepted||0} aceptadas · ${reqs.pending||0} pendientes` : ' ';
+  document.getElementById('ev-rn-kpi-util').textContent = (slots.utilization_pct ?? 0) + '%';
+  document.getElementById('ev-rn-kpi-util-sub').textContent = slots.available ? `${slots.meetings_total||0} reuniones · ${slots.rounds_total||0} rondas` : ' ';
+
+  // Sub-tab counters
+  const nd = document.getElementById('ev-rn-subtab-n-dir'); if (nd) nd.textContent = regs.total ?? '—';
+  const na = document.getElementById('ev-rn-subtab-n-ag');  if (na) na.textContent = slots.rounds_total ?? '—';
 }
 
 function evRnBtnBusy(action, busy) {
@@ -10054,7 +10294,7 @@ async function evRnSolver(action) {
         `${prefix} · total ${s.meetings_total||0} (requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}) · rondas efectivas ${s.total_rounds_effective||0}${s.unschedulable_count?` · unschedulable ${s.unschedulable_count}`:''}`;
       showStatus(`${prefix}: ${s.meetings_total||0} meetings`, 'success');
     }
-    if (action !== 'preview') await evRnLoadMeetings();
+    if (action !== 'preview') { await evRnLoadMeetings(); evRnLoadStats(); }
   } catch(e) {
     showStatus('Error de conexión', 'error');
   } finally {

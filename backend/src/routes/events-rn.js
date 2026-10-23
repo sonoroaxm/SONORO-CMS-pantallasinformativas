@@ -619,6 +619,69 @@ router.get('/events/:eventId/meetings', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET meetings'); }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-7b-1 — Stats agregadas para panel productor
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/events/:eventId/stats', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const eventId = req.params.eventId;
+
+    // Registrations + role mix (ofrece/busca/ambos/incompletas) via LEFT JOIN tags
+    const roleQ = await pool.query(
+      `WITH r AS (
+         SELECT id FROM events.registrations WHERE event_id=$1 AND status <> 'cancelled'
+       ), tagged AS (
+         SELECT r.id,
+                bool_or(rt.kind='offer')  AS has_offer,
+                bool_or(rt.kind='demand') AS has_demand,
+                COUNT(rt.*) AS tag_count
+           FROM r
+           LEFT JOIN events.rn_registration_tags rt ON rt.registration_id = r.id
+          GROUP BY r.id
+       )
+       SELECT
+         COUNT(*)::int                                                         AS total,
+         COUNT(*) FILTER (WHERE has_offer AND NOT has_demand)::int             AS ofrece,
+         COUNT(*) FILTER (WHERE has_demand AND NOT has_offer)::int             AS busca,
+         COUNT(*) FILTER (WHERE has_offer AND has_demand)::int                 AS ambos,
+         COUNT(*) FILTER (WHERE tag_count >= 1)::int                           AS completas,
+         COUNT(*) FILTER (WHERE tag_count = 0)::int                            AS incompletas
+       FROM tagged`,
+      [eventId]
+    );
+    const roles = roleQ.rows[0];
+
+    const reqQ = await pool.query(
+      `SELECT status, COUNT(*)::int AS n
+         FROM events.rn_meeting_requests WHERE event_id=$1 GROUP BY status`, [eventId]);
+    const requests = { total: 0, pending: 0, accepted: 0, rejected: 0, expired: 0 };
+    for (const row of reqQ.rows) { requests[row.status] = row.n; requests.total += row.n; }
+
+    const slotQ = await pool.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM events.rn_tables WHERE event_id=$1)   AS tables_total,
+         (SELECT COUNT(*)::int FROM events.rn_rounds WHERE event_id=$1 AND kind='meeting') AS rounds_total,
+         (SELECT COUNT(*)::int FROM events.rn_meetings WHERE event_id=$1) AS meetings_total`,
+      [eventId]
+    );
+    const slots = slotQ.rows[0];
+    const slotsAvailable = (slots.tables_total || 0) * (slots.rounds_total || 0);
+    const utilizationPct = slotsAvailable > 0 ? Math.round((slots.meetings_total * 100) / slotsAvailable) : 0;
+
+    const totalEligible = roles.total || 0;
+    const completenessPct = totalEligible > 0 ? Math.round((roles.completas * 100) / totalEligible) : 0;
+
+    res.json({
+      registrations: { total: totalEligible, completas: roles.completas, incompletas: roles.incompletas, completeness_pct: completenessPct },
+      role_mix: { ofrece: roles.ofrece, busca: roles.busca, ambos: roles.ambos },
+      requests,
+      slots: { tables_total: slots.tables_total, rounds_total: slots.rounds_total, meetings_total: slots.meetings_total, available: slotsAvailable, utilization_pct: utilizationPct },
+    });
+  } catch (err) { handleError(res, err, 'GET stats'); }
+});
+
 // E-RN-6a · Reporte post-evento productor (D-RN-9 + D-RN-15)
 router.get('/events/:eventId/report', auth, async (req, res) => {
   const pool = global.pool;
