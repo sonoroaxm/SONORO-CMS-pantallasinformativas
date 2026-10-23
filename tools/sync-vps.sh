@@ -65,6 +65,7 @@ TRACKED=(
   "backend/src/middleware/requireEventsAccess.js"
   "backend/src/queues/videoConversionQueue.js"
   "backend/src/jobs/eventsLicenseCron.js"
+  "backend/public/legal/privacidad-events.html"
 )
 
 # ── Colores ───────────────────────────────────────────────────────────────────
