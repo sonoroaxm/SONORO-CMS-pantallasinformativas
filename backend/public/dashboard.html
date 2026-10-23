@@ -4470,7 +4470,64 @@
             </div>
           </div>
           <div class="ev-rn-panel hidden" id="ev-rn-panel-reporte">
-            <div class="card"><div class="card-body" style="padding:28px;text-align:center;color:var(--text-muted);font-size:13px;">Reporte post-evento · se habilita en E-RN-7b-4</div></div>
+            <!-- Header -->
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+              <div>
+                <div style="font-size:15px;font-weight:800;">Reporte post-evento</div>
+                <div id="ev-rn-report-status" style="font-size:11px;color:var(--text-muted);margin-top:2px;">—</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-outline btn-sm" onclick="evRnLoadReport()">Refrescar</button>
+                <button class="btn btn-grad btn-sm" id="ev-rn-report-send-btn" onclick="evRnSendReport(false)">Enviar reporte por email</button>
+              </div>
+            </div>
+            <!-- Banners -->
+            <div id="ev-rn-report-banner-ref" class="hidden" style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(255,140,0,0.1);border:1px solid rgba(255,140,0,0.35);color:#FF8C00;font-size:12px;font-weight:600;">
+              Dato referencial · cobertura EBV &lt; 20%. Interpreta con cautela.
+            </div>
+            <div id="ev-rn-report-banner-fx" class="hidden" style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(255,27,141,0.08);border:1px solid rgba(255,27,141,0.3);color:#FF1B8D;font-size:12px;font-weight:600;">
+              Varias monedas detectadas · v1 asume COP, totales son aproximados.
+            </div>
+            <!-- KPIs -->
+            <div class="ev-rn-kpis" style="margin-bottom:14px;">
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">Meetings totales</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-total">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">Con EBV</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-ebv">—</div><div id="ev-rn-rep-k-cov" style="font-size:10px;color:var(--text-muted);margin-top:2px;">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">EBV promedio / meeting</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-avg">—</div></div>
+              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label">EBV total estimado</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-sum">—</div></div>
+            </div>
+            <!-- EBV detalle -->
+            <div class="card" style="margin-bottom:14px;"><div class="card-body" style="padding:16px;">
+              <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Distribución EBV</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px;">
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mediana</div><div id="ev-rn-rep-median" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mínimo</div><div id="ev-rn-rep-min" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Máximo</div><div id="ev-rn-rep-max" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Bilateral</div><div id="ev-rn-rep-bilat" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Unilateral</div><div id="ev-rn-rep-unilat" style="font-weight:700;">—</div></div>
+                <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Sin EBV</div><div id="ev-rn-rep-empty" style="font-weight:700;">—</div></div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;" id="ev-rn-rep-horizon-pills"></div>
+            </div></div>
+            <!-- Top meetings -->
+            <div class="card"><div class="card-body" style="padding:16px;">
+              <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Top meetings por valor esperado</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">#</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa A</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa B</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ronda · Mesa</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Tipo</th>
+                      <th style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Horizonte</th>
+                      <th style="text-align:right;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-rep-tbody"><tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Sin datos — carga el reporte</td></tr></tbody>
+                </table>
+              </div>
+            </div></div>
           </div>
         </div><!-- /ev-rueda-detail-view -->
 
@@ -10695,6 +10752,135 @@ function evRnSwitchPanelTab(tab) {
   if (el) el.classList.remove('hidden');
   if (tab === 'directorio') evRnLoadDirectory();
   else if (tab === 'live')  evRnLoadLive();
+  else if (tab === 'reporte') evRnLoadReport();
+}
+
+// ── E-RN-7b-4 · Reporte productor ──────────────────────────────────────────────
+let evRnReportCache = null;
+function evRnFmtCop(n) {
+  if (n === null || n === undefined || isNaN(Number(n))) return '—';
+  try {
+    return new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(Number(n));
+  } catch(_) { return '$' + Math.round(Number(n)).toLocaleString('es-CO'); }
+}
+function evRnFmtDateTz(iso) {
+  if (!iso) return '—';
+  const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+  try {
+    return new Date(iso).toLocaleString('es-CO', {
+      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: tz
+    });
+  } catch(_) { return iso; }
+}
+async function evRnLoadReport() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/report`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    evRnReportCache = r.ok ? await r.json() : null;
+    evRnReportRender();
+  } catch(_) { evRnReportCache = null; evRnReportRender(); }
+}
+function evRnReportRender() {
+  const d = evRnReportCache;
+  const statusEl = document.getElementById('ev-rn-report-status');
+  if (!d) {
+    if (statusEl) statusEl.textContent = 'No se pudo cargar el reporte';
+    return;
+  }
+  // Estado envío: la info live viene del evento. Lo tomamos de evRnCurrentEvent.config si está, si no "No enviado".
+  const sentAt = evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_at;
+  const sentCount = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_count) || 0;
+  if (statusEl) {
+    statusEl.textContent = sentAt
+      ? `Enviado · ${evRnFmtDateTz(sentAt)} · ${sentCount} envío${sentCount===1?'':'s'}`
+      : 'No enviado todavía';
+  }
+  // Banners
+  document.getElementById('ev-rn-report-banner-ref').classList.toggle('hidden', !d.ebv || !d.ebv.referential);
+  document.getElementById('ev-rn-report-banner-fx').classList.toggle('hidden', !d.ebv || !d.ebv.mixed_currencies);
+  // KPIs
+  const m = d.meetings || {};
+  const e = d.ebv || {};
+  const cov = (e.coverage || 0) * 100;
+  document.getElementById('ev-rn-rep-k-total').textContent = m.total ?? '—';
+  document.getElementById('ev-rn-rep-k-ebv').textContent   = m.with_ebv ?? '—';
+  document.getElementById('ev-rn-rep-k-cov').textContent   = `${cov.toFixed(0)}% cobertura`;
+  document.getElementById('ev-rn-rep-k-avg').textContent   = evRnFmtCop(e.avg_per_meeting);
+  document.getElementById('ev-rn-rep-k-sum').textContent   = evRnFmtCop(e.total_estimated);
+  // Detalle
+  document.getElementById('ev-rn-rep-median').textContent  = evRnFmtCop(e.median_per_meeting);
+  document.getElementById('ev-rn-rep-min').textContent     = evRnFmtCop(e.min);
+  document.getElementById('ev-rn-rep-max').textContent     = evRnFmtCop(e.max);
+  document.getElementById('ev-rn-rep-bilat').textContent   = m.bilateral ?? '—';
+  document.getElementById('ev-rn-rep-unilat').textContent  = m.unilateral ?? '—';
+  document.getElementById('ev-rn-rep-empty').textContent   = m.empty ?? '—';
+  // Horizon pills
+  const hb = (e.horizon_breakdown) || {};
+  const hLabels = { short:'Corto plazo', long:'Largo plazo', mixed:'Mixto', unknown:'Sin horizonte' };
+  const hColors = { short:'#22c55e', long:'#FF1B8D', mixed:'#FF8C00', unknown:'#9ca3af' };
+  const pillsEl = document.getElementById('ev-rn-rep-horizon-pills');
+  pillsEl.innerHTML = Object.keys(hLabels).map(k => {
+    const n = hb[k] || 0;
+    const c = hColors[k];
+    return `<span style="padding:3px 10px;border-radius:999px;background:${c}1a;color:${c};font-size:11px;font-weight:700;">${hLabels[k]} · ${n}</span>`;
+  }).join('');
+  // Top table
+  const tb = document.getElementById('ev-rn-rep-tbody');
+  const top = Array.isArray(d.top) ? d.top : [];
+  if (!top.length) {
+    tb.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings con EBV capturado</td></tr>';
+  } else {
+    tb.innerHTML = top.map((t, i) => {
+      const fillColor = t.fill_type === 'bilateral' ? '#22c55e' : '#FF8C00';
+      const fillLabel = t.fill_type === 'bilateral' ? 'Bilateral' : 'Unilateral';
+      const horLabel = hLabels[t.horizon] || '—';
+      const horColor = hColors[t.horizon] || '#9ca3af';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;color:var(--text-muted);font-weight:700;">${i+1}</td>
+        <td style="padding:8px;">${evRnEscape(t.company_a||'—')}</td>
+        <td style="padding:8px;">${evRnEscape(t.company_b||'—')}</td>
+        <td style="padding:8px;color:var(--text-muted);">R${t.round ?? '—'} · ${evRnEscape(t.table_label||'—')}</td>
+        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${fillColor}22;color:${fillColor};font-size:10px;font-weight:700;">${fillLabel}</span></td>
+        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${horColor}22;color:${horColor};font-size:10px;font-weight:700;">${horLabel}</span></td>
+        <td style="padding:8px;text-align:right;font-weight:700;">${evRnFmtCop(t.value)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+async function evRnSendReport(force) {
+  if (!evCurrentEventId) return;
+  const btn = document.getElementById('ev-rn-report-send-btn');
+  if (!force && !confirm('¿Enviar reporte post-evento por email al productor y delegados primarios?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const url = `${API_URL}/api/rn/events/${evCurrentEventId}/report/send${force ? '?force=1' : ''}`;
+    const r = await fetch(url, { method:'POST', headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' }, body:'{}' });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409) {
+      const prev = data.sent_at ? evRnFmtDateTz(data.sent_at) : 'antes';
+      if (confirm(`Ya se envió el ${prev}. ¿Reenviar de todas formas?`)) {
+        return evRnSendReport(true);
+      }
+      showStatus('Envío cancelado', 'info');
+    } else if (!r.ok) {
+      showStatus(data.error || 'Error al enviar reporte', 'error');
+    } else {
+      showStatus('Reporte enviado correctamente', 'success');
+      // Patch local cache del evento con sent_at devuelto para refrescar status sin otro GET
+      if (evRnCurrentEvent) {
+        evRnCurrentEvent.config = evRnCurrentEvent.config || {};
+        evRnCurrentEvent.config.rn_report_sent_at = data.sent_at || new Date().toISOString();
+        evRnCurrentEvent.config.rn_report_sent_count = (evRnCurrentEvent.config.rn_report_sent_count || 0) + 1;
+      }
+      evRnLoadReport();
+    }
+  } catch(_) {
+    showStatus('Error de conexión', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar reporte por email'; }
+  }
 }
 
 async function evRnLoadStats() {
