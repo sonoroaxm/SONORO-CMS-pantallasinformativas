@@ -8,6 +8,7 @@
 
 'use strict';
 const express   = require('express');
+const crypto    = require('crypto');
 const router    = express.Router();
 const rateLimit = require('express-rate-limit');
 const { withTransaction } = require('../db/withTransaction');
@@ -97,6 +98,8 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
     tags = {},                   // E-RN-2: {offer:[tagId,...], demand:[tagId,...]}
     visibility_choice,           // E-RN-2: 'public'|'private' solo si cfg.visibility='mixed'
     accepted_terms,
+    consent_text,                // S211t B.1: texto literal mostrado al titular (SHA-256)
+    consent_policy_version,      // S211t B.1: versión política vigente (ej. '1.0')
     hp_field = '',
     locale: rawLocale,
   } = req.body || {};
@@ -195,14 +198,28 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
       );
       const attendee_id = attRes.rows[0].id;
 
+      // S211t B.1: audit trail del consentimiento (Ley 1581)
+      const consentHash = consent_text
+        ? crypto.createHash('sha256').update(String(consent_text), 'utf8').digest('hex')
+        : null;
+      const consentIp = (req.headers['x-forwarded-for'] || req.ip || '')
+        .toString().split(',')[0].trim() || null;
+      const consentUa = (req.headers['user-agent'] || '').toString().slice(0, 500) || null;
+      const consentVersion = (typeof consent_policy_version === 'string' && consent_policy_version.length <= 20)
+        ? consent_policy_version : '1.0';
+
       // Insert registration (una empresa × evento)
       const regRes = await client.query(
         `INSERT INTO events.registrations
-           (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
-         VALUES ($1,$2,$3,'rueda','web_form',$4,TRUE,'confirmed')
+           (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status,
+            consent_accepted, consent_accepted_at, consent_ip, consent_user_agent,
+            consent_text_hash, consent_policy_version)
+         VALUES ($1,$2,$3,'rueda','web_form',$4,TRUE,'confirmed',
+                 TRUE, NOW(), $5, $6, $7, $8)
          ON CONFLICT (event_id, attendee_id) DO NOTHING
          RETURNING id, qr_token`,
-        [event.id, attendee_id, event.user_id, JSON.stringify(customFields)]
+        [event.id, attendee_id, event.user_id, JSON.stringify(customFields),
+         consentIp, consentUa, consentHash, consentVersion]
       );
       if (!regRes.rows[0]) {
         const e = new Error('Esta empresa ya está inscrita en la rueda');
@@ -422,6 +439,61 @@ router.get('/delegates/me', rnReadLimiter, async (req, res) => {
 // E-RN-2 · Público — tags del tenant (para el formulario de inscripción)
 // GET /api/rn/public/:eventSlug/tags → lista tags disponibles del productor
 // ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
+// S211t B.1 · GET /api/rn/public/:eventSlug
+// Metadata pública mínima para renderizar la landing de registro.
+// Nunca expone emails/PII/tokens — solo datos del evento + organizador legal.
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/:eventSlug', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, slug, status, timezone, starts_at, ends_at, venue_name, venue_address,
+              config,
+              organizer_legal_name, organizer_country,
+              privacy_policy_source, privacy_policy_url, privacy_policy_version
+         FROM events.events
+        WHERE slug = $1 AND status IN ('published','live')`,
+      [req.params.eventSlug]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Rueda no encontrada' });
+    const ev = rows[0];
+    const cfg = ev.config || {};
+    if (cfg.event_type !== 'matchmaking') {
+      return res.status(400).json({ error: 'Este evento no es una rueda de negocios' });
+    }
+    const mm = cfg.matchmaking || {};
+    const vis = mm.visibility || cfg.visibility || 'public';
+    const matching_mode = mm.matching_mode || cfg.matching_mode || 'tags';
+    const defaultPrivacyUrl = `${(process.env.CMS_URL || '').replace(/\/$/, '')}/legal/privacidad-events.html`;
+    res.json({
+      event: {
+        id: ev.id,
+        name: ev.name,
+        slug: ev.slug,
+        timezone: ev.timezone,
+        starts_at: ev.starts_at,
+        ends_at: ev.ends_at,
+        venue_name: ev.venue_name,
+        venue_address: ev.venue_address,
+        languages: cfg.languages || ['es'],
+        max_capacity: cfg.max_capacity || null,
+        registration_open: cfg.registration_open !== false,
+        matchmaking: { visibility: vis, matching_mode },
+      },
+      organizer: {
+        legal_name: ev.organizer_legal_name || null,
+        country: ev.organizer_country || 'CO',
+      },
+      privacy: {
+        source: ev.privacy_policy_source || 'sonoro_template',
+        url: ev.privacy_policy_url || defaultPrivacyUrl,
+        version: ev.privacy_policy_version || '1.0',
+      },
+    });
+  } catch (err) { handleError(res, err, 'GET event info'); }
+});
+
 router.get('/:eventSlug/tags', rnReadLimiter, async (req, res) => {
   const pool = global.pool;
   try {

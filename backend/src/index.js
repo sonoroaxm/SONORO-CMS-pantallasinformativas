@@ -9096,6 +9096,10 @@ app.get('/rueda/callboard/:slug/:zoneSlug', (req, res) => {
 app.get('/rueda/callboard/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard.html'));
 });
+// S211t B.1 — landing pública de registro empresa
+app.get('/rueda/:slug/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
+});
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
 });

@@ -66,6 +66,10 @@ TRACKED=(
   "backend/src/queues/videoConversionQueue.js"
   "backend/src/jobs/eventsLicenseCron.js"
   "backend/public/legal/privacidad-events.html"
+  "backend/public/rueda-registro.html"
+  "backend/src/routes/events-rn.js"
+  "backend/src/routes/events-rn-public.js"
+  "backend/src/services/matchmaking-tags.js"
 )
 
 # ── Colores ───────────────────────────────────────────────────────────────────
