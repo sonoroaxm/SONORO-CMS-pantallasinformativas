@@ -436,6 +436,110 @@ router.get('/delegates/me', rnReadLimiter, async (req, res) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// S211t B.1 · "Mis tags" post-registro
+// GET /api/rn/public/delegates/me/tags?token=<agenda_token>
+// PUT /api/rn/public/delegates/me/tags?token=<agenda_token>  body: { offer:[], demand:[] }
+// Solo el delegado primario puede editar los tags de la empresa.
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/delegates/me/tags', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const mm = (ctx.event_config || {}).matchmaking || {};
+    const matchingMode = mm.matching_mode || (ctx.event_config || {}).matching_mode || 'tags';
+    const { rows: available } = await pool.query(
+      `SELECT id, slug, label, category FROM events.rn_tags
+        WHERE user_id = $1 ORDER BY category NULLS LAST, label`,
+      [ctx.user_id]
+    );
+    const { rows: mine } = await pool.query(
+      `SELECT tag_id, kind FROM events.rn_registration_tags WHERE registration_id = $1`,
+      [ctx.registration_id]
+    );
+    res.json({
+      matching_mode: matchingMode,
+      available,
+      mine: {
+        offer:  mine.filter(r => r.kind === 'offer').map(r => r.tag_id),
+        demand: mine.filter(r => r.kind === 'demand').map(r => r.tag_id),
+      },
+      can_edit: !!ctx.is_primary,
+    });
+  } catch (err) { handleError(res, err, 'GET /me/tags'); }
+});
+
+router.put('/delegates/me/tags', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!ctx.is_primary) return res.status(403).json({ error: 'Solo el delegado primario puede editar tags' });
+    const mm = (ctx.event_config || {}).matchmaking || {};
+    const matchingMode = mm.matching_mode || (ctx.event_config || {}).matching_mode || 'tags';
+    if (matchingMode === 'manual_only') return res.status(400).json({ error: 'Esta rueda no usa tags' });
+
+    const { offer = [], demand = [] } = req.body || {};
+    const offerIds  = Array.isArray(offer)  ? offer.filter(x => UUID_RE.test(String(x)))  : [];
+    const demandIds = Array.isArray(demand) ? demand.filter(x => UUID_RE.test(String(x))) : [];
+    const allIds = [...new Set([...offerIds, ...demandIds])];
+
+    let validOffer = [], validDemand = [];
+    if (allIds.length) {
+      const chk = await pool.query(
+        `SELECT id FROM events.rn_tags WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+        [ctx.user_id, allIds]
+      );
+      const ok = new Set(chk.rows.map(r => r.id));
+      validOffer  = offerIds.filter(id => ok.has(id));
+      validDemand = demandIds.filter(id => ok.has(id));
+    }
+
+    await withTransaction(pool, async (client) => {
+      await client.query(`DELETE FROM events.rn_registration_tags WHERE registration_id = $1`, [ctx.registration_id]);
+      for (const tagId of validOffer) {
+        await client.query(
+          `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind) VALUES ($1,$2,'offer')`,
+          [ctx.registration_id, tagId]
+        );
+      }
+      for (const tagId of validDemand) {
+        await client.query(
+          `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind) VALUES ($1,$2,'demand')`,
+          [ctx.registration_id, tagId]
+        );
+      }
+    });
+
+    global.io?.to(`event_${ctx.event_id}`).emit('rn.tags_updated', {
+      user_id: ctx.user_id, event_id: ctx.event_id, registration_id: ctx.registration_id,
+    });
+
+    console.log(`[rn-public] tags updated event=${ctx.event_slug} delegate=${ctx.delegate_email} offer=${validOffer.length} demand=${validDemand.length}`);
+    res.json({ ok: true, offer: validOffer, demand: validDemand });
+  } catch (err) { handleError(res, err, 'PUT /me/tags'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// S211t B.1 · ARCO-O · opt-out matchmaking (sin borrar registro)
+// POST /api/rn/public/delegates/me/opt-out?token=<agenda_token>  body: { reason? }
+// ──────────────────────────────────────────────────────────────────────────────
+router.post('/delegates/me/opt-out', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const reason = (req.body && typeof req.body.reason === 'string')
+      ? req.body.reason.slice(0, 200) : null;
+    await pool.query(
+      `UPDATE events.rn_delegates
+          SET opt_out = TRUE, opt_out_at = NOW(), opt_out_reason = $1
+        WHERE id = $2`,
+      [reason, ctx.delegate_id]
+    );
+    console.log(`[rn-public] opt-out event=${ctx.event_slug} delegate=${ctx.delegate_email}`);
+    res.json({ ok: true });
+  } catch (err) { handleError(res, err, 'POST /me/opt-out'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // E-RN-2 · Público — tags del tenant (para el formulario de inscripción)
 // GET /api/rn/public/:eventSlug/tags → lista tags disponibles del productor
 // ──────────────────────────────────────────────────────────────────────────────

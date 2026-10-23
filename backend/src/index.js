@@ -9100,6 +9100,10 @@ app.get('/rueda/callboard/:slug', (req, res) => {
 app.get('/rueda/:slug/register', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
 });
+// S211t B.1 — mi agenda (delegado por token)
+app.get('/rueda/mi-agenda/:token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'rueda-mi-agenda.html'));
+});
 app.get('/cotizacion/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'cotizacion.html'));
 });
