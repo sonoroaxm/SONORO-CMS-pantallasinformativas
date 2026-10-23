@@ -4203,6 +4203,7 @@
           <!-- Sub-tabs -->
           <div class="ev-rn-subtabs">
             <button class="ev-rn-subtab on" data-rntab="setup" onclick="evRnSwitchPanelTab('setup')">Setup</button>
+            <button class="ev-rn-subtab" data-rntab="tags" onclick="evRnSwitchPanelTab('tags')">Tags <span class="n" id="ev-rn-subtab-n-tags">—</span></button>
             <button class="ev-rn-subtab" data-rntab="directorio" onclick="evRnSwitchPanelTab('directorio')">Directorio <span class="n" id="ev-rn-subtab-n-dir">—</span></button>
             <button class="ev-rn-subtab" data-rntab="agenda" onclick="evRnSwitchPanelTab('agenda')">Agenda <span class="n" id="ev-rn-subtab-n-ag">—</span></button>
             <button class="ev-rn-subtab" data-rntab="live" onclick="evRnSwitchPanelTab('live')">Live</button>
@@ -4343,6 +4344,107 @@
               <span id="ev-rn-cfg-savestate" style="font-size:11px;color:var(--text-muted);"></span>
               <button class="btn btn-outline btn-sm" onclick="evRnLoadConfig()">Descartar cambios</button>
               <button class="btn btn-grad" onclick="evRnSaveConfig()">Guardar configuración</button>
+            </div>
+          </div>
+
+          <!-- TAGS panel · B.0 taxonomía (port rueda-setup-tags-card-v1.html) -->
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-tags">
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div>Mi catálogo</div>
+                  <div style="font-size:11px;color:var(--text-muted);font-weight:400;margin-top:2px;">
+                    <span id="ev-rn-tags-count">0</span> tags · se reutiliza entre todas tus ruedas
+                  </div>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn btn-outline btn-sm" onclick="evRnTagsDownloadTemplate()">Plantilla</button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnTagsExport()">Exportar</button>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-rn-tags-file-inp').click()">Importar Excel</button>
+                  <button class="btn btn-grad btn-sm" onclick="evRnTagOpenNew()">+ Nuevo tag</button>
+                </div>
+                <input type="file" id="ev-rn-tags-file-inp" accept=".xlsx,.xls,.csv"
+                  style="display:none;" onchange="evRnTagsBulkUpload(this.files && this.files[0])">
+              </div>
+
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:rgba(255,27,141,0.06);border:1px solid rgba(255,27,141,0.25);border-left:3px solid #FF1B8D;border-radius:8px;margin-bottom:14px;font-size:12.5px;">
+                <div>
+                  <div style="color:#FF1B8D;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;">¿Qué es el catálogo de tags?</div>
+                  <p style="margin:6px 0 0;">Los tags son las categorías de oferta (lo que una empresa vende) y demanda (lo que busca comprar) que el asistente marca al inscribirse. El motor de la Rueda sólo empareja empresas usando los tags de este catálogo — por eso debe estar listo antes de abrir inscripciones.</p>
+                  <p style="margin:6px 0 0;">¿Primera rueda? Descarga una plantilla de Excel con 2 columnas (Nombre, Categoría), llénala con los tags de tu sector y súbela aquí.</p>
+                </div>
+              </div>
+
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Nombre</th>
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;" title="Versión normalizada del nombre, generada automáticamente">Identificador</th>
+                      <th style="text-align:left;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Categoría</th>
+                      <th style="text-align:right;padding:10px 8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10.5px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ev-rn-tags-tbody">
+                    <tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Nuevo tag + fuzzy -->
+          <div id="ev-rn-tag-new-modal" class="modal" onclick="if(event.target.id==='ev-rn-tag-new-modal') evRnTagCloseNew()">
+            <div class="modal-content" style="max-width:540px;">
+              <div class="modal-header">
+                <h3 id="ev-rn-tag-new-title">Nuevo tag</h3>
+                <button class="modal-close" onclick="evRnTagCloseNew()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div>
+                  <label class="ev-rn-cfg-lbl">Nombre</label>
+                  <input id="ev-rn-tag-new-label" type="text" class="ev-rn-cfg-inp" placeholder="Ej. Software hecho a medida" oninput="evRnTagFuzzyDebounced(this.value)">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Es lo que verá el asistente al elegir sus tags. Usa 1 a 5 palabras.</div>
+                </div>
+                <div id="ev-rn-tag-fuzzy-warn" style="display:none;padding:12px 14px;background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:8px;font-size:12.5px;">
+                  <div style="color:#FF8C00;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">¿Quisiste decir alguno de estos?</div>
+                  <div id="ev-rn-tag-fuzzy-list"></div>
+                  <div style="margin-top:8px;color:var(--text-muted);font-size:11.5px;">Si ninguno aplica, continúa con tu tag. Evitar duplicados mejora el emparejamiento.</div>
+                </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Categoría (opcional)</label>
+                  <input id="ev-rn-tag-new-category" type="text" class="ev-rn-cfg-inp" placeholder="Ej. Tecnología">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Agrupa tags relacionados en el formulario del asistente (ej. Logística, Tecnología, Agro).</div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnTagCloseNew()">Cancelar</button>
+                <button class="btn btn-grad" id="ev-rn-tag-new-save-btn" onclick="evRnTagSaveNew()">Crear tag</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODAL: Preview bulk import -->
+          <div id="ev-rn-tag-bulk-modal" class="modal" onclick="if(event.target.id==='ev-rn-tag-bulk-modal') evRnTagCloseBulk()">
+            <div class="modal-content" style="max-width:760px;">
+              <div class="modal-header">
+                <h3>Previsualización · importar catálogo</h3>
+                <button class="modal-close" onclick="evRnTagCloseBulk()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:12px;">
+                <div id="ev-rn-tag-bulk-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;" id="ev-rn-tag-bulk-n-det">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Detectados</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#22c55e;" id="ev-rn-tag-bulk-n-new">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Nuevos</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#FF8C00;" id="ev-rn-tag-bulk-n-sim">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Similares</div></div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#ef4444;" id="ev-rn-tag-bulk-n-dup">0</div><div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;">Duplicados</div></div>
+                </div>
+                <p style="font-size:12px;color:var(--text-muted);margin:0;">Revisa cada fila y decide. Nada se guarda hasta confirmar.</p>
+                <div id="ev-rn-tag-bulk-list" style="max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;"></div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnTagCloseBulk()">Cancelar</button>
+                <button class="btn btn-grad" id="ev-rn-tag-bulk-confirm-btn" onclick="evRnTagBulkConfirm()">Confirmar</button>
+              </div>
             </div>
           </div>
 
@@ -10438,6 +10540,7 @@ function evOpenRueda(ev) {
   evRnLoadConfig();
   evRnLoadRounds();
   evRnLoadTables();
+  evRnTagsLoad();
   evRnSubscribeSocket(ev.id);
 }
 
@@ -10753,6 +10856,260 @@ function evRnSwitchPanelTab(tab) {
   if (tab === 'directorio') evRnLoadDirectory();
   else if (tab === 'live')  evRnLoadLive();
   else if (tab === 'reporte') evRnLoadReport();
+  else if (tab === 'tags')  evRnTagsLoad();
+}
+
+// ── B.0 Taxonomía · catálogo de tags ────────────────────────────
+let evRnTagsCache = [];
+async function evRnTagsLoad() {
+  const tbody = document.getElementById('ev-rn-tags-tbody');
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    evRnTagsCache = await r.json();
+    document.getElementById('ev-rn-tags-count').textContent = evRnTagsCache.length;
+    const nSub = document.getElementById('ev-rn-subtab-n-tags');
+    if (nSub) nSub.textContent = evRnTagsCache.length;
+    if (evRnTagsCache.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">Sin tags · importa Excel o crea el primero</td></tr>';
+      return;
+    }
+    tbody.innerHTML = evRnTagsCache.map(t => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px 8px;">${evRnEsc(t.label)}</td>
+        <td style="padding:10px 8px;"><code style="font-size:11.5px;color:var(--text-muted);">${evRnEsc(t.slug)}</code></td>
+        <td style="padding:10px 8px;color:var(--text-muted);">${evRnEsc(t.category || '—')}</td>
+        <td style="padding:10px 8px;text-align:right;">
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;" onclick="evRnTagEdit('${t.id}')">Editar</button>
+          <button class="btn btn-outline btn-sm" style="padding:4px 8px;color:#ef4444;border-color:rgba(239,68,68,0.3);" onclick="evRnTagDelete('${t.id}')">×</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;">Error cargando catálogo: ${evRnEsc(e.message)}</td></tr>`;
+  }
+}
+function evRnEsc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function evRnTagOpenNew(editTag) {
+  const modal = document.getElementById('ev-rn-tag-new-modal');
+  document.getElementById('ev-rn-tag-new-label').value    = editTag ? (editTag.label || '') : '';
+  document.getElementById('ev-rn-tag-new-category').value = editTag ? (editTag.category || '') : '';
+  document.getElementById('ev-rn-tag-fuzzy-warn').style.display = 'none';
+  document.getElementById('ev-rn-tag-new-title').textContent = editTag ? 'Editar tag' : 'Nuevo tag';
+  document.getElementById('ev-rn-tag-new-save-btn').textContent = editTag ? 'Guardar cambios' : 'Crear tag';
+  modal.dataset.editId = editTag ? editTag.id : '';
+  modal.classList.add('active');
+}
+function evRnTagCloseNew() {
+  const modal = document.getElementById('ev-rn-tag-new-modal');
+  modal.classList.remove('active');
+  modal.dataset.editId = '';
+}
+function evRnTagEdit(tagId) {
+  const t = evRnTagsCache.find(x => String(x.id) === String(tagId));
+  if (!t) return;
+  evRnTagOpenNew(t);
+}
+async function evRnTagDelete(tagId) {
+  const t = evRnTagsCache.find(x => String(x.id) === String(tagId));
+  if (!t) return;
+  if (!confirm(`Eliminar tag "${t.label}"? Las registraciones existentes que lo usaban lo pierden.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/${tagId}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok && r.status !== 204) throw new Error('HTTP ' + r.status);
+    showStatus('Tag eliminado', 'success');
+    evRnTagsLoad();
+  } catch (e) { showStatus('Error: ' + e.message, 'error'); }
+}
+
+let evRnTagFuzzyTimer = null;
+function evRnTagFuzzyDebounced(v) {
+  clearTimeout(evRnTagFuzzyTimer);
+  evRnTagFuzzyTimer = setTimeout(() => evRnTagFuzzyRun(v), 300);
+}
+async function evRnTagFuzzyRun(v) {
+  const box = document.getElementById('ev-rn-tag-fuzzy-warn');
+  const list = document.getElementById('ev-rn-tag-fuzzy-list');
+  const label = (v || '').trim();
+  if (label.length < 2) { box.style.display = 'none'; return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/similar?label=${encodeURIComponent(label)}`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { box.style.display = 'none'; return; }
+    const data = await r.json();
+    const cands = (data.candidates || []).filter(c =>
+      !document.getElementById('ev-rn-tag-new-modal').dataset.editId || String(c.id) !== document.getElementById('ev-rn-tag-new-modal').dataset.editId
+    );
+    if (cands.length === 0) { box.style.display = 'none'; return; }
+    list.innerHTML = cands.slice(0,3).map(c => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:7px;margin-top:6px;font-size:13px;">
+        <div><strong>${evRnEsc(c.label)}</strong> <span style="font-size:11px;color:var(--text-muted);">score ${Number(c.score).toFixed(2)}</span></div>
+        <button class="btn btn-outline btn-sm" style="padding:3px 10px;font-size:11px;" onclick="evRnTagUseExisting('${c.id}')">Usar este</button>
+      </div>
+    `).join('');
+    box.style.display = 'block';
+  } catch(_) { box.style.display = 'none'; }
+}
+function evRnTagUseExisting(tagId) {
+  evRnTagCloseNew();
+  const el = document.querySelector(`#ev-rn-tags-tbody tr`);
+  showStatus('Usa el tag existente desde el catálogo', 'info');
+}
+
+async function evRnTagSaveNew() {
+  const label = (document.getElementById('ev-rn-tag-new-label').value || '').trim();
+  const category = (document.getElementById('ev-rn-tag-new-category').value || '').trim();
+  if (!label) { showStatus('Nombre requerido', 'error'); return; }
+  const editId = document.getElementById('ev-rn-tag-new-modal').dataset.editId;
+  const btn = document.getElementById('ev-rn-tag-new-save-btn');
+  btn.disabled = true;
+  try {
+    const url    = editId ? `${API_URL}/api/rn/tags/${editId}` : `${API_URL}/api/rn/tags`;
+    const method = editId ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method, headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ label, category: category || null })
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    showStatus(editId ? 'Tag actualizado' : 'Tag creado', 'success');
+    evRnTagCloseNew();
+    evRnTagsLoad();
+  } catch (e) {
+    showStatus('Error: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+async function evRnTagsDownloadTemplate() {
+  try {
+    const r = await fetch(`${API_URL}/api/rn/tags/template.xlsx`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    evRnTagsDownloadBlob(blob, 'sonoro-tags-template.xlsx');
+  } catch (e) { showStatus('Error plantilla: ' + e.message, 'error'); }
+}
+async function evRnTagsExport() {
+  if (!evCurrentEventId) { showStatus('Abre una rueda primero', 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/export`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    evRnTagsDownloadBlob(blob, 'sonoro-tags-export.xlsx');
+  } catch (e) { showStatus('Error export: ' + e.message, 'error'); }
+}
+function evRnTagsDownloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+let evRnTagBulkPreview = null;
+async function evRnTagsBulkUpload(file) {
+  if (!file) return;
+  if (!evCurrentEventId) { showStatus('Abre una rueda primero', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/bulk`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${authToken}` }, body: fd
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    evRnTagBulkPreview = await r.json();
+    evRnTagBulkRenderPreview();
+    document.getElementById('ev-rn-tag-bulk-modal').classList.add('active');
+  } catch (e) { showStatus('Error import: ' + e.message, 'error'); }
+  finally { document.getElementById('ev-rn-tags-file-inp').value = ''; }
+}
+function evRnTagBulkRenderPreview() {
+  const p = evRnTagBulkPreview; if (!p) return;
+  document.getElementById('ev-rn-tag-bulk-n-det').textContent = p.detected || 0;
+  document.getElementById('ev-rn-tag-bulk-n-new').textContent = p.new || 0;
+  document.getElementById('ev-rn-tag-bulk-n-sim').textContent = (p.similar || []).length;
+  document.getElementById('ev-rn-tag-bulk-n-dup').textContent = (p.duplicates || []).length;
+
+  const rows = p.rows || [];
+  const invalid = p.invalid || [];
+  const html = [];
+  rows.forEach((row, idx) => {
+    const st = row.status;
+    const bg = st==='new'?'rgba(34,197,94,0.05)' : st==='duplicate'?'rgba(239,68,68,0.05)' : st==='similar'?'rgba(255,140,0,0.05)' : 'transparent';
+    const pill = st==='new'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#22c55e;background:rgba(34,197,94,0.14);text-transform:uppercase;letter-spacing:.5px;">Nuevo</span>'
+               : st==='duplicate'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#ef4444;background:rgba(239,68,68,0.14);text-transform:uppercase;letter-spacing:.5px;">Duplicado</span>'
+               : st==='similar'?'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:#FF8C00;background:rgba(255,140,0,0.14);text-transform:uppercase;letter-spacing:.5px;">Similar</span>'
+               : '';
+    const meta = st==='duplicate' ? `Ya existe (${evRnEsc(row.existing_slug||'')})`
+              : st==='similar'    ? `Parecido a: ${(row.candidates||[]).map(evRnEsc).join(', ')}`
+              : row.category      ? `Categoría: ${evRnEsc(row.category)}`
+              : '';
+    let actionSel = '';
+    if (st === 'new') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="create" selected>Crear</option><option value="skip">Omitir</option></select>`;
+    } else if (st === 'duplicate') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="skip" selected>Omitir</option><option value="merge">Fusionar</option></select>`;
+    } else if (st === 'similar') {
+      actionSel = `<select data-idx="${idx}" class="ev-rn-tag-bulk-sel" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:11.5px;">
+        <option value="create" selected>Crear como nuevo</option><option value="merge">Fusionar</option><option value="skip">Omitir</option></select>`;
+    }
+    html.push(`
+      <div style="display:grid;grid-template-columns:40px 1fr 110px 150px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;background:${bg};">
+        <div style="color:var(--text-muted);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">#${row.row}</div>
+        <div><div>${evRnEsc(row.label||'')}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${meta}</div></div>
+        <div>${pill}</div>
+        <div>${actionSel}</div>
+      </div>
+    `);
+  });
+  invalid.forEach(iv => {
+    html.push(`
+      <div style="display:grid;grid-template-columns:40px 1fr 110px 150px;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);font-size:12.5px;background:rgba(239,68,68,0.1);color:var(--text-muted);">
+        <div style="font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">#${iv.row}</div>
+        <div><div>(inválido)</div><div style="font-size:11px;margin-top:2px;">${evRnEsc(iv.reason||'')}</div></div>
+        <div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;color:var(--text-muted);background:var(--surface2);text-transform:uppercase;letter-spacing:.5px;">Inválido</span></div>
+        <div>—</div>
+      </div>
+    `);
+  });
+  document.getElementById('ev-rn-tag-bulk-list').innerHTML = html.join('') || '<div style="padding:16px;text-align:center;color:var(--text-muted);">Sin filas</div>';
+  const toCreate = rows.filter(r => r.status === 'new').length;
+  document.getElementById('ev-rn-tag-bulk-confirm-btn').textContent = `Confirmar y crear ${toCreate} tag${toCreate===1?'':'s'}`;
+}
+function evRnTagCloseBulk() {
+  document.getElementById('ev-rn-tag-bulk-modal').classList.remove('active');
+  evRnTagBulkPreview = null;
+}
+async function evRnTagBulkConfirm() {
+  if (!evRnTagBulkPreview || !evCurrentEventId) return;
+  const sels = document.querySelectorAll('.ev-rn-tag-bulk-sel');
+  const rows = (evRnTagBulkPreview.rows || []).map((r, i) => {
+    const sel = Array.from(sels).find(s => Number(s.dataset.idx) === i);
+    const action = sel ? sel.value : (r.status === 'new' ? 'create' : 'skip');
+    return { label: r.label, category: r.category, action, merge_into_slug: r.existing_slug || (r.candidates && r.candidates[0]) || null };
+  });
+  const btn = document.getElementById('ev-rn-tag-bulk-confirm-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tags/bulk/confirm`, {
+      method:'POST', headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ rows })
+    });
+    if (!r.ok) { const err = await r.json().catch(()=>({})); throw new Error(err.error || 'HTTP ' + r.status); }
+    const stats = await r.json();
+    showStatus(`✅ ${stats.created} creados · ${stats.merged} fusionados · ${stats.skipped} omitidos`, 'success');
+    evRnTagCloseBulk();
+    evRnTagsLoad();
+  } catch (e) { showStatus('Error confirm: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
 }
 
 // ── E-RN-7b-4 · Reporte productor ──────────────────────────────────────────────
