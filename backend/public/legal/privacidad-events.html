@@ -16,6 +16,7 @@
     --bg:#FAFAFA; --surface:#FFFFFF; --border:#E5E5EA;
     --text:#1D1D1F; --muted:#6E6E73;
   }
+  [data-theme="light"] .brand{background:linear-gradient(135deg,var(--magenta),var(--orange));-webkit-background-clip:text;background-clip:text}
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{
@@ -30,7 +31,7 @@
     margin-bottom:32px;
     display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
   }
-  .brand{font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
+  .brand{font-size:22px; font-weight:900; letter-spacing:-1px; margin-bottom:12px; background:linear-gradient(135deg,var(--magenta) 0%,var(--orange) 55%,#FFE566 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; display:inline-block}
   h1{font-size:28px; font-weight:700; letter-spacing:-0.3px; margin-bottom:8px}
   .sub{color:var(--muted); font-size:14px}
   .meta{
@@ -68,13 +69,15 @@
   .callout strong{color:var(--text)}
   footer{margin-top:48px; padding-top:24px; border-top:1px solid var(--border); color:var(--muted); font-size:12px}
   footer a{color:var(--muted); text-decoration:underline}
-  .top-tools{display:flex; gap:6px}
+  .top-tools{display:flex; gap:6px; align-items:center}
   .top-tools button{
     background:var(--surface); color:var(--text);
     border:1px solid var(--border); border-radius:8px;
     padding:6px 10px; font-size:12px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px; font-weight:600; letter-spacing:.4px;
   }
   .top-tools button.active{border-color:var(--magenta); color:var(--magenta)}
+  .top-tools svg.flag{width:16px;height:11px;display:block;border-radius:2px}
   .toc{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
     padding:16px 20px; margin:0 0 24px; font-size:13px;
@@ -91,11 +94,16 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+  <symbol id="sonoro-flag-co" viewBox="0 0 30 20"><rect width="30" height="10" fill="#fcd116"/><rect y="10" width="30" height="5" fill="#003893"/><rect y="15" width="30" height="5" fill="#ce1126"/></symbol>
+</svg>
 <div class="wrap">
 
 <header class="top">
   <div>
-    <div class="brand">SONORO CMS · Events</div>
+    <div class="brand">SONORO.</div>
     <h1 data-i18n-es="Política de Tratamiento de Datos Personales"
         data-i18n-en="Personal Data Processing Policy"
         data-i18n-pt="Política de Tratamento de Dados Pessoais">Política de Tratamiento de Datos Personales</h1>
@@ -106,9 +114,9 @@
   </div>
   <div class="top-tools">
     <button id="btn-theme" onclick="toggleTheme()" title="Tema">◐</button>
-    <button onclick="setLang('es')" id="lang-es" class="active">ES</button>
-    <button onclick="setLang('en')" id="lang-en">EN</button>
-    <button onclick="setLang('pt')" id="lang-pt">PT</button>
+    <button onclick="setLang('es')" id="lang-es" class="active"><svg class="flag"><use href="#sonoro-flag-co"/></svg>ES</button>
+    <button onclick="setLang('en')" id="lang-en"><svg class="flag"><use href="#sonoro-flag-us"/></svg>EN</button>
+    <button onclick="setLang('pt')" id="lang-pt"><svg class="flag"><use href="#sonoro-flag-br"/></svg>PT</button>
   </div>
 </header>
 

@@ -9,17 +9,23 @@
   :root{
     --bg:#0b0b0f; --card:#15151c; --card2:#1c1c25; --border:#2a2a35;
     --text:#f4f4f6; --mute:#9a9aa8; --magenta:#FF1B8D; --orange:#FF8C00;
-    --ok:#22c55e; --err:#ef4444;
+    --yellow:#FFE566; --ok:#22c55e; --err:#ef4444;
   }
+  [data-theme="light"]{
+    --bg:#FAFAFA; --card:#FFFFFF; --card2:#F5F5F7; --border:#E5E5EA;
+    --text:#1D1D1F; --mute:#6E6E73;
+  }
+  [data-theme="light"] .brand{background:linear-gradient(135deg,var(--magenta),var(--orange));-webkit-background-clip:text;background-clip:text}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
   .wrap{max-width:720px;margin:0 auto;padding:28px 20px 80px}
   .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
-  .brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--magenta),var(--orange))}
-  .lang-sw{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px}
-  .lang-sw button{background:transparent;border:0;color:var(--mute);padding:5px 11px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600}
+  .brand{font-size:22px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--magenta) 0%,var(--orange) 55%,var(--yellow) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .lang-sw{display:inline-flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:3px}
+  .lang-sw button{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--mute);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.6px}
   .lang-sw button.active{background:var(--magenta);color:#fff}
+  .lang-sw svg.flag{width:16px;height:11px;display:block;border-radius:2px}
+  .theme-btn{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px;line-height:1}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px}
   h1{margin:0 0 6px;font-size:22px}
   .ev-meta{color:var(--mute);font-size:13px}
@@ -35,8 +41,10 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media (max-width:520px){.row2{grid-template-columns:1fr}}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;min-height:34px;padding:6px;background:var(--card2);border:1px solid var(--border);border-radius:10px}
-  .chip{display:inline-flex;align-items:center;gap:6px;background:#2a2a35;color:#fff;border-radius:999px;padding:4px 10px;font-size:12px}
-  .chip button{background:transparent;border:0;color:#fff;cursor:pointer;font-size:14px;line-height:1}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);color:var(--text);border-radius:999px;padding:4px 10px;font-size:12px}
+  .chip button{background:transparent;border:0;color:inherit;cursor:pointer;font-size:14px;line-height:1}
+  [data-theme="light"] .chip.offer{background:rgba(255,27,141,.12);color:#A0004A}
+  [data-theme="light"] .chip.demand{background:rgba(255,140,0,.14);color:#8A4A00}
   .chip.offer{background:rgba(255,27,141,.2);border:1px solid var(--magenta)}
   .chip.demand{background:rgba(255,140,0,.2);border:1px solid var(--orange)}
   .consent{display:flex;gap:10px;align-items:flex-start;padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border);margin-top:12px}
@@ -48,6 +56,8 @@
   .alert{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
   .alert.err{background:rgba(239,68,68,.15);border:1px solid var(--err);color:#fecaca;display:block}
   .alert.ok{background:rgba(34,197,94,.15);border:1px solid var(--ok);color:#bbf7d0;display:block}
+  [data-theme="light"] .alert.err{color:#991B1B}
+  [data-theme="light"] .alert.ok{color:#166534}
   .vis-opt{display:flex;gap:10px;margin-top:6px}
   .vis-opt label{flex:1;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;cursor:pointer;margin:0;color:var(--text);display:flex;gap:8px;align-items:center;font-size:13px}
   @media (max-width:520px){.vis-opt{flex-direction:column}}
@@ -61,13 +71,21 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+  <symbol id="sonoro-flag-co" viewBox="0 0 30 20"><rect width="30" height="10" fill="#fcd116"/><rect y="10" width="30" height="5" fill="#003893"/><rect y="15" width="30" height="5" fill="#ce1126"/></symbol>
+</svg>
 <div class="wrap">
   <div class="hdr">
-    <div class="brand"><span class="dot"></span><span>SONORO Events</span></div>
-    <div class="lang-sw" id="langSw">
-      <button data-lang="es" class="active">ES</button>
-      <button data-lang="en">EN</button>
-      <button data-lang="pt">PT</button>
+    <div class="brand">SONORO.</div>
+    <div style="display:inline-flex;gap:6px;align-items:center">
+      <button class="theme-btn" onclick="toggleTheme()" title="Tema" aria-label="Tema">◐</button>
+      <div class="lang-sw" id="langSw">
+        <button data-lang="es" class="active"><svg class="flag"><use href="#sonoro-flag-co"/></svg>ES</button>
+        <button data-lang="en"><svg class="flag"><use href="#sonoro-flag-us"/></svg>EN</button>
+        <button data-lang="pt"><svg class="flag"><use href="#sonoro-flag-br"/></svg>PT</button>
+      </div>
     </div>
   </div>
 
@@ -101,7 +119,7 @@
           <input type="url" id="f_website" placeholder="https://" maxlength="300">
         </div>
         <div>
-          <label data-i18n-es="¿Qué ofreces? (pitch 1 línea)" data-i18n-en="What do you offer? (1-line pitch)" data-i18n-pt="O que você oferece? (1 linha)">¿Qué ofreces? (pitch 1 línea)</label>
+          <label data-i18n-es="Descripción de la empresa (breve)" data-i18n-en="Company description (brief)" data-i18n-pt="Descrição da empresa (breve)">Descripción de la empresa (breve)</label>
           <input type="text" id="f_pitch" maxlength="200">
         </div>
       </div>
@@ -168,7 +186,7 @@
 
   <div id="successWrap" style="display:none">
     <div class="card success-view">
-      <div class="big">✓</div>
+      <div class="big"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
       <h1 data-i18n-es="¡Inscripción confirmada!" data-i18n-en="Registration confirmed!" data-i18n-pt="Inscrição confirmada!">¡Inscripción confirmada!</h1>
       <p data-i18n-es="Enviamos a tu correo el link de tu agenda personal." data-i18n-en="We sent your personal agenda link to your email." data-i18n-pt="Enviamos para o seu e-mail o link da sua agenda.">Enviamos a tu correo el link de tu agenda personal.</p>
       <p><a id="agendaLink" href="#"></a></p>
@@ -181,6 +199,13 @@
 <script>
 const slug = location.pathname.split('/')[2];
 let LANG = 'es';
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('sonoro-theme', next); }catch(e){}
+}
+try{ const t = localStorage.getItem('sonoro-theme'); if(t) document.documentElement.setAttribute('data-theme', t); }catch(e){}
 let ev = null, tagsCat = { offer: [], demand: [] }, availableTags = [];
 let consentFullText = '';
 
@@ -215,9 +240,9 @@ function renderEventMeta(){
   const d1 = new Date(ev.starts_at), d2 = new Date(ev.ends_at);
   const loc = LANG === 'pt' ? 'pt-BR' : LANG === 'en' ? 'en-US' : 'es-CO';
   const fmt = {year:'numeric',month:'short',day:'numeric'};
-  document.getElementById('evWhen').textContent = '📅 ' + d1.toLocaleDateString(loc, fmt) +
-    (d1.toDateString() !== d2.toDateString() ? ' → ' + d2.toLocaleDateString(loc, fmt) : '');
-  document.getElementById('evWhere').textContent = ev.venue_name ? '📍 ' + ev.venue_name : '';
+  document.getElementById('evWhen').textContent = d1.toLocaleDateString(loc, fmt) +
+    (d1.toDateString() !== d2.toDateString() ? ' — ' + d2.toLocaleDateString(loc, fmt) : '');
+  document.getElementById('evWhere').textContent = ev.venue_name || '';
 }
 
 async function load(){
@@ -309,7 +334,7 @@ async function submitForm(){
     consent_text: txt,
     consent_policy_version: window.__policyVersion || '1.0',
     hp_field: document.getElementById('f_hp').value,
-    locale: LANG === 'pt' ? 'pt-BR' : LANG,
+    locale: LANG,
   };
 
   const btn = document.getElementById('btnSubmit');

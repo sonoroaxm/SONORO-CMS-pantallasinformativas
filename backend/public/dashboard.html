@@ -4246,6 +4246,15 @@
                     <option value="COP">COP</option><option value="USD">USD</option><option value="MXN">MXN</option><option value="BRL">BRL</option>
                   </select>
                 </div>
+                <div>
+                  <label class="ev-rn-cfg-lbl">Idioma por defecto</label>
+                  <select id="ev-rn-cfg-deflocale" class="ev-rn-cfg-inp">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                  </select>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Idioma de emails cuando el delegado no eligió uno.</div>
+                </div>
                 <div style="grid-column:1/-1">
                   <label class="ev-rn-cfg-lbl">Sede</label>
                   <input id="ev-rn-cfg-venue" type="text" class="ev-rn-cfg-inp" placeholder="Hotel, centro de convenciones…">
@@ -10569,6 +10578,7 @@ function evRnLoadConfig() {
   document.getElementById('ev-rn-cfg-ends').value   = evRnToLocal(ev.ends_at, tz);
   document.getElementById('ev-rn-cfg-tz').value = tz;
   document.getElementById('ev-rn-cfg-currency').value = mm.base_currency || 'COP';
+  document.getElementById('ev-rn-cfg-deflocale').value = ev.default_locale || 'es';
   document.getElementById('ev-rn-cfg-venue').value = ev.venue_name || '';
   const setRadio = (name, val) => { const el = document.querySelector(`input[name="${name}"][value="${val}"]`); if (el) el.checked = true; };
   setRadio('ev-rn-cfg-zone',  mm.zone_mode || 'classic');
@@ -10602,6 +10612,7 @@ async function evRnSaveConfig() {
   const body = {
     name: document.getElementById('ev-rn-cfg-name').value.trim(),
     timezone: tz,
+    default_locale: document.getElementById('ev-rn-cfg-deflocale').value,
     venue_name: document.getElementById('ev-rn-cfg-venue').value.trim() || null,
     config_patch: {
       matchmaking: {

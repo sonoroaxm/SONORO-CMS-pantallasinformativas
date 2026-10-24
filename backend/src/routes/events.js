@@ -420,10 +420,14 @@ router.patch('/:id', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const ALLOWED = ['name', 'status', 'starts_at', 'ends_at', 'timezone',
                    'venue_name', 'venue_address', 'cover_image_url', 'config',
-                   'publish_to_external_calendar', 'registration_mode'];
+                   'publish_to_external_calendar', 'registration_mode', 'default_locale'];
   if (req.body.registration_mode !== undefined &&
       !['full_event','per_session'].includes(req.body.registration_mode)) {
     return res.status(400).json({ error: 'registration_mode inválido' });
+  }
+  if (req.body.default_locale !== undefined &&
+      !['es','en','pt'].includes(req.body.default_locale)) {
+    return res.status(400).json({ error: 'default_locale inválido (es|en|pt)' });
   }
   const fields = ALLOWED.filter(f => req.body[f] !== undefined);
   const hasConfigPatch = req.body.config_patch !== undefined;

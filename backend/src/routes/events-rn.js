@@ -33,7 +33,7 @@ function slugify(s) {
 
 async function assertRnEventOwned(pool, eventId, userId) {
   const r = await pool.query(
-    `SELECT id, user_id, name, status, config FROM events.events WHERE id = $1`, [eventId]
+    `SELECT id, user_id, name, status, config, default_locale FROM events.events WHERE id = $1`, [eventId]
   );
   if (r.rowCount === 0) {
     const err = new Error('Evento no encontrado'); err.httpStatus = 404; throw err;
@@ -603,6 +603,7 @@ router.post('/events/:eventId/delegates/bulk', auth, async (req, res) => {
         companyName: d.company_name || '',
         eventName: ev.config?.event_name || '',
         agendaUrl,
+        locale: d.locale || ev.default_locale || 'es',
       }).catch(e => console.error('⚠️ Email bulk invite fallido:', e.message));
     }
 
@@ -1144,6 +1145,7 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
           eventName: ev.name,
           metrics, top,
           reportUrl: `${baseUrl}/dashboard.html#events-tab`,
+          locale: ev.default_locale || 'es',
         });
         sentProducer = 1;
       } catch (e) { console.error('[rn-report/send] producer email error:', e.message); }
@@ -1155,6 +1157,7 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
               d.full_name,
               d.email,
               d.agenda_token,
+              d.locale,
               r.id              AS registration_id,
               r.custom_fields->>'company_name' AS company_name
          FROM events.rn_delegates d
@@ -1206,6 +1209,7 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
             total_estimated: metrics.total_estimated,
             referential: metrics.referential,
           },
+          locale: d.locale || ev.default_locale || 'es',
         });
         sentDelegates++;
       } catch (e) { console.error(`[rn-report/send] delegate email error ${d.email}:`, e.message); }

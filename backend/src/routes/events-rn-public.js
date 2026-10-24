@@ -58,13 +58,15 @@ async function resolveToken(pool, token) {
             d.is_primary,
             d.can_manage_team,
             d.accepted_at,
+            d.locale           AS delegate_locale,
             r.event_id,
             r.user_id,
             e.name             AS event_name,
             e.slug             AS event_slug,
             e.status           AS event_status,
             e.config           AS event_config,
-            e.timezone         AS event_timezone
+            e.timezone         AS event_timezone,
+            e.default_locale   AS event_default_locale
        FROM events.rn_delegates d
        JOIN events.registrations r ON r.id = d.registration_id
        JOIN events.events e        ON e.id = r.event_id
@@ -103,7 +105,8 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
     hp_field = '',
     locale: rawLocale,
   } = req.body || {};
-  const locale = ['es', 'en', 'pt-BR'].includes(rawLocale) ? rawLocale : 'es';
+  const locale = ['es', 'en', 'pt'].includes(rawLocale) ? rawLocale
+               : rawLocale === 'pt-BR' ? 'pt' : null;
 
   if (hp_field !== '') return res.status(400).json({ error: 'Error de validación' });
   if (!accepted_terms) return res.status(400).json({ error: 'Debes aceptar los términos' });
@@ -123,7 +126,7 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
 
   try {
     const { rows: evRows } = await pool.query(
-      `SELECT id, name, slug, user_id, timezone, config, status
+      `SELECT id, name, slug, user_id, timezone, config, status, default_locale
          FROM events.events
         WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.eventSlug]
@@ -228,12 +231,13 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
       const registration = regRes.rows[0];
 
       // Insert rn_delegates primario
+      const delegateLocaleDb = locale;
       const delRes = await client.query(
         `INSERT INTO events.rn_delegates
-           (registration_id, full_name, email, phone, role_title, is_primary, can_manage_team, accepted_at)
-         VALUES ($1,$2,$3,$4,$5,TRUE,TRUE,NOW())
+           (registration_id, full_name, email, phone, role_title, is_primary, can_manage_team, accepted_at, locale)
+         VALUES ($1,$2,$3,$4,$5,TRUE,TRUE,NOW(),$6)
          RETURNING id, agenda_token`,
-        [registration.id, delegateName, cleanEmail, delegate.phone || null, delegate.role_title || null]
+        [registration.id, delegateName, cleanEmail, delegate.phone || null, delegate.role_title || null, delegateLocaleDb]
       );
 
       // E-RN-2: tags offer/demand
@@ -256,6 +260,8 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
     });
 
     const url = agendaUrl(req, result.delegate.agenda_token);
+    // E-RN-9 Opción C: delegate.locale → event.default_locale → 'es'
+    const emailLocale = locale || event.default_locale || 'es';
     sendRnWelcomeEmail({
       to: cleanEmail,
       delegateName,
@@ -263,7 +269,7 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
       eventName: event.name,
       eventSlug: event.slug,
       agendaUrl: url,
-      locale,
+      locale: emailLocale,
     }).catch(e => console.error('⚠️ Email rn-welcome fallido:', e.message));
 
     global.io?.to(`event_${event.id}`).emit('rn.registered', {
@@ -345,6 +351,8 @@ router.post('/delegates', rnTokenMutationLimiter, async (req, res) => {
     const newDel = rows[0];
 
     const url = agendaUrl(req, newDel.agenda_token);
+    // E-RN-9: nuevo delegado aún sin locale → fallback event.default_locale → 'es'
+    const inviteLocale = ctx.event_default_locale || 'es';
     sendRnDelegateInvitedEmail({
       to: cleanEmail,
       delegateName: cleanName,
@@ -355,6 +363,7 @@ router.post('/delegates', rnTokenMutationLimiter, async (req, res) => {
       )).rows[0]?.c || '',
       eventName: ctx.event_name,
       agendaUrl: url,
+      locale: inviteLocale,
     }).catch(e => console.error('⚠️ Email rn-delegate-invited fallido:', e.message));
 
     console.log(`[rn-public] delegate invited event=${ctx.event_slug} by=${ctx.delegate_email} new=${cleanEmail}`);
@@ -395,16 +404,24 @@ router.patch('/delegates/me', rnTokenMutationLimiter, async (req, res) => {
   const pool = global.pool;
   try {
     const ctx = await resolveToken(pool, req.query.token);
-    const { full_name, phone, role_title } = req.body || {};
+    const { full_name, phone, role_title, locale: rawLocale } = req.body || {};
+    // E-RN-9: normalize + validate locale ('pt-BR' → 'pt'; else must be es|en|pt or ignored)
+    let localeDb = null;
+    if (rawLocale != null) {
+      const s = String(rawLocale).toLowerCase();
+      if (s === 'pt-br' || s === 'pt') localeDb = 'pt';
+      else if (s === 'es' || s === 'en') localeDb = s;
+    }
     const r = await pool.query(
       `UPDATE events.rn_delegates
           SET full_name   = COALESCE($1, full_name),
               phone       = COALESCE($2, phone),
               role_title  = COALESCE($3, role_title),
+              locale      = COALESCE($5, locale),
               accepted_at = COALESCE(accepted_at, NOW())
         WHERE id = $4
-        RETURNING id, full_name, email, phone, role_title, is_primary, accepted_at`,
-      [full_name || null, phone || null, role_title || null, ctx.delegate_id]
+        RETURNING id, full_name, email, phone, role_title, is_primary, accepted_at, locale`,
+      [full_name || null, phone || null, role_title || null, ctx.delegate_id, localeDb]
     );
     console.log(`[rn-public] delegate accepted/updated event=${ctx.event_slug} delegate=${ctx.delegate_email}`);
     res.json(r.rows[0]);
@@ -424,12 +441,14 @@ router.get('/delegates/me', rnReadLimiter, async (req, res) => {
         is_primary: ctx.is_primary,
         can_manage_team: ctx.can_manage_team,
         accepted_at: ctx.accepted_at,
+        locale: ctx.delegate_locale,
       },
       event: {
         name: ctx.event_name,
         slug: ctx.event_slug,
         timezone: ctx.event_timezone,
         status: ctx.event_status,
+        default_locale: ctx.event_default_locale,
       },
     });
   } catch (err) { handleError(res, err, 'GET /me'); }
@@ -548,7 +567,9 @@ router.post('/delegates/me/opt-out', rnTokenMutationLimiter, async (req, res) =>
 // Metadata pública mínima para renderizar la landing de registro.
 // Nunca expone emails/PII/tokens — solo datos del evento + organizador legal.
 // ──────────────────────────────────────────────────────────────────────────────
-router.get('/:eventSlug', rnReadLimiter, async (req, res) => {
+const RESERVED_SLUGS = new Set(['meetings','requests','report','delegates','directory','callboard','tags']);
+router.get('/:eventSlug', rnReadLimiter, async (req, res, next) => {
+  if (RESERVED_SLUGS.has(req.params.eventSlug)) return next();
   const pool = global.pool;
   try {
     const { rows } = await pool.query(
@@ -598,7 +619,8 @@ router.get('/:eventSlug', rnReadLimiter, async (req, res) => {
   } catch (err) { handleError(res, err, 'GET event info'); }
 });
 
-router.get('/:eventSlug/tags', rnReadLimiter, async (req, res) => {
+router.get('/:eventSlug/tags', rnReadLimiter, async (req, res, next) => {
+  if (RESERVED_SLUGS.has(req.params.eventSlug)) return next();
   const pool = global.pool;
   try {
     const { rows: evRows } = await pool.query(
@@ -810,7 +832,7 @@ router.post('/requests', rnTokenMutationLimiter, async (req, res) => {
 
     // Email primario destino
     const primary = await pool.query(
-      `SELECT full_name, email, agenda_token FROM events.rn_delegates
+      `SELECT full_name, email, agenda_token, locale FROM events.rn_delegates
         WHERE registration_id = $1 AND is_primary = TRUE LIMIT 1`,
       [to_registration_id]
     );
@@ -831,6 +853,8 @@ router.post('/requests', rnTokenMutationLimiter, async (req, res) => {
           `SELECT custom_fields->>'company_name' AS c FROM events.registrations WHERE id = $1`,
           [ctx.registration_id]
         );
+        // E-RN-9 Opción C: delegate → event.default_locale → 'es'
+        const recvLocale = primary.rows[0].locale || ctx.event_default_locale || 'es';
         sendRnRequestReceivedEmail({
           to: primary.rows[0].email,
           delegateName: primary.rows[0].full_name,
@@ -838,6 +862,7 @@ router.post('/requests', rnTokenMutationLimiter, async (req, res) => {
           eventName: ctx.event_name,
           agendaUrl: agendaUrl(req, primary.rows[0].agenda_token),
           message: message || null,
+          locale: recvLocale,
         }).catch(e => console.error('⚠️ Email rn-request-received fallido:', e.message));
       }
 
@@ -878,7 +903,7 @@ router.post('/requests/:id/respond', rnTokenMutationLimiter, async (req, res) =>
 
     // Email al origen (delegado primario)
     const fromPrim = await pool.query(
-      `SELECT d.email, d.full_name, d.agenda_token,
+      `SELECT d.email, d.full_name, d.agenda_token, d.locale,
               rg.custom_fields->>'company_name' AS from_company,
               rt.custom_fields->>'company_name' AS to_company
          FROM events.rn_delegates d
@@ -889,12 +914,15 @@ router.post('/requests/:id/respond', rnTokenMutationLimiter, async (req, res) =>
       [r.from_registration_id, r.to_registration_id]
     );
     if (fromPrim.rows[0]) {
+      // E-RN-9 Opción C: delegate → event.default_locale → 'es'
+      const respLocale = fromPrim.rows[0].locale || ctx.event_default_locale || 'es';
       const payload = {
         to: fromPrim.rows[0].email,
         delegateName: fromPrim.rows[0].full_name,
         targetCompanyName: fromPrim.rows[0].to_company || '',
         eventName: ctx.event_name,
         agendaUrl: agendaUrl(req, fromPrim.rows[0].agenda_token),
+        locale: respLocale,
       };
       if (newStatus === 'accepted') {
         sendRnRequestAcceptedEmail(payload).catch(e => console.error('⚠️ Email rn-request-accepted:', e.message));

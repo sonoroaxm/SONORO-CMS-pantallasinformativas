@@ -1843,21 +1843,56 @@ async function sendCertificateEmail({ to, attendeeName, eventName, certUrl, pdfP
   console.log(`✅ Certificado enviado a ${to} (${eventName})`);
 }
 
+// ── EMAIL — RUEDA DE NEGOCIOS: helpers i18n (E-RN-9) ─────────────────────────
+function rnPickLocale(l) {
+  const s = String(l || '').toLowerCase();
+  if (s === 'en') return 'en';
+  if (s === 'pt' || s === 'pt-br') return 'pt';
+  return 'es';
+}
+function rnMoneyLocale(l) {
+  return l === 'en' ? 'en-US' : l === 'pt' ? 'pt-BR' : 'es-CO';
+}
+
 // ── EMAIL — RUEDA DE NEGOCIOS: BIENVENIDA PRIMARIO (E-RN-1b) ─────────────────
 async function sendRnWelcomeEmail({ to, delegateName, companyName, eventName, eventSlug, agendaUrl, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `Inscripción confirmada — ${eventName}`,
+      h1: `${companyName} quedó inscrita en ${eventName}`,
+      intro: `Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, confirmamos tu inscripción como delegado primario. Tu agenda personal queda en el enlace de abajo &mdash; guárdalo, es tu acceso durante todo el evento.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Como delegado primario puedes invitar a tu equipo desde la misma página, pedir reuniones con otras empresas y revisar tu agenda en tiempo real.',
+    },
+    en: {
+      subject: `Registration confirmed — ${eventName}`,
+      h1: `${companyName} is registered for ${eventName}`,
+      intro: `Hi <strong style="color:#0f0f0f;">${delegateName}</strong>, your registration as primary delegate is confirmed. Your personal agenda lives at the link below &mdash; save it, it's your access throughout the event.`,
+      cta: 'Open my agenda',
+      foot: 'As primary delegate you can invite your team from the same page, request meetings with other companies, and review your agenda in real time.',
+    },
+    pt: {
+      subject: `Inscrição confirmada — ${eventName}`,
+      h1: `${companyName} está inscrita em ${eventName}`,
+      intro: `Olá <strong style="color:#0f0f0f;">${delegateName}</strong>, confirmamos sua inscrição como delegado principal. Sua agenda pessoal está no link abaixo &mdash; guarde-o, é seu acesso durante todo o evento.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Como delegado principal você pode convidar sua equipe pela mesma página, solicitar reuniões com outras empresas e acompanhar sua agenda em tempo real.',
+    },
+  };
+  const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      ${companyName} quedó inscrita en ${eventName}
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, confirmamos tu inscripción como delegado primario.
-      Tu agenda personal queda en el enlace de abajo &mdash; guárdalo, es tu acceso durante todo el evento.
+      ${t.intro}
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Abrir mi agenda
+          ${t.cta}
         </a>
       </td></tr>
     </table>
@@ -1869,33 +1904,56 @@ async function sendRnWelcomeEmail({ to, delegateName, companyName, eventName, ev
       </td></tr>
     </table>
     <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
-      Como delegado primario puedes invitar a tu equipo desde la misma página, pedir reuniones con otras empresas y revisar tu agenda en tiempo real.
+      ${t.foot}
     </p>
   `, { tagline: 'Rueda de Negocios' });
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Inscripción confirmada &mdash; ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN welcome enviado a ${to} (${eventSlug})`);
+  console.log(`✅ RN welcome enviado a ${to} (${eventSlug}) [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: INVITACIÓN DELEGADO SECUNDARIO (E-RN-1b) ──────
-async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, companyName, eventName, agendaUrl }) {
+async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, companyName, eventName, agendaUrl, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `Fuiste invitado a ${eventName}`,
+      h1: `${inviterName} te invitó a ${eventName}`,
+      intro: `Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, representas a <strong style="color:#0f0f0f;">${companyName}</strong> en esta rueda de negocios. Tu agenda es independiente: el solver te asigna reuniones propias y puedes pedir las tuyas.`,
+      cta: 'Aceptar y abrir mi agenda',
+      foot: 'Al abrir el enlace completas tu perfil. Puedes editar tu nombre, teléfono y cargo en cualquier momento.',
+    },
+    en: {
+      subject: `You were invited to ${eventName}`,
+      h1: `${inviterName} invited you to ${eventName}`,
+      intro: `Hi <strong style="color:#0f0f0f;">${delegateName}</strong>, you represent <strong style="color:#0f0f0f;">${companyName}</strong> at this matchmaking event. Your agenda is independent: the solver assigns you your own meetings and you can request yours.`,
+      cta: 'Accept and open my agenda',
+      foot: 'When you open the link you complete your profile. You can edit your name, phone and role anytime.',
+    },
+    pt: {
+      subject: `Você foi convidado para ${eventName}`,
+      h1: `${inviterName} convidou você para ${eventName}`,
+      intro: `Olá <strong style="color:#0f0f0f;">${delegateName}</strong>, você representa <strong style="color:#0f0f0f;">${companyName}</strong> nesta rodada de negócios. Sua agenda é independente: o solver atribui suas próprias reuniões e você pode solicitar as suas.`,
+      cta: 'Aceitar e abrir minha agenda',
+      foot: 'Ao abrir o link você completa seu perfil. Pode editar seu nome, telefone e cargo a qualquer momento.',
+    },
+  };
+  const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      ${inviterName} te invitó a ${eventName}
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, representas a
-      <strong style="color:#0f0f0f;">${companyName}</strong> en esta rueda de negocios.
-      Tu agenda es independiente: el solver te asigna reuniones propias y puedes pedir las tuyas.
+      ${t.intro}
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Aceptar y abrir mi agenda
+          ${t.cta}
         </a>
       </td></tr>
     </table>
@@ -1907,20 +1965,45 @@ async function sendRnDelegateInvitedEmail({ to, delegateName, inviterName, compa
       </td></tr>
     </table>
     <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
-      Al abrir el enlace completas tu perfil. Puedes editar tu nombre, teléfono y cargo en cualquier momento.
+      ${t.foot}
     </p>
   `, { tagline: 'Rueda de Negocios' });
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Fuiste invitado a ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN delegate-invited enviado a ${to}`);
+  console.log(`✅ RN delegate-invited enviado a ${to} [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD DE REUNIÓN RECIBIDA (E-RN-2) ────────
-async function sendRnRequestReceivedEmail({ to, delegateName, fromCompanyName, eventName, agendaUrl, message }) {
+async function sendRnRequestReceivedEmail({ to, delegateName, fromCompanyName, eventName, agendaUrl, message, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `Nueva solicitud de reunión — ${eventName}`,
+      h1: `${fromCompanyName} quiere reunirse contigo`,
+      intro: `Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, recibiste una nueva solicitud de reunión para <strong style="color:#0f0f0f;">${eventName}</strong>. Revisa y responde desde tu agenda.`,
+      cta: 'Revisar solicitud',
+      foot: 'Si aceptas, el solver intentará ubicar la reunión en una ronda disponible. Las solicitudes aceptadas son prioritarias (<em>requested</em>).',
+    },
+    en: {
+      subject: `New meeting request — ${eventName}`,
+      h1: `${fromCompanyName} wants to meet with you`,
+      intro: `Hi <strong style="color:#0f0f0f;">${delegateName}</strong>, you received a new meeting request for <strong style="color:#0f0f0f;">${eventName}</strong>. Review and respond from your agenda.`,
+      cta: 'Review request',
+      foot: 'If you accept, the solver will try to place the meeting in an available round. Accepted requests are prioritized (<em>requested</em>).',
+    },
+    pt: {
+      subject: `Nova solicitação de reunião — ${eventName}`,
+      h1: `${fromCompanyName} quer se reunir com você`,
+      intro: `Olá <strong style="color:#0f0f0f;">${delegateName}</strong>, você recebeu uma nova solicitação de reunião para <strong style="color:#0f0f0f;">${eventName}</strong>. Revise e responda pela sua agenda.`,
+      cta: 'Revisar solicitação',
+      foot: 'Se aceitar, o solver tentará alocar a reunião em uma rodada disponível. Solicitações aceitas são prioritárias (<em>requested</em>).',
+    },
+  };
+  const t = T[L];
   const msgBlock = message
     ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;border-radius:8px;margin:0 0 20px;">
         <tr><td style="padding:14px 20px;">
@@ -1930,92 +2013,176 @@ async function sendRnRequestReceivedEmail({ to, delegateName, fromCompanyName, e
     : '';
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      ${fromCompanyName} quiere reunirse contigo
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, recibiste una nueva solicitud de reunión para
-      <strong style="color:#0f0f0f;">${eventName}</strong>. Revisa y responde desde tu agenda.
+      ${t.intro}
     </p>
     ${msgBlock}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Revisar solicitud
+          ${t.cta}
         </a>
       </td></tr>
     </table>
     <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">
-      Si aceptas, el solver intentará ubicar la reunión en una ronda disponible. Las solicitudes aceptadas son prioritarias (<em>requested</em>).
+      ${t.foot}
     </p>
   `, { tagline: 'Rueda de Negocios' });
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Nueva solicitud de reunión &mdash; ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN request-received enviado a ${to}`);
+  console.log(`✅ RN request-received enviado a ${to} [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD ACEPTADA (E-RN-2) ───────────────────
-async function sendRnRequestAcceptedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+async function sendRnRequestAcceptedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `Solicitud aceptada — ${eventName}`,
+      h1: `${targetCompanyName} aceptó tu solicitud`,
+      body: `Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, tu solicitud de reunión para <strong style="color:#0f0f0f;">${eventName}</strong> fue aceptada. La asignación de ronda y mesa aparecerá en tu agenda cuando el productor publique el pool.`,
+      cta: 'Ver mi agenda',
+    },
+    en: {
+      subject: `Request accepted — ${eventName}`,
+      h1: `${targetCompanyName} accepted your request`,
+      body: `Hi <strong style="color:#0f0f0f;">${delegateName}</strong>, your meeting request for <strong style="color:#0f0f0f;">${eventName}</strong> was accepted. Round and table assignment will appear in your agenda when the producer publishes the pool.`,
+      cta: 'View my agenda',
+    },
+    pt: {
+      subject: `Solicitação aceita — ${eventName}`,
+      h1: `${targetCompanyName} aceitou sua solicitação`,
+      body: `Olá <strong style="color:#0f0f0f;">${delegateName}</strong>, sua solicitação de reunião para <strong style="color:#0f0f0f;">${eventName}</strong> foi aceita. A atribuição de rodada e mesa aparecerá na sua agenda quando o produtor publicar o pool.`,
+      cta: 'Ver minha agenda',
+    },
+  };
+  const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      ${targetCompanyName} aceptó tu solicitud
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, tu solicitud de reunión para
-      <strong style="color:#0f0f0f;">${eventName}</strong> fue aceptada. La asignación de ronda y mesa aparecerá en tu agenda
-      cuando el productor publique el pool.
+      ${t.body}
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Ver mi agenda
+          ${t.cta}
         </a>
       </td></tr>
     </table>
   `, { tagline: 'Rueda de Negocios' });
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Solicitud aceptada &mdash; ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN request-accepted enviado a ${to}`);
+  console.log(`✅ RN request-accepted enviado a ${to} [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: SOLICITUD RECHAZADA (E-RN-2) ──────────────────
-async function sendRnRequestRejectedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl }) {
+async function sendRnRequestRejectedEmail({ to, delegateName, targetCompanyName, eventName, agendaUrl, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `Solicitud no aceptada — ${eventName}`,
+      h1: 'Solicitud no aceptada',
+      body: `Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} no aceptó tu solicitud de reunión en <strong style="color:#0f0f0f;">${eventName}</strong>. El solver puede proponerte alternativas con tags coincidentes.`,
+      cta: 'Explorar directorio',
+    },
+    en: {
+      subject: `Request not accepted — ${eventName}`,
+      h1: 'Request not accepted',
+      body: `Hi <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} did not accept your meeting request at <strong style="color:#0f0f0f;">${eventName}</strong>. The solver may propose alternatives with matching tags.`,
+      cta: 'Explore directory',
+    },
+    pt: {
+      subject: `Solicitação não aceita — ${eventName}`,
+      h1: 'Solicitação não aceita',
+      body: `Olá <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} não aceitou sua solicitação de reunião em <strong style="color:#0f0f0f;">${eventName}</strong>. O solver pode propor alternativas com tags coincidentes.`,
+      cta: 'Explorar diretório',
+    },
+  };
+  const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      Solicitud no aceptada
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${delegateName}</strong>, ${targetCompanyName} no aceptó tu solicitud de reunión en
-      <strong style="color:#0f0f0f;">${eventName}</strong>. El solver puede proponerte alternativas con tags coincidentes.
+      ${t.body}
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Explorar directorio
+          ${t.cta}
         </a>
       </td></tr>
     </table>
   `, { tagline: 'Rueda de Negocios' });
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Solicitud no aceptada &mdash; ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN request-rejected enviado a ${to}`);
+  console.log(`✅ RN request-rejected enviado a ${to} [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO DELEGADO (E-RN-6b · D-RN-9) ──
-async function sendRnEventSummaryEmail({ to, delegateName, companyName, eventName, agendaUrl, meetings, myEbv, aggregate }) {
+async function sendRnEventSummaryEmail({ to, delegateName, companyName, eventName, agendaUrl, meetings, myEbv, aggregate, locale }) {
   if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
   const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
-  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat(rnMoneyLocale(L), { maximumFractionDigits: 0 }).format(Number(n));
+
+  const T = {
+    es: {
+      subject: `Resumen de tu rueda — ${eventName}`,
+      h1: 'Resumen de tu rueda',
+      intro: `Hola <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, estas son las empresas con las que <strong style="color:#0f0f0f;">${safe(companyName)}</strong> se reunió en <strong style="color:#0f0f0f;">${safe(eventName)}</strong>. Los próximos pasos están en tus manos.`,
+      privLabel: 'Tus cifras privadas',
+      privSub: (filled, total) => `Potencial estimado por ti en ${filled} de ${total} reuniones. Solo tú ves este valor.`,
+      aggLabel: 'Agregado anónimo del evento',
+      aggSub: (we, tm, ref) => `${we} de ${tm} reuniones aportaron cifra${ref ? ' · <strong style="color:#c2410c;">cifra referencial, muestra insuficiente</strong>' : ''}.`,
+      rowLabel: (r, l) => `Ronda ${r} · Mesa ${l}`,
+      empty: 'No se registraron reuniones.',
+      cta: 'Ver detalle completo',
+      foot: 'Guarda este correo: contiene los contactos de las empresas con las que te reuniste.',
+    },
+    en: {
+      subject: `Your matchmaking summary — ${eventName}`,
+      h1: 'Your matchmaking summary',
+      intro: `Hi <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, these are the companies <strong style="color:#0f0f0f;">${safe(companyName)}</strong> met with at <strong style="color:#0f0f0f;">${safe(eventName)}</strong>. Next steps are in your hands.`,
+      privLabel: 'Your private figures',
+      privSub: (filled, total) => `Potential estimated by you in ${filled} of ${total} meetings. Only you see this value.`,
+      aggLabel: 'Event anonymous aggregate',
+      aggSub: (we, tm, ref) => `${we} of ${tm} meetings contributed a value${ref ? ' · <strong style="color:#c2410c;">referential figure, insufficient sample</strong>' : ''}.`,
+      rowLabel: (r, l) => `Round ${r} · Table ${l}`,
+      empty: 'No meetings recorded.',
+      cta: 'View full details',
+      foot: 'Keep this email: it contains the contacts of the companies you met with.',
+    },
+    pt: {
+      subject: `Resumo da sua rodada — ${eventName}`,
+      h1: 'Resumo da sua rodada',
+      intro: `Olá <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, estas são as empresas com as quais <strong style="color:#0f0f0f;">${safe(companyName)}</strong> se reuniu em <strong style="color:#0f0f0f;">${safe(eventName)}</strong>. Os próximos passos estão com você.`,
+      privLabel: 'Seus números privados',
+      privSub: (filled, total) => `Potencial estimado por você em ${filled} de ${total} reuniões. Somente você vê este valor.`,
+      aggLabel: 'Agregado anônimo do evento',
+      aggSub: (we, tm, ref) => `${we} de ${tm} reuniões contribuíram com valor${ref ? ' · <strong style="color:#c2410c;">valor referencial, amostra insuficiente</strong>' : ''}.`,
+      rowLabel: (r, l) => `Rodada ${r} · Mesa ${l}`,
+      empty: 'Nenhuma reunião registrada.',
+      cta: 'Ver detalhes completos',
+      foot: 'Guarde este e-mail: contém os contatos das empresas com as quais você se reuniu.',
+    },
+  };
+  const t = T[L];
 
   const meetingRows = (meetings || []).slice(0, 20).map(m => `
     <tr>
@@ -2024,66 +2191,98 @@ async function sendRnEventSummaryEmail({ to, delegateName, companyName, eventNam
         ${m.tags_matched && m.tags_matched.length ? `<div style="margin-top:3px;font-size:11px;color:#888;">${m.tags_matched.map(safe).join(' · ')}</div>` : ''}
       </td>
       <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;text-align:right;">
-        Ronda ${m.round} · Mesa ${safe(m.table_label)}
+        ${t.rowLabel(m.round, safe(m.table_label))}
       </td>
     </tr>`).join('');
 
   const myEbvBlock = myEbv && myEbv.sum ? `
     <div style="margin:0 0 20px;padding:16px 18px;background:#faf5ff;border-left:3px solid #a855f7;border-radius:4px;">
-      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Tus cifras privadas</div>
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${t.privLabel}</div>
       <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(myEbv.sum)}</div>
-      <div style="font-size:12px;color:#888;margin-top:4px;">Potencial estimado por ti en ${myEbv.filled} de ${meetings.length} reuniones. Solo tú ves este valor.</div>
+      <div style="font-size:12px;color:#888;margin-top:4px;">${t.privSub(myEbv.filled, meetings.length)}</div>
     </div>` : '';
 
   const aggBlock = aggregate ? `
     <div style="margin:0 0 20px;padding:16px 18px;background:#f9fafb;border-radius:6px;">
-      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Agregado anónimo del evento</div>
+      <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">${t.aggLabel}</div>
       <div style="font-size:20px;font-weight:800;color:#0f0f0f;">COP $${fmtMoney(aggregate.total_estimated)}</div>
       <div style="font-size:12px;color:#888;margin-top:4px;">
-        ${aggregate.with_ebv} de ${aggregate.total_meetings} reuniones aportaron cifra
-        ${aggregate.referential ? ' · <strong style="color:#c2410c;">cifra referencial, muestra insuficiente</strong>' : ''}.
+        ${t.aggSub(aggregate.with_ebv, aggregate.total_meetings, aggregate.referential)}
       </div>
     </div>` : '';
 
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      Resumen de tu rueda
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${safe(delegateName)}</strong>, estas son las empresas con las que
-      <strong style="color:#0f0f0f;">${safe(companyName)}</strong> se reunió en <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
-      Los próximos pasos están en tus manos.
+      ${t.intro}
     </p>
     ${myEbvBlock}
     ${aggBlock}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
-      ${meetingRows || '<tr><td style="padding:16px;text-align:center;color:#888;font-size:13px;">No se registraron reuniones.</td></tr>'}
+      ${meetingRows || `<tr><td style="padding:16px;text-align:center;color:#888;font-size:13px;">${t.empty}</td></tr>`}
     </table>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Ver detalle completo
+          ${t.cta}
         </a>
       </td></tr>
     </table>
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
-      Guarda este correo: contiene los contactos de las empresas con las que te reuniste.
+      ${t.foot}
     </p>
   `, { tagline: 'Rueda de Negocios' });
 
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Resumen de tu rueda — ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN event-summary enviado a ${to}`);
+  console.log(`✅ RN event-summary enviado a ${to} [${L}]`);
 }
 
 // ── EMAIL — RUEDA DE NEGOCIOS: RESUMEN POST-EVENTO PRODUCTOR (E-RN-6b · D-RN-9) ──
-async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics, top, reportUrl }) {
+async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics, top, reportUrl, locale }) {
   if (!to) return;
+  const L = rnPickLocale(locale);
   const safe = (s) => String(s || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
-  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(Number(n));
+  const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat(rnMoneyLocale(L), { maximumFractionDigits: 0 }).format(Number(n));
+
+  const T = {
+    es: {
+      subject: `Resumen de la rueda — ${eventName}`,
+      h1: 'Resumen de la rueda',
+      intro: `Hola <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, cierre de <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.`,
+      ref: (p) => `Cobertura ${p}% &mdash; las cifras EBV son <strong>referenciales</strong> (muestra insuficiente, &lt;20%).`,
+      mMeetings: 'Reuniones', mWithEbv: 'Con EBV', mAgg: 'Agregado',
+      topTitle: 'Top reuniones por potencial',
+      cta: 'Ver reporte completo',
+      foot: 'Agregado calculado con semántica D-RN-15: valor por reunión = promedio bilateral o lado único. Nunca se suma lado A + lado B.',
+    },
+    en: {
+      subject: `Matchmaking summary — ${eventName}`,
+      h1: 'Matchmaking summary',
+      intro: `Hi <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, closing summary for <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.`,
+      ref: (p) => `Coverage ${p}% &mdash; EBV figures are <strong>referential</strong> (insufficient sample, &lt;20%).`,
+      mMeetings: 'Meetings', mWithEbv: 'With EBV', mAgg: 'Aggregate',
+      topTitle: 'Top meetings by potential',
+      cta: 'View full report',
+      foot: 'Aggregate calculated with D-RN-15 semantics: value per meeting = bilateral average or single side. Side A + side B is never summed.',
+    },
+    pt: {
+      subject: `Resumo da rodada — ${eventName}`,
+      h1: 'Resumo da rodada',
+      intro: `Olá <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, encerramento de <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.`,
+      ref: (p) => `Cobertura ${p}% &mdash; os valores EBV são <strong>referenciais</strong> (amostra insuficiente, &lt;20%).`,
+      mMeetings: 'Reuniões', mWithEbv: 'Com EBV', mAgg: 'Agregado',
+      topTitle: 'Top reuniões por potencial',
+      cta: 'Ver relatório completo',
+      foot: 'Agregado calculado com semântica D-RN-15: valor por reunião = média bilateral ou lado único. Lado A + lado B nunca é somado.',
+    },
+  };
+  const t = T[L];
 
   const metricCard = (label, value) => `
     <td width="33%" style="padding:14px 10px;background:#f9fafb;border-radius:6px;text-align:center;">
@@ -2104,27 +2303,26 @@ async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics
 
   const refFlag = metrics.referential
     ? `<div style="margin:0 0 16px;padding:10px 14px;background:#fff7ed;border-left:3px solid #c2410c;border-radius:4px;font-size:12px;color:#9a3412;">
-         Cobertura ${(metrics.coverage*100).toFixed(0)}% &mdash; las cifras EBV son <strong>referenciales</strong> (muestra insuficiente, &lt;20%).
+         ${t.ref((metrics.coverage*100).toFixed(0))}
        </div>` : '';
 
   const html = baseTemplate(`
     <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">
-      Resumen de la rueda
+      ${t.h1}
     </h1>
     <p style="margin:0 0 20px;font-size:15px;color:#666;line-height:1.6;">
-      Hola <strong style="color:#0f0f0f;">${safe(producerName)}</strong>, cierre de
-      <strong style="color:#0f0f0f;">${safe(eventName)}</strong>.
+      ${t.intro}
     </p>
     ${refFlag}
     <table width="100%" cellpadding="0" cellspacing="6" style="margin:0 0 20px;">
       <tr>
-        ${metricCard('Reuniones', metrics.total)}
-        ${metricCard('Con EBV', `${metrics.with_ebv} <span style="font-size:12px;color:#888;">(${(metrics.coverage*100).toFixed(0)}%)</span>`)}
-        ${metricCard('Agregado', `COP $${fmtMoney(metrics.total_estimated)}`)}
+        ${metricCard(t.mMeetings, metrics.total)}
+        ${metricCard(t.mWithEbv, `${metrics.with_ebv} <span style="font-size:12px;color:#888;">(${(metrics.coverage*100).toFixed(0)}%)</span>`)}
+        ${metricCard(t.mAgg, `COP $${fmtMoney(metrics.total_estimated)}`)}
       </tr>
     </table>
     ${top && top.length ? `
-    <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Top reuniones por potencial</div>
+    <div style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">${t.topTitle}</div>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:6px;overflow:hidden;">
       ${topRows}
     </table>` : ''}
@@ -2132,22 +2330,21 @@ async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
       <tr><td align="center">
         <a href="${reportUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
-          Ver reporte completo
+          ${t.cta}
         </a>
       </td></tr>
     </table>` : ''}
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">
-      Agregado calculado con semántica D-RN-15: valor por reunión = promedio bilateral o lado único.
-      Nunca se suma lado A + lado B.
+      ${t.foot}
     </p>
   `, { tagline: 'Rueda de Negocios' });
 
   await transporter.sendMail({
     from: FROM, to,
-    subject: `Resumen de la rueda — ${eventName}`,
+    subject: t.subject,
     html,
   });
-  console.log(`✅ RN producer-summary enviado a ${to}`);
+  console.log(`✅ RN producer-summary enviado a ${to} [${L}]`);
 }
 
 module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, verifyConnection };

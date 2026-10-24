@@ -9,17 +9,23 @@
   :root{
     --bg:#0b0b0f; --card:#15151c; --card2:#1c1c25; --border:#2a2a35;
     --text:#f4f4f6; --mute:#9a9aa8; --magenta:#FF1B8D; --orange:#FF8C00;
-    --ok:#22c55e; --err:#ef4444;
+    --yellow:#FFE566; --ok:#22c55e; --err:#ef4444;
   }
+  [data-theme="light"]{
+    --bg:#FAFAFA; --card:#FFFFFF; --card2:#F5F5F7; --border:#E5E5EA;
+    --text:#1D1D1F; --mute:#6E6E73;
+  }
+  [data-theme="light"] .brand{background:linear-gradient(135deg,var(--magenta),var(--orange));-webkit-background-clip:text;background-clip:text}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
   .wrap{max-width:820px;margin:0 auto;padding:28px 20px 80px}
   .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
-  .brand .dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--magenta),var(--orange))}
-  .lang-sw{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px}
-  .lang-sw button{background:transparent;border:0;color:var(--mute);padding:5px 11px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:600}
+  .brand{font-size:22px;font-weight:900;letter-spacing:-1px;background:linear-gradient(135deg,var(--magenta) 0%,var(--orange) 55%,var(--yellow,#FFE566) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .lang-sw{display:inline-flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:3px}
+  .lang-sw button{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--mute);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.6px}
   .lang-sw button.active{background:var(--magenta);color:#fff}
+  .lang-sw svg.flag{width:16px;height:11px;display:block;border-radius:2px}
+  .theme-btn{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:14px;line-height:1}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px}
   h1{margin:0 0 6px;font-size:22px}
   .meta{color:var(--mute);font-size:13px}
@@ -28,17 +34,23 @@
   select{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:16px}
   select:focus{outline:none;border-color:var(--magenta)}
   .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;min-height:34px;padding:6px;background:var(--card2);border:1px solid var(--border);border-radius:10px}
-  .chip{display:inline-flex;align-items:center;gap:6px;background:#2a2a35;color:#fff;border-radius:999px;padding:4px 10px;font-size:12px}
-  .chip button{background:transparent;border:0;color:#fff;cursor:pointer;font-size:14px;line-height:1}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);color:var(--text);border-radius:999px;padding:4px 10px;font-size:12px}
+  .chip button{color:var(--text)}
+  [data-theme="light"] .chip.offer{background:rgba(255,27,141,.12);color:#A0004A}
+  [data-theme="light"] .chip.demand{background:rgba(255,140,0,.14);color:#8A4A00}
+  [data-theme="light"] .chip.offer button,[data-theme="light"] .chip.demand button{color:inherit}
+  .chip button{background:transparent;border:0;cursor:pointer;font-size:14px;line-height:1}
   .chip.offer{background:rgba(255,27,141,.2);border:1px solid var(--magenta)}
   .chip.demand{background:rgba(255,140,0,.2);border:1px solid var(--orange)}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--magenta),var(--orange));color:#fff;border:0;padding:10px 18px;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px}
   .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
   .btn.danger{background:transparent;border:1px solid var(--err);color:var(--err)}
   .btn:disabled{opacity:.5;cursor:not-allowed}
-  .alert{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
+  .alert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:10px;font-size:13px;display:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.3);min-width:260px;text-align:center}
   .alert.err{background:rgba(239,68,68,.15);border:1px solid var(--err);color:#fecaca;display:block}
   .alert.ok{background:rgba(34,197,94,.15);border:1px solid var(--ok);color:#bbf7d0;display:block}
+  [data-theme="light"] .alert.err{background:#FEE2E2;color:#991B1B}
+  [data-theme="light"] .alert.ok{background:#DCFCE7;color:#166534}
   .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
   .ro-note{color:var(--mute);font-size:12px;margin-top:6px}
   .nav-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -86,13 +98,21 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+  <symbol id="sonoro-flag-co" viewBox="0 0 30 20"><rect width="30" height="10" fill="#fcd116"/><rect y="10" width="30" height="5" fill="#003893"/><rect y="15" width="30" height="5" fill="#ce1126"/></symbol>
+</svg>
 <div class="wrap">
   <div class="hdr">
-    <div class="brand"><span class="dot"></span><span>SONORO Events</span></div>
-    <div class="lang-sw" id="langSw">
-      <button data-lang="es" class="active">ES</button>
-      <button data-lang="en">EN</button>
-      <button data-lang="pt">PT</button>
+    <div class="brand">SONORO.</div>
+    <div style="display:inline-flex;gap:6px;align-items:center">
+      <button class="theme-btn" onclick="toggleTheme()" title="Tema" aria-label="Tema">◐</button>
+      <div class="lang-sw" id="langSw">
+        <button data-lang="es" class="active"><svg class="flag"><use href="#sonoro-flag-co"/></svg>ES</button>
+        <button data-lang="en"><svg class="flag"><use href="#sonoro-flag-us"/></svg>EN</button>
+        <button data-lang="pt"><svg class="flag"><use href="#sonoro-flag-br"/></svg>PT</button>
+      </div>
     </div>
   </div>
 
@@ -117,7 +137,7 @@
     <div class="alert" id="alertBox"></div>
 
     <div class="tabs" id="tabs">
-      <button class="active" data-tab="tags" data-i18n-es="Mis tags" data-i18n-en="My tags" data-i18n-pt="Minhas tags">Mis tags</button>
+      <button class="active" data-tab="tags" data-i18n-es="Mis servicios" data-i18n-en="My services" data-i18n-pt="Meus serviços">Mis servicios</button>
       <button data-tab="directory" data-i18n-es="Directorio" data-i18n-en="Directory" data-i18n-pt="Diretório">Directorio</button>
       <button data-tab="requests" data-i18n-es="Mis solicitudes" data-i18n-en="My requests" data-i18n-pt="Minhas solicitações">Mis solicitudes</button>
       <button data-tab="meetings" data-i18n-es="Reuniones" data-i18n-en="Meetings" data-i18n-pt="Reuniões">Reuniones</button>
@@ -126,7 +146,7 @@
 
     <div class="tab active" data-tab="tags">
     <div class="card" id="tagsCard" style="display:none">
-      <p class="section-title" data-i18n-es="Mis tags · Qué busco en la rueda" data-i18n-en="My tags · What I'm looking for" data-i18n-pt="Minhas tags">Mis tags · Qué busco en la rueda</p>
+      <p class="section-title" data-i18n-es="Mis servicios · Qué ofrezco y qué busco" data-i18n-en="My services · What I offer and look for" data-i18n-pt="Meus serviços · O que ofereço e busco">Mis servicios · Qué ofrezco y qué busco</p>
       <label data-i18n-es="Lo que ofrezco" data-i18n-en="What I offer" data-i18n-pt="O que eu ofereço">Lo que ofrezco</label>
       <select id="selOffer" onchange="tagAdd('offer', this)"><option value=""></option></select>
       <div class="chips" id="chipsOffer"></div>
@@ -145,7 +165,7 @@
       <div class="card">
         <p class="section-title" data-i18n-es="Directorio de empresas" data-i18n-en="Company directory" data-i18n-pt="Diretório de empresas">Directorio de empresas</p>
         <div class="filters">
-          <input type="search" id="dirQ" placeholder="Buscar empresa o pitch..." data-ph-es="Buscar empresa o pitch..." data-ph-en="Search company or pitch..." data-ph-pt="Buscar empresa ou pitch...">
+          <input type="search" id="dirQ" placeholder="Buscar empresa o descripción..." data-ph-es="Buscar empresa o descripción..." data-ph-en="Search company or description..." data-ph-pt="Buscar empresa ou descrição...">
           <select id="dirView">
             <option value="match" data-i18n-es="Mejores matches" data-i18n-en="Best matches" data-i18n-pt="Melhores matches">Mejores matches</option>
             <option value="all" data-i18n-es="Todas" data-i18n-en="All" data-i18n-pt="Todas">Todas</option>
@@ -180,7 +200,6 @@
     <div class="tab" data-tab="meetings">
       <div class="card">
         <p class="section-title" data-i18n-es="Mi agenda de reuniones" data-i18n-en="My meeting schedule" data-i18n-pt="Minha agenda de reuniões">Mi agenda de reuniones</p>
-        <div class="meta" data-i18n-es="Horarios se asignan cuando el productor abre las rondas. EBV = valor esperado del negocio, privado por lado." data-i18n-en="Times assigned when the producer opens the rounds. EBV = expected business value, private per side." data-i18n-pt="Horários atribuídos quando o produtor abre as rodadas.">Horarios se asignan cuando el productor abre las rondas. EBV = valor esperado del negocio, privado por lado.</div>
         <div id="mtgList" style="margin-top:14px"></div>
       </div>
     </div>
@@ -248,6 +267,13 @@
 const parts = location.pathname.split('/');
 const token = parts[parts.length - 1];
 let LANG = 'es';
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try{ localStorage.setItem('sonoro-theme', next); }catch(e){}
+}
+try{ const t = localStorage.getItem('sonoro-theme'); if(t) document.documentElement.setAttribute('data-theme', t); }catch(e){}
 let ctx = null, availableTags = [], mine = { offer:[], demand:[] }, canEdit = false;
 
 function applyLang(){
@@ -261,10 +287,17 @@ function applyLang(){
   document.getElementById('langSw').querySelectorAll('button').forEach(b=>{
     b.classList.toggle('active', b.dataset.lang === LANG);
   });
+  if (ctx){
+    document.getElementById('h1').textContent = (LANG==='en'?'Welcome':LANG==='pt'?'Bem-vindo':'Bienvenido') + ', ' + ctx.delegate.full_name;
+    document.getElementById('delName').textContent = ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
+  }
 }
 document.getElementById('langSw').addEventListener('click', e=>{
   const b = e.target.closest('button'); if (!b) return; LANG = b.dataset.lang; applyLang();
   if (availableTags.length) fillSelects();
+  if (dirLoadedOnce) dirLoad();
+  if (reqLoadedOnce) reqLoad();
+  if (activeTab === 'meetings') mtgLoad();
 });
 
 function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -280,11 +313,14 @@ async function load(){
     const r = await fetch('/api/rn/public/delegates/me?token=' + encodeURIComponent(token));
     if (!r.ok){ fail(); return; }
     ctx = await r.json();
+    const serverLang = ctx.delegate && ctx.delegate.locale ? ctx.delegate.locale
+                     : (ctx.event && ctx.event.default_locale ? ctx.event.default_locale : 'es');
+    if (['es','en','pt'].includes(serverLang)) { LANG = serverLang; applyLang(); }
     document.getElementById('loading').style.display='none';
     document.getElementById('main').style.display='block';
     document.getElementById('h1').textContent = (LANG==='en'?'Welcome':LANG==='pt'?'Bem-vindo':'Bienvenido') + ', ' + ctx.delegate.full_name;
-    document.getElementById('evName').textContent = '📅 ' + ctx.event.name;
-    document.getElementById('delName').textContent = '👤 ' + ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
+    document.getElementById('evName').textContent = ctx.event.name;
+    document.getElementById('delName').textContent = ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
     await loadTags();
   } catch(e){ fail(); }
 }
@@ -360,7 +396,7 @@ async function optOut(){
     const data = await r.json();
     if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
     alertBox(LANG==='en'?'Opted out successfully':LANG==='pt'?'Opt-out registrado':'Oposición registrada', 'ok');
-    document.getElementById('optOutState').textContent = LANG==='en'?'✓ You opted out of matchmaking':LANG==='pt'?'✓ Opt-out ativo':'✓ Oposición activa';
+    document.getElementById('optOutState').textContent = LANG==='en'?'You opted out of matchmaking':LANG==='pt'?'Opt-out ativo':'Oposición activa';
   } catch(e){ alertBox('Network error', 'err'); }
 }
 
@@ -406,9 +442,9 @@ async function dirLoad(){
       return;
     }
     list.innerHTML = data.results.map(c => {
-      const site = c.website ? '<div class="cweb">🔗 <a href="'+esc(c.website)+'" target="_blank" rel="noopener">'+esc(c.website)+'</a></div>' : '';
+      const site = c.website ? '<div class="cweb"><a href="'+esc(c.website)+'" target="_blank" rel="noopener">'+esc(c.website)+'</a></div>' : '';
       const pitch = c.pitch ? '<div class="cpitch">'+esc(c.pitch)+'</div>' : '';
-      const score = (c.score > 0) ? '<span class="score-pill">★ '+c.score+'</span>' : '';
+      const score = (c.score > 0) ? '<span class="score-pill">'+c.score+'</span>' : '';
       const btnLbl = LANG==='en'?'Request':LANG==='pt'?'Solicitar':'Solicitar';
       return '<div class="company-row">' +
         '<div class="info"><div class="cname">'+esc(c.company_name)+' '+score+'</div>'+pitch+site+'</div>' +
@@ -538,17 +574,17 @@ async function mtgLoad(){
       : {scheduled:'Agendada',active:'En curso',completed:'Finalizada',no_show:'No asistió',deferred:'Diferida'}[s]) || s;
     list.innerHTML = mtgCache.map(m => {
       const roundLbl = (m.round_label || ('R' + m.round_number));
-      const score = (m.tag_overlap_score > 0) ? '<span class="score-pill">★ '+m.tag_overlap_score+'</span>' : '';
+      const score = (m.tag_overlap_score > 0) ? '<span class="score-pill">'+m.tag_overlap_score+'</span>' : '';
       const ebv = (m.my_ebv_amount != null)
-        ? '<div class="meta" style="margin-top:6px">💼 ' + fmtMoney(m.my_ebv_amount, m.my_ebv_currency) + (m.my_ebv_horizon ? ' · '+m.my_ebv_horizon : '') + '</div>'
+        ? '<div class="meta" style="margin-top:6px">' + fmtMoney(m.my_ebv_amount, m.my_ebv_currency) + (m.my_ebv_horizon ? ' · '+m.my_ebv_horizon : '') + '</div>'
         : '';
       const ebvBtn = (m.status === 'completed' || m.status === 'active' || m.status === 'scheduled')
         ? '<button class="btn ghost" onclick="ebvOpen(\''+m.id+'\')" data-i18n-'+LANG+'="'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'">'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'</button>'
         : '';
       return '<div class="req-row">' +
         '<div class="top">' +
-          '<div><div class="co">🏢 '+esc(m.other_company || '—')+' '+score+'</div>' +
-          '<div class="meta">🗓 '+esc(roundLbl)+' · 🪑 '+esc(m.table_label || '')+' · '+fmtTime(m.round_starts_at, tz)+'</div></div>' +
+          '<div><div class="co">'+esc(m.other_company || '—')+' '+score+'</div>' +
+          '<div class="meta">'+esc(roundLbl)+' · '+esc(m.table_label || '')+' · '+fmtTime(m.round_starts_at, tz)+'</div></div>' +
           '<span class="status '+m.status+'">'+statusLabel(m.status)+'</span>' +
         '</div>' +
         (m.other_pitch ? '<div class="msg">'+esc(m.other_pitch)+'</div>' : '') +
