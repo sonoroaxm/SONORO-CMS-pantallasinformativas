@@ -51,6 +51,19 @@ async function assertRnEventOwned(pool, eventId, userId) {
   return ev;
 }
 
+// Advisory lock por event_id — serializa solver pre-event/runtime/reset frente a edits manuales
+// (POST/DELETE tables, rounds, anchors, meetings). Si el solver está corriendo, el edit falla
+// con 409 'solver_already_running' en vez de corromper el estado parcial. B.2 de S211t.
+async function rnLockSolverOrFail(client, eventId) {
+  const lk = await client.query(
+    `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
+    [eventId]
+  );
+  if (!lk.rows[0].got) {
+    const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
+  }
+}
+
 function handleError(res, err, where) {
   if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
   if (err.code === '23505') return res.status(409).json({ error: 'Registro duplicado' });
@@ -152,6 +165,7 @@ router.post('/events/:eventId/tables', auth, async (req, res) => {
       return res.status(400).json({ error: 'label requerido' });
     }
     const result = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
       const inserted = [];
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
@@ -198,6 +212,7 @@ router.delete('/events/:eventId/tables', auth, async (req, res) => {
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const result = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
       const m = await client.query(`DELETE FROM events.rn_meetings WHERE event_id = $1`, [req.params.eventId]);
       const a = await client.query(`DELETE FROM events.rn_registration_anchors WHERE table_id IN (SELECT id FROM events.rn_tables WHERE event_id = $1)`, [req.params.eventId]);
       const t = await client.query(`DELETE FROM events.rn_tables WHERE event_id = $1`, [req.params.eventId]);
@@ -211,11 +226,15 @@ router.delete('/events/:eventId/tables/:tableId', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const r = await pool.query(
-      `DELETE FROM events.rn_tables WHERE id = $1 AND event_id = $2`,
-      [req.params.tableId, req.params.eventId]
-    );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Mesa no encontrada' });
+    const rowCount = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
+      const r = await client.query(
+        `DELETE FROM events.rn_tables WHERE id = $1 AND event_id = $2`,
+        [req.params.tableId, req.params.eventId]
+      );
+      return r.rowCount;
+    });
+    if (rowCount === 0) return res.status(404).json({ error: 'Mesa no encontrada' });
     res.status(204).end();
   } catch (err) { handleError(res, err, 'DELETE table'); }
 });
@@ -249,6 +268,7 @@ router.post('/events/:eventId/rounds/plan', auth, async (req, res) => {
     }
 
     const result = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
       const existing = await client.query(
         `SELECT COUNT(*)::int AS c FROM events.rn_rounds WHERE event_id = $1`,
         [req.params.eventId]
@@ -368,14 +388,17 @@ router.delete('/events/:eventId/rounds', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const meetings = await pool.query(
-      `SELECT COUNT(*)::int AS c FROM events.rn_meetings WHERE event_id = $1`,
-      [req.params.eventId]
-    );
-    if (meetings.rows[0].c > 0) {
-      return res.status(409).json({ error: 'Hay reuniones persistidas — reset solver primero' });
-    }
-    await pool.query(`DELETE FROM events.rn_rounds WHERE event_id = $1`, [req.params.eventId]);
+    await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
+      const meetings = await client.query(
+        `SELECT COUNT(*)::int AS c FROM events.rn_meetings WHERE event_id = $1`,
+        [req.params.eventId]
+      );
+      if (meetings.rows[0].c > 0) {
+        const err = new Error('Hay reuniones persistidas — reset solver primero'); err.httpStatus = 409; throw err;
+      }
+      await client.query(`DELETE FROM events.rn_rounds WHERE event_id = $1`, [req.params.eventId]);
+    });
     res.status(204).end();
   } catch (err) { handleError(res, err, 'DELETE rounds'); }
 });
@@ -560,6 +583,7 @@ router.post('/events/:eventId/anchors', auth, async (req, res) => {
     if (regCheck.rowCount === 0) return res.status(400).json({ error: 'registration no pertenece al evento' });
 
     const result = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, eventId);
       let tableId;
       const existing = await client.query(
         `SELECT a.table_id FROM events.rn_registration_anchors a
@@ -613,6 +637,7 @@ router.delete('/events/:eventId/anchors/:regId', auth, async (req, res) => {
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const result = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
       const sel = await client.query(
         `SELECT a.table_id, t.label FROM events.rn_registration_anchors a
            JOIN events.registrations r ON r.id = a.registration_id
@@ -766,15 +791,7 @@ router.post('/events/:eventId/solver/preview', auth, async (req, res) => {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
     const result = await withTransaction(pool, async (client) => {
-      // Advisory lock por event_id — serializa solver concurrente (S211j, Hallazgo B).
-      // El lock se libera auto al COMMIT/ROLLBACK (incluido __dryRun).
-      const lk = await client.query(
-        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
-        [req.params.eventId]
-      );
-      if (!lk.rows[0].got) {
-        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
-      }
+      await rnLockSolverOrFail(client, req.params.eventId);
       const out = await solver.runPreEvent(client, {
         eventId: req.params.eventId,
         dryRun: true,
@@ -798,14 +815,7 @@ router.post('/events/:eventId/solver/run', auth, async (req, res) => {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const manual = Array.isArray(req.body?.manual_meetings) ? req.body.manual_meetings : [];
     const result = await withTransaction(pool, async (client) => {
-      // Advisory lock por event_id — serializa solver concurrente (S211j, Hallazgo B).
-      const lk = await client.query(
-        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
-        [req.params.eventId]
-      );
-      if (!lk.rows[0].got) {
-        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
-      }
+      await rnLockSolverOrFail(client, req.params.eventId);
       return solver.runPreEvent(client, {
         eventId: req.params.eventId,
         dryRun: false,
@@ -823,14 +833,7 @@ router.post('/events/:eventId/solver/reset', auth, async (req, res) => {
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
     const result = await withTransaction(pool, async (client) => {
-      // Advisory lock por event_id — serializa reset vs solver preview/run concurrente (B.2).
-      const lk = await client.query(
-        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
-        [req.params.eventId]
-      );
-      if (!lk.rows[0].got) {
-        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
-      }
+      await rnLockSolverOrFail(client, req.params.eventId);
       return solver.resetMeetings(client, req.params.eventId, { force: !!req.body?.force });
     });
     console.log(`[rn-solver] reset event=${req.params.eventId} deleted=${result.deleted} forced=${!!result.forced}`);
@@ -843,12 +846,16 @@ router.delete('/events/:eventId/meetings/:meetingId', auth, async (req, res) => 
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const r = await pool.query(
-      `DELETE FROM events.rn_meetings WHERE event_id=$1 AND id=$2`,
-      [req.params.eventId, req.params.meetingId]
-    );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'not_found' });
-    res.json({ ok: true, deleted: r.rowCount });
+    const rowCount = await withTransaction(pool, async (client) => {
+      await rnLockSolverOrFail(client, req.params.eventId);
+      const r = await client.query(
+        `DELETE FROM events.rn_meetings WHERE event_id=$1 AND id=$2`,
+        [req.params.eventId, req.params.meetingId]
+      );
+      return r.rowCount;
+    });
+    if (rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true, deleted: rowCount });
   } catch (err) { handleError(res, err, 'DELETE meeting'); }
 });
 
@@ -865,15 +872,7 @@ router.post('/events/:eventId/rounds/:roundId/open', auth, async (req, res) => {
     if (chk.rowCount === 0) return res.status(404).json({ error: 'Ronda no encontrada' });
 
     const result = await withTransaction(pool, async (client) => {
-      // Advisory lock por event_id — evita doble procesamiento ante doble-click
-      // y serializa runtime vs solver pre-event (B.2).
-      const lk = await client.query(
-        `SELECT pg_try_advisory_xact_lock(hashtextextended($1::text, 0)) AS got`,
-        [req.params.eventId]
-      );
-      if (!lk.rows[0].got) {
-        const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
-      }
+      await rnLockSolverOrFail(client, req.params.eventId);
       return solver.runRuntimeRound(client, { eventId: req.params.eventId, roundId: req.params.roundId });
     });
     console.log(`[rn-solver] runtime event=${req.params.eventId} round=${req.params.roundId} deferred=${result.deferred_count}`);
