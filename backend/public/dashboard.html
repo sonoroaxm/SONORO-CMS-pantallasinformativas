@@ -2915,20 +2915,13 @@
             <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="ev.back">Volver</span></button>
           </div>
           <div class="card" style="max-width:700px;">
-            <!-- E-RN-7a: tipo de evento -->
-            <div style="margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
-              <div data-i18n="ev.new_type_label" style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Tipo</div>
-              <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="radio" name="ev-new-type" value="standard" id="ev-new-type-std" checked onchange="evNewToggleType()">
-                  <span data-i18n="ev.new_type_std">Evento estándar</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                  <input type="radio" name="ev-new-type" value="matchmaking" id="ev-new-type-mm" onchange="evNewToggleType()">
-                  <span style="display:inline-flex;align-items:center;gap:6px;"><span data-i18n="ev.new_type_rn">Rueda de Negocios</span> <span style="font-size:10px;padding:2px 7px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;">RN</span></span>
-                </label>
-              </div>
-              <div id="ev-new-rn-opts" class="hidden" style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <!-- E-RN-7a: tipo de evento (radios ocultos — el picker fija el valor) -->
+            <div style="display:none;">
+              <input type="radio" name="ev-new-type" value="standard" id="ev-new-type-std" checked onchange="evNewToggleType()">
+              <input type="radio" name="ev-new-type" value="matchmaking" id="ev-new-type-mm" onchange="evNewToggleType()">
+            </div>
+            <div id="ev-new-rn-opts-wrap" class="hidden" style="margin-bottom:16px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
+              <div id="ev-new-rn-opts" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div class="form-group" style="margin:0;">
                   <label data-i18n="ev.new_rn_mode">Modo de matching</label>
                   <select id="ev-new-rn-mode">
@@ -9690,7 +9683,7 @@ function evPickerConfirm() {
 // E-RN-7a MVP: toggle Rueda options en form Nuevo Evento
 function evNewToggleType() {
   const isRN = document.getElementById('ev-new-type-mm')?.checked;
-  document.getElementById('ev-new-rn-opts')?.classList.toggle('hidden', !isRN);
+  document.getElementById('ev-new-rn-opts-wrap')?.classList.toggle('hidden', !isRN);
 }
 
 // E-RN-7a MVP: filter list por tipo
