@@ -4137,6 +4137,7 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" data-i18n-attr="title:rn.hdr.link_title" title="Copiar link público"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> <span data-i18n="rn.hdr.link">Link</span></button>
               <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="rn.hdr.back">Mis Eventos</span></button>
+              <button class="btn btn-outline btn-sm" data-i18n="rn.hdr.delete" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnDeleteCurrent()">Eliminar rueda</button>
             </div>
           </div>
 
@@ -10420,20 +10421,7 @@ function evpToggleCollapse() {
 
 async function evpExport(fmt) {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
-  const range = EVP_RANGE_MAP[evpRange] || 'last12m';
-  try {
-    const res = await fetch(`${API_URL}/api/events/analytics/export/${fmt}?range=${range}`, {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-    if (!res.ok) { showStatus(t('ev.panel.export_err'), 'error'); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `events-resumen-${range}.${fmt === 'xlsx' ? 'xlsx' : 'pdf'}`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch(e) { showStatus(t('ev.panel.export_err'), 'error'); }
+  showStatus(t('ev.panel.export_soon', 'Export ' + fmt.toUpperCase() + ' · próximamente (Fase B)'), 'info');
 }
 
 // ── LISTA ──────────────────────────────────────────────────────
@@ -10876,9 +10864,26 @@ function evRnSubscribeSocket(eventId) {
   }
 }
 
+async function evRnDeleteCurrent() {
+  if (!evRnCurrentEvent) return;
+  const name = evRnCurrentEvent.name || 'esta rueda';
+  if (!confirm(`¿Eliminar "${name}"? Esta acción es irreversible y borra inscritos, mesas, rondas y meetings.`)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); showStatus(d.error||'No se pudo eliminar', 'error'); return; }
+    evRnCurrentEvent = null;
+    evCurrentEventId = null;
+    evShowView('list');
+    evLoadList();
+    showStatus('Rueda eliminada', 'success');
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
 function evRnCopyPublicLink() {
   if (!evRnCurrentEvent || !evRnCurrentEvent.slug) { showStatus('Sin slug publico', 'error'); return; }
-  const url = `${location.origin}/rueda/${evRnCurrentEvent.slug}`;
+  const url = `${location.origin}/rueda/${evRnCurrentEvent.slug}/register`;
   (navigator.clipboard?.writeText(url) || Promise.reject())
     .then(() => showStatus('Link copiado: ' + url, 'success'))
     .catch(() => { prompt('Copia el link:', url); });

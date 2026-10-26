@@ -156,11 +156,12 @@ router.post('/events/:eventId/tables', auth, async (req, res) => {
         if (!it.label) {
           const err = new Error('label vacío en item ' + i); err.httpStatus = 400; throw err;
         }
+        const displayOrder = Number.isInteger(it.display_order) ? it.display_order : i;
         const r = await client.query(
           `INSERT INTO events.rn_tables (event_id, zone_id, label, display_order, active)
-           VALUES ($1, $2, $3, COALESCE($4, $5), TRUE)
+           VALUES ($1, $2, $3, $4, TRUE)
            RETURNING *`,
-          [req.params.eventId, it.zone_id || null, it.label, it.display_order, i]
+          [req.params.eventId, it.zone_id || null, it.label, displayOrder]
         );
         inserted.push(r.rows[0]);
       }
