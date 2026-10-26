@@ -349,7 +349,9 @@
           bulk_hint:'Revisa cada fila y decide. Nada se guarda hasta confirmar.', bulk_confirm:'Confirmar',
           bulk_confirm_fmt_one:'Confirmar y crear 1 tag', bulk_confirm_fmt_many:'Confirmar y crear {n} tags'
         },
-        dir: { title:'Asistentes inscritos', search_ph:'Buscar empresa, nombre, tag…', col_company:'Empresa', col_contact:'Contacto', col_offer:'Ofrece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status' },
+        dir: { title:'Asistentes inscritos', search_ph:'Buscar empresa, nombre, tag…', col_company:'Empresa', col_rep:'Representante', col_contact:'Contacto', col_offer:'Ofrece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status', col_actions:'Acciones', edit:'Editar', delete:'Eliminar' },
+        edit: { title:'Editar inscripción', company:'Empresa', contact:'Representante', status:'Status', save:'Guardar', ok:'Inscripción actualizada', err:'No se pudo guardar', del_ok:'Inscripción eliminada', del_err:'No se pudo eliminar', confirm_delete:'¿Eliminar esta inscripción? Esta acción no se puede deshacer.' },
+        status: { pending:'Pendiente', approved:'Aprobada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
           plan_title:'Planificar rondas', plan_starts:'Inicio', plan_total:'Rondas', plan_breakev:'Break c/N', plan_gen:'Generar',
           tables_title:'Mesas', tables_add:'+ Agregar',
@@ -697,7 +699,9 @@
           bulk_hint:'Review each row and decide. Nothing is saved until you confirm.', bulk_confirm:'Confirm',
           bulk_confirm_fmt_one:'Confirm and create 1 tag', bulk_confirm_fmt_many:'Confirm and create {n} tags'
         },
-        dir: { title:'Registered attendees', search_ph:'Search company, name, tag…', col_company:'Company', col_contact:'Contact', col_offer:'Offers', col_demand:'Seeks', col_req:'Req. in/out', col_status:'Status' },
+        dir: { title:'Registered attendees', search_ph:'Search company, name, tag…', col_company:'Company', col_rep:'Representative', col_contact:'Contact', col_offer:'Offers', col_demand:'Seeks', col_req:'Req. in/out', col_status:'Status', col_actions:'Actions', edit:'Edit', delete:'Delete' },
+        edit: { title:'Edit registration', company:'Company', contact:'Representative', status:'Status', save:'Save', ok:'Registration updated', err:'Could not save', del_ok:'Registration deleted', del_err:'Could not delete', confirm_delete:'Delete this registration? This action cannot be undone.' },
+        status: { pending:'Pending', approved:'Approved', confirmed:'Confirmed', cancelled:'Cancelled' },
         agenda: {
           plan_title:'Plan rounds', plan_starts:'Start', plan_total:'Rounds', plan_breakev:'Break every N', plan_gen:'Generate',
           tables_title:'Tables', tables_add:'+ Add',
@@ -1045,7 +1049,9 @@
           bulk_hint:'Revise cada linha e decida. Nada é salvo até confirmar.', bulk_confirm:'Confirmar',
           bulk_confirm_fmt_one:'Confirmar e criar 1 tag', bulk_confirm_fmt_many:'Confirmar e criar {n} tags'
         },
-        dir: { title:'Participantes inscritos', search_ph:'Buscar empresa, nome, tag…', col_company:'Empresa', col_contact:'Contato', col_offer:'Oferece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status' },
+        dir: { title:'Participantes inscritos', search_ph:'Buscar empresa, nome, tag…', col_company:'Empresa', col_rep:'Representante', col_contact:'Contato', col_offer:'Oferece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status', col_actions:'Ações', edit:'Editar', delete:'Excluir' },
+        edit: { title:'Editar inscrição', company:'Empresa', contact:'Representante', status:'Status', save:'Salvar', ok:'Inscrição atualizada', err:'Não foi possível salvar', del_ok:'Inscrição excluída', del_err:'Não foi possível excluir', confirm_delete:'Excluir esta inscrição? Esta ação não pode ser desfeita.' },
+        status: { pending:'Pendente', approved:'Aprovada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
           plan_title:'Planejar rodadas', plan_starts:'Início', plan_total:'Rodadas', plan_breakev:'Pausa a cada N', plan_gen:'Gerar',
           tables_title:'Mesas', tables_add:'+ Adicionar',

@@ -880,6 +880,55 @@ router.get('/events/:eventId/registrations', auth, async (req, res) => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// E-RN-9c #6 · Editar / eliminar inscrito del directorio
+// ──────────────────────────────────────────────────────────────────────────────
+router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const { status, company_name, contact_name } = req.body || {};
+    if (status && !['pending','approved','confirmed','cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'status inválido' });
+    }
+    const sets = [];
+    const params = [];
+    if (status !== undefined) { params.push(status); sets.push(`status = $${params.length}`); }
+    if (company_name !== undefined || contact_name !== undefined) {
+      const patch = {};
+      if (company_name !== undefined) patch.company_name = company_name;
+      if (contact_name !== undefined) patch.contact_name = contact_name;
+      params.push(JSON.stringify(patch));
+      sets.push(`custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $${params.length}::jsonb`);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'Nada que actualizar' });
+    params.push(req.params.regId, req.params.eventId);
+    const r = await pool.query(
+      `UPDATE events.registrations SET ${sets.join(', ')}, updated_at = NOW()
+         WHERE id = $${params.length-1} AND event_id = $${params.length} AND ticket_type = 'rueda'
+         RETURNING id`,
+      params
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Inscrito no encontrado' });
+    res.json({ ok: true });
+  } catch (err) { handleError(res, err, 'PATCH registration'); }
+});
+
+router.delete('/events/:eventId/registrations/:regId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const r = await pool.query(
+      `DELETE FROM events.registrations
+         WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda'
+         RETURNING id`,
+      [req.params.regId, req.params.eventId]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Inscrito no encontrado' });
+    res.json({ ok: true });
+  } catch (err) { handleError(res, err, 'DELETE registration'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // E-RN-7b-3 · Live callboard productor (rondas + meetings de ronda activa)
 // ──────────────────────────────────────────────────────────────────────────────
 router.get('/events/:eventId/live', auth, async (req, res) => {

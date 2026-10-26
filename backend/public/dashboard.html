@@ -3432,6 +3432,39 @@
             </div>
           </div>
 
+          <!-- MODAL: Editar inscripción Rueda -->
+          <div id="ev-rn-edit-reg-modal" class="modal" onclick="if(event.target.id==='ev-rn-edit-reg-modal') evRnCloseEditReg()">
+            <div class="modal-content" style="max-width:480px;">
+              <div class="modal-header">
+                <h3 data-i18n="rn.edit.title">Editar inscripción</h3>
+                <button class="modal-close" onclick="evRnCloseEditReg()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:12px;">
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="rn.edit.company">Empresa</label>
+                  <input id="ev-rn-edit-company" type="text" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="rn.edit.contact">Representante</label>
+                  <input id="ev-rn-edit-contact" type="text" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="rn.edit.status">Status</label>
+                  <select id="ev-rn-edit-status" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
+                    <option value="pending" data-i18n="rn.status.pending">Pendiente</option>
+                    <option value="approved" data-i18n="rn.status.approved">Aprobada</option>
+                    <option value="confirmed" data-i18n="rn.status.confirmed">Confirmada</option>
+                    <option value="cancelled" data-i18n="rn.status.cancelled">Cancelada</option>
+                  </select>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnCloseEditReg()" data-i18n="ev.cancel">Cancelar</button>
+                <button class="btn btn-grad" onclick="evRnConfirmEditReg()" data-i18n="rn.edit.save">Guardar</button>
+              </div>
+            </div>
+          </div>
+
           <!-- MODAL: Type picker (Evento / Rueda de Negocios) -->
           <div id="ev-type-picker-modal" class="modal" onclick="if(event.target.id==='ev-type-picker-modal') evClosePickerModal()">
             <div class="modal-content" style="max-width:620px;">
@@ -4516,14 +4549,16 @@
                   <thead>
                     <tr style="border-bottom:1px solid var(--border);">
                       <th data-i18n="rn.dir.col_company" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa</th>
+                      <th data-i18n="rn.dir.col_rep" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Representante</th>
                       <th data-i18n="rn.dir.col_contact" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Contacto</th>
                       <th data-i18n="rn.dir.col_offer" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ofrece</th>
                       <th data-i18n="rn.dir.col_demand" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Busca</th>
                       <th data-i18n="rn.dir.col_req" style="text-align:center;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Req. in/out</th>
                       <th data-i18n="rn.dir.col_status" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Status</th>
+                      <th data-i18n="rn.dir.col_actions" style="text-align:right;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody id="ev-rn-dir-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                  <tbody id="ev-rn-dir-tbody"><tr><td colspan="8" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -9671,7 +9706,7 @@ function evShowView(view) {
 // Type picker modal (#1 — Evento vs Rueda de Negocios)
 let _evPickerType = 'standard';
 (function(){ document.addEventListener('DOMContentLoaded', function(){
-  ['ev-type-picker-modal','ev-rn-parent-modal'].forEach(id => {
+  ['ev-type-picker-modal','ev-rn-parent-modal','ev-rn-edit-reg-modal'].forEach(id => {
     const m = document.getElementById(id);
     if (m && m.parentElement !== document.body) document.body.appendChild(m);
   });
@@ -10867,23 +10902,77 @@ function evRnDirRender() {
                  ...(r.offer_tags||[]), ...(r.demand_tags||[])].join(' ').toLowerCase();
     return hay.includes(q);
   });
-  if (!filtered.length) { tb.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.registered','Sin inscritos')}</td></tr>`; return; }
+  if (!filtered.length) { tb.innerHTML = `<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.registered','Sin inscritos')}</td></tr>`; return; }
   const statusPill = (s) => {
     const m = { pending:['#9ca3af','Pendiente'], approved:['#22c55e','Aprobada'], confirmed:['#22c55e','Confirmada'], cancelled:['#ef4444','Cancelada'] };
     const [c, l] = m[s] || ['#9ca3af', s||'—'];
     return `<span style="padding:2px 8px;border-radius:999px;background:${c}22;color:${c};font-size:10px;font-weight:700;">${l}</span>`;
   };
   const tagList = (arr) => (arr||[]).length ? (arr||[]).slice(0,3).map(t => `<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(255,27,141,0.09);color:#FF1B8D;font-size:10px;font-weight:700;margin-right:3px;">${evRnEscape(t)}</span>`).join('') + ((arr.length>3)?` <span style="color:var(--text-muted);font-size:10px">+${arr.length-3}</span>`:'') : '<span style="color:var(--text-muted)">—</span>';
+  const tEdit = evRnT('rn.dir.edit','Editar');
+  const tDel = evRnT('rn.dir.delete','Eliminar');
   tb.innerHTML = filtered.map(r => `
     <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || r.attendee_name || '—')}</td>
+      <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || '—')}</td>
+      <td style="padding:8px;">${evRnEscape(r.attendee_name || '—')}</td>
       <td style="padding:8px;color:var(--text-muted);">${evRnEscape(r.contact_name || r.email || '—')}</td>
       <td style="padding:8px;">${tagList(r.offer_tags)}</td>
       <td style="padding:8px;">${tagList(r.demand_tags)}</td>
       <td style="padding:8px;text-align:center;color:var(--text-muted);">${r.requests_received||0} / ${r.requests_sent||0}</td>
       <td style="padding:8px;">${statusPill(r.status)}</td>
+      <td style="padding:8px;text-align:right;white-space:nowrap;">
+        <button class="btn btn-outline btn-sm" style="padding:3px 9px;font-size:11px;margin-right:4px;" onclick="evRnOpenEditReg('${r.id}')" title="${tEdit}">${tEdit}</button>
+        <button class="btn btn-outline btn-sm" style="padding:3px 9px;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evRnDeleteReg('${r.id}')" title="${tDel}">${tDel}</button>
+      </td>
     </tr>
   `).join('');
+}
+
+function evRnOpenEditReg(regId) {
+  const r = (evRnDirCache || []).find(x => String(x.id) === String(regId));
+  if (!r) return;
+  document.getElementById('ev-rn-edit-reg-modal').dataset.regId = regId;
+  document.getElementById('ev-rn-edit-company').value = r.company_name || '';
+  document.getElementById('ev-rn-edit-contact').value = r.contact_name || '';
+  document.getElementById('ev-rn-edit-status').value = r.status || 'pending';
+  document.getElementById('ev-rn-edit-reg-modal').classList.add('active');
+}
+function evRnCloseEditReg() {
+  document.getElementById('ev-rn-edit-reg-modal')?.classList.remove('active');
+}
+async function evRnConfirmEditReg() {
+  const modal = document.getElementById('ev-rn-edit-reg-modal');
+  const regId = modal?.dataset.regId;
+  if (!regId || !evCurrentEventId) return;
+  const body = {
+    company_name: document.getElementById('ev-rn-edit-company').value.trim(),
+    contact_name: document.getElementById('ev-rn-edit-contact').value.trim(),
+    status: document.getElementById('ev-rn-edit-status').value
+  };
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/${regId}`, {
+      method:'PATCH',
+      headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) { showToast(evRnT('rn.edit.err','No se pudo guardar'), 'error'); return; }
+    evRnCloseEditReg();
+    await evRnLoadDirectory();
+    showToast(evRnT('rn.edit.ok','Inscripción actualizada'), 'success');
+  } catch(_) { showToast(evRnT('rn.edit.err','No se pudo guardar'), 'error'); }
+}
+async function evRnDeleteReg(regId) {
+  if (!regId || !evCurrentEventId) return;
+  if (!confirm(evRnT('rn.edit.confirm_delete','¿Eliminar esta inscripción? Esta acción no se puede deshacer.'))) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/${regId}`, {
+      method:'DELETE',
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { showToast(evRnT('rn.edit.del_err','No se pudo eliminar'), 'error'); return; }
+    await evRnLoadDirectory();
+    showToast(evRnT('rn.edit.del_ok','Inscripción eliminada'), 'success');
+  } catch(_) { showToast(evRnT('rn.edit.del_err','No se pudo eliminar'), 'error'); }
 }
 
 async function evRnLoadLive() {
