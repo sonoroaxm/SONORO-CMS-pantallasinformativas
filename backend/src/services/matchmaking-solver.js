@@ -138,6 +138,9 @@ class Grid {
     this.tables  = tables;
     this.anchors = anchors;
     this.blocklist = blocklist;
+    // Reverse: tableId → regId reservada por ancla
+    this.tableAnchor = new Map();
+    for (const [regId, tableId] of anchors.entries()) this.tableAnchor.set(tableId, regId);
     this.R = rounds.length;
     this.T = tables.length;
     // ocupacion[r][t] = regId | null
@@ -171,6 +174,8 @@ class Grid {
       }
       for (let t = 0; t < this.T; t++) {
         if (this.occ[r][t] !== null) continue;
+        const reservedFor = this.tableAnchor.get(this.tables[t].id);
+        if (reservedFor && reservedFor !== regA && reservedFor !== regB) continue;
         return { r, t };
       }
     }
@@ -201,6 +206,8 @@ class Grid {
   placeAt(regA, regB, tableId, origin, locked) {
     const ti = this.tableIndexById(tableId);
     if (ti < 0) return null;
+    const reservedFor = this.tableAnchor.get(tableId);
+    if (reservedFor && reservedFor !== regA && reservedFor !== regB) return null;
     for (let r = 0; r < this.R; r++) {
       if (this.occ[r][ti] !== null) continue;
       if (this.regBusy[r].has(regA) || this.regBusy[r].has(regB)) continue;
@@ -238,11 +245,14 @@ class Grid {
           if (forcedTable) {
             const ti = this.tableIndexById(forcedTable);
             if (ti >= 0 && this.occ[r2][ti] === null) t2 = ti;
-          } else if (this.occ[r2][t] === null) {
+          } else if (this.occ[r2][t] === null && !this.tableAnchor.get(this.tables[t].id)) {
             t2 = t;
           } else {
             for (let tt = 0; tt < this.T; tt++) {
-              if (this.occ[r2][tt] === null) { t2 = tt; break; }
+              if (this.occ[r2][tt] !== null) continue;
+              const reservedFor = this.tableAnchor.get(this.tables[tt].id);
+              if (reservedFor && reservedFor !== cell.a && reservedFor !== cell.b) continue;
+              t2 = tt; break;
             }
           }
           if (t2 < 0) continue;
@@ -351,11 +361,19 @@ async function runPreEvent(client, { eventId, dryRun = false, manualMeetings = [
         if (grid.pairsDone.has(key)) continue;
         if (input.blocklist.has(key)) continue;
         const score = scorePair(input.tagsByReg.get(a), input.tagsByReg.get(b));
-        if (score < input.threshold) continue;
+        const anchoredPair = input.anchors.has(a) || input.anchors.has(b);
+        if (!anchoredPair && score < input.threshold) continue;
         candidates.push({ a, b, score });
       }
     }
-    candidates.sort((x, y) => y.score - x.score);
+    // Prioridad: pares con al menos una empresa anclada van primero (para que la mesa anclada se llene en todas las rondas), luego por score.
+    const isAnchored = (id) => input.anchors.has(id);
+    candidates.sort((x, y) => {
+      const ax = (isAnchored(x.a) || isAnchored(x.b)) ? 1 : 0;
+      const ay = (isAnchored(y.a) || isAnchored(y.b)) ? 1 : 0;
+      if (ax !== ay) return ay - ax;
+      return y.score - x.score;
+    });
     for (const c of candidates) {
       grid.place(c.a, c.b, 'matched', false, c.score);
     }
@@ -430,12 +448,13 @@ async function runPreEvent(client, { eventId, dryRun = false, manualMeetings = [
 // ──────────────────────────────────────────────────────────────────────────────
 // Reset — borra solo las no locked (preserva requested + manual-locked)
 // ──────────────────────────────────────────────────────────────────────────────
-async function resetMeetings(client, eventId) {
-  const r = await client.query(
-    `DELETE FROM events.rn_meetings WHERE event_id = $1 AND locked = FALSE`,
-    [eventId]
-  );
-  return { deleted: r.rowCount };
+async function resetMeetings(client, eventId, opts = {}) {
+  const force = !!opts.force;
+  const sql = force
+    ? `DELETE FROM events.rn_meetings WHERE event_id = $1`
+    : `DELETE FROM events.rn_meetings WHERE event_id = $1 AND locked = FALSE`;
+  const r = await client.query(sql, [eventId]);
+  return { deleted: r.rowCount, forced: force };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

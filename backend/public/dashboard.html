@@ -592,12 +592,21 @@
     .ev-rn-kpi .v { font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--text); line-height:1; font-variant-numeric:tabular-nums; }
     .ev-rn-kpi .sub { margin-top:6px; font-size:11.5px; font-weight:600; color:var(--text-muted); min-height:14px; }
 
-    .ev-rn-subtabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px; overflow-x:auto; }
-    .ev-rn-subtab { background:transparent; border:0; border-bottom:2px solid transparent; color:var(--text-muted); font-family:inherit; font-size:13px; font-weight:700; padding:12px 16px; cursor:pointer; letter-spacing:.3px; white-space:nowrap; }
-    .ev-rn-subtab:hover { color:var(--text); }
-    .ev-rn-subtab.on { color:#FF1B8D; border-bottom-color:#FF1B8D; }
-    .ev-rn-subtab .n { font-size:11px; background:var(--surface3); color:var(--text-muted); padding:2px 7px; border-radius:999px; margin-left:6px; font-weight:800; }
-    .ev-rn-subtab.on .n { background:rgba(255,27,141,0.14); color:#FF1B8D; }
+    .ev-rn-subtabs { display:flex; gap:6px; padding:6px; margin-bottom:18px; overflow-x:auto; background:var(--surface2); border:1px solid var(--border); border-radius:12px; }
+    .ev-rn-subtab { display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid transparent; border-radius:9px; color:var(--text-muted); font-family:inherit; font-size:13px; font-weight:700; padding:9px 16px; cursor:pointer; letter-spacing:.3px; white-space:nowrap; transition:background .15s ease, color .15s ease, box-shadow .15s ease; }
+    .ev-rn-subtab:hover { color:var(--text); background:var(--surface3); }
+    .ev-rn-subtab.on { color:#fff; background:linear-gradient(135deg,#FF1B8D 0%,#B52CE0 100%); border-color:transparent; box-shadow:0 2px 10px rgba(255,27,141,0.35); }
+    .ev-rn-subtab .n { font-size:11px; background:var(--surface3); color:var(--text-muted); padding:2px 7px; border-radius:999px; font-weight:800; min-width:18px; text-align:center; }
+    .ev-rn-subtab.on .n { background:rgba(255,255,255,0.22); color:#fff; }
+
+    .ev-rn-bulk-group { display:inline-flex; align-items:stretch; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--surface2); }
+    .ev-rn-bulk-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; font-size:12px; font-weight:600; font-family:inherit; letter-spacing:.2px; text-transform:none; cursor:pointer; border:0; margin:0; background:transparent; color:var(--text); transition:background .15s ease, color .15s ease; white-space:nowrap; }
+    .ev-rn-bulk-btn + .ev-rn-bulk-btn { border-left:1px solid var(--border); }
+    .ev-rn-bulk-btn:hover { background:var(--surface3); }
+    .ev-rn-bulk-btn--primary { color:#fff; background:linear-gradient(135deg,#FF1B8D 0%,#B52CE0 100%); }
+    .ev-rn-bulk-btn--primary:hover { background:linear-gradient(135deg,#FF2E99 0%,#C13CF0 100%); filter:brightness(1.05); }
+    .ev-rn-bulk-btn--secondary { color:var(--text-muted); }
+    .ev-rn-bulk-btn--secondary:hover { color:var(--text); }
 
     @media (max-width:900px) {
       .ev-rn-donuts { grid-template-columns:1fr; }
@@ -4549,9 +4558,22 @@
             <div class="card">
               <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                 <span data-i18n="rn.dir.title">Asistentes inscritos</span>
-                <input id="ev-rn-dir-search" type="text" data-i18n-attr="placeholder:rn.dir.search_ph" placeholder="Buscar empresa, nombre, tag…"
-                  oninput="evRnDirRender()"
-                  style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;min-width:220px;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <div class="ev-rn-bulk-group" role="group">
+                    <label class="ev-rn-bulk-btn ev-rn-bulk-btn--primary" title="Importar CSV/XLSX">
+                      <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 152v56a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16v-56a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0ZM93.66 85.66L120 59.31V152a8 8 0 0 0 16 0V59.31l26.34 26.35a8 8 0 0 0 11.32-11.32l-40-40a8 8 0 0 0-11.32 0l-40 40a8 8 0 0 0 11.32 11.32Z"/></svg>
+                      <span data-i18n="rn.dir.bulk_import">Importar</span>
+                      <input id="ev-rn-dir-bulk-file" type="file" accept=".xlsx,.xls,.csv" onchange="evRnBulkImport(this)" style="display:none;">
+                    </label>
+                    <button type="button" class="ev-rn-bulk-btn ev-rn-bulk-btn--secondary" onclick="evRnBulkTemplate()" title="Descargar plantilla">
+                      <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 152v56a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16v-56a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0Zm-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 132.69V40a8 8 0 0 0-16 0v92.69l-26.34-26.35a8 8 0 0 0-11.32 11.32Z"/></svg>
+                      <span data-i18n="rn.dir.bulk_template">Plantilla</span>
+                    </button>
+                  </div>
+                  <input id="ev-rn-dir-search" type="text" data-i18n-attr="placeholder:rn.dir.search_ph" placeholder="Buscar empresa, nombre, tag…"
+                    oninput="evRnDirRender()"
+                    style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;min-width:220px;">
+                </div>
               </div>
               <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -4583,6 +4605,27 @@
                 <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-rondas">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_rondas">Rondas sugeridas</div></div>
                 <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-mesas">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_mesas">Mesas sugeridas</div></div>
                 <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-slots">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_slots">Slots configurados</div></div>
+              </div>
+              <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                <button class="btn btn-grad btn-sm" onclick="evRnAutoOpen()" data-i18n="rn.agenda.cap_auto" title="Crea mesas + rondas + reuniones en un solo paso">Generar agenda automática</button>
+              </div>
+              <div id="ev-rn-auto-form" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">
+                <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:10px;" data-i18n="rn.agenda.cap_auto_title">Configuración rápida</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                  <div>
+                    <label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_starts">Inicio</label>
+                    <input id="ev-rn-auto-starts" type="datetime-local" class="ev-rn-cfg-inp">
+                  </div>
+                  <div>
+                    <label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakcnt"># breaks</label>
+                    <input id="ev-rn-auto-breaks" type="number" min="0" max="10" value="1" class="ev-rn-cfg-inp">
+                  </div>
+                </div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;" id="ev-rn-auto-summary">—</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                  <button class="btn btn-outline btn-sm" onclick="evRnAutoCancel()" data-i18n="rn.agenda.cap_auto_cancel">Cancelar</button>
+                  <button id="ev-rn-auto-confirm" class="btn btn-grad btn-sm" onclick="evRnAutoRun()" data-i18n="rn.agenda.cap_auto_confirm_btn">Crear todo</button>
+                </div>
               </div>
             </div>
             <div class="card" style="margin-bottom:14px;">
@@ -4617,75 +4660,76 @@
               <div id="ev-rn-zones-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
-              <div class="card-title">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <span data-i18n="rn.agenda.tables_title">Mesas</span>
+                <button class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnDeleteAllTables()" data-i18n="rn.agenda.tables_delete_all" title="Elimina todas las mesas y las reuniones asociadas">Eliminar todas</button>
               </div>
-              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 10px;" data-i18n="rn.agenda.tables_sub">Espacios físicos simultáneos. Cada ronda × mesa = 1 slot de reunión. Puedes crearlas de a una (con identidad) o en lote (numeradas).</div>
-              <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;margin-bottom:10px;">
-                <input id="ev-rn-table-label" type="text" data-i18n-attr="placeholder:rn.agenda.tables_ph" placeholder="Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)"
-                  style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
-                  onkeydown="if(event.key==='Enter'){event.preventDefault();evRnAddTable();}">
-                <select id="ev-rn-table-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
-                  <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
-                </select>
-                <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_hint">El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.</div>
-              <details style="margin:8px 0 10px;border:1px solid var(--border);border-radius:6px;padding:0;">
-                <summary style="padding:8px 12px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text);background:var(--surface2);border-radius:6px;" data-i18n="rn.agenda.tables_bulk_toggle">Generar mesas en lote</summary>
-                <div style="padding:10px 12px;">
-                  <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_bulk_hint">Crea N mesas numeradas con un prefijo común (ej. "Mesa 01" … "Mesa 20"). Útil para ferias con mesas genéricas.</div>
-                  <div style="display:grid;grid-template-columns:1fr 100px 1fr auto;gap:8px;align-items:center;">
-                    <input id="ev-rn-tbulk-prefix" type="text" value="Mesa" data-i18n-attr="placeholder:rn.agenda.tables_bulk_prefix_ph" placeholder="Prefijo"
-                      style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
-                    <input id="ev-rn-tbulk-count" type="number" min="1" max="100" value="20" data-i18n-attr="placeholder:rn.agenda.tables_bulk_count_ph" placeholder="Cantidad"
-                      style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
-                    <select id="ev-rn-tbulk-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
-                      <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
-                    </select>
-                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="evRnBulkAddTables()" data-i18n="rn.agenda.tables_bulk_add">Generar</button>
-                  </div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 14px;" data-i18n="rn.agenda.tables_sub">Espacios físicos simultáneos. Cada ronda × mesa = 1 slot de reunión.</div>
+
+              <!-- Sub-sección A: una por una -->
+              <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:12px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;" data-i18n="rn.agenda.tables_single_title">A · Agregar una mesa con nombre propio</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;" data-i18n="rn.agenda.tables_hint">Usa esto cuando la mesa tiene identidad (ej. "Isla A", "Lounge"). El nombre aparece en agenda, callboard y emails.</div>
+                <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;">
+                  <input id="ev-rn-table-label" type="text" data-i18n-attr="placeholder:rn.agenda.tables_ph" placeholder="Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)"
+                    style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();evRnAddTable();}">
+                  <select id="ev-rn-table-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;">
+                    <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
+                  </select>
+                  <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
                 </div>
-              </details>
+              </div>
+
+              <!-- Sub-sección B: en lote -->
+              <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:12px;">
+                <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;" data-i18n="rn.agenda.tables_bulk_title">B · Crear varias mesas numeradas</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px;" data-i18n="rn.agenda.tables_bulk_hint">Genera Mesa 01, Mesa 02… de una vez. Útil para ferias con mesas genéricas.</div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input id="ev-rn-tbulk-count" type="number" min="1" max="100" value="10" data-i18n-attr="placeholder:rn.agenda.tables_bulk_count_ph" placeholder="Cantidad"
+                    style="width:120px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;">
+                  <select id="ev-rn-tbulk-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;">
+                    <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
+                  </select>
+                  <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="evRnBulkAddTables()" data-i18n="rn.agenda.tables_bulk_add">Crear mesas</button>
+                </div>
+              </div>
+
               <div id="ev-rn-tables-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
-            <div class="card" style="margin-bottom:14px;">
-              <div class="card-title" data-i18n="rn.agenda.solver_title">Generador de citas</div>
-              <div style="font-size:11.5px;color:var(--text-muted);margin:-6px 0 10px;" data-i18n="rn.agenda.solver_subtitle">Arma la agenda de reuniones a partir de los intereses y las solicitudes aceptadas.</div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
-                  <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_preview">Preview</span>
-                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-                </button>
-                <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
-                  <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_run">Generar citas</span>
-                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-                </button>
-                <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
-                  <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_reset">Reset</span>
-                  <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
-                </button>
-              </div>
-              <div id="ev-rn-stats" style="margin-top:14px;font-size:12px;color:var(--text-muted);"></div>
-            </div>
             <div class="card">
-              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span data-i18n="rn.agenda.meetings_title">Meetings</span>
-                <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()" data-i18n="rn.agenda.meetings_refresh">Refrescar</button>
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <span data-i18n="rn.agenda.meetings_title">Reuniones</span>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                  <button id="ev-rn-btn-run" class="btn btn-grad btn-sm" onclick="evRnSolver('run')">
+                    <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_run">Generar reuniones</span>
+                    <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                  </button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnLoadMeetings()" data-i18n="rn.agenda.meetings_refresh">Refrescar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnExportMeetings('xlsx')" data-i18n="rn.agenda.export_xlsx" title="Exportar Excel">Excel</button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnExportMeetings('pdf')" data-i18n="rn.agenda.export_pdf" title="Exportar PDF">PDF</button>
+                  <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
+                    <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_reset">Reset</span>
+                    <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
+                  </button>
+                </div>
               </div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 10px;" data-i18n="rn.agenda.solver_subtitle">Arma la agenda de reuniones a partir de los intereses y las solicitudes aceptadas.</div>
+              <div id="ev-rn-stats" style="margin:0 0 10px;font-size:12px;color:var(--text);display:none;padding:10px 12px;background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.3);border-left:3px solid #4F46E5;border-radius:6px;line-height:1.6;"></div>
               <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
                   <thead>
                     <tr style="border-bottom:1px solid var(--border);">
                       <th data-i18n="rn.agenda.col_round" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Ronda</th>
+                      <th data-i18n="rn.agenda.col_time" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Horario</th>
                       <th data-i18n="rn.agenda.col_table" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Mesa</th>
                       <th data-i18n="rn.agenda.col_a" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa A</th>
                       <th data-i18n="rn.agenda.col_b" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Empresa B</th>
                       <th data-i18n="rn.agenda.col_origin" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Origen</th>
-                      <th data-i18n="rn.agenda.col_lock" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;font-size:10px;">Lock</th>
+                      <th style="width:40px;padding:8px;"></th>
                     </tr>
                   </thead>
-                  <tbody id="ev-rn-meetings-tbody"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
+                  <tbody id="ev-rn-meetings-tbody"><tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">—</td></tr></tbody>
                 </table>
               </div>
             </div>
@@ -10713,7 +10757,7 @@ function evOpenRueda(ev) {
   const mm = (ev.config && ev.config.matchmaking) || {};
   evRnRenderHeader(ev, start, end, mm);
 
-  document.getElementById('ev-rn-stats').textContent = '';
+  const _stv = document.getElementById('ev-rn-stats'); if (_stv) { _stv.innerHTML = ''; _stv.style.display = 'none'; }
   document.getElementById('ev-rn-meetings-tbody').innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.loading','Cargando…')}</td></tr>`;
   evRnSwitchPanelTab('setup');
   evShowView('rueda');
@@ -10872,7 +10916,7 @@ async function evRnLoadRounds() {
     const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
     el.innerHTML = rows.map(rd => {
       const t = new Date(rd.starts_at).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz });
-      const kind = rd.kind === 'break' ? ' · ☕ break' : '';
+      const kind = rd.kind === 'break' ? ' · ' + evRnT('rn.agenda.round_break','break') : '';
       return `<div style="padding:4px 0;border-bottom:1px solid var(--border);">R${rd.round_number} · ${t}${kind}${rd.label?' · '+rd.label:''}</div>`;
     }).join('');
   } catch(_) {}
@@ -10972,25 +11016,100 @@ function evRnPlanPreview() {
 
 async function evRnBulkAddTables() {
   if (!evCurrentEventId) return;
-  const prefix = (document.getElementById('ev-rn-tbulk-prefix').value || 'Mesa').trim();
   const count = parseInt(document.getElementById('ev-rn-tbulk-count').value, 10) || 0;
-  const zoneId = document.getElementById('ev-rn-tbulk-zone')?.value || null;
   if (count < 1 || count > 100) { showStatus(evRnT('rn.agenda.tables_bulk_err_count','Cantidad 1..100'), 'error'); return; }
+  const zoneId = document.getElementById('ev-rn-tbulk-zone')?.value || null;
+  return evRnCreateTablesBatch(count, zoneId);
+}
+
+async function evRnCreateTablesBatch(count, zoneId = null) {
   const pad = count >= 10 ? 2 : 1;
   const items = [];
   for (let i = 1; i <= count; i++) {
-    items.push({ label: `${prefix} ${String(i).padStart(pad,'0')}`, zone_id: zoneId || null });
+    items.push({ label: `Mesa ${String(i).padStart(pad,'0')}`, zone_id: zoneId || null });
   }
   try {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, {
       method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
       body: JSON.stringify({ tables: items })
     });
-    if (!r.ok) { const d = await r.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); return; }
+    if (!r.ok) { const d = await r.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); return 0; }
     const data = await r.json();
-    showStatus(evRnT('rn.agenda.tables_bulk_ok','{n} mesas creadas').replace('{n}', data.length || count), 'success');
+    const n = Array.isArray(data) ? data.length : count;
+    showStatus(evRnT('rn.agenda.tables_bulk_ok','{n} mesas creadas').replace('{n}', n), 'success');
     evRnLoadTables(); evRnLoadPlanningStats();
-  } catch(_) { showStatus(evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); }
+    return n;
+  } catch(_) { showStatus(evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); return 0; }
+}
+
+let evRnAutoStats = null;
+
+async function evRnAutoOpen() {
+  if (!evCurrentEventId) return;
+  const form = document.getElementById('ev-rn-auto-form');
+  const summary = document.getElementById('ev-rn-auto-summary');
+  const startsInput = document.getElementById('ev-rn-auto-starts');
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/stats/planning`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    if (!r.ok) { showStatus(evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); return; }
+    const s = await r.json();
+    const rondas = Number(s.suggested_rondas) || 0;
+    const mesasNeed = Number(s.suggested_mesas) || 0;
+    if (rondas < 1 || mesasNeed < 1) {
+      showStatus(evRnT('rn.agenda.cap_auto_empty','Faltan inscripciones o solicitudes aceptadas para calcular'), 'error');
+      return;
+    }
+    evRnAutoStats = s;
+    if (startsInput && !startsInput.value) {
+      const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); d.setSeconds(0, 0);
+      startsInput.value = d.toISOString().slice(0,16);
+    }
+    const mesasHave = Number(s.configured_tables) || 0;
+    const faltan = Math.max(0, mesasNeed - mesasHave);
+    summary.innerHTML = evRnT('rn.agenda.cap_auto_summary','Se crearán <b>{m}</b> mesas nuevas, <b>{r}</b> rondas y las reuniones correspondientes.')
+      .replace('{m}', faltan).replace('{r}', rondas);
+    form.style.display = 'block';
+  } catch(_) { showStatus(evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); }
+}
+
+function evRnAutoCancel() {
+  const form = document.getElementById('ev-rn-auto-form');
+  if (form) form.style.display = 'none';
+  evRnAutoStats = null;
+}
+
+async function evRnAutoRun() {
+  if (!evCurrentEventId || !evRnAutoStats) return;
+  const btn = document.getElementById('ev-rn-auto-confirm');
+  const rondas = Number(evRnAutoStats.suggested_rondas) || 0;
+  const mesasNeed = Number(evRnAutoStats.suggested_mesas) || 0;
+  const mesasHave = Number(evRnAutoStats.configured_tables) || 0;
+  const faltan = Math.max(0, mesasNeed - mesasHave);
+  const starts = document.getElementById('ev-rn-auto-starts').value;
+  const breakCount = parseInt(document.getElementById('ev-rn-auto-breaks').value, 10) || 0;
+  if (!starts) { showStatus(evRnT('rn.agenda.cap_auto_need_starts','Falta la hora de inicio'), 'error'); return; }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  try {
+    if (faltan > 0) await evRnCreateTablesBatch(faltan);
+    const planRes = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/plan`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ starts_at: new Date(starts).toISOString(), total_rounds: rondas, break_count: breakCount, break_minutes: 10 })
+    });
+    if (!planRes.ok) { const d = await planRes.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); return; }
+    const solverRes = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/solver/run`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` }, body:'{}'
+    });
+    const solverData = await solverRes.json();
+    if (!solverRes.ok) { showStatus(solverData.error || evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); return; }
+    const total = (solverData.stats && solverData.stats.meetings_total) || 0;
+    showStatus(evRnT('rn.agenda.cap_auto_ok','Agenda lista: {m} mesas × {r} rondas · {n} reuniones').replace('{m}', mesasNeed).replace('{r}', rondas).replace('{n}', total), 'success');
+    evRnAutoCancel();
+    evRnLoadRounds(); evRnLoadTables(); evRnLoadStats(); evRnLoadPlanningStats(); evRnLoadMeetings();
+  } catch(_) {
+    showStatus(evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
 }
 
 async function evRnLoadZones() {
@@ -11066,14 +11185,20 @@ async function evRnLoadTables() {
   try {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
     const rows = r.ok ? await r.json() : [];
+    window.evRnTablesCache = rows;
     const el = document.getElementById('ev-rn-tables-list'); if (!el) return;
     if (!rows.length) { el.textContent = evRnT('rn.empty.tables','Sin mesas configuradas'); return; }
-    el.innerHTML = rows.map(t =>
-      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
-        <span>${evRnEscape(t.label)}${t.zone_name?' <span style="color:var(--text-muted);">· '+evRnEscape(t.zone_name)+'</span>':''}</span>
-        <button class="btn btn-outline btn-sm" style="padding:2px 10px;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evRnDeleteTable('${t.id}')" title="${evRnT('rn.agenda.tables_delete','Eliminar mesa')}">✕</button>
-      </div>`
-    ).join('');
+    const noneLabel = evRnT('rn.agenda.tables_no_zone','Sin zona');
+    const zoneOpts = `<option value="">${evRnEscape(noneLabel)}</option>` +
+      evRnZonesCache.map(z => `<option value="${z.id}">${evRnEscape(z.name)}</option>`).join('');
+    el.innerHTML = rows.map(t => {
+      const sel = zoneOpts.replace(`value="${t.zone_id||''}"`, `value="${t.zone_id||''}" selected`);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+        <span style="flex:1;">${evRnEscape(t.label)}</span>
+        <select onchange="evRnUpdateTableZone('${t.id}', this.value)" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);font-size:11px;max-width:160px;">${sel}</select>
+        <button class="btn btn-outline btn-sm" style="padding:2px 10px;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evRnDeleteTable('${t.id}')" title="${evRnT('rn.agenda.tables_delete','Eliminar mesa')}">x</button>
+      </div>`;
+    }).join('');
   } catch(_) {}
 }
 async function evRnAddTable() {
@@ -11106,6 +11231,36 @@ async function evRnDeleteTable(id) {
     evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
     showStatus(evRnT('rn.agenda.tables_delete_ok','Mesa eliminada'), 'success');
   } catch(_) { showStatus(evRnT('rn.agenda.tables_delete_err','No se pudo eliminar'), 'error'); }
+}
+
+async function evRnUpdateTableZone(tableId, zoneId) {
+  if (!evCurrentEventId || !tableId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables/${encodeURIComponent(tableId)}`, {
+      method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ zone_id: zoneId || null })
+    });
+    if (!r.ok) { showStatus(evRnT('rn.agenda.tables_zone_err','No se pudo actualizar la zona'), 'error'); evRnLoadTables(); return; }
+    showStatus(evRnT('rn.agenda.tables_zone_ok','Zona actualizada'), 'success');
+  } catch(_) { showStatus(evRnT('rn.agenda.tables_zone_err','No se pudo actualizar la zona'), 'error'); evRnLoadTables(); }
+}
+
+async function evRnDeleteAllTables() {
+  if (!evCurrentEventId) return;
+  if (!confirm(evRnT('rn.agenda.tables_delete_all_confirm','¿Eliminar TODAS las mesas, reuniones y anclajes de este evento? Esta acción no se puede deshacer.'))) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) {
+      let msg = evRnT('rn.agenda.tables_delete_all_err','No se pudieron eliminar las mesas');
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
+      showStatus(msg, 'error'); return;
+    }
+    const j = await r.json().catch(()=>({}));
+    showStatus(evRnT('rn.agenda.tables_delete_all_ok','Mesas eliminadas') + ` (${j.tables||0} mesas · ${j.meetings||0} reuniones)`, 'success');
+    evRnLoadTables(); evRnLoadMeetings(); evRnLoadStats(); evRnLoadPlanningStats();
+  } catch(_) { showStatus(evRnT('rn.agenda.tables_delete_all_err','No se pudieron eliminar las mesas'), 'error'); }
 }
 
 // ── E-RN-7b-3 Directorio + Live ─────────────────────────────────
@@ -11144,7 +11299,15 @@ function evRnDirRender() {
   const tDel = evRnT('rn.dir.delete','Eliminar');
   tb.innerHTML = filtered.map(r => `
     <tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || '—')}</td>
+      <td style="padding:8px;font-weight:600;">
+        ${evRnEscape(r.company_name || '—')}
+        <div style="margin-top:3px;">
+          ${r.anchor_table_id
+            ? `<span style="display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;background:${r.anchor_zone_color||'#4F46E5'}22;color:${r.anchor_zone_color||'#4F46E5'};font-size:10px;font-weight:700;">${evRnEscape(r.anchor_table_label)}${r.anchor_zone_name?' · '+evRnEscape(r.anchor_zone_name):''}<a href="#" onclick="event.preventDefault();evRnToggleAnchor('${r.id}')" style="color:inherit;text-decoration:underline;font-weight:700;" title="${evRnT('rn.dir.anchor_remove','Quitar ancla')}">${evRnT('rn.dir.anchor_remove_short','Quitar')}</a></span>`
+            : `<a href="#" onclick="event.preventDefault();evRnToggleAnchor('${r.id}')" style="font-size:10px;font-weight:700;color:var(--text-muted);text-decoration:underline;" title="${evRnT('rn.dir.anchor_add','Anclar a una mesa fija')}">${evRnT('rn.dir.anchor_add_short','Anclar')}</a>`
+          }
+        </div>
+      </td>
       <td style="padding:8px;">${evRnEscape(r.attendee_name || '—')}</td>
       <td style="padding:8px;color:var(--text-muted);">
         <div>${evRnEscape(r.contact_name || r.email || '—')}</div>
@@ -11162,9 +11325,12 @@ function evRnDirRender() {
   `).join('');
 }
 
-function evRnOpenEditReg(regId) {
+async function evRnOpenEditReg(regId) {
   const r = (evRnDirCache || []).find(x => String(x.id) === String(regId));
   if (!r) { console.warn('[rn-edit] reg no encontrado', regId); return; }
+  if (!Array.isArray(window.evRnTablesCache) || !window.evRnTablesCache.length) {
+    try { await evRnLoadTables(); } catch(_) {}
+  }
   const modal = document.getElementById('ev-rn-edit-reg-modal');
   modal.dataset.regId = regId;
   document.getElementById('ev-rn-edit-ctx-name').textContent = r.attendee_name || '—';
@@ -11178,6 +11344,32 @@ function evRnOpenEditReg(regId) {
   document.getElementById('ev-rn-edit-contact').value = r.contact_name || '';
   document.getElementById('ev-rn-edit-status').value = r.status || 'pending';
   modal.classList.add('active');
+}
+
+async function evRnToggleAnchor(regId) {
+  if (!regId || !evCurrentEventId) return;
+  const current = (evRnDirCache || []).find(x => String(x.id) === String(regId));
+  const isAnchored = !!(current && current.anchor_table_id);
+  try {
+    if (isAnchored) {
+      const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/anchors/${regId}`, {
+        method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+      });
+      if (!r.ok && r.status !== 404) { showToast(evRnT('rn.dir.anchor_err','No se pudo actualizar el ancla'), 'error'); return; }
+      showToast(evRnT('rn.dir.anchor_removed','Ancla removida'), 'success');
+    } else {
+      const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/anchors`, {
+        method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+        body: JSON.stringify({ registration_id: regId })
+      });
+      if (!r.ok) { showToast(evRnT('rn.dir.anchor_err','No se pudo anclar'), 'error'); return; }
+      const j = await r.json().catch(()=>({}));
+      const msg = evRnT('rn.dir.anchor_added','Anclado a {mesa}').replace('{mesa}', j.table_label || '—');
+      showToast(msg, 'success');
+    }
+    evRnLoadDirectory();
+    if (typeof evRnLoadTables === 'function') evRnLoadTables();
+  } catch(_) { showToast(evRnT('rn.dir.anchor_err','No se pudo actualizar el ancla'), 'error'); }
 }
 function evRnCloseEditReg() {
   document.getElementById('ev-rn-edit-reg-modal')?.classList.remove('active');
@@ -11857,13 +12049,18 @@ function evRnBtnBusy(action, busy) {
 
 async function evRnSolver(action) {
   if (!evCurrentEventId) return;
-  if (action === 'reset' && !confirm('¿Eliminar todas las meetings no bloqueadas?')) return;
+  let force = false;
+  if (action === 'reset') {
+    const msg = evRnT('rn.agenda.solver_reset_confirm','¿Eliminar TODAS las reuniones agendadas (incluidas las bloqueadas)? Esto no se puede deshacer.');
+    if (!confirm(msg)) return;
+    force = true;
+  }
   evRnBtnBusy(action, true);
   try {
     const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/solver/${action}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({})
+      body: JSON.stringify(force ? { force: true } : {})
     });
     const data = await res.json();
     if (res.status === 409 && data.error === 'solver_already_running') {
@@ -11879,14 +12076,23 @@ async function evRnSolver(action) {
       showStatus(data.error || evRnT('rn.agenda.solver_err','Error en el generador'), 'error');
       return;
     }
+    const statsEl = document.getElementById('ev-rn-stats');
     if (action === 'reset') {
       showStatus(`Reset OK · ${data.deleted || 0} meetings`, 'success');
-      document.getElementById('ev-rn-stats').textContent = '';
+      if (statsEl) { statsEl.innerHTML = ''; statsEl.style.display = 'none'; }
     } else {
       const s = data.stats || {};
       const prefix = action === 'preview' ? evRnT('rn.agenda.solver_preview_ok','Vista previa') : evRnT('rn.agenda.solver_run_ok','Citas generadas');
-      document.getElementById('ev-rn-stats').textContent =
-        `${prefix} · total ${s.meetings_total||0} (requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}) · rondas efectivas ${s.total_rounds_effective||0}${s.unschedulable_count?` · unschedulable ${s.unschedulable_count}`:''}`;
+      if (statsEl) {
+        statsEl.innerHTML =
+          `<div style="font-weight:700;margin-bottom:4px;">${prefix}: ${s.meetings_total||0} reuniones</div>
+           <div style="color:var(--text-muted);font-size:11.5px;">
+             ${evRnT('rn.agenda.solver_breakdown','Desglose')}: requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}
+             · ${evRnT('rn.agenda.solver_rounds_eff','rondas efectivas')} ${s.total_rounds_effective||0}
+             ${s.unschedulable_count?` · <span style="color:#ef4444;">unschedulable ${s.unschedulable_count}</span>`:''}
+           </div>`;
+        statsEl.style.display = 'block';
+      }
       showStatus(`${prefix}: ${s.meetings_total||0}`, 'success');
     }
     if (action !== 'preview') { await evRnLoadMeetings(); evRnLoadStats(); }
@@ -11900,30 +12106,124 @@ async function evRnSolver(action) {
 async function evRnLoadMeetings() {
   const tbody = document.getElementById('ev-rn-meetings-tbody');
   if (!tbody || !evCurrentEventId) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
   try {
     const res = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/meetings`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.agenda.solver_meetings_empty','Sin citas todavía. Corre el generador para crearlas.')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.agenda.solver_meetings_empty','Sin citas todavía. Corre el generador para crearlas.')}</td></tr>`;
       return;
     }
     const originColor = { requested:'#FF1B8D', manual:'#f59e0b', matched:'#a855f7' };
+    const delTitle = evRnT('rn.agenda.meeting_delete','Eliminar reunión');
+    const fmtTime = (iso) => {
+      if (!iso) return '—';
+      try { return new Date(iso).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+      catch(_) { return '—'; }
+    };
     tbody.innerHTML = data.map(m => `
       <tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px;font-weight:700;">${m.round_number ?? '—'}</td>
-        <td style="padding:8px;">${m.table_label ?? '—'}</td>
+        <td style="padding:8px;color:var(--text-muted);font-variant-numeric:tabular-nums;">${fmtTime(m.round_starts_at)}${m.round_ends_at ? '–'+fmtTime(m.round_ends_at) : ''}</td>
+        <td style="padding:8px;">${(typeof m.table_label==='string' && m.table_label.startsWith('Anclada ')) ? `<span style="display:inline-block;padding:2px 7px;border-radius:4px;background:rgba(79,70,229,0.15);color:#4F46E5;font-weight:700;">${m.table_label}</span>` : (m.table_label ?? '—')}</td>
         <td style="padding:8px;">${m.company_a ?? '—'}</td>
         <td style="padding:8px;">${m.company_b ?? '—'}</td>
-        <td style="padding:8px;"><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${originColor[m.origin]||'#64748b'};color:#fff;font-weight:700;text-transform:uppercase;">${m.origin}</span></td>
-        <td style="padding:8px;">${m.locked ? '<svg width="12" height="12" style="fill:#FF1B8D"><use href="#ph-lock"/></svg>' : '—'}</td>
+        <td style="padding:8px;"><span style="font-size:10px;padding:2px 7px;border-radius:4px;background:${originColor[m.origin]||'#64748b'};color:#fff;font-weight:700;text-transform:uppercase;">${evRnT('rn.agenda.origin_'+m.origin, m.origin)}</span></td>
+        <td style="padding:8px;text-align:right;"><button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px;color:#ef4444;border-color:rgba(239,68,68,0.4);" onclick="evRnDeleteMeeting('${m.id}')" title="${delTitle}">✕</button></td>
       </tr>
     `).join('');
   } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:#ef4444;">Error cargando meetings.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:#ef4444;">Error cargando meetings.</td></tr>';
   }
+}
+
+async function evRnBulkTemplate() {
+  if (!evCurrentEventId) return;
+  try {
+    const loc = ((window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || localStorage.getItem('sonoro_locale') || 'es').slice(0,2);
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/bulk-template.xlsx?locale=${encodeURIComponent(loc)}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!r.ok) { showToast(evRnT('rn.dir.bulk_err','No se pudo descargar'), 'error'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'sonoro-rn-inscripciones-template.xlsx';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  } catch(_) { showToast(evRnT('rn.dir.bulk_err','No se pudo descargar'), 'error'); }
+}
+
+async function evRnBulkImport(input) {
+  if (!evCurrentEventId || !input.files || !input.files[0]) return;
+  const file = input.files[0];
+  input.value = '';
+  try {
+    // Dry-run primero: muestra resumen
+    const fd1 = new FormData();
+    fd1.append('file', file);
+    fd1.append('dry_run', '1');
+    const r1 = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/bulk`, {
+      method:'POST', headers:{ 'Authorization': `Bearer ${authToken}` }, body: fd1
+    });
+    const j1 = await r1.json().catch(()=>({}));
+    if (!r1.ok) { showToast(j1.error || evRnT('rn.dir.bulk_err','Error importando'), 'error'); return; }
+
+    let msg = `${evRnT('rn.dir.bulk_rows','Filas')}: ${j1.total_rows} · ${evRnT('rn.dir.bulk_valid','válidas')}: ${j1.valid}`;
+    if ((j1.errors||[]).length) msg += `\n${evRnT('rn.dir.bulk_errors','Errores')}:\n` + j1.errors.slice(0,10).map(e=>`  ${evRnT('rn.dir.bulk_row','fila')} ${e.row}: ${e.reason}`).join('\n');
+    if ((j1.unknown_tags||[]).length) msg += `\n${evRnT('rn.dir.bulk_unknown_tags','Tags no reconocidos (se ignoran)')}: ${j1.unknown_tags.slice(0,20).join(', ')}`;
+    msg += `\n\n${evRnT('rn.dir.bulk_confirm','¿Importar {n} inscripción(es)?').replace('{n}', j1.valid)}`;
+    if (!confirm(msg)) return;
+
+    const fd2 = new FormData();
+    fd2.append('file', file);
+    const r2 = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/bulk`, {
+      method:'POST', headers:{ 'Authorization': `Bearer ${authToken}` }, body: fd2
+    });
+    const j2 = await r2.json().catch(()=>({}));
+    if (!r2.ok) { showToast(j2.error || evRnT('rn.dir.bulk_err','Error importando'), 'error'); return; }
+
+    let done = `${evRnT('rn.dir.bulk_inserted','Insertadas')}: ${j2.inserted}`;
+    if ((j2.skipped||[]).length) done += ` · ${evRnT('rn.dir.bulk_skipped','omitidas')}: ${j2.skipped.length}`;
+    showToast(done, 'success');
+    evRnLoadDirectory(); evRnLoadStats();
+  } catch(_) { showToast(evRnT('rn.dir.bulk_err','Error importando'), 'error'); }
+}
+
+async function evRnExportMeetings(format) {
+  if (!evCurrentEventId) return;
+  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+  try {
+    const loc = ((window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || localStorage.getItem('sonoro_locale') || 'es').slice(0,2);
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/meetings/export.${ext}?locale=${encodeURIComponent(loc)}`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!r.ok) { showToast(evRnT('rn.agenda.export_err','No se pudo exportar'), 'error'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cd = r.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/);
+    a.download = match ? match[1] : `reuniones.${ext}`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  } catch(_) { showToast(evRnT('rn.agenda.export_err','No se pudo exportar'), 'error'); }
+}
+
+async function evRnDeleteMeeting(id) {
+  if (!evCurrentEventId || !id) return;
+  if (!confirm(evRnT('rn.agenda.meeting_delete_confirm','¿Eliminar esta reunión del cronograma?'))) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/meetings/${id}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { showStatus(evRnT('rn.agenda.meeting_delete_err','No se pudo eliminar'), 'error'); return; }
+    showStatus(evRnT('rn.agenda.meeting_delete_ok','Reunión eliminada'), 'success');
+    evRnLoadMeetings(); evRnLoadStats();
+  } catch(_) { showStatus(evRnT('rn.agenda.meeting_delete_err','No se pudo eliminar'), 'error'); }
 }
 
 function evSwitchSubTab(tab) {

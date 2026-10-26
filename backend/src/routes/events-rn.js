@@ -12,6 +12,8 @@ const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
 const solver = require('../services/matchmaking-solver');
 const tagsSvc = require('../services/matchmaking-tags');
+const XLSX = require('xlsx');
+const PDFDocument = require('pdfkit');
 
 const uploadTags = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
@@ -189,6 +191,20 @@ router.put('/events/:eventId/tables/:tableId', auth, async (req, res) => {
     if (r.rowCount === 0) return res.status(404).json({ error: 'Mesa no encontrada' });
     res.json(r.rows[0]);
   } catch (err) { handleError(res, err, 'PUT table'); }
+});
+
+router.delete('/events/:eventId/tables', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const result = await withTransaction(pool, async (client) => {
+      const m = await client.query(`DELETE FROM events.rn_meetings WHERE event_id = $1`, [req.params.eventId]);
+      const a = await client.query(`DELETE FROM events.rn_registration_anchors WHERE table_id IN (SELECT id FROM events.rn_tables WHERE event_id = $1)`, [req.params.eventId]);
+      const t = await client.query(`DELETE FROM events.rn_tables WHERE event_id = $1`, [req.params.eventId]);
+      return { tables: t.rowCount, meetings: m.rowCount, anchors: a.rowCount };
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) { handleError(res, err, 'DELETE all tables'); }
 });
 
 router.delete('/events/:eventId/tables/:tableId', auth, async (req, res) => {
@@ -533,28 +549,62 @@ router.post('/events/:eventId/anchors', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const { registration_id, table_id } = req.body || {};
-    if (!registration_id || !table_id) {
-      return res.status(400).json({ error: 'registration_id y table_id requeridos' });
-    }
-    const check = await pool.query(
-      `SELECT
-         (SELECT 1 FROM events.registrations WHERE id = $1 AND event_id = $3) AS reg_ok,
-         (SELECT 1 FROM events.rn_tables    WHERE id = $2 AND event_id = $3) AS tab_ok`,
-      [registration_id, table_id, req.params.eventId]
+    const eventId = req.params.eventId;
+    const { registration_id } = req.body || {};
+    if (!registration_id) return res.status(400).json({ error: 'registration_id requerido' });
+
+    const regCheck = await pool.query(
+      `SELECT 1 FROM events.registrations WHERE id = $1 AND event_id = $2`,
+      [registration_id, eventId]
     );
-    if (!check.rows[0].reg_ok || !check.rows[0].tab_ok) {
-      return res.status(400).json({ error: 'registration o mesa no pertenecen al evento' });
-    }
-    const r = await pool.query(
-      `INSERT INTO events.rn_registration_anchors (registration_id, table_id, assigned_by)
-       VALUES ($1, $2, 'manual')
-       ON CONFLICT (registration_id)
-       DO UPDATE SET table_id = EXCLUDED.table_id, assigned_by = 'manual', assigned_at = NOW()
-       RETURNING *`,
-      [registration_id, table_id]
-    );
-    res.status(201).json(r.rows[0]);
+    if (regCheck.rowCount === 0) return res.status(400).json({ error: 'registration no pertenece al evento' });
+
+    const result = await withTransaction(pool, async (client) => {
+      let tableId;
+      const existing = await client.query(
+        `SELECT a.table_id FROM events.rn_registration_anchors a
+           JOIN events.registrations r ON r.id = a.registration_id
+          WHERE a.registration_id = $1 AND r.event_id = $2
+          FOR UPDATE`,
+        [registration_id, eventId]
+      );
+      if (existing.rowCount > 0) {
+        tableId = existing.rows[0].table_id;
+      } else {
+        const cnt = await client.query(
+          `SELECT COUNT(*)::int AS c FROM events.rn_tables
+            WHERE event_id = $1 AND label LIKE 'Anclada %'`,
+          [eventId]
+        );
+        const totalCnt = await client.query(`SELECT COUNT(*)::int AS c FROM events.rn_tables WHERE event_id = $1`, [eventId]);
+        const n = (cnt.rows[0].c || 0) + 1;
+        const label = `Anclada ${n}`;
+        const ord = (totalCnt.rows[0].c || 0) + 1;
+        const ins = await client.query(
+          `INSERT INTO events.rn_tables (event_id, label, display_order, active)
+           VALUES ($1, $2, $3, TRUE) RETURNING id`,
+          [eventId, label, ord]
+        );
+        tableId = ins.rows[0].id;
+      }
+      const anchor = await client.query(
+        `INSERT INTO events.rn_registration_anchors (registration_id, table_id, assigned_by)
+         VALUES ($1, $2, 'manual')
+         ON CONFLICT (registration_id)
+         DO UPDATE SET table_id = EXCLUDED.table_id, assigned_by = 'manual', assigned_at = NOW()
+         RETURNING *`,
+        [registration_id, tableId]
+      );
+      const info = await client.query(
+        `SELECT t.id AS table_id, t.label AS table_label, z.name AS zone_name, z.color_hex AS zone_color
+           FROM events.rn_tables t
+           LEFT JOIN events.rn_zones z ON z.id = t.zone_id
+          WHERE t.id = $1`,
+        [tableId]
+      );
+      return { anchor: anchor.rows[0], ...info.rows[0] };
+    });
+    res.status(201).json(result);
   } catch (err) { handleError(res, err, 'POST anchor'); }
 });
 
@@ -562,13 +612,25 @@ router.delete('/events/:eventId/anchors/:regId', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const r = await pool.query(
-      `DELETE FROM events.rn_registration_anchors a
-       USING events.registrations r
-       WHERE a.registration_id = $1 AND a.registration_id = r.id AND r.event_id = $2`,
-      [req.params.regId, req.params.eventId]
-    );
-    if (r.rowCount === 0) return res.status(404).json({ error: 'Ancla no encontrada' });
+    const result = await withTransaction(pool, async (client) => {
+      const sel = await client.query(
+        `SELECT a.table_id, t.label FROM events.rn_registration_anchors a
+           JOIN events.registrations r ON r.id = a.registration_id
+           JOIN events.rn_tables t ON t.id = a.table_id
+          WHERE a.registration_id = $1 AND r.event_id = $2
+          FOR UPDATE`,
+        [req.params.regId, req.params.eventId]
+      );
+      if (sel.rowCount === 0) return { notFound: true };
+      const { table_id, label } = sel.rows[0];
+      await client.query(`DELETE FROM events.rn_registration_anchors WHERE registration_id = $1`, [req.params.regId]);
+      if (typeof label === 'string' && label.startsWith('Anclada ')) {
+        await client.query(`DELETE FROM events.rn_meetings WHERE table_id = $1`, [table_id]);
+        await client.query(`DELETE FROM events.rn_tables WHERE id = $1`, [table_id]);
+      }
+      return { ok: true };
+    });
+    if (result.notFound) return res.status(404).json({ error: 'Ancla no encontrada' });
     res.status(204).end();
   } catch (err) { handleError(res, err, 'DELETE anchor'); }
 });
@@ -769,11 +831,25 @@ router.post('/events/:eventId/solver/reset', auth, async (req, res) => {
       if (!lk.rows[0].got) {
         const e = new Error('solver_already_running'); e.httpStatus = 409; throw e;
       }
-      return solver.resetMeetings(client, req.params.eventId);
+      return solver.resetMeetings(client, req.params.eventId, { force: !!req.body?.force });
     });
-    console.log(`[rn-solver] reset event=${req.params.eventId} deleted=${result.deleted}`);
+    console.log(`[rn-solver] reset event=${req.params.eventId} deleted=${result.deleted} forced=${!!result.forced}`);
     res.json(result);
   } catch (err) { handleError(res, err, 'POST solver/reset'); }
+});
+
+// Borrar una reunión individual (incluye locked). Usado desde la tabla Meetings.
+router.delete('/events/:eventId/meetings/:meetingId', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const r = await pool.query(
+      `DELETE FROM events.rn_meetings WHERE event_id=$1 AND id=$2`,
+      [req.params.eventId, req.params.meetingId]
+    );
+    if (r.rowCount === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true, deleted: r.rowCount });
+  } catch (err) { handleError(res, err, 'DELETE meeting'); }
 });
 
 // Runtime re-entrant: productor abre una ronda específica → solver evalúa presencia
@@ -821,7 +897,7 @@ router.get('/events/:eventId/meetings', auth, async (req, res) => {
     const r = await pool.query(
       `SELECT m.id, m.round_id, m.table_id, m.origin, m.locked, m.status,
               m.tag_overlap_score,
-              rd.round_number,
+              rd.round_number, rd.starts_at AS round_starts_at, rd.ends_at AS round_ends_at,
               t.label AS table_label,
               ra.custom_fields->>'company_name' AS company_a,
               rb.custom_fields->>'company_name' AS company_b
@@ -836,6 +912,207 @@ router.get('/events/:eventId/meetings', auth, async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) { handleError(res, err, 'GET meetings'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-9d — Export reuniones XLSX / PDF (con header evento)
+// ──────────────────────────────────────────────────────────────────────────────
+async function loadMeetingsForExport(pool, eventId, userId) {
+  const ev = await pool.query(
+    `SELECT e.id, e.name, e.starts_at, e.ends_at, e.timezone, e.venue_name, e.status
+       FROM events.events e
+      WHERE e.id = $1 AND e.user_id = $2`,
+    [eventId, userId]
+  );
+  if (ev.rowCount === 0) { const err = new Error('Evento no encontrado'); err.httpStatus = 404; throw err; }
+  const meetings = (await pool.query(
+    `SELECT rd.round_number,
+            rd.starts_at AS round_starts_at, rd.ends_at AS round_ends_at,
+            t.label AS table_label,
+            ra.custom_fields->>'company_name' AS company_a,
+            rb.custom_fields->>'company_name' AS company_b,
+            m.origin, m.status
+       FROM events.rn_meetings m
+       JOIN events.rn_rounds rd ON rd.id = m.round_id
+       JOIN events.rn_tables t  ON t.id  = m.table_id
+       JOIN events.registrations ra ON ra.id = m.company_a_id
+       JOIN events.registrations rb ON rb.id = m.company_b_id
+      WHERE m.event_id = $1
+      ORDER BY rd.round_number ASC, t.display_order ASC NULLS LAST, t.label ASC`,
+    [eventId]
+  )).rows;
+  return { ev: ev.rows[0], meetings };
+}
+
+const RN_EXPORT_LABELS = {
+  es: {
+    origin: { requested:'Solicitada', manual:'Manual', matched:'Automática' },
+    status: { scheduled:'Programada', deferred:'Diferida', cancelled:'Cancelada', completed:'Completada', no_show:'No se presentó' },
+    header: { title:'Reuniones Rueda de Negocios', venue_none:'Sin sede', state:'Estado', generated:'Generado', total:'Total reuniones' },
+    cols: { round:'Ronda', time:'Horario', table:'Mesa', a:'Empresa A', b:'Empresa B', origin:'Origen', status:'Estado' },
+  },
+  en: {
+    origin: { requested:'Requested', manual:'Manual', matched:'Matched' },
+    status: { scheduled:'Scheduled', deferred:'Deferred', cancelled:'Cancelled', completed:'Completed', no_show:'No-show' },
+    header: { title:'Business Rueda — Meetings', venue_none:'No venue', state:'Status', generated:'Generated', total:'Total meetings' },
+    cols: { round:'Round', time:'Time', table:'Table', a:'Company A', b:'Company B', origin:'Origin', status:'Status' },
+  },
+  pt: {
+    origin: { requested:'Solicitada', manual:'Manual', matched:'Automática' },
+    status: { scheduled:'Agendada', deferred:'Adiada', cancelled:'Cancelada', completed:'Concluída', no_show:'Não compareceu' },
+    header: { title:'Rodada de Negócios — Reuniões', venue_none:'Sem local', state:'Estado', generated:'Gerado', total:'Total de reuniões' },
+    cols: { round:'Rodada', time:'Horário', table:'Mesa', a:'Empresa A', b:'Empresa B', origin:'Origem', status:'Estado' },
+  },
+};
+function rnExportLocale(req) {
+  const q = String(req.query.locale || '').toLowerCase().slice(0,2);
+  if (RN_EXPORT_LABELS[q]) return q;
+  return 'es';
+}
+
+router.get('/events/:eventId/meetings/export.xlsx', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { ev, meetings } = await loadMeetingsForExport(pool, req.params.eventId, req.user.id);
+    const L = RN_EXPORT_LABELS[rnExportLocale(req)];
+    const tz = ev.timezone || 'America/Bogota';
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-CO', { timeZone: tz, day:'numeric', month:'short', year:'numeric' }) : '—';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:false }) : '—';
+    const dateRange = `${fmtDate(ev.starts_at)}${ev.ends_at && ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at) : ''}`;
+
+    const aoa = [];
+    aoa.push([`SONORO — ${L.header.title}`]);
+    aoa.push([ev.name || '']);
+    aoa.push([`${dateRange}   ·   ${ev.venue_name || L.header.venue_none}   ·   ${L.header.state}: ${ev.status || ''}`]);
+    aoa.push([`${L.header.generated}: ${new Date().toLocaleString('es-CO', { timeZone: tz })}`]);
+    aoa.push([`${L.header.total}: ${meetings.length}`]);
+    aoa.push([]);
+    aoa.push([L.cols.round, L.cols.time, L.cols.table, L.cols.a, L.cols.b, L.cols.origin, L.cols.status]);
+    for (const m of meetings) {
+      const horario = `${fmtTime(m.round_starts_at)}${m.round_ends_at ? '–'+fmtTime(m.round_ends_at) : ''}`;
+      aoa.push([m.round_number, horario, m.table_label, m.company_a || '—', m.company_b || '—', L.origin[m.origin]||m.origin, L.status[m.status]||m.status]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:8},{wch:14},{wch:14},{wch:28},{wch:28},{wch:12},{wch:12}];
+    ws['!merges'] = [
+      { s:{r:0,c:0}, e:{r:0,c:6} },
+      { s:{r:1,c:0}, e:{r:1,c:6} },
+      { s:{r:2,c:0}, e:{r:2,c:6} },
+      { s:{r:3,c:0}, e:{r:3,c:6} },
+      { s:{r:4,c:0}, e:{r:4,c:6} },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Reuniones');
+    const buf = XLSX.write(wb, { type:'buffer', bookType:'xlsx' });
+    const slug = (ev.name || 'evento').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="reuniones_${slug}.xlsx"`);
+    res.send(buf);
+  } catch (err) { handleError(res, err, 'GET meetings/export.xlsx'); }
+});
+
+router.get('/events/:eventId/meetings/export.pdf', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { ev, meetings } = await loadMeetingsForExport(pool, req.params.eventId, req.user.id);
+    const L = RN_EXPORT_LABELS[rnExportLocale(req)];
+    const tz = ev.timezone || 'America/Bogota';
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-CO', { timeZone: tz, day:'numeric', month:'short', year:'numeric' }) : '—';
+    const fmtTime = (d) => d ? new Date(d).toLocaleTimeString('es-CO', { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:false }) : '—';
+    const dateRange = `${fmtDate(ev.starts_at)}${ev.ends_at && ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at) : ''}`;
+    const slug = (ev.name || 'evento').replace(/[^a-z0-9]/gi,'_').toLowerCase();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="reuniones_${slug}.pdf"`);
+    const doc = new PDFDocument({ margin: 36, size: 'A4', bufferPages: true });
+    doc.pipe(res);
+
+    const PAGE_W = 595, PAGE_H = 842, M = 36, W = PAGE_W - M*2;
+    const AMBER = '#f59e0b', DARK = '#111827', GRAY = '#6b7280', LIGHT = '#f3f4f6', WHITE = '#ffffff';
+    const INDIGO = '#4F46E5';
+
+    const drawHeader = () => {
+      doc.rect(0, 0, PAGE_W, 70).fill('#18181b');
+      doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(16).text('SONORO', M, 16);
+      doc.fillColor('#d1d5db').font('Helvetica').fontSize(9).text(L.header.title, M, 36);
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(12).text(ev.name || '', M, 50, { width: W });
+    };
+    drawHeader();
+
+    let y = 82;
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9)
+       .text(`${dateRange}   ·   ${ev.venue_name || L.header.venue_none}   ·   ${meetings.length} ${L.header.total.toLowerCase()}`, M, y);
+    const genAt = new Date().toLocaleString('es-CO', { timeZone: tz });
+    doc.fillColor(GRAY).fontSize(8).text(`${L.header.generated}: ${genAt}`, M, y + 12);
+    y += 30;
+
+    // Tabla
+    const cols = [
+      { k:'round', w: 36, label: L.cols.round },
+      { k:'time',  w: 72, label: L.cols.time },
+      { k:'table', w: 68, label: L.cols.table },
+      { k:'a',     w: 115, label: L.cols.a },
+      { k:'b',     w: 115, label: L.cols.b },
+      { k:'origin',w: 60, label: L.cols.origin },
+      { k:'status',w: 57, label: L.cols.status },
+    ];
+    const rowH = 18;
+
+    const drawTableHeader = () => {
+      doc.rect(M, y, W, rowH).fill(DARK);
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
+      let x = M + 4;
+      for (const c of cols) {
+        doc.text(c.label, x, y + 5, { width: c.w - 6, ellipsis: true });
+        x += c.w;
+      }
+      y += rowH;
+    };
+    drawTableHeader();
+
+    doc.font('Helvetica').fontSize(8);
+    let zebra = false;
+    for (const m of meetings) {
+      if (y + rowH > PAGE_H - M) {
+        doc.addPage();
+        drawHeader();
+        y = 82;
+        drawTableHeader();
+      }
+      if (zebra) doc.rect(M, y, W, rowH).fill(LIGHT);
+      const isAnchor = typeof m.table_label === 'string' && m.table_label.startsWith('Anclada ');
+      if (isAnchor) doc.rect(M, y, W, rowH).fill('#EEF2FF');
+      zebra = !zebra;
+      const horario = `${fmtTime(m.round_starts_at)}${m.round_ends_at ? '–'+fmtTime(m.round_ends_at) : ''}`;
+      const vals = {
+        round: String(m.round_number ?? '—'),
+        time: horario,
+        table: m.table_label || '—',
+        a: m.company_a || '—',
+        b: m.company_b || '—',
+        origin: L.origin[m.origin] || m.origin || '',
+        status: L.status[m.status] || m.status || '',
+      };
+      let x = M + 4;
+      for (const c of cols) {
+        if (c.k === 'table' && isAnchor) doc.fillColor(INDIGO).font('Helvetica-Bold');
+        else doc.fillColor(DARK).font('Helvetica');
+        doc.fontSize(8).text(vals[c.k], x, y + 5, { width: c.w - 6, ellipsis: true, lineBreak: false });
+        x += c.w;
+      }
+      y += rowH;
+    }
+
+    // Footer paginado
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(8)
+         .text(`${i+1} / ${range.count}`, M, PAGE_H - 24, { width: W, align: 'right' });
+    }
+
+    doc.end();
+  } catch (err) { handleError(res, err, 'GET meetings/export.pdf'); }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -920,9 +1197,19 @@ router.get('/events/:eventId/registrations', auth, async (req, res) => {
          COALESCE(off.tags, ARRAY[]::text[]) AS offer_tags,
          COALESCE(dem.tags, ARRAY[]::text[]) AS demand_tags,
          COALESCE(reqs_in.n, 0)::int  AS requests_received,
-         COALESCE(reqs_out.n, 0)::int AS requests_sent
+         COALESCE(reqs_out.n, 0)::int AS requests_sent,
+         anch.table_id   AS anchor_table_id,
+         anch.table_label AS anchor_table_label,
+         anch.zone_name   AS anchor_zone_name,
+         anch.zone_color  AS anchor_zone_color
        FROM events.registrations r
        JOIN events.attendees a ON a.id = r.attendee_id
+       LEFT JOIN (
+         SELECT ra.registration_id, ra.table_id, t.label AS table_label, z.name AS zone_name, z.color_hex AS zone_color
+           FROM events.rn_registration_anchors ra
+           JOIN events.rn_tables t ON t.id = ra.table_id
+           LEFT JOIN events.rn_zones z ON z.id = t.zone_id
+       ) anch ON anch.registration_id = r.id
        LEFT JOIN (
          SELECT rt.registration_id, array_agg(t.label ORDER BY t.label) AS tags
            FROM events.rn_registration_tags rt
@@ -985,6 +1272,248 @@ router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => 
     if (!r.rows[0]) return res.status(404).json({ error: 'Inscrito no encontrado' });
     res.json({ ok: true });
   } catch (err) { handleError(res, err, 'PATCH registration'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-9c #7 — Bulk CSV/XLSX import de inscripciones RN (productor)
+// ──────────────────────────────────────────────────────────────────────────────
+const uploadRegs = multer({ storage: multer.memoryStorage(), limits: { fileSize: 3 * 1024 * 1024 } });
+
+const BULK_TEMPLATE_I18N = {
+  es: {
+    sheet: 'inscripciones',
+    headers: ['empresa','contacto','email','telefono','cargo','ofrece','busca'],
+    rows: [
+      ['Alpha Audio','María Pérez','maria@alpha.co','+57 300 1112233','Comercial','Audio profesional, Instalación','Software a la medida'],
+      ['Beta Broadcast','Juan López','juan@beta.co','+57 310 4455667','CEO','Streaming, Producción','Distribuidor en Perú'],
+      ['Gamma Group','Luisa Ruiz','luisa@gamma.co','','Gerente','Logística refrigerada','Tecnología'],
+    ],
+  },
+  en: {
+    sheet: 'registrations',
+    headers: ['company_name','contact_name','email','phone','role_title','offer_tags','demand_tags'],
+    rows: [
+      ['Alpha Audio','Maria Perez','maria@alpha.co','+57 300 1112233','Sales','Pro audio, Installation','Custom software'],
+      ['Beta Broadcast','Juan Lopez','juan@beta.co','+57 310 4455667','CEO','Streaming, Production','Distributor in Peru'],
+      ['Gamma Group','Luisa Ruiz','luisa@gamma.co','','Manager','Cold-chain logistics','Technology'],
+    ],
+  },
+  pt: {
+    sheet: 'inscricoes',
+    headers: ['empresa','contato','email','telefone','cargo','oferece','procura'],
+    rows: [
+      ['Alpha Audio','Maria Pérez','maria@alpha.co','+57 300 1112233','Comercial','Áudio profissional, Instalação','Software sob medida'],
+      ['Beta Broadcast','Juan López','juan@beta.co','+57 310 4455667','CEO','Streaming, Produção','Distribuidor no Peru'],
+      ['Gamma Group','Luisa Ruiz','luisa@gamma.co','','Gerente','Logística refrigerada','Tecnologia'],
+    ],
+  },
+};
+
+function buildRegistrationsTemplateBuffer(locale) {
+  const loc = BULK_TEMPLATE_I18N[locale] ? locale : 'es';
+  const t = BULK_TEMPLATE_I18N[loc];
+  const data = [t.headers, ...t.rows];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:22},{wch:22},{wch:28},{wch:18},{wch:14},{wch:40},{wch:40}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, t.sheet);
+  return XLSX.write(wb, { type:'buffer', bookType:'xlsx' });
+}
+
+router.get('/events/:eventId/registrations/bulk-template.xlsx', auth, async (req, res) => {
+  try {
+    const loc = String(req.query.locale||'es').slice(0,2).toLowerCase();
+    const buf = buildRegistrationsTemplateBuffer(loc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="sonoro-rn-inscripciones-template.xlsx"');
+    res.send(buf);
+  } catch (err) { handleError(res, err, 'GET registrations/bulk-template'); }
+});
+
+function parseRegsBuffer(buffer) {
+  const wb = XLSX.read(buffer, { type:'buffer' });
+  const name = wb.SheetNames[0];
+  if (!name) throw Object.assign(new Error('Archivo sin hojas'), { httpStatus: 400 });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:'' });
+  if (rows.length === 0) return [];
+  const header = rows[0].map(h => String(h||'').trim().toLowerCase());
+  const idx = (names) => {
+    for (const n of names) { const i = header.indexOf(n); if (i >= 0) return i; }
+    return -1;
+  };
+  const cCompany = idx(['company_name','empresa','company']);
+  const cName    = idx(['contact_name','contacto','contato','nombre','nome','representante']);
+  const cEmail   = idx(['email','correo','e-mail']);
+  const cPhone   = idx(['phone','telefono','teléfono','telefone','celular']);
+  const cRole    = idx(['role_title','cargo','role']);
+  const cOffer   = idx(['offer_tags','ofrece','oferece','offers']);
+  const cDemand  = idx(['demand_tags','busca','procura','demand']);
+  if (cCompany < 0 || cName < 0 || cEmail < 0) {
+    throw Object.assign(new Error('Columnas obligatorias: company_name, contact_name, email'), { httpStatus: 400 });
+  }
+  const splitTags = (s) => String(s||'').split(/[|,;]+/).map(x => x.trim()).filter(Boolean);
+  return rows.slice(1).map((r, i) => ({
+    rowNumber: i + 2,
+    company_name: String(r[cCompany]||'').trim(),
+    contact_name: String(r[cName]||'').trim(),
+    email: String(r[cEmail]||'').trim().toLowerCase(),
+    phone:  cPhone  >= 0 ? String(r[cPhone] ||'').trim() : '',
+    role_title: cRole >= 0 ? String(r[cRole]||'').trim() : '',
+    offer_tags:  cOffer  >= 0 ? splitTags(r[cOffer])  : [],
+    demand_tags: cDemand >= 0 ? splitTags(r[cDemand]) : [],
+  }));
+}
+
+router.post('/events/:eventId/registrations/bulk', auth, uploadRegs.single('file'), async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Archivo requerido (field name: file)' });
+    const dryRun = String(req.body.dry_run || '').toLowerCase() === '1' || String(req.body.dry_run||'').toLowerCase() === 'true';
+
+    const eventId = req.params.eventId;
+    const userId  = req.user.id;
+
+    const ev = await pool.query(
+      `SELECT id, user_id, config FROM events.events WHERE id = $1 AND user_id = $2`,
+      [eventId, userId]
+    );
+    if (ev.rowCount === 0) return res.status(404).json({ error: 'Evento no encontrado' });
+    const defaultLocale = (ev.rows[0].config && ev.rows[0].config.default_locale) || 'es';
+
+    let parsed;
+    try { parsed = parseRegsBuffer(req.file.buffer); }
+    catch (e) { return res.status(e.httpStatus || 400).json({ error: e.message }); }
+
+    // Catálogo de tags del tenant (slug → {id,label})
+    const tagRows = (await pool.query(
+      `SELECT id, slug, label FROM events.rn_tags WHERE user_id = $1`, [userId]
+    )).rows;
+    const tagBySlug = new Map(tagRows.map(t => [t.slug, t]));
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const seenEmails = new Set();
+    const resolved = []; // filas válidas listas para persistir
+    const errors   = [];
+    const unknownTags = new Set();
+
+    for (const r of parsed) {
+      if (!r.company_name || !r.contact_name || !r.email) {
+        errors.push({ row: r.rowNumber, reason: 'company_name/contact_name/email requeridos' });
+        continue;
+      }
+      if (!emailRegex.test(r.email)) {
+        errors.push({ row: r.rowNumber, reason: `email inválido: ${r.email}` });
+        continue;
+      }
+      if (seenEmails.has(r.email)) {
+        errors.push({ row: r.rowNumber, reason: `email duplicado en archivo: ${r.email}` });
+        continue;
+      }
+      seenEmails.add(r.email);
+
+      const resolveTags = (labels) => {
+        const ids = [];
+        const unknown = [];
+        for (const lbl of labels) {
+          const slug = String(lbl).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+          const t = tagBySlug.get(slug);
+          if (t) ids.push(t.id); else { unknown.push(lbl); unknownTags.add(lbl); }
+        }
+        return { ids, unknown };
+      };
+      const off = resolveTags(r.offer_tags);
+      const dem = resolveTags(r.demand_tags);
+
+      resolved.push({ ...r, offer_tag_ids: off.ids, demand_tag_ids: dem.ids,
+                     unknown_offer: off.unknown, unknown_demand: dem.unknown });
+    }
+
+    if (dryRun) {
+      return res.json({
+        ok: true, dry_run: true,
+        total_rows: parsed.length,
+        valid: resolved.length,
+        errors,
+        unknown_tags: Array.from(unknownTags),
+      });
+    }
+
+    const inserted = [];
+    const skipped  = [];
+
+    const resultPersist = await withTransaction(pool, async (client) => {
+      for (const r of resolved) {
+        try {
+          const attRes = await client.query(
+            `INSERT INTO events.attendees (user_id, email, name, phone, organization, job_title, locale)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT (user_id, email) DO UPDATE SET
+               name = EXCLUDED.name,
+               phone = COALESCE(EXCLUDED.phone, events.attendees.phone),
+               organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
+               job_title = COALESCE(EXCLUDED.job_title, events.attendees.job_title),
+               updated_at = NOW()
+             RETURNING id`,
+            [userId, r.email, r.contact_name, r.phone || null, r.company_name, r.role_title || null, defaultLocale]
+          );
+          const attendeeId = attRes.rows[0].id;
+
+          const customFields = { company_name: r.company_name, contact_name: r.contact_name, rn_visibility: 'public' };
+          const regRes = await client.query(
+            `INSERT INTO events.registrations
+               (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
+             VALUES ($1,$2,$3,'rueda','bulk_producer',$4,TRUE,'confirmed')
+             ON CONFLICT (event_id, attendee_id) DO NOTHING
+             RETURNING id`,
+            [eventId, attendeeId, userId, JSON.stringify(customFields)]
+          );
+          if (!regRes.rows[0]) {
+            skipped.push({ row: r.rowNumber, reason: 'ya inscrito' });
+            continue;
+          }
+          const regId = regRes.rows[0].id;
+
+          await client.query(
+            `INSERT INTO events.rn_delegates
+               (registration_id, full_name, email, phone, role_title, is_primary, can_manage_team, accepted_at, locale)
+             VALUES ($1,$2,$3,$4,$5,TRUE,TRUE,NOW(),$6)`,
+            [regId, r.contact_name, r.email, r.phone || null, r.role_title || null, defaultLocale]
+          );
+
+          for (const tagId of r.offer_tag_ids) {
+            await client.query(
+              `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+               VALUES ($1,$2,'offer') ON CONFLICT DO NOTHING`,
+              [regId, tagId]
+            );
+          }
+          for (const tagId of r.demand_tag_ids) {
+            await client.query(
+              `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+               VALUES ($1,$2,'demand') ON CONFLICT DO NOTHING`,
+              [regId, tagId]
+            );
+          }
+
+          inserted.push({ row: r.rowNumber, registration_id: regId, company: r.company_name, email: r.email });
+        } catch (e) {
+          skipped.push({ row: r.rowNumber, reason: e.message || 'error insert' });
+        }
+      }
+      return true;
+    });
+
+    res.json({
+      ok: true,
+      dry_run: false,
+      total_rows: parsed.length,
+      inserted: inserted.length,
+      inserted_rows: inserted,
+      skipped: errors.concat(skipped),
+      unknown_tags: Array.from(unknownTags),
+    });
+  } catch (err) { handleError(res, err, 'POST registrations/bulk'); }
 });
 
 router.delete('/events/:eventId/registrations/:regId', auth, async (req, res) => {
