@@ -3440,6 +3440,12 @@
                 <button class="modal-close" onclick="evRnCloseEditReg()">&times;</button>
               </div>
               <div class="modal-body" style="display:grid;gap:12px;">
+                <div id="ev-rn-edit-ctx" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);display:grid;gap:4px;">
+                  <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="rn.edit.ctx_title">Inscripción</div>
+                  <div id="ev-rn-edit-ctx-name" style="font-weight:600;font-size:13px;">—</div>
+                  <div id="ev-rn-edit-ctx-email" style="font-size:12px;color:var(--text-muted);">—</div>
+                  <div id="ev-rn-edit-ctx-tags" style="font-size:11px;"></div>
+                </div>
                 <div>
                   <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="rn.edit.company">Empresa</label>
                   <input id="ev-rn-edit-company" type="text" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
@@ -10930,12 +10936,20 @@ function evRnDirRender() {
 
 function evRnOpenEditReg(regId) {
   const r = (evRnDirCache || []).find(x => String(x.id) === String(regId));
-  if (!r) return;
-  document.getElementById('ev-rn-edit-reg-modal').dataset.regId = regId;
+  if (!r) { console.warn('[rn-edit] reg no encontrado', regId); return; }
+  const modal = document.getElementById('ev-rn-edit-reg-modal');
+  modal.dataset.regId = regId;
+  document.getElementById('ev-rn-edit-ctx-name').textContent = r.attendee_name || '—';
+  document.getElementById('ev-rn-edit-ctx-email').textContent = r.email || '';
+  const offer = (r.offer_tags||[]).slice(0,4);
+  const demand = (r.demand_tags||[]).slice(0,4);
+  const chipO = offer.length ? `<span style="color:#22c55e;font-weight:700;">${evRnT('rn.live.col_offer','Ofrece')}:</span> ${offer.map(evRnEscape).join(', ')}` : '';
+  const chipD = demand.length ? `<span style="color:#FF1B8D;font-weight:700;">${evRnT('rn.live.col_demand','Busca')}:</span> ${demand.map(evRnEscape).join(', ')}` : '';
+  document.getElementById('ev-rn-edit-ctx-tags').innerHTML = [chipO, chipD].filter(Boolean).join(' · ') || '<span style="color:var(--text-muted)">— sin tags —</span>';
   document.getElementById('ev-rn-edit-company').value = r.company_name || '';
   document.getElementById('ev-rn-edit-contact').value = r.contact_name || '';
   document.getElementById('ev-rn-edit-status').value = r.status || 'pending';
-  document.getElementById('ev-rn-edit-reg-modal').classList.add('active');
+  modal.classList.add('active');
 }
 function evRnCloseEditReg() {
   document.getElementById('ev-rn-edit-reg-modal')?.classList.remove('active');
@@ -10969,7 +10983,11 @@ async function evRnDeleteReg(regId) {
       method:'DELETE',
       headers:{ 'Authorization':`Bearer ${authToken}` }
     });
-    if (!r.ok) { showToast(evRnT('rn.edit.del_err','No se pudo eliminar'), 'error'); return; }
+    if (!r.ok) {
+      let msg = evRnT('rn.edit.del_err','No se pudo eliminar');
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
+      showToast(msg, 'error'); return;
+    }
     await evRnLoadDirectory();
     showToast(evRnT('rn.edit.del_ok','Inscripción eliminada'), 'success');
   } catch(_) { showToast(evRnT('rn.edit.del_err','No se pudo eliminar'), 'error'); }

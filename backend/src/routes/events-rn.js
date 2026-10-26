@@ -917,14 +917,32 @@ router.delete('/events/:eventId/registrations/:regId', auth, async (req, res) =>
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const r = await pool.query(
-      `DELETE FROM events.registrations
-         WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda'
-         RETURNING id`,
-      [req.params.regId, req.params.eventId]
-    );
-    if (!r.rows[0]) return res.status(404).json({ error: 'Inscrito no encontrado' });
-    res.json({ ok: true });
+    const { eventId, regId } = req.params;
+    const result = await withTransaction(pool, async (client) => {
+      const chk = await client.query(
+        `SELECT id FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda'`,
+        [regId, eventId]
+      );
+      if (!chk.rows[0]) { const e = new Error('Inscrito no encontrado'); e.httpStatus = 404; throw e; }
+      // Bloquea si tiene redenciones de servicio (histórico operativo)
+      const red = await client.query(
+        `SELECT 1 FROM events.service_redemptions WHERE registration_id = $1 LIMIT 1`, [regId]
+      );
+      if (red.rows[0]) {
+        const e = new Error('No se puede eliminar: la inscripción tiene servicios canjeados.');
+        e.httpStatus = 409; throw e;
+      }
+      // Limpia dependencias RN con NO ACTION
+      await client.query(`DELETE FROM events.rn_meetings WHERE event_id = $1 AND (company_a_id = $2 OR company_b_id = $2 OR initiated_by = $2)`, [eventId, regId]);
+      await client.query(`DELETE FROM events.rn_meeting_requests WHERE event_id = $1 AND (from_registration_id = $2 OR to_registration_id = $2)`, [eventId, regId]);
+      // Las tablas con CASCADE (rn_registration_tags/anchors/zones/blocklist/delegates/checkins/sessions/certificates/action_tokens) caen solas
+      const del = await client.query(
+        `DELETE FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda' RETURNING id`,
+        [regId, eventId]
+      );
+      return del.rows[0];
+    });
+    res.json({ ok: true, id: result.id });
   } catch (err) { handleError(res, err, 'DELETE registration'); }
 });
 
