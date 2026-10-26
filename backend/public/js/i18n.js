@@ -327,7 +327,7 @@
         setup: {
           c1_title:'01 · Información básica', c1_name:'Nombre', c1_public_url:'URL pública:', c1_starts:'Inicio', c1_ends:'Fin', c1_tz:'Timezone', c1_currency:'Moneda base (EBV)', c1_deflocale:'Idioma por defecto', c1_deflocale_hint:'Idioma de emails cuando el delegado no eligió uno.', c1_venue:'Sede', c1_venue_ph:'Hotel, centro de convenciones…',
           c2_title:'02 · Modo de operación', c2_classic:'Classic', c2_classic_hint:'Un único piso de mesas', c2_zoned:'Zoned', c2_zoned_hint:'Mesas agrupadas en zonas',
-          c3_title:'03 · Matching', c3_tags:'Por intereses (tags)', c3_tags_hint:'Solver propone citas por overlap de intereses', c3_manual:'Solo manual', c3_manual_hint:'Todas las citas las eligen los asistentes', c3_dirview:'Vista por defecto del directorio', c3_dirview_match:'Solo con match', c3_dirview_all:'Todos los asistentes',
+          c3_title:'03 · Matching', c3_tags:'Por intereses (tags)', c3_tags_hint:'El generador de citas propone reuniones por coincidencia de intereses', c3_manual:'Solo manual', c3_manual_hint:'Todas las citas las eligen los asistentes', c3_dirview:'Vista por defecto del directorio', c3_dirview_match:'Solo con match', c3_dirview_all:'Todos los asistentes',
           c4_title:'04 · Visibilidad', c4_public:'Pública', c4_public_hint:'Registro abierto', c4_mixed:'Mixta', c4_mixed_hint:'Pública + invitaciones', c4_private:'Privada', c4_private_hint:'Solo invitados',
           c5_title:'05 · Horarios', c5_dur:'Duración por cita', c5_noshow:'No-show policy', c5_noshow_none:'Sin bloqueo', c5_buffer:'Buffer entre rondas', c5_buffer_none:'Sin buffer', c5_autoadv:'Pasar automáticamente de ronda',
           c6_title:'06 · Opciones', c6_langs:'Idiomas aceptados', c6_twodel:'Permitir dos asistentes por empresa', c6_ebv:'Capturar valor estimado de negocio (EBV)', c6_team:'Permitir invitar equipo',
@@ -355,7 +355,7 @@
         agenda: {
           plan_title:'Planificar rondas', plan_starts:'Inicio', plan_total:'Rondas', plan_breakev:'Break c/N', plan_gen:'Generar', plan_reset:'Reset', plan_reset_confirm:'¿Eliminar todas las rondas planificadas? Esta acción no se puede deshacer.', plan_reset_ok:'Rondas eliminadas', plan_reset_err:'No se pudo resetear',
           tables_title:'Mesas', tables_add:'+ Agregar', tables_ph:'Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)', tables_hint:'El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.', tables_delete:'Eliminar mesa', tables_delete_confirm:'¿Eliminar esta mesa? Si está asignada a reuniones, no se podrá eliminar.', tables_delete_ok:'Mesa eliminada', tables_delete_err:'No se pudo eliminar',
-          solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
+          solver_title:'Generador de citas', solver_subtitle:'Arma la agenda de reuniones a partir de los intereses y las solicitudes aceptadas.', solver_preview:'Vista previa', solver_run:'Generar citas', solver_reset:'Reiniciar', solver_running:'El generador ya está trabajando. Espera a que termine.', solver_err:'Error en el generador', solver_preview_ok:'Vista previa', solver_run_ok:'Citas generadas', solver_meetings_empty:'Sin citas todavía. Corre el generador para crearlas.',
           meetings_title:'Meetings', meetings_refresh:'Refrescar', col_round:'Ronda', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origen', col_lock:'Lock'
         },
         live: {
@@ -677,7 +677,7 @@
         setup: {
           c1_title:'01 · Basic info', c1_name:'Name', c1_public_url:'Public URL:', c1_starts:'Start', c1_ends:'End', c1_tz:'Timezone', c1_currency:'Base currency (EBV)', c1_deflocale:'Default language', c1_deflocale_hint:'Email language when the delegate did not choose one.', c1_venue:'Venue', c1_venue_ph:'Hotel, convention center…',
           c2_title:'02 · Operation mode', c2_classic:'Classic', c2_classic_hint:'Single floor of tables', c2_zoned:'Zoned', c2_zoned_hint:'Tables grouped in zones',
-          c3_title:'03 · Matching', c3_tags:'By interests (tags)', c3_tags_hint:'Solver proposes meetings by interest overlap', c3_manual:'Manual only', c3_manual_hint:'All meetings are chosen by attendees', c3_dirview:'Default directory view', c3_dirview_match:'Match only', c3_dirview_all:'All attendees',
+          c3_title:'03 · Matching', c3_tags:'By interests (tags)', c3_tags_hint:'The match engine proposes meetings based on shared interests', c3_manual:'Manual only', c3_manual_hint:'All meetings are chosen by attendees', c3_dirview:'Default directory view', c3_dirview_match:'Match only', c3_dirview_all:'All attendees',
           c4_title:'04 · Visibility', c4_public:'Public', c4_public_hint:'Open registration', c4_mixed:'Mixed', c4_mixed_hint:'Public + invitations', c4_private:'Private', c4_private_hint:'Invite only',
           c5_title:'05 · Schedule', c5_dur:'Meeting duration', c5_noshow:'No-show policy', c5_noshow_none:'No block', c5_buffer:'Buffer between rounds', c5_buffer_none:'No buffer', c5_autoadv:'Advance rounds automatically',
           c6_title:'06 · Options', c6_langs:'Accepted languages', c6_twodel:'Allow two attendees per company', c6_ebv:'Capture estimated business value (EBV)', c6_team:'Allow team invitations',
@@ -705,7 +705,7 @@
         agenda: {
           plan_title:'Plan rounds', plan_starts:'Start', plan_total:'Rounds', plan_breakev:'Break every N', plan_gen:'Generate', plan_reset:'Reset', plan_reset_confirm:'Delete all planned rounds? This action cannot be undone.', plan_reset_ok:'Rounds deleted', plan_reset_err:'Could not reset',
           tables_title:'Tables', tables_add:'+ Add', tables_ph:'Table name or number (e.g. Table 01, Island A, Lounge)', tables_hint:'This name will show up in the agenda, callboard and meeting emails. Use something attendees can recognize in the room.', tables_delete:'Delete table', tables_delete_confirm:'Delete this table? If it is assigned to meetings, it cannot be deleted.', tables_delete_ok:'Table deleted', tables_delete_err:'Could not delete',
-          solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
+          solver_title:'Match engine', solver_subtitle:'Builds the meeting agenda from attendees interests and accepted requests.', solver_preview:'Preview', solver_run:'Generate meetings', solver_reset:'Reset', solver_running:'The match engine is already running. Please wait until it finishes.', solver_err:'Match engine error', solver_preview_ok:'Preview', solver_run_ok:'Meetings generated', solver_meetings_empty:'No meetings yet. Run the match engine to create them.',
           meetings_title:'Meetings', meetings_refresh:'Refresh', col_round:'Round', col_table:'Table', col_a:'Company A', col_b:'Company B', col_origin:'Origin', col_lock:'Lock'
         },
         live: {
@@ -1027,7 +1027,7 @@
         setup: {
           c1_title:'01 · Informações básicas', c1_name:'Nome', c1_public_url:'URL pública:', c1_starts:'Início', c1_ends:'Fim', c1_tz:'Fuso horário', c1_currency:'Moeda base (EBV)', c1_deflocale:'Idioma padrão', c1_deflocale_hint:'Idioma dos e-mails quando o delegado não escolheu.', c1_venue:'Local', c1_venue_ph:'Hotel, centro de convenções…',
           c2_title:'02 · Modo de operação', c2_classic:'Classic', c2_classic_hint:'Um único piso de mesas', c2_zoned:'Zoned', c2_zoned_hint:'Mesas agrupadas em zonas',
-          c3_title:'03 · Matching', c3_tags:'Por interesses (tags)', c3_tags_hint:'Solver propõe reuniões por overlap de interesses', c3_manual:'Somente manual', c3_manual_hint:'Todas as reuniões são escolhidas pelos participantes', c3_dirview:'Vista padrão do diretório', c3_dirview_match:'Apenas com match', c3_dirview_all:'Todos os participantes',
+          c3_title:'03 · Matching', c3_tags:'Por interesses (tags)', c3_tags_hint:'O gerador de reuniões propõe encontros por coincidência de interesses', c3_manual:'Somente manual', c3_manual_hint:'Todas as reuniões são escolhidas pelos participantes', c3_dirview:'Vista padrão do diretório', c3_dirview_match:'Apenas com match', c3_dirview_all:'Todos os participantes',
           c4_title:'04 · Visibilidade', c4_public:'Pública', c4_public_hint:'Inscrição aberta', c4_mixed:'Mista', c4_mixed_hint:'Pública + convites', c4_private:'Privada', c4_private_hint:'Somente convidados',
           c5_title:'05 · Horários', c5_dur:'Duração por reunião', c5_noshow:'Política de no-show', c5_noshow_none:'Sem bloqueio', c5_buffer:'Buffer entre rodadas', c5_buffer_none:'Sem buffer', c5_autoadv:'Avançar automaticamente de rodada',
           c6_title:'06 · Opções', c6_langs:'Idiomas aceitos', c6_twodel:'Permitir dois participantes por empresa', c6_ebv:'Capturar valor estimado de negócio (EBV)', c6_team:'Permitir convidar equipe',
@@ -1055,7 +1055,7 @@
         agenda: {
           plan_title:'Planejar rodadas', plan_starts:'Início', plan_total:'Rodadas', plan_breakev:'Pausa a cada N', plan_gen:'Gerar', plan_reset:'Reset', plan_reset_confirm:'Excluir todas as rodadas planejadas? Esta ação não pode ser desfeita.', plan_reset_ok:'Rodadas excluídas', plan_reset_err:'Não foi possível resetar',
           tables_title:'Mesas', tables_add:'+ Adicionar', tables_ph:'Nome ou número da mesa (ex. Mesa 01, Ilha A, Lounge)', tables_hint:'O nome aparecerá na agenda, no callboard e nos emails de reunião. Use algo que os participantes possam identificar na sala.', tables_delete:'Excluir mesa', tables_delete_confirm:'Excluir esta mesa? Se estiver atribuída a reuniões, não poderá ser excluída.', tables_delete_ok:'Mesa excluída', tables_delete_err:'Não foi possível excluir',
-          solver_title:'Solver', solver_preview:'Preview', solver_run:'Rodar solver', solver_reset:'Reset',
+          solver_title:'Gerador de reuniões', solver_subtitle:'Monta a agenda de reuniões a partir dos interesses e das solicitações aceitas.', solver_preview:'Prévia', solver_run:'Gerar reuniões', solver_reset:'Reiniciar', solver_running:'O gerador já está trabalhando. Aguarde a conclusão.', solver_err:'Erro no gerador', solver_preview_ok:'Prévia', solver_run_ok:'Reuniões geradas', solver_meetings_empty:'Sem reuniões ainda. Rode o gerador para criá-las.',
           meetings_title:'Reuniões', meetings_refresh:'Atualizar', col_round:'Rodada', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origem', col_lock:'Lock'
         },
         live: {

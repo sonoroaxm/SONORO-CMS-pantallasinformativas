@@ -4598,14 +4598,15 @@
               <div id="ev-rn-tables-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
-              <div class="card-title" data-i18n="rn.agenda.solver_title">Solver</div>
+              <div class="card-title" data-i18n="rn.agenda.solver_title">Generador de citas</div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-6px 0 10px;" data-i18n="rn.agenda.solver_subtitle">Arma la agenda de reuniones a partir de los intereses y las solicitudes aceptadas.</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
                 <button id="ev-rn-btn-preview" class="btn btn-outline btn-sm" onclick="evRnSolver('preview')">
                   <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_preview">Preview</span>
                   <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
                 </button>
                 <button id="ev-rn-btn-run" class="btn btn-grad" onclick="evRnSolver('run')">
-                  <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_run">Run solver</span>
+                  <span class="ev-rn-btn-label" data-i18n="rn.agenda.solver_run">Generar citas</span>
                   <span class="ev-rn-btn-spin hidden" style="display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:6px;"></span>
                 </button>
                 <button id="ev-rn-btn-reset" class="btn btn-outline btn-sm" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnSolver('reset')">
@@ -11669,7 +11670,7 @@ async function evRnSolver(action) {
     });
     const data = await res.json();
     if (res.status === 409 && data.error === 'solver_already_running') {
-      showStatus('Solver ya está corriendo. Espera a que termine.', 'error');
+      showStatus(evRnT('rn.agenda.solver_running','El generador ya está trabajando. Espera a que termine.'), 'error');
       return;
     }
     if (res.status === 400 && data.error === 'setup_incompleto') {
@@ -11678,18 +11679,18 @@ async function evRnSolver(action) {
       return;
     }
     if (!res.ok) {
-      showStatus(data.error || 'Error en solver', 'error');
+      showStatus(data.error || evRnT('rn.agenda.solver_err','Error en el generador'), 'error');
       return;
     }
     if (action === 'reset') {
-      showStatus(`Reset OK · ${data.deleted || 0} meetings eliminadas`, 'success');
+      showStatus(`Reset OK · ${data.deleted || 0} meetings`, 'success');
       document.getElementById('ev-rn-stats').textContent = '';
     } else {
       const s = data.stats || {};
-      const prefix = action === 'preview' ? 'Preview' : 'Solver OK';
+      const prefix = action === 'preview' ? evRnT('rn.agenda.solver_preview_ok','Vista previa') : evRnT('rn.agenda.solver_run_ok','Citas generadas');
       document.getElementById('ev-rn-stats').textContent =
         `${prefix} · total ${s.meetings_total||0} (requested ${s.requested||0} · manual ${s.manual||0} · matched ${s.matched||0}) · rondas efectivas ${s.total_rounds_effective||0}${s.unschedulable_count?` · unschedulable ${s.unschedulable_count}`:''}`;
-      showStatus(`${prefix}: ${s.meetings_total||0} meetings`, 'success');
+      showStatus(`${prefix}: ${s.meetings_total||0}`, 'success');
     }
     if (action !== 'preview') { await evRnLoadMeetings(); evRnLoadStats(); }
   } catch(e) {
@@ -11709,7 +11710,7 @@ async function evRnLoadMeetings() {
     });
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings. Corre el solver para generarlas.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.agenda.solver_meetings_empty','Sin citas todavía. Corre el generador para crearlas.')}</td></tr>`;
       return;
     }
     const originColor = { requested:'#FF1B8D', manual:'#f59e0b', matched:'#a855f7' };
