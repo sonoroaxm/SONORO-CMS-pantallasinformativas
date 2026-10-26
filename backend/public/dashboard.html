@@ -4585,13 +4585,16 @@
               <div id="ev-rn-rounds-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
-              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="card-title">
                 <span data-i18n="rn.agenda.tables_title">Mesas</span>
-                <div style="display:flex;gap:6px;">
-                  <input id="ev-rn-table-label" type="text" placeholder="Mesa 01" style="padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface2);color:var(--text);font-size:12px;">
-                  <button class="btn btn-outline btn-sm" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
-                </div>
               </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+                <input id="ev-rn-table-label" type="text" data-i18n-attr="placeholder:rn.agenda.tables_ph" placeholder="Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)"
+                  style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();evRnAddTable();}">
+                <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_hint">El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.</div>
               <div id="ev-rn-tables-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
@@ -10871,9 +10874,9 @@ async function evRnLoadTables() {
     const el = document.getElementById('ev-rn-tables-list'); if (!el) return;
     if (!rows.length) { el.textContent = evRnT('rn.empty.tables','Sin mesas configuradas'); return; }
     el.innerHTML = rows.map(t =>
-      `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
-        <span>${t.label}${t.zone_name?' · '+t.zone_name:''}</span>
-        <button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px;" onclick="evRnDeleteTable(${t.id})">✕</button>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+        <span>${evRnEscape(t.label)}${t.zone_name?' <span style="color:var(--text-muted);">· '+evRnEscape(t.zone_name)+'</span>':''}</span>
+        <button class="btn btn-outline btn-sm" style="padding:2px 10px;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evRnDeleteTable('${t.id}')" title="${evRnT('rn.agenda.tables_delete','Eliminar mesa')}">✕</button>
       </div>`
     ).join('');
   } catch(_) {}
@@ -10893,14 +10896,20 @@ async function evRnAddTable() {
   } catch(_) { showStatus('Error de conexión', 'error'); }
 }
 async function evRnDeleteTable(id) {
-  if (!evCurrentEventId || !confirm('¿Eliminar mesa?')) return;
+  if (!evCurrentEventId) return;
+  if (!confirm(evRnT('rn.agenda.tables_delete_confirm','¿Eliminar esta mesa? Si está asignada a reuniones, no se podrá eliminar.'))) return;
   try {
-    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables/${id}`, {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables/${encodeURIComponent(id)}`, {
       method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
     });
-    if (!r.ok) { showStatus('No se pudo eliminar', 'error'); return; }
+    if (!r.ok) {
+      let msg = evRnT('rn.agenda.tables_delete_err','No se pudo eliminar');
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
+      showStatus(msg, 'error'); return;
+    }
     evRnLoadTables();
-  } catch(_) {}
+    showStatus(evRnT('rn.agenda.tables_delete_ok','Mesa eliminada'), 'success');
+  } catch(_) { showStatus(evRnT('rn.agenda.tables_delete_err','No se pudo eliminar'), 'error'); }
 }
 
 // ── E-RN-7b-3 Directorio + Live ─────────────────────────────────

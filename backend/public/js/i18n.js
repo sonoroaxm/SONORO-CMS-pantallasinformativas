@@ -354,7 +354,7 @@
         status: { pending:'Pendiente', approved:'Aprobada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
           plan_title:'Planificar rondas', plan_starts:'Inicio', plan_total:'Rondas', plan_breakev:'Break c/N', plan_gen:'Generar', plan_reset:'Reset', plan_reset_confirm:'¿Eliminar todas las rondas planificadas? Esta acción no se puede deshacer.', plan_reset_ok:'Rondas eliminadas', plan_reset_err:'No se pudo resetear',
-          tables_title:'Mesas', tables_add:'+ Agregar',
+          tables_title:'Mesas', tables_add:'+ Agregar', tables_ph:'Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)', tables_hint:'El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.', tables_delete:'Eliminar mesa', tables_delete_confirm:'¿Eliminar esta mesa? Si está asignada a reuniones, no se podrá eliminar.', tables_delete_ok:'Mesa eliminada', tables_delete_err:'No se pudo eliminar',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
           meetings_title:'Meetings', meetings_refresh:'Refrescar', col_round:'Ronda', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origen', col_lock:'Lock'
         },
@@ -704,7 +704,7 @@
         status: { pending:'Pending', approved:'Approved', confirmed:'Confirmed', cancelled:'Cancelled' },
         agenda: {
           plan_title:'Plan rounds', plan_starts:'Start', plan_total:'Rounds', plan_breakev:'Break every N', plan_gen:'Generate', plan_reset:'Reset', plan_reset_confirm:'Delete all planned rounds? This action cannot be undone.', plan_reset_ok:'Rounds deleted', plan_reset_err:'Could not reset',
-          tables_title:'Tables', tables_add:'+ Add',
+          tables_title:'Tables', tables_add:'+ Add', tables_ph:'Table name or number (e.g. Table 01, Island A, Lounge)', tables_hint:'This name will show up in the agenda, callboard and meeting emails. Use something attendees can recognize in the room.', tables_delete:'Delete table', tables_delete_confirm:'Delete this table? If it is assigned to meetings, it cannot be deleted.', tables_delete_ok:'Table deleted', tables_delete_err:'Could not delete',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
           meetings_title:'Meetings', meetings_refresh:'Refresh', col_round:'Round', col_table:'Table', col_a:'Company A', col_b:'Company B', col_origin:'Origin', col_lock:'Lock'
         },
@@ -1054,7 +1054,7 @@
         status: { pending:'Pendente', approved:'Aprovada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
           plan_title:'Planejar rodadas', plan_starts:'Início', plan_total:'Rodadas', plan_breakev:'Pausa a cada N', plan_gen:'Gerar', plan_reset:'Reset', plan_reset_confirm:'Excluir todas as rodadas planejadas? Esta ação não pode ser desfeita.', plan_reset_ok:'Rodadas excluídas', plan_reset_err:'Não foi possível resetar',
-          tables_title:'Mesas', tables_add:'+ Adicionar',
+          tables_title:'Mesas', tables_add:'+ Adicionar', tables_ph:'Nome ou número da mesa (ex. Mesa 01, Ilha A, Lounge)', tables_hint:'O nome aparecerá na agenda, no callboard e nos emails de reunião. Use algo que os participantes possam identificar na sala.', tables_delete:'Excluir mesa', tables_delete_confirm:'Excluir esta mesa? Se estiver atribuída a reuniões, não poderá ser excluída.', tables_delete_ok:'Mesa excluída', tables_delete_err:'Não foi possível excluir',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Rodar solver', solver_reset:'Reset',
           meetings_title:'Reuniões', meetings_refresh:'Atualizar', col_round:'Rodada', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origem', col_lock:'Lock'
         },
