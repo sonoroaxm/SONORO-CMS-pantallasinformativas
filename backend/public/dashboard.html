@@ -2748,7 +2748,7 @@
         <div id="ev-list-view">
           <div class="section-header">
             <div class="section-title" data-i18n="ev.title_my">Mis Eventos</div>
-            <button class="btn btn-grad" data-i18n="ev.new_btn" onclick="evShowView('new')">+ Nuevo Evento</button>
+            <button class="btn btn-grad" data-i18n="ev.new_btn" onclick="evOpenTypePicker()">+ Nuevo Evento</button>
           </div>
 
           <!-- Panel resumen (Pro/Masivo) · teaser (Lite/Trial) · nada (sin licencia) -->
@@ -3419,6 +3419,37 @@
           </div>
 
           <!-- MODAL: Role picker (S208n) -->
+          <!-- MODAL: Type picker (Evento / Rueda de Negocios) -->
+          <div id="ev-type-picker-modal" class="modal" onclick="if(event.target.id==='ev-type-picker-modal') evClosePickerModal()">
+            <div class="modal-content" style="max-width:620px;">
+              <div class="modal-header">
+                <h3 data-i18n="ev.picker_title">¿Qué tipo de evento vas a crear?</h3>
+                <button class="modal-close" onclick="evClosePickerModal()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:16px;">
+                <div style="font-size:12.5px;color:var(--text-muted);" data-i18n="ev.picker_sub">Ambos se gestionan desde el mismo tab. Puedes vincular una rueda a un evento después.</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div id="ev-picker-card-std" class="ev-picker-card" onclick="evPickerSelect('standard')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
+                    <h4 style="font-size:13.5px;font-weight:800;margin:0;" data-i18n="ev.picker_std_title">Evento</h4>
+                    <p style="font-size:11.5px;color:var(--text-muted);font-weight:500;line-height:1.5;margin:0;" data-i18n="ev.picker_std_desc">Congreso, convención, feria o seminario. Agenda de sesiones, check-in, certificados, libreto de producción.</p>
+                  </div>
+                  <div id="ev-picker-card-rn" class="ev-picker-card" onclick="evPickerSelect('matchmaking')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
+                    <h4 style="font-size:13.5px;font-weight:800;margin:0;" data-i18n="ev.picker_rn_title">Rueda de Negocios</h4>
+                    <p style="font-size:11.5px;color:var(--text-muted);font-weight:500;line-height:1.5;margin:0;" data-i18n="ev.picker_rn_desc">Reuniones B2B programadas entre empresas inscritas. Mesas, rondas con timer, matching por tags, callboards en vivo.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evClosePickerModal()" data-i18n="ev.cancel">Cancelar</button>
+                <button class="btn btn-grad" onclick="evPickerConfirm()" data-i18n="ev.picker_next">Siguiente →</button>
+              </div>
+            </div>
+          </div>
+          <style>
+            .ev-picker-card:hover{ border-color:var(--text-muted) !important; }
+            .ev-picker-card.selected{ border-color:#FF1B8D !important; background:rgba(255,27,141,.08) !important; }
+          </style>
+
           <div id="ev-role-picker-modal" class="modal" onclick="if(event.target.id==='ev-role-picker-modal') evRolePickerResolve(null)">
             <div class="modal-content" style="max-width:420px;">
               <div class="modal-header">
@@ -9621,6 +9652,35 @@ function evShowView(view) {
   document.getElementById('ev-detail-view').classList.toggle('hidden', view !== 'detail');
   const rn = document.getElementById('ev-rueda-detail-view');
   if (rn) rn.classList.toggle('hidden', view !== 'rueda');
+}
+
+// Type picker modal (#1 — Evento vs Rueda de Negocios)
+let _evPickerType = 'standard';
+function evOpenTypePicker() {
+  _evPickerType = 'standard';
+  const cs = document.getElementById('ev-picker-card-std');
+  const cr = document.getElementById('ev-picker-card-rn');
+  if (cs) cs.classList.add('selected');
+  if (cr) cr.classList.remove('selected');
+  document.getElementById('ev-type-picker-modal')?.classList.add('active');
+}
+function evClosePickerModal() {
+  document.getElementById('ev-type-picker-modal')?.classList.remove('active');
+}
+function evPickerSelect(type) {
+  _evPickerType = type;
+  document.getElementById('ev-picker-card-std')?.classList.toggle('selected', type === 'standard');
+  document.getElementById('ev-picker-card-rn')?.classList.toggle('selected', type === 'matchmaking');
+}
+function evPickerConfirm() {
+  const isRN = _evPickerType === 'matchmaking';
+  const rStd = document.getElementById('ev-new-type-std');
+  const rMm  = document.getElementById('ev-new-type-mm');
+  if (rStd) rStd.checked = !isRN;
+  if (rMm)  rMm.checked  = isRN;
+  evClosePickerModal();
+  evShowView('new');
+  evNewToggleType();
 }
 
 // E-RN-7a MVP: toggle Rueda options en form Nuevo Evento
