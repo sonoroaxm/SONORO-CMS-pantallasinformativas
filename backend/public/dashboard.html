@@ -4577,7 +4577,10 @@
                 <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_starts">Inicio</label><input id="ev-rn-plan-starts" type="datetime-local" class="ev-rn-cfg-inp"></div>
                 <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_total">Rondas</label><input id="ev-rn-plan-total" type="number" min="1" max="50" value="10" class="ev-rn-cfg-inp"></div>
                 <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakev">Break c/N</label><input id="ev-rn-plan-breakev" type="number" min="0" max="20" value="0" class="ev-rn-cfg-inp"></div>
-                <div><button class="btn btn-grad btn-sm" onclick="evRnPlanRounds()" data-i18n="rn.agenda.plan_gen">Generar</button></div>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-grad btn-sm" onclick="evRnPlanRounds()" data-i18n="rn.agenda.plan_gen">Generar</button>
+                  <button class="btn btn-outline btn-sm" onclick="evRnResetRounds()" data-i18n="rn.agenda.plan_reset" title="Elimina todas las rondas planificadas">Reset</button>
+                </div>
               </div>
               <div id="ev-rn-rounds-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);">—</div>
             </div>
@@ -10841,6 +10844,23 @@ async function evRnPlanRounds() {
     showStatus(`Plan OK · ${data.length} rondas`, 'success');
     evRnLoadRounds(); evRnLoadStats();
   } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
+async function evRnResetRounds() {
+  if (!evCurrentEventId) return;
+  if (!confirm(evRnT('rn.agenda.plan_reset_confirm','¿Eliminar todas las rondas planificadas? Esta acción no se puede deshacer.'))) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) {
+      let msg = evRnT('rn.agenda.plan_reset_err','No se pudo resetear');
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
+      showStatus(msg, 'error'); return;
+    }
+    showStatus(evRnT('rn.agenda.plan_reset_ok','Rondas eliminadas'), 'success');
+    evRnLoadRounds(); evRnLoadStats();
+  } catch(_) { showStatus(evRnT('rn.agenda.plan_reset_err','No se pudo resetear'), 'error'); }
 }
 
 async function evRnLoadTables() {

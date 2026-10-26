@@ -353,7 +353,7 @@
         edit: { title:'Editar inscripción', ctx_title:'Inscripción', company:'Empresa', contact:'Representante', status:'Status', save:'Guardar', ok:'Inscripción actualizada', err:'No se pudo guardar', del_ok:'Inscripción eliminada', del_err:'No se pudo eliminar', confirm_delete:'¿Eliminar esta inscripción? Esta acción no se puede deshacer.' },
         status: { pending:'Pendiente', approved:'Aprobada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
-          plan_title:'Planificar rondas', plan_starts:'Inicio', plan_total:'Rondas', plan_breakev:'Break c/N', plan_gen:'Generar',
+          plan_title:'Planificar rondas', plan_starts:'Inicio', plan_total:'Rondas', plan_breakev:'Break c/N', plan_gen:'Generar', plan_reset:'Reset', plan_reset_confirm:'¿Eliminar todas las rondas planificadas? Esta acción no se puede deshacer.', plan_reset_ok:'Rondas eliminadas', plan_reset_err:'No se pudo resetear',
           tables_title:'Mesas', tables_add:'+ Agregar',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
           meetings_title:'Meetings', meetings_refresh:'Refrescar', col_round:'Ronda', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origen', col_lock:'Lock'
@@ -703,7 +703,7 @@
         edit: { title:'Edit registration', ctx_title:'Registration', company:'Company', contact:'Representative', status:'Status', save:'Save', ok:'Registration updated', err:'Could not save', del_ok:'Registration deleted', del_err:'Could not delete', confirm_delete:'Delete this registration? This action cannot be undone.' },
         status: { pending:'Pending', approved:'Approved', confirmed:'Confirmed', cancelled:'Cancelled' },
         agenda: {
-          plan_title:'Plan rounds', plan_starts:'Start', plan_total:'Rounds', plan_breakev:'Break every N', plan_gen:'Generate',
+          plan_title:'Plan rounds', plan_starts:'Start', plan_total:'Rounds', plan_breakev:'Break every N', plan_gen:'Generate', plan_reset:'Reset', plan_reset_confirm:'Delete all planned rounds? This action cannot be undone.', plan_reset_ok:'Rounds deleted', plan_reset_err:'Could not reset',
           tables_title:'Tables', tables_add:'+ Add',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Run solver', solver_reset:'Reset',
           meetings_title:'Meetings', meetings_refresh:'Refresh', col_round:'Round', col_table:'Table', col_a:'Company A', col_b:'Company B', col_origin:'Origin', col_lock:'Lock'
@@ -1053,7 +1053,7 @@
         edit: { title:'Editar inscrição', ctx_title:'Inscrição', company:'Empresa', contact:'Representante', status:'Status', save:'Salvar', ok:'Inscrição atualizada', err:'Não foi possível salvar', del_ok:'Inscrição excluída', del_err:'Não foi possível excluir', confirm_delete:'Excluir esta inscrição? Esta ação não pode ser desfeita.' },
         status: { pending:'Pendente', approved:'Aprovada', confirmed:'Confirmada', cancelled:'Cancelada' },
         agenda: {
-          plan_title:'Planejar rodadas', plan_starts:'Início', plan_total:'Rodadas', plan_breakev:'Pausa a cada N', plan_gen:'Gerar',
+          plan_title:'Planejar rodadas', plan_starts:'Início', plan_total:'Rodadas', plan_breakev:'Pausa a cada N', plan_gen:'Gerar', plan_reset:'Reset', plan_reset_confirm:'Excluir todas as rodadas planejadas? Esta ação não pode ser desfeita.', plan_reset_ok:'Rodadas excluídas', plan_reset_err:'Não foi possível resetar',
           tables_title:'Mesas', tables_add:'+ Adicionar',
           solver_title:'Solver', solver_preview:'Preview', solver_run:'Rodar solver', solver_reset:'Reset',
           meetings_title:'Reuniões', meetings_refresh:'Atualizar', col_round:'Rodada', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origem', col_lock:'Lock'
