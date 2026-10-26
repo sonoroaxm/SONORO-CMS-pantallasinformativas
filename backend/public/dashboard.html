@@ -606,6 +606,9 @@
 
     /* ── E-RN-7b-2 wizard setup ── */
     .ev-rn-cfg-lbl { display:block; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:5px; }
+    .ev-rn-cap-tile { padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; text-align:center; }
+    .ev-rn-cap-val { font-size:22px; font-weight:700; color:var(--text); line-height:1.1; }
+    .ev-rn-cap-lbl { font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.3px; margin-top:4px; }
     .ev-rn-cfg-inp { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:7px; background:var(--surface2); color:var(--text); font-size:13px; font-family:inherit; box-sizing:border-box; }
     .ev-rn-cfg-inp:focus { outline:none; border-color:#FF1B8D; }
     .ev-rn-radiogrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -4572,19 +4575,31 @@
           <!-- AGENDA panel · rondas + mesas + solver (relocado desde Setup) -->
           <div class="ev-rn-panel hidden" id="ev-rn-panel-agenda">
             <div class="card" style="margin-bottom:14px;">
-              <div class="card-title" data-i18n="rn.agenda.plan_title">Planificar rondas</div>
+              <div class="card-title"><span data-i18n="rn.agenda.cap_title">Capacidad</span></div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 10px;" data-i18n="rn.agenda.cap_hint">Sugerencias calculadas con las inscripciones aprobadas y las solicitudes de reunión aceptadas. Úsalas como punto de partida al configurar rondas y mesas.</div>
+              <div id="ev-rn-cap-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+                <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-regs">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_regs">Inscritos</div></div>
+                <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-req">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_req">Solicitudes aceptadas</div></div>
+                <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-rondas">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_rondas">Rondas sugeridas</div></div>
+                <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-mesas">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_mesas">Mesas sugeridas</div></div>
+                <div class="ev-rn-cap-tile"><div class="ev-rn-cap-val" id="ev-rn-cap-slots">—</div><div class="ev-rn-cap-lbl" data-i18n="rn.agenda.cap_slots">Slots configurados</div></div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title"><span data-i18n="rn.agenda.plan_title">Agenda del evento (rondas × mesas)</span></div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 10px;" data-i18n="rn.agenda.plan_sub">Una ronda es una franja horaria. En cada ronda todas las mesas ejecutan una reunión en paralelo. Reuniones totales = rondas × mesas.</div>
               <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:end;">
-                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_starts">Inicio</label><input id="ev-rn-plan-starts" type="datetime-local" class="ev-rn-cfg-inp"></div>
-                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_total">Rondas</label><input id="ev-rn-plan-total" type="number" min="1" max="50" value="10" class="ev-rn-cfg-inp"></div>
-                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakcnt"># breaks</label><input id="ev-rn-plan-breakev" type="number" min="0" max="10" value="0" class="ev-rn-cfg-inp"></div>
-                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakmin">Min. break</label><input id="ev-rn-plan-breakmin" type="number" min="1" max="60" value="10" class="ev-rn-cfg-inp"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_starts">Inicio</label><input id="ev-rn-plan-starts" type="datetime-local" class="ev-rn-cfg-inp" oninput="evRnPlanPreview()"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_total">Rondas</label><input id="ev-rn-plan-total" type="number" min="1" max="50" value="10" class="ev-rn-cfg-inp" oninput="evRnPlanPreview()"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakcnt"># breaks</label><input id="ev-rn-plan-breakev" type="number" min="0" max="10" value="0" class="ev-rn-cfg-inp" oninput="evRnPlanPreview()"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakmin">Min. break</label><input id="ev-rn-plan-breakmin" type="number" min="1" max="60" value="10" class="ev-rn-cfg-inp" oninput="evRnPlanPreview()"></div>
                 <div style="display:flex;gap:6px;">
                   <button class="btn btn-grad btn-sm" onclick="evRnPlanRounds()" data-i18n="rn.agenda.plan_gen">Generar</button>
                   <button class="btn btn-outline btn-sm" onclick="evRnResetRounds()" data-i18n="rn.agenda.plan_reset" title="Elimina todas las rondas planificadas">Reset</button>
                 </div>
               </div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="rn.agenda.plan_hint">Los breaks se distribuyen equidistantes cada N rondas de citas.
-              </div>
+              <div id="ev-rn-plan-preview" style="font-size:11.5px;color:var(--accent, #4F46E5);margin-top:8px;padding:6px 10px;background:rgba(79,70,229,0.08);border-radius:6px;display:none;"></div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="rn.agenda.plan_hint">Los breaks se distribuyen equidistantes cada N rondas de citas.</div>
               <div id="ev-rn-rounds-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
@@ -4605,6 +4620,7 @@
               <div class="card-title">
                 <span data-i18n="rn.agenda.tables_title">Mesas</span>
               </div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin:-4px 0 10px;" data-i18n="rn.agenda.tables_sub">Espacios físicos simultáneos. Cada ronda × mesa = 1 slot de reunión. Puedes crearlas de a una (con identidad) o en lote (numeradas).</div>
               <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;margin-bottom:10px;">
                 <input id="ev-rn-table-label" type="text" data-i18n-attr="placeholder:rn.agenda.tables_ph" placeholder="Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)"
                   style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
@@ -4615,6 +4631,22 @@
                 <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
               </div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_hint">El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.</div>
+              <details style="margin:8px 0 10px;border:1px solid var(--border);border-radius:6px;padding:0;">
+                <summary style="padding:8px 12px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text);background:var(--surface2);border-radius:6px;" data-i18n="rn.agenda.tables_bulk_toggle">Generar mesas en lote</summary>
+                <div style="padding:10px 12px;">
+                  <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_bulk_hint">Crea N mesas numeradas con un prefijo común (ej. "Mesa 01" … "Mesa 20"). Útil para ferias con mesas genéricas.</div>
+                  <div style="display:grid;grid-template-columns:1fr 100px 1fr auto;gap:8px;align-items:center;">
+                    <input id="ev-rn-tbulk-prefix" type="text" value="Mesa" data-i18n-attr="placeholder:rn.agenda.tables_bulk_prefix_ph" placeholder="Prefijo"
+                      style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
+                    <input id="ev-rn-tbulk-count" type="number" min="1" max="100" value="20" data-i18n-attr="placeholder:rn.agenda.tables_bulk_count_ph" placeholder="Cantidad"
+                      style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
+                    <select id="ev-rn-tbulk-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
+                      <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
+                    </select>
+                    <button class="btn btn-outline btn-sm" style="white-space:nowrap;" onclick="evRnBulkAddTables()" data-i18n="rn.agenda.tables_bulk_add">Generar</button>
+                  </div>
+                </div>
+              </details>
               <div id="ev-rn-tables-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
@@ -10689,7 +10721,7 @@ function evOpenRueda(ev) {
   evRnLoadMeetings();
   evRnLoadConfig();
   evRnLoadRounds();
-  evRnLoadZones(); evRnLoadTables();
+  evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
   evRnTagsLoad();
   evRnSubscribeSocket(ev.id);
 }
@@ -10867,7 +10899,7 @@ async function evRnPlanRounds() {
     const data = await r.json();
     if (!r.ok) { showStatus(data.error || 'Error al planificar', 'error'); return; }
     showStatus(`Plan OK · ${data.length} rondas`, 'success');
-    evRnLoadRounds(); evRnLoadStats();
+    evRnLoadRounds(); evRnLoadStats(); evRnLoadPlanningStats();
   } catch(_) { showStatus('Error de conexión', 'error'); }
 }
 
@@ -10884,11 +10916,83 @@ async function evRnResetRounds() {
       showStatus(msg, 'error'); return;
     }
     showStatus(evRnT('rn.agenda.plan_reset_ok','Rondas eliminadas'), 'success');
-    evRnLoadRounds(); evRnLoadStats();
+    evRnLoadRounds(); evRnLoadStats(); evRnLoadPlanningStats();
   } catch(_) { showStatus(evRnT('rn.agenda.plan_reset_err','No se pudo resetear'), 'error'); }
 }
 
 let evRnZonesCache = [];
+async function evRnLoadPlanningStats() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/stats/planning`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    if (!r.ok) return;
+    const s = await r.json();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('ev-rn-cap-regs', s.active_attendees);
+    set('ev-rn-cap-req', s.accepted_requests);
+    set('ev-rn-cap-rondas', s.suggested_rondas || '—');
+    set('ev-rn-cap-mesas', s.suggested_mesas);
+    const slots = (s.total_slots || 0);
+    const need = s.accepted_requests || 0;
+    const slotsEl = document.getElementById('ev-rn-cap-slots');
+    if (slotsEl) {
+      slotsEl.textContent = `${slots} / ${need}`;
+      slotsEl.style.color = (slots >= need && need > 0) ? '#10b981' : (slots < need && need > 0) ? '#ef4444' : 'var(--text)';
+    }
+  } catch(_) {}
+}
+
+function evRnPlanPreview() {
+  const starts = document.getElementById('ev-rn-plan-starts')?.value;
+  const total = parseInt(document.getElementById('ev-rn-plan-total')?.value, 10);
+  const breakCount = parseInt(document.getElementById('ev-rn-plan-breakev')?.value, 10) || 0;
+  const breakMin = parseInt(document.getElementById('ev-rn-plan-breakmin')?.value, 10) || 10;
+  const mm = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
+  const meetingMin = mm.meeting_duration_minutes || 20;
+  const prev = document.getElementById('ev-rn-plan-preview');
+  if (!prev) return;
+  if (!total || total < 1) { prev.style.display = 'none'; return; }
+  const meetingTotalMin = total * meetingMin;
+  const breakTotalMin = breakCount * breakMin;
+  const totalMin = meetingTotalMin + breakTotalMin;
+  const hours = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  const dur = hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
+  let endStr = '';
+  if (starts) {
+    try {
+      const end = new Date(new Date(starts).getTime() + totalMin * 60000);
+      endStr = ' · ' + evRnT('rn.agenda.plan_preview_end','fin ~') + end.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    } catch(_){}
+  }
+  const tpl = evRnT('rn.agenda.plan_preview','{total} rondas × {meeting}min + {bc} breaks × {bm}min = {dur}');
+  prev.textContent = tpl.replace('{total}', total).replace('{meeting}', meetingMin).replace('{bc}', breakCount).replace('{bm}', breakMin).replace('{dur}', dur) + endStr;
+  prev.style.display = 'block';
+}
+
+async function evRnBulkAddTables() {
+  if (!evCurrentEventId) return;
+  const prefix = (document.getElementById('ev-rn-tbulk-prefix').value || 'Mesa').trim();
+  const count = parseInt(document.getElementById('ev-rn-tbulk-count').value, 10) || 0;
+  const zoneId = document.getElementById('ev-rn-tbulk-zone')?.value || null;
+  if (count < 1 || count > 100) { showStatus(evRnT('rn.agenda.tables_bulk_err_count','Cantidad 1..100'), 'error'); return; }
+  const pad = count >= 10 ? 2 : 1;
+  const items = [];
+  for (let i = 1; i <= count; i++) {
+    items.push({ label: `${prefix} ${String(i).padStart(pad,'0')}`, zone_id: zoneId || null });
+  }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ tables: items })
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); return; }
+    const data = await r.json();
+    showStatus(evRnT('rn.agenda.tables_bulk_ok','{n} mesas creadas').replace('{n}', data.length || count), 'success');
+    evRnLoadTables(); evRnLoadPlanningStats();
+  } catch(_) { showStatus(evRnT('rn.agenda.tables_bulk_err','No se pudieron generar'), 'error'); }
+}
+
 async function evRnLoadZones() {
   if (!evCurrentEventId) return;
   try {
@@ -10911,14 +11015,15 @@ async function evRnLoadZones() {
         ).join('');
       }
     }
-    const sel = document.getElementById('ev-rn-table-zone');
-    if (sel) {
+    const none = evRnT('rn.agenda.tables_no_zone','Sin zona');
+    ['ev-rn-table-zone','ev-rn-tbulk-zone'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
       const current = sel.value;
-      const none = evRnT('rn.agenda.tables_no_zone','Sin zona');
       sel.innerHTML = `<option value="">${evRnEscape(none)}</option>` +
         evRnZonesCache.map(z => `<option value="${z.id}">${evRnEscape(z.name)}</option>`).join('');
       if (current) sel.value = current;
-    }
+    });
   } catch(_) {}
 }
 async function evRnAddZone() {
@@ -10951,7 +11056,7 @@ async function evRnDeleteZone(id) {
       try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
       showStatus(msg, 'error'); return;
     }
-    evRnLoadZones(); evRnLoadTables();
+    evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
     showStatus(evRnT('rn.agenda.zones_delete_ok','Zona eliminada'), 'success');
   } catch(_) { showStatus(evRnT('rn.agenda.zones_delete_err','No se pudo eliminar'), 'error'); }
 }
@@ -10983,7 +11088,7 @@ async function evRnAddTable() {
     });
     if (!r.ok) { const d = await r.json(); showStatus(d.error||'Error', 'error'); return; }
     document.getElementById('ev-rn-table-label').value = '';
-    evRnLoadZones(); evRnLoadTables();
+    evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
   } catch(_) { showStatus('Error de conexión', 'error'); }
 }
 async function evRnDeleteTable(id) {
@@ -10998,7 +11103,7 @@ async function evRnDeleteTable(id) {
       try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
       showStatus(msg, 'error'); return;
     }
-    evRnLoadZones(); evRnLoadTables();
+    evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
     showStatus(evRnT('rn.agenda.tables_delete_ok','Mesa eliminada'), 'success');
   } catch(_) { showStatus(evRnT('rn.agenda.tables_delete_err','No se pudo eliminar'), 'error'); }
 }

@@ -288,6 +288,66 @@ router.post('/events/:eventId/rounds/plan', auth, async (req, res) => {
   } catch (err) { handleError(res, err, 'POST rounds/plan'); }
 });
 
+// Capacidad/planning stats — modelo matchmaking:
+//   rondas_min = max_requests_per_attendee  (asistente solo puede estar en 1 reunión por ronda)
+//   mesas_sug  = ceil(asistentes_activos / 2)  (capacidad paralela máxima por ronda)
+router.get('/events/:eventId/stats/planning', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const eventId = req.params.eventId;
+    const regs = await pool.query(
+      `SELECT COUNT(*)::int AS c
+         FROM events.registrations
+        WHERE event_id = $1 AND ticket_type = 'rueda' AND status IN ('approved','confirmed')`,
+      [eventId]
+    );
+    const totalReq = await pool.query(
+      `SELECT COUNT(*)::int AS c
+         FROM events.rn_meeting_requests
+        WHERE event_id = $1 AND status = 'accepted'`,
+      [eventId]
+    );
+    const perAttendeeMax = await pool.query(
+      `SELECT COALESCE(MAX(cnt),0)::int AS m FROM (
+         SELECT COUNT(*) AS cnt FROM (
+           SELECT from_registration_id AS r FROM events.rn_meeting_requests
+            WHERE event_id = $1 AND status = 'accepted'
+           UNION ALL
+           SELECT to_registration_id FROM events.rn_meeting_requests
+            WHERE event_id = $1 AND status = 'accepted'
+         ) x
+         GROUP BY r
+       ) y`,
+      [eventId]
+    );
+    const activeAttendees = regs.rows[0].c;
+    const acceptedRequests = totalReq.rows[0].c;
+    const maxPerAttendee = perAttendeeMax.rows[0].m;
+    const suggestedRondas = maxPerAttendee;
+    const suggestedMesas = Math.max(1, Math.ceil(activeAttendees / 2));
+    const configuredRounds = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE kind='meeting')::int AS meetings,
+              COUNT(*) FILTER (WHERE kind='break')::int   AS breaks
+         FROM events.rn_rounds WHERE event_id = $1`, [eventId]
+    );
+    const configuredTables = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM events.rn_tables WHERE event_id = $1 AND active`, [eventId]
+    );
+    res.json({
+      active_attendees: activeAttendees,
+      accepted_requests: acceptedRequests,
+      max_requests_per_attendee: maxPerAttendee,
+      suggested_rondas: suggestedRondas,
+      suggested_mesas: suggestedMesas,
+      configured_rounds: configuredRounds.rows[0].meetings,
+      configured_breaks: configuredRounds.rows[0].breaks,
+      configured_tables: configuredTables.rows[0].c,
+      total_slots: configuredRounds.rows[0].meetings * configuredTables.rows[0].c,
+    });
+  } catch (err) { handleError(res, err, 'GET stats/planning'); }
+});
+
 router.delete('/events/:eventId/rounds', auth, async (req, res) => {
   const pool = global.pool;
   try {
