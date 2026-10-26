@@ -842,6 +842,7 @@ router.get('/events/:eventId/registrations', auth, async (req, res) => {
          r.custom_fields->>'company_name' AS company_name,
          r.custom_fields->>'contact_name' AS contact_name,
          a.email,
+         a.phone,
          a.name AS attendee_name,
          COALESCE(off.tags, ARRAY[]::text[]) AS offer_tags,
          COALESCE(dem.tags, ARRAY[]::text[]) AS demand_tags,

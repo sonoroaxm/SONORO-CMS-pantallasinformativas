@@ -10921,7 +10921,10 @@ function evRnDirRender() {
     <tr style="border-bottom:1px solid var(--border);">
       <td style="padding:8px;font-weight:600;">${evRnEscape(r.company_name || '—')}</td>
       <td style="padding:8px;">${evRnEscape(r.attendee_name || '—')}</td>
-      <td style="padding:8px;color:var(--text-muted);">${evRnEscape(r.contact_name || r.email || '—')}</td>
+      <td style="padding:8px;color:var(--text-muted);">
+        <div>${evRnEscape(r.contact_name || r.email || '—')}</div>
+        ${r.phone ? `<div style="font-size:11px;opacity:.75;">${evRnEscape(r.phone)}</div>` : ''}
+      </td>
       <td style="padding:8px;">${tagList(r.offer_tags)}</td>
       <td style="padding:8px;">${tagList(r.demand_tags)}</td>
       <td style="padding:8px;text-align:center;color:var(--text-muted);">${r.requests_received||0} / ${r.requests_sent||0}</td>
@@ -10940,7 +10943,7 @@ function evRnOpenEditReg(regId) {
   const modal = document.getElementById('ev-rn-edit-reg-modal');
   modal.dataset.regId = regId;
   document.getElementById('ev-rn-edit-ctx-name').textContent = r.attendee_name || '—';
-  document.getElementById('ev-rn-edit-ctx-email').textContent = r.email || '';
+  document.getElementById('ev-rn-edit-ctx-email').textContent = [r.email, r.phone].filter(Boolean).join(' · ') || '';
   const offer = (r.offer_tags||[]).slice(0,4);
   const demand = (r.demand_tags||[]).slice(0,4);
   const chipO = offer.length ? `<span style="color:#22c55e;font-weight:700;">${evRnT('rn.live.col_offer','Ofrece')}:</span> ${offer.map(evRnEscape).join(', ')}` : '';
