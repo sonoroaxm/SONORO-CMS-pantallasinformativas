@@ -9655,7 +9655,7 @@ function evRenderList() {
     const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
     const isRN = ev.config && ev.config.event_type === 'matchmaking';
-    const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">Rueda de Negocios</span>` : '';
+    const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.new_type_rn','Rueda de Negocios')}</span>` : '';
     return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
         <div style="flex:1;">
@@ -10567,6 +10567,7 @@ function evRnRenderHeader(ev, start, end, mm) {
 // Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
 document.addEventListener('sonoro:localechange', function(){
   try {
+    if (typeof evRenderList === 'function' && Array.isArray(evListCache) && evListCache.length) evRenderList();
     var view = document.getElementById('ev-rueda-detail-view');
     if (!view || view.classList.contains('hidden')) return;
     if (evRnCurrentEvent) evRnRenderHeader(evRnCurrentEvent);
