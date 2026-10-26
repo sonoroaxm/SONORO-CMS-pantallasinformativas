@@ -3729,136 +3729,282 @@ async function requireAnalyticsAccess(req, res, next) {
 }
 
 function parseAnalyticsRange(q) {
-  // Devuelve { from: Date, to: Date } con default = últimos 12 meses
+  // Devuelve { from: Date, to: Date } con default = últimos 12 meses.
+  // Soporta ?from=&to= (ISO) o ?range=last30d|last90d|last12m|ytd|all.
   const now = new Date();
-  let to = q.to ? new Date(q.to) : now;
-  let from = q.from ? new Date(q.from) : new Date(now.getTime() - 365 * 86400000);
-  if (isNaN(from.getTime())) from = new Date(now.getTime() - 365 * 86400000);
-  if (isNaN(to.getTime())) to = now;
-  return { from, to };
+  if (q.from || q.to) {
+    let to = q.to ? new Date(q.to) : now;
+    let from = q.from ? new Date(q.from) : new Date(now.getTime() - 365 * 86400000);
+    if (isNaN(from.getTime())) from = new Date(now.getTime() - 365 * 86400000);
+    if (isNaN(to.getTime())) to = now;
+    return { from, to };
+  }
+  const r = String(q.range || 'last12m');
+  if (r === 'last30d')  return { from: new Date(now.getTime() -  30*86400000), to: now };
+  if (r === 'last90d')  return { from: new Date(now.getTime() -  90*86400000), to: now };
+  if (r === 'ytd')      return { from: new Date(now.getFullYear(), 0, 1), to: now };
+  if (r === 'all')      return { from: new Date(2020, 0, 1), to: now };
+  return { from: new Date(now.getTime() - 365*86400000), to: now };
+}
+
+// Carga el payload de /analytics/overview. Reutilizado por GET + export.xlsx + export.pdf.
+async function loadAnalyticsOverview(pool, userId, from, to) {
+  const eventsAgg = await pool.query(
+    `SELECT
+        COUNT(*) FILTER (WHERE status IN ('closed','archived') OR ends_at < NOW()) AS done,
+        COUNT(*) FILTER (WHERE status IN ('draft','published','live') AND ends_at >= NOW()) AS scheduled,
+        COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
+        COUNT(*) AS total
+       FROM events.events
+      WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3`,
+    [userId, from, to]
+  );
+  const curAgg = await pool.query(
+    `SELECT currency FROM events.licenses
+       WHERE user_id = $1 AND status IN ('active','grace','readonly')
+       ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  const currency = curAgg.rows[0]?.currency || 'COP';
+  const attAgg = await pool.query(
+    `WITH past_events AS (
+       SELECT id FROM events.events
+        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+          AND ends_at < NOW()
+     ),
+     regs AS (
+       SELECT r.id, r.status
+         FROM events.registrations r
+         JOIN past_events pe ON pe.id = r.event_id
+        WHERE r.status != 'cancelled'
+     ),
+     checkins AS (
+       SELECT DISTINCT c.registration_id
+         FROM events.registration_checkins c
+         JOIN regs r ON r.id = c.registration_id
+     )
+     SELECT (SELECT COUNT(*) FROM regs) AS registered,
+            (SELECT COUNT(*) FROM checkins) AS checkin`,
+    [userId, from, to]
+  );
+  const registered = parseInt(attAgg.rows[0]?.registered || 0, 10);
+  const checkin = parseInt(attAgg.rows[0]?.checkin || 0, 10);
+  const noshow = Math.max(registered - checkin, 0);
+  const projAgg = await pool.query(
+    `SELECT COALESCE(SUM((config->>'total_budget')::NUMERIC), 0) AS projected
+       FROM events.events
+      WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+        AND (config->>'total_budget') ~ '^[0-9]+(\\.[0-9]+)?$'`,
+    [userId, from, to]
+  );
+  const paidAgg = await pool.query(
+    `SELECT COALESCE(SUM(s.contracted_amount), 0) AS paid
+       FROM events.event_suppliers s
+       JOIN events.events e ON e.id = s.event_id
+      WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
+        AND s.currency = $4 AND s.payment_status = 'paid'`,
+    [userId, from, to, currency]
+  );
+  const projected = parseFloat(projAgg.rows[0]?.projected || 0);
+  const paid = parseFloat(paidAgg.rows[0]?.paid || 0);
+  const pending = Math.max(projected - paid, 0);
+  const top5 = await pool.query(
+    `SELECT e.id, e.name, e.slug, e.starts_at, e.ends_at, e.venue_name,
+            COUNT(DISTINCT c.registration_id) AS attendees
+       FROM events.events e
+       LEFT JOIN events.registrations r ON r.event_id = e.id AND r.status != 'cancelled'
+       LEFT JOIN events.registration_checkins c ON c.registration_id = r.id
+      WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
+        AND e.ends_at < NOW()
+      GROUP BY e.id
+      ORDER BY attendees DESC NULLS LAST, e.starts_at DESC
+      LIMIT 5`,
+    [userId, from, to]
+  );
+  const monthly = await pool.query(
+    `SELECT TO_CHAR(DATE_TRUNC('month', starts_at), 'YYYY-MM') AS month,
+            COUNT(*) AS count
+       FROM events.events
+      WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
+        AND status != 'cancelled'
+      GROUP BY 1 ORDER BY 1`,
+    [userId, from, to]
+  );
+  const doneN = parseInt(eventsAgg.rows[0]?.done || 0, 10);
+  return {
+    range: { from: from.toISOString(), to: to.toISOString() },
+    currency,
+    events: {
+      done: doneN,
+      scheduled: parseInt(eventsAgg.rows[0]?.scheduled || 0, 10),
+      cancelled: parseInt(eventsAgg.rows[0]?.cancelled || 0, 10),
+      total: parseInt(eventsAgg.rows[0]?.total || 0, 10)
+    },
+    attendees: { registered, checkin, noshow },
+    budget: { projected, paid, pending, avg: doneN > 0 ? projected / doneN : 0 },
+    top5: top5.rows.map(r => ({
+      id: r.id, name: r.name, slug: r.slug,
+      starts_at: r.starts_at, ends_at: r.ends_at, venue: r.venue_name,
+      attendees: parseInt(r.attendees || 0, 10)
+    })),
+    monthly: monthly.rows.map(r => ({ month: r.month, count: parseInt(r.count, 10) }))
+  };
+}
+
+const ANALYTICS_EXPORT_LABELS = {
+  es: { title:'Panel resumen Events', range:'Rango', from:'Desde', to:'Hasta', currency:'Moneda',
+        events:'Eventos', done:'Realizados', scheduled:'Programados', cancelled:'Cancelados', total:'Total',
+        attendees:'Asistentes', registered:'Inscritos', checkin:'Check-in', noshow:'No-show',
+        budget:'Presupuesto', projected:'Proyectado', paid:'Pagado', pending:'Por pagar', avg:'Promedio/evento',
+        top5:'Top 5 por asistencia', col_rank:'#', col_name:'Evento', col_date:'Fecha', col_venue:'Lugar', col_att:'Asistentes',
+        monthly:'Eventos por mes', col_month:'Mes', col_count:'Eventos', generated:'Generado' },
+  en: { title:'Events overview', range:'Range', from:'From', to:'To', currency:'Currency',
+        events:'Events', done:'Done', scheduled:'Scheduled', cancelled:'Cancelled', total:'Total',
+        attendees:'Attendees', registered:'Registered', checkin:'Check-in', noshow:'No-show',
+        budget:'Budget', projected:'Projected', paid:'Paid', pending:'Pending', avg:'Avg/event',
+        top5:'Top 5 by attendance', col_rank:'#', col_name:'Event', col_date:'Date', col_venue:'Venue', col_att:'Attendees',
+        monthly:'Events per month', col_month:'Month', col_count:'Events', generated:'Generated' },
+  pt: { title:'Painel resumo Events', range:'Período', from:'De', to:'Até', currency:'Moeda',
+        events:'Eventos', done:'Realizados', scheduled:'Programados', cancelled:'Cancelados', total:'Total',
+        attendees:'Participantes', registered:'Inscritos', checkin:'Check-in', noshow:'No-show',
+        budget:'Orçamento', projected:'Projetado', paid:'Pago', pending:'A pagar', avg:'Média/evento',
+        top5:'Top 5 por participação', col_rank:'#', col_name:'Evento', col_date:'Data', col_venue:'Local', col_att:'Participantes',
+        monthly:'Eventos por mês', col_month:'Mês', col_count:'Eventos', generated:'Gerado' },
+};
+function analyticsExportLocale(req) {
+  const l = String(req.query.locale || 'es').slice(0,2).toLowerCase();
+  return ANALYTICS_EXPORT_LABELS[l] ? l : 'es';
+}
+function fmtDateShort(d) {
+  if (!d) return '';
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  return dt.toISOString().slice(0, 10);
+}
+function fmtMoney(n, currency) {
+  const v = Number(n) || 0;
+  try { return new Intl.NumberFormat('es-CO', { style:'currency', currency, maximumFractionDigits:0 }).format(v); }
+  catch(_) { return `${currency} ${Math.round(v).toLocaleString('es-CO')}`; }
 }
 
 router.get('/analytics/overview', auth, requireAnalyticsAccess, async (req, res) => {
   try {
     const pool = global.pool;
     const { from, to } = parseAnalyticsRange(req.query);
-    const userId = req.user.id;
-
-    // 1) Conteo de eventos por status + currency dominante
-    const eventsAgg = await pool.query(
-      `SELECT
-          COUNT(*) FILTER (WHERE status IN ('closed','archived') OR ends_at < NOW()) AS done,
-          COUNT(*) FILTER (WHERE status IN ('draft','published','live') AND ends_at >= NOW()) AS scheduled,
-          COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-          COUNT(*) AS total
-         FROM events.events
-        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3`,
-      [userId, from, to]
-    );
-
-    // 2) Currency dominante (licencia Events del tenant)
-    const curAgg = await pool.query(
-      `SELECT currency FROM events.licenses
-         WHERE user_id = $1 AND status IN ('active','grace','readonly')
-         ORDER BY created_at DESC LIMIT 1`,
-      [userId]
-    );
-    const currency = curAgg.rows[0]?.currency || 'COP';
-
-    // 3) Asistentes (solo eventos pasados)
-    const attAgg = await pool.query(
-      `WITH past_events AS (
-         SELECT id FROM events.events
-          WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
-            AND ends_at < NOW()
-       ),
-       regs AS (
-         SELECT r.id, r.status
-           FROM events.registrations r
-           JOIN past_events pe ON pe.id = r.event_id
-          WHERE r.status != 'cancelled'
-       ),
-       checkins AS (
-         SELECT DISTINCT c.registration_id
-           FROM events.registration_checkins c
-           JOIN regs r ON r.id = c.registration_id
-       )
-       SELECT (SELECT COUNT(*) FROM regs) AS registered,
-              (SELECT COUNT(*) FROM checkins) AS checkin`,
-      [userId, from, to]
-    );
-    const registered = parseInt(attAgg.rows[0]?.registered || 0, 10);
-    const checkin = parseInt(attAgg.rows[0]?.checkin || 0, 10);
-    const noshow = Math.max(registered - checkin, 0);
-
-    // 4) Presupuesto: proyectado (config.total_budget) + pagado (suppliers paid)
-    const projAgg = await pool.query(
-      `SELECT COALESCE(SUM((config->>'total_budget')::NUMERIC), 0) AS projected
-         FROM events.events
-        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
-          AND (config->>'total_budget') ~ '^[0-9]+(\\.[0-9]+)?$'`,
-      [userId, from, to]
-    );
-    const paidAgg = await pool.query(
-      `SELECT COALESCE(SUM(s.contracted_amount), 0) AS paid
-         FROM events.event_suppliers s
-         JOIN events.events e ON e.id = s.event_id
-        WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
-          AND s.currency = $4 AND s.payment_status = 'paid'`,
-      [userId, from, to, currency]
-    );
-    const projected = parseFloat(projAgg.rows[0]?.projected || 0);
-    const paid = parseFloat(paidAgg.rows[0]?.paid || 0);
-    const pending = Math.max(projected - paid, 0);
-
-    // 5) Top 5 eventos por asistencia (solo pasados)
-    const top5 = await pool.query(
-      `SELECT e.id, e.name, e.slug, e.starts_at, e.ends_at, e.venue_name,
-              COUNT(DISTINCT c.registration_id) AS attendees
-         FROM events.events e
-         LEFT JOIN events.registrations r ON r.event_id = e.id AND r.status != 'cancelled'
-         LEFT JOIN events.registration_checkins c ON c.registration_id = r.id
-        WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
-          AND e.ends_at < NOW()
-        GROUP BY e.id
-        ORDER BY attendees DESC NULLS LAST, e.starts_at DESC
-        LIMIT 5`,
-      [userId, from, to]
-    );
-
-    // 6) Eventos por mes (serie temporal)
-    const monthly = await pool.query(
-      `SELECT TO_CHAR(DATE_TRUNC('month', starts_at), 'YYYY-MM') AS month,
-              COUNT(*) AS count
-         FROM events.events
-        WHERE user_id = $1 AND starts_at >= $2 AND starts_at <= $3
-          AND status != 'cancelled'
-        GROUP BY 1 ORDER BY 1`,
-      [userId, from, to]
-    );
-
-    res.json({
-      range: { from: from.toISOString(), to: to.toISOString() },
-      currency,
-      tier: req._licTier,
-      events: {
-        done: parseInt(eventsAgg.rows[0]?.done || 0, 10),
-        scheduled: parseInt(eventsAgg.rows[0]?.scheduled || 0, 10),
-        cancelled: parseInt(eventsAgg.rows[0]?.cancelled || 0, 10),
-        total: parseInt(eventsAgg.rows[0]?.total || 0, 10)
-      },
-      attendees: { registered, checkin, noshow },
-      budget: { projected, paid, pending, avg: eventsAgg.rows[0]?.done > 0 ? projected / parseInt(eventsAgg.rows[0].done, 10) : 0 },
-      top5: top5.rows.map(r => ({
-        id: r.id, name: r.name, slug: r.slug,
-        starts_at: r.starts_at, ends_at: r.ends_at, venue: r.venue_name,
-        attendees: parseInt(r.attendees || 0, 10)
-      })),
-      monthly: monthly.rows.map(r => ({ month: r.month, count: parseInt(r.count, 10) }))
-    });
+    const data = await loadAnalyticsOverview(pool, req.user.id, from, to);
+    res.json({ ...data, tier: req._licTier });
   } catch (err) {
     console.error('❌ GET /analytics:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── EXPORT XLSX / PDF del panel resumen (S210g Fase B) ───────────────────────
+router.get('/analytics/overview/export.xlsx', auth, requireAnalyticsAccess, async (req, res) => {
+  try {
+    const pool = global.pool;
+    const { from, to } = parseAnalyticsRange(req.query);
+    const loc = analyticsExportLocale(req);
+    const L = ANALYTICS_EXPORT_LABELS[loc];
+    const d = await loadAnalyticsOverview(pool, req.user.id, from, to);
+
+    const wb = XLSX.utils.book_new();
+    const resumen = [
+      [L.title],
+      [L.range, `${fmtDateShort(from)} → ${fmtDateShort(to)}`],
+      [L.currency, d.currency],
+      [],
+      [L.events],
+      [L.done, d.events.done],
+      [L.scheduled, d.events.scheduled],
+      [L.cancelled, d.events.cancelled],
+      [L.total, d.events.total],
+      [],
+      [L.attendees],
+      [L.registered, d.attendees.registered],
+      [L.checkin, d.attendees.checkin],
+      [L.noshow, d.attendees.noshow],
+      [],
+      [L.budget],
+      [L.projected, fmtMoney(d.budget.projected, d.currency)],
+      [L.paid, fmtMoney(d.budget.paid, d.currency)],
+      [L.pending, fmtMoney(d.budget.pending, d.currency)],
+      [L.avg, fmtMoney(d.budget.avg, d.currency)],
+      [],
+      [L.generated, new Date().toISOString()],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), L.title.slice(0, 31));
+
+    const top5Rows = [[L.col_rank, L.col_name, L.col_date, L.col_venue, L.col_att]];
+    d.top5.forEach((r, i) => top5Rows.push([i + 1, r.name || '', fmtDateShort(r.starts_at), r.venue || '', r.attendees]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(top5Rows), L.top5.slice(0, 31));
+
+    const monthlyRows = [[L.col_month, L.col_count]];
+    d.monthly.forEach(m => monthlyRows.push([m.month, m.count]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(monthlyRows), L.monthly.slice(0, 31));
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const fname = `events-overview-${fmtDateShort(from)}_${fmtDateShort(to)}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('❌ GET /analytics/overview/export.xlsx:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/analytics/overview/export.pdf', auth, requireAnalyticsAccess, async (req, res) => {
+  try {
+    const pool = global.pool;
+    const { from, to } = parseAnalyticsRange(req.query);
+    const loc = analyticsExportLocale(req);
+    const L = ANALYTICS_EXPORT_LABELS[loc];
+    const d = await loadAnalyticsOverview(pool, req.user.id, from, to);
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true });
+    const fname = `events-overview-${fmtDateShort(from)}_${fmtDateShort(to)}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
+    doc.pipe(res);
+
+    // Header SONORO
+    doc.rect(0, 0, doc.page.width, 60).fill('#111');
+    doc.fillColor('#FFD400').fontSize(18).font('Helvetica-Bold').text('SONORO', 48, 20);
+    doc.fillColor('#fff').fontSize(10).font('Helvetica').text(L.title, 48, 42);
+    doc.moveDown(3).fillColor('#111');
+
+    doc.fontSize(10).fillColor('#444').text(`${L.range}: ${fmtDateShort(from)} → ${fmtDateShort(to)}  ·  ${L.currency}: ${d.currency}`);
+    doc.moveDown(0.8);
+
+    const section = (title) => { doc.moveDown(0.4); doc.fontSize(12).fillColor('#111').font('Helvetica-Bold').text(title); doc.font('Helvetica').fontSize(10).fillColor('#333'); };
+    const kv = (k, v) => doc.text(`${k}: `, { continued: true }).font('Helvetica-Bold').text(String(v)).font('Helvetica');
+
+    section(L.events);
+    kv(L.done, d.events.done); kv(L.scheduled, d.events.scheduled); kv(L.cancelled, d.events.cancelled); kv(L.total, d.events.total);
+
+    section(L.attendees);
+    kv(L.registered, d.attendees.registered); kv(L.checkin, d.attendees.checkin); kv(L.noshow, d.attendees.noshow);
+
+    section(L.budget);
+    kv(L.projected, fmtMoney(d.budget.projected, d.currency));
+    kv(L.paid, fmtMoney(d.budget.paid, d.currency));
+    kv(L.pending, fmtMoney(d.budget.pending, d.currency));
+    kv(L.avg, fmtMoney(d.budget.avg, d.currency));
+
+    section(L.top5);
+    if (!d.top5.length) doc.fillColor('#888').text('—');
+    else d.top5.forEach((r, i) => doc.fillColor('#333').text(`${i + 1}. ${r.name || ''} — ${fmtDateShort(r.starts_at)} — ${r.venue || ''} — ${r.attendees} ${L.col_att}`));
+
+    section(L.monthly);
+    if (!d.monthly.length) doc.fillColor('#888').text('—');
+    else d.monthly.forEach(m => doc.fillColor('#333').text(`${m.month}: ${m.count}`));
+
+    doc.moveDown(1).fontSize(8).fillColor('#999').text(`${L.generated}: ${new Date().toISOString()}`);
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET /analytics/overview/export.pdf:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
   }
 });
 

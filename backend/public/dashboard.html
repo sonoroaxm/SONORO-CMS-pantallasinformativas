@@ -10662,7 +10662,25 @@ function evpToggleCollapse() {
 
 async function evpExport(fmt) {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
-  showStatus(t('ev.panel.export_soon', 'Export ' + fmt.toUpperCase() + ' · próximamente (Fase B)'), 'info');
+  const ext = (fmt === 'pdf') ? 'pdf' : 'xlsx';
+  const range = EVP_RANGE_MAP[evpRange] || 'last12m';
+  const loc = (window.SonoroI18n && window.SonoroI18n.getLocale) ? window.SonoroI18n.getLocale() : 'es';
+  try {
+    const r = await fetch(`/api/events/analytics/overview/export.${ext}?range=${encodeURIComponent(range)}&locale=${encodeURIComponent(loc)}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `events-overview-${range}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    console.error(err);
+    showStatus(t('ev.panel.export_err', 'No se pudo exportar'), 'error');
+  }
 }
 
 // ── LISTA ──────────────────────────────────────────────────────
