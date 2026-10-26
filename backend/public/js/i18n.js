@@ -317,10 +317,12 @@
             err_briefing:'Error al enviar briefing', err_staff_notfound:'Staff no encontrado', err_staff_noemail:'Este staff no tiene email', err_add_sup_dir_first:'Agrega proveedores al directorio primero', err_select_sup:'Selecciona un proveedor del directorio', err_no_quote:'Sin cotización', err_first_create_tpl:'Primero crea una plantilla', err_save_resend:'Guardado, pero error al reenviar: {msg}' },
       toast: { language_updated:'Idioma actualizado' },
       rn: {
-        hdr: { panel:'Panel del productor', link:'Link', link_title:'Copiar link público', back:'Mis Eventos', status_published:'Publicada', status_draft:'Borrador' },
+        hdr: { panel:'Panel del productor', link:'Link', link_title:'Copiar link público', back:'Mis Eventos', status_published:'Publicada', status_draft:'Borrador', status_live:'En curso', status_closed:'Cerrada', status_archived:'Archivada', sub_mode:'modo', sub_zone:'zona' },
         donut: { complete_k:'Listas para emparejar', complete:'Completas', incomplete:'Incompletas', mix_k:'Mix de empresas', offer:'Ofrece', demand:'Busca', both:'Ambos', util_k:'Utilización de slots', booked:'Agendados', free:'Libres' },
         kpi: { regs:'Empresas inscritas', complete:'Con intereses completos', requests:'Solicitudes directas', util:'Utilización prevista' },
         subtab: { setup:'Setup', tags:'Tags', dir:'Directorio', agenda:'Agenda', live:'Live', rep:'Reporte' },
+        toast: { saving:'Guardando…', saved_prefix:'Guardado · ', save_err:'Error al guardar', net_err:'Error de conexión', send_ok:'Reporte enviado', send_err:'Error enviando reporte', send_err_cover:'Cobertura EBV < 20%. Confirma para enviar igual.' },
+        empty: { rounds_planned:'Sin rondas planificadas', tables:'Sin mesas configuradas', registered:'Sin inscritos', rounds_see_agenda:'Sin rondas planificadas (ver Agenda)', meetings_open_round:'Sin meetings — abre una ronda', tags_empty:'Sin tags · importa Excel o crea el primero', catalog_err_prefix:'Error cargando catálogo', rows:'Sin filas', meetings_ebv:'Sin meetings con EBV capturado', loading:'Cargando…', report_err:'No se pudo cargar el reporte' },
         setup: {
           c1_title:'01 · Información básica', c1_name:'Nombre', c1_public_url:'URL pública:', c1_starts:'Inicio', c1_ends:'Fin', c1_tz:'Timezone', c1_currency:'Moneda base (EBV)', c1_deflocale:'Idioma por defecto', c1_deflocale_hint:'Idioma de emails cuando el delegado no eligió uno.', c1_venue:'Sede', c1_venue_ph:'Hotel, centro de convenciones…',
           c2_title:'02 · Modo de operación', c2_classic:'Classic', c2_classic_hint:'Un único piso de mesas', c2_zoned:'Zoned', c2_zoned_hint:'Mesas agrupadas en zonas',
@@ -341,8 +343,10 @@
           new_fuzzy_title:'¿Quisiste decir alguno de estos?', new_fuzzy_hint:'Si ninguno aplica, continúa con tu tag. Evitar duplicados mejora el emparejamiento.',
           new_cat:'Categoría (opcional)', new_cat_ph:'Ej. Tecnología', new_cat_hint:'Agrupa tags relacionados en el formulario del asistente (ej. Logística, Tecnología, Agro).',
           new_create:'Crear tag',
+          edit_title:'Editar tag', save_changes:'Guardar cambios',
           bulk_title:'Previsualización · importar catálogo', bulk_det:'Detectados', bulk_new:'Nuevos', bulk_sim:'Similares', bulk_dup:'Duplicados',
-          bulk_hint:'Revisa cada fila y decide. Nada se guarda hasta confirmar.', bulk_confirm:'Confirmar'
+          bulk_hint:'Revisa cada fila y decide. Nada se guarda hasta confirmar.', bulk_confirm:'Confirmar',
+          bulk_confirm_fmt_one:'Confirmar y crear 1 tag', bulk_confirm_fmt_many:'Confirmar y crear {n} tags'
         },
         dir: { title:'Asistentes inscritos', search_ph:'Buscar empresa, nombre, tag…', col_company:'Empresa', col_contact:'Contacto', col_offer:'Ofrece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status' },
         agenda: {
@@ -352,7 +356,7 @@
           meetings_title:'Meetings', meetings_refresh:'Refrescar', col_round:'Ronda', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origen', col_lock:'Lock'
         },
         live: {
-          callboard:'Callboard productor', checkins_suffix:'check-ins', active:'Ronda activa', no_active:'Sin ronda abierta',
+          callboard:'Callboard productor', checkins_suffix:'check-ins', active:'Ronda activa', active_prefix:'Ronda activa: ', no_active:'Sin ronda abierta',
           rounds:'Rondas programadas', meetings:'Meetings en vivo',
           col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origen', col_status:'Status',
           empty:'Sin meetings — abre una ronda'
@@ -365,7 +369,8 @@
           dist:'Distribución EBV', median:'Mediana', min:'Mínimo', max:'Máximo', bilat:'Bilateral', unilat:'Unilateral', empty:'Sin EBV',
           top:'Top meetings por valor esperado',
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Ronda · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
-          empty_table:'Sin datos — carga el reporte'
+          empty_table:'Sin datos — carga el reporte',
+          cov_suffix:'% cobertura', sending:'Enviando…'
         }
       }
     },
@@ -659,10 +664,12 @@
             err_briefing:'Error sending briefing', err_staff_notfound:'Staff not found', err_staff_noemail:'This staff has no email', err_add_sup_dir_first:'First add suppliers to the directory', err_select_sup:'Select a supplier from the directory', err_no_quote:'No quote available', err_first_create_tpl:'First create a template', err_save_resend:'Saved, but error resending: {msg}' },
       toast: { language_updated:'Language updated' },
       rn: {
-        hdr: { panel:'Producer panel', link:'Link', link_title:'Copy public link', back:'My Events', status_published:'Published', status_draft:'Draft' },
+        hdr: { panel:'Producer panel', link:'Link', link_title:'Copy public link', back:'My Events', status_published:'Published', status_draft:'Draft', status_live:'Live', status_closed:'Closed', status_archived:'Archived', sub_mode:'mode', sub_zone:'zone' },
         donut: { complete_k:'Ready to match', complete:'Complete', incomplete:'Incomplete', mix_k:'Company mix', offer:'Offers', demand:'Seeks', both:'Both', util_k:'Slot utilization', booked:'Booked', free:'Free' },
         kpi: { regs:'Registered companies', complete:'With complete interests', requests:'Direct requests', util:'Projected utilization' },
         subtab: { setup:'Setup', tags:'Tags', dir:'Directory', agenda:'Agenda', live:'Live', rep:'Report' },
+        toast: { saving:'Saving…', saved_prefix:'Saved · ', save_err:'Save failed', net_err:'Connection error', send_ok:'Report sent', send_err:'Error sending report', send_err_cover:'EBV coverage < 20%. Confirm to send anyway.' },
+        empty: { rounds_planned:'No rounds planned', tables:'No tables configured', registered:'No registrants', rounds_see_agenda:'No rounds planned (see Agenda)', meetings_open_round:'No meetings — open a round', tags_empty:'No tags · import Excel or create the first one', catalog_err_prefix:'Error loading catalog', rows:'No rows', meetings_ebv:'No meetings with EBV captured', loading:'Loading…', report_err:'Could not load the report' },
         setup: {
           c1_title:'01 · Basic info', c1_name:'Name', c1_public_url:'Public URL:', c1_starts:'Start', c1_ends:'End', c1_tz:'Timezone', c1_currency:'Base currency (EBV)', c1_deflocale:'Default language', c1_deflocale_hint:'Email language when the delegate did not choose one.', c1_venue:'Venue', c1_venue_ph:'Hotel, convention center…',
           c2_title:'02 · Operation mode', c2_classic:'Classic', c2_classic_hint:'Single floor of tables', c2_zoned:'Zoned', c2_zoned_hint:'Tables grouped in zones',
@@ -683,8 +690,10 @@
           new_fuzzy_title:'Did you mean one of these?', new_fuzzy_hint:'If none applies, continue with your tag. Avoiding duplicates improves matching.',
           new_cat:'Category (optional)', new_cat_ph:'E.g. Technology', new_cat_hint:'Groups related tags in the attendee form (e.g. Logistics, Technology, Agro).',
           new_create:'Create tag',
+          edit_title:'Edit tag', save_changes:'Save changes',
           bulk_title:'Preview · import catalog', bulk_det:'Detected', bulk_new:'New', bulk_sim:'Similar', bulk_dup:'Duplicates',
-          bulk_hint:'Review each row and decide. Nothing is saved until you confirm.', bulk_confirm:'Confirm'
+          bulk_hint:'Review each row and decide. Nothing is saved until you confirm.', bulk_confirm:'Confirm',
+          bulk_confirm_fmt_one:'Confirm and create 1 tag', bulk_confirm_fmt_many:'Confirm and create {n} tags'
         },
         dir: { title:'Registered attendees', search_ph:'Search company, name, tag…', col_company:'Company', col_contact:'Contact', col_offer:'Offers', col_demand:'Seeks', col_req:'Req. in/out', col_status:'Status' },
         agenda: {
@@ -694,7 +703,7 @@
           meetings_title:'Meetings', meetings_refresh:'Refresh', col_round:'Round', col_table:'Table', col_a:'Company A', col_b:'Company B', col_origin:'Origin', col_lock:'Lock'
         },
         live: {
-          callboard:'Producer callboard', checkins_suffix:'check-ins', active:'Active round', no_active:'No open round',
+          callboard:'Producer callboard', checkins_suffix:'check-ins', active:'Active round', active_prefix:'Active round: ', no_active:'No open round',
           rounds:'Scheduled rounds', meetings:'Live meetings',
           col_table:'Table', col_a:'Company A', col_b:'Company B', col_origin:'Origin', col_status:'Status',
           empty:'No meetings — open a round'
@@ -707,7 +716,8 @@
           dist:'EBV distribution', median:'Median', min:'Min', max:'Max', bilat:'Bilateral', unilat:'Unilateral', empty:'Without EBV',
           top:'Top meetings by expected value',
           col_n:'#', col_a:'Company A', col_b:'Company B', col_round_table:'Round · Table', col_type:'Type', col_horizon:'Horizon', col_value:'Value',
-          empty_table:'No data — load the report'
+          empty_table:'No data — load the report',
+          cov_suffix:'% coverage', sending:'Sending…'
         }
       }
     },
@@ -1001,10 +1011,12 @@
             err_briefing:'Erro ao enviar briefing', err_staff_notfound:'Staff não encontrado', err_staff_noemail:'Este staff não tem e-mail', err_add_sup_dir_first:'Primeiro adicione fornecedores ao diretório', err_select_sup:'Selecione um fornecedor do diretório', err_no_quote:'Sem cotação', err_first_create_tpl:'Primeiro crie um modelo', err_save_resend:'Salvo, mas erro ao reenviar: {msg}' },
       toast: { language_updated:'Idioma atualizado' },
       rn: {
-        hdr: { panel:'Painel do produtor', link:'Link', link_title:'Copiar link público', back:'Meus Eventos', status_published:'Publicada', status_draft:'Rascunho' },
+        hdr: { panel:'Painel do produtor', link:'Link', link_title:'Copiar link público', back:'Meus Eventos', status_published:'Publicada', status_draft:'Rascunho', status_live:'Ao vivo', status_closed:'Encerrada', status_archived:'Arquivada', sub_mode:'modo', sub_zone:'zona' },
         donut: { complete_k:'Prontas para o match', complete:'Completas', incomplete:'Incompletas', mix_k:'Mix de empresas', offer:'Oferece', demand:'Busca', both:'Ambos', util_k:'Utilização de slots', booked:'Agendados', free:'Livres' },
         kpi: { regs:'Empresas inscritas', complete:'Com interesses completos', requests:'Solicitações diretas', util:'Utilização prevista' },
         subtab: { setup:'Setup', tags:'Tags', dir:'Diretório', agenda:'Agenda', live:'Live', rep:'Relatório' },
+        toast: { saving:'Salvando…', saved_prefix:'Salvo · ', save_err:'Erro ao salvar', net_err:'Erro de conexão', send_ok:'Relatório enviado', send_err:'Erro ao enviar relatório', send_err_cover:'Cobertura EBV < 20%. Confirme para enviar mesmo assim.' },
+        empty: { rounds_planned:'Sem rodadas planejadas', tables:'Sem mesas configuradas', registered:'Sem inscritos', rounds_see_agenda:'Sem rodadas planejadas (veja Agenda)', meetings_open_round:'Sem reuniões — abra uma rodada', tags_empty:'Sem tags · importe Excel ou crie a primeira', catalog_err_prefix:'Erro ao carregar catálogo', rows:'Sem linhas', meetings_ebv:'Sem reuniões com EBV capturado', loading:'Carregando…', report_err:'Não foi possível carregar o relatório' },
         setup: {
           c1_title:'01 · Informações básicas', c1_name:'Nome', c1_public_url:'URL pública:', c1_starts:'Início', c1_ends:'Fim', c1_tz:'Fuso horário', c1_currency:'Moeda base (EBV)', c1_deflocale:'Idioma padrão', c1_deflocale_hint:'Idioma dos e-mails quando o delegado não escolheu.', c1_venue:'Local', c1_venue_ph:'Hotel, centro de convenções…',
           c2_title:'02 · Modo de operação', c2_classic:'Classic', c2_classic_hint:'Um único piso de mesas', c2_zoned:'Zoned', c2_zoned_hint:'Mesas agrupadas em zonas',
@@ -1025,8 +1037,10 @@
           new_fuzzy_title:'Você quis dizer alguma destas?', new_fuzzy_hint:'Se nenhuma se aplica, continue com sua tag. Evitar duplicadas melhora o match.',
           new_cat:'Categoria (opcional)', new_cat_ph:'Ex. Tecnologia', new_cat_hint:'Agrupa tags relacionadas no formulário do participante (ex. Logística, Tecnologia, Agro).',
           new_create:'Criar tag',
+          edit_title:'Editar tag', save_changes:'Salvar alterações',
           bulk_title:'Pré-visualização · importar catálogo', bulk_det:'Detectados', bulk_new:'Novos', bulk_sim:'Similares', bulk_dup:'Duplicados',
-          bulk_hint:'Revise cada linha e decida. Nada é salvo até confirmar.', bulk_confirm:'Confirmar'
+          bulk_hint:'Revise cada linha e decida. Nada é salvo até confirmar.', bulk_confirm:'Confirmar',
+          bulk_confirm_fmt_one:'Confirmar e criar 1 tag', bulk_confirm_fmt_many:'Confirmar e criar {n} tags'
         },
         dir: { title:'Participantes inscritos', search_ph:'Buscar empresa, nome, tag…', col_company:'Empresa', col_contact:'Contato', col_offer:'Oferece', col_demand:'Busca', col_req:'Req. in/out', col_status:'Status' },
         agenda: {
@@ -1036,7 +1050,7 @@
           meetings_title:'Reuniões', meetings_refresh:'Atualizar', col_round:'Rodada', col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origem', col_lock:'Lock'
         },
         live: {
-          callboard:'Callboard do produtor', checkins_suffix:'check-ins', active:'Rodada ativa', no_active:'Nenhuma rodada aberta',
+          callboard:'Callboard do produtor', checkins_suffix:'check-ins', active:'Rodada ativa', active_prefix:'Rodada ativa: ', no_active:'Nenhuma rodada aberta',
           rounds:'Rodadas programadas', meetings:'Reuniões ao vivo',
           col_table:'Mesa', col_a:'Empresa A', col_b:'Empresa B', col_origin:'Origem', col_status:'Status',
           empty:'Sem reuniões — abra uma rodada'
@@ -1049,7 +1063,8 @@
           dist:'Distribuição EBV', median:'Mediana', min:'Mínimo', max:'Máximo', bilat:'Bilateral', unilat:'Unilateral', empty:'Sem EBV',
           top:'Top reuniões por valor esperado',
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Rodada · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
-          empty_table:'Sem dados — carregue o relatório'
+          empty_table:'Sem dados — carregue o relatório',
+          cov_suffix:'% cobertura', sending:'Enviando…'
         }
       }
     }
@@ -1853,6 +1868,7 @@
       if (typeof window.loadPlaylists === 'function')    window.loadPlaylists();
       if (typeof window.loadDevices === 'function')      window.loadDevices();
     }
+    try { document.dispatchEvent(new CustomEvent('sonoro:localechange', { detail:{ locale:loc } })); } catch(e){}
   };
 
   // Bootstrap

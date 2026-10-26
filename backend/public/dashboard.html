@@ -10527,21 +10527,21 @@ function evOpenRueda(ev) {
   const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   const mm = (ev.config && ev.config.matchmaking) || {};
   document.getElementById('ev-rn-title').textContent = ev.name;
-  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · modo: ${mm.matching_mode || 'tags'} · zona: ${mm.zone_mode || 'classic'}`;
+  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · ${evRnT('rn.hdr.sub_mode','modo')}: ${mm.matching_mode || 'tags'} · ${evRnT('rn.hdr.sub_zone','zona')}: ${mm.zone_mode || 'classic'}`;
   // Status pill
   const pill = document.getElementById('ev-rn-status-pill');
   const statusMap = {
-    draft:     { label:'Borrador',    bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
-    published: { label:'Publicada',   bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
-    live:      { label:'En curso',    bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
-    closed:    { label:'Cerrada',     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
-    archived:  { label:'Archivada',   bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
+    draft:     { label:evRnT('rn.hdr.status_draft','Borrador'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    published: { label:evRnT('rn.hdr.status_published','Publicada'),bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
+    live:      { label:evRnT('rn.hdr.status_live','En curso'),      bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
+    closed:    { label:evRnT('rn.hdr.status_closed','Cerrada'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    archived:  { label:evRnT('rn.hdr.status_archived','Archivada'), bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
   };
   const s = statusMap[ev.status] || statusMap.draft;
   pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
 
   document.getElementById('ev-rn-stats').textContent = '';
-  document.getElementById('ev-rn-meetings-tbody').innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Cargando...</td></tr>';
+  document.getElementById('ev-rn-meetings-tbody').innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.loading','Cargando…')}</td></tr>`;
   evRnSwitchPanelTab('setup');
   evShowView('rueda');
   evRnLoadStats();
@@ -10554,6 +10554,20 @@ function evOpenRueda(ev) {
 }
 
 // ── E-RN-7b-2 wizard setup helpers ──────────────────────────────
+function evRnT(k, fb) { return (window.SonoroI18n && window.SonoroI18n.t) ? window.SonoroI18n.t(k, fb) : fb; }
+// Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
+document.addEventListener('sonoro:localechange', function(){
+  try {
+    var view = document.getElementById('ev-rueda-detail-view');
+    if (!view || view.classList.contains('hidden')) return;
+    if (typeof evRnLiveRender === 'function' && typeof evRnLiveCache !== 'undefined' && evRnLiveCache) evRnLiveRender();
+    if (typeof evRnDirRender === 'function') evRnDirRender();
+    if (typeof evRnReportRender === 'function' && typeof evRnReportCache !== 'undefined' && evRnReportCache) evRnReportRender();
+    if (typeof evRnTagsLoad === 'function') evRnTagsLoad();
+    if (typeof evRnLoadRounds === 'function') evRnLoadRounds();
+    if (typeof evRnLoadTables === 'function') evRnLoadTables();
+  } catch(e){ console.warn('[rn] localechange re-render:', e); }
+});
 function evRnSlugify(s) {
   return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
@@ -10636,7 +10650,7 @@ async function evRnSaveConfig() {
   if (ends)   body.ends_at   = new Date(ends).toISOString();
   if (!body.name) { showStatus('Nombre requerido', 'error'); return; }
   const state = document.getElementById('ev-rn-cfg-savestate');
-  state.textContent = 'Guardando…';
+  state.textContent = evRnT('rn.toast.saving','Guardando…');
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}`, {
       method: 'PATCH',
@@ -10644,11 +10658,11 @@ async function evRnSaveConfig() {
       body: JSON.stringify(body)
     });
     const data = await r.json();
-    if (!r.ok) { state.textContent = ''; showStatus(data.error || 'Error al guardar', 'error'); return; }
+    if (!r.ok) { state.textContent = ''; showStatus(data.error || evRnT('rn.toast.save_err','Error al guardar'), 'error'); return; }
     evRnCurrentEvent = data; evCurrentEvent = data;
-    state.textContent = 'Guardado · ' + new Date().toLocaleTimeString('es-CO');
+    state.textContent = evRnT('rn.toast.saved_prefix','Guardado · ') + new Date().toLocaleTimeString();
     showStatus('Configuración guardada', 'success');
-  } catch(_) { state.textContent=''; showStatus('Error de conexión', 'error'); }
+  } catch(_) { state.textContent=''; showStatus(evRnT('rn.toast.net_err','Error de conexión'), 'error'); }
 }
 
 async function evRnLoadRounds() {
@@ -10657,7 +10671,7 @@ async function evRnLoadRounds() {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
     const rows = r.ok ? await r.json() : [];
     const el = document.getElementById('ev-rn-rounds-list'); if (!el) return;
-    if (!rows.length) { el.textContent = 'Sin rondas planificadas'; return; }
+    if (!rows.length) { el.textContent = evRnT('rn.empty.rounds_planned','Sin rondas planificadas'); return; }
     const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
     el.innerHTML = rows.map(rd => {
       const t = new Date(rd.starts_at).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz });
@@ -10697,7 +10711,7 @@ async function evRnLoadTables() {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
     const rows = r.ok ? await r.json() : [];
     const el = document.getElementById('ev-rn-tables-list'); if (!el) return;
-    if (!rows.length) { el.textContent = 'Sin mesas configuradas'; return; }
+    if (!rows.length) { el.textContent = evRnT('rn.empty.tables','Sin mesas configuradas'); return; }
     el.innerHTML = rows.map(t =>
       `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
         <span>${t.label}${t.zone_name?' · '+t.zone_name:''}</span>
@@ -10756,7 +10770,7 @@ function evRnDirRender() {
                  ...(r.offer_tags||[]), ...(r.demand_tags||[])].join(' ').toLowerCase();
     return hay.includes(q);
   });
-  if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">Sin inscritos</td></tr>'; return; }
+  if (!filtered.length) { tb.innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.registered','Sin inscritos')}</td></tr>`; return; }
   const statusPill = (s) => {
     const m = { pending:['#9ca3af','Pendiente'], approved:['#22c55e','Aprobada'], confirmed:['#22c55e','Confirmada'], cancelled:['#ef4444','Cancelada'] };
     const [c, l] = m[s] || ['#9ca3af', s||'—'];
@@ -10789,15 +10803,15 @@ function evRnLiveRender() {
   if (!evRnLiveCache) return;
   const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
   const fmt = (iso) => iso ? new Date(iso).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', timeZone: tz }) : '';
-  document.getElementById('ev-rn-live-checkins').textContent = `${evRnLiveCache.checkins_total||0} check-ins`;
+  document.getElementById('ev-rn-live-checkins').textContent = `${evRnLiveCache.checkins_total||0} ${evRnT('rn.live.checkins_suffix','check-ins')}`;
   const ar = evRnLiveCache.active_round;
   document.getElementById('ev-rn-live-active-txt').innerHTML = ar
-    ? `R${ar.round_number} · ${fmt(ar.starts_at)}–${fmt(ar.ends_at)}${ar.label?' · '+evRnEscape(ar.label):''} <span style="color:#FF1B8D;font-size:11px;margin-left:8px;">● en curso</span>`
-    : 'Sin ronda abierta';
+    ? `R${ar.round_number} · ${fmt(ar.starts_at)}–${fmt(ar.ends_at)}${ar.label?' · '+evRnEscape(ar.label):''} <span style="color:#FF1B8D;font-size:11px;margin-left:8px;">● ${evRnT('rn.hdr.status_live','en curso').toLowerCase()}</span>`
+    : evRnT('rn.live.no_active','Sin ronda abierta');
   // Rondas list
   const rl = document.getElementById('ev-rn-live-rounds');
   const meetingRounds = (evRnLiveCache.rounds||[]).filter(r => r.kind === 'meeting');
-  if (!meetingRounds.length) rl.textContent = 'Sin rondas planificadas (ver Agenda)';
+  if (!meetingRounds.length) rl.textContent = evRnT('rn.empty.rounds_see_agenda','Sin rondas planificadas (ver Agenda)');
   else rl.innerHTML = meetingRounds.map(r => {
     const isOpen = !!r.opened_at;
     const isActive = ar && ar.id === r.id;
@@ -10810,7 +10824,7 @@ function evRnLiveRender() {
   // Meetings tbody
   const tb = document.getElementById('ev-rn-live-tbody');
   const ms = evRnLiveCache.meetings || [];
-  if (!ms.length) tb.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings — abre una ronda</td></tr>';
+  if (!ms.length) tb.innerHTML = `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.meetings_open_round','Sin meetings — abre una ronda')}</td></tr>`;
   else tb.innerHTML = ms.map(m => {
     const originColor = { requested:'#22c55e', matched:'#FF1B8D', manual:'#FF8C00' }[m.origin] || '#9ca3af';
     return `<tr style="border-bottom:1px solid var(--border);">
@@ -10882,7 +10896,7 @@ async function evRnTagsLoad() {
     const nSub = document.getElementById('ev-rn-subtab-n-tags');
     if (nSub) nSub.textContent = evRnTagsCache.length;
     if (evRnTagsCache.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">Sin tags · importa Excel o crea el primero</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.tags_empty','Sin tags · importa Excel o crea el primero')}</td></tr>`;
       return;
     }
     tbody.innerHTML = evRnTagsCache.map(t => `
@@ -10897,7 +10911,7 @@ async function evRnTagsLoad() {
       </tr>
     `).join('');
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;">Error cargando catálogo: ${evRnEsc(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;">${evRnT('rn.empty.catalog_err_prefix','Error cargando catálogo')}: ${evRnEsc(e.message)}</td></tr>`;
   }
 }
 function evRnEsc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -10907,8 +10921,8 @@ function evRnTagOpenNew(editTag) {
   document.getElementById('ev-rn-tag-new-label').value    = editTag ? (editTag.label || '') : '';
   document.getElementById('ev-rn-tag-new-category').value = editTag ? (editTag.category || '') : '';
   document.getElementById('ev-rn-tag-fuzzy-warn').style.display = 'none';
-  document.getElementById('ev-rn-tag-new-title').textContent = editTag ? 'Editar tag' : 'Nuevo tag';
-  document.getElementById('ev-rn-tag-new-save-btn').textContent = editTag ? 'Guardar cambios' : 'Crear tag';
+  document.getElementById('ev-rn-tag-new-title').textContent = editTag ? evRnT('rn.tags.edit_title','Editar tag') : evRnT('rn.tags.new_title','Nuevo tag');
+  document.getElementById('ev-rn-tag-new-save-btn').textContent = editTag ? evRnT('rn.tags.save_changes','Guardar cambios') : evRnT('rn.tags.new_create','Crear tag');
   modal.dataset.editId = editTag ? editTag.id : '';
   modal.classList.add('active');
 }
@@ -11091,9 +11105,11 @@ function evRnTagBulkRenderPreview() {
       </div>
     `);
   });
-  document.getElementById('ev-rn-tag-bulk-list').innerHTML = html.join('') || '<div style="padding:16px;text-align:center;color:var(--text-muted);">Sin filas</div>';
+  document.getElementById('ev-rn-tag-bulk-list').innerHTML = html.join('') || `<div style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.rows','Sin filas')}</div>`;
   const toCreate = rows.filter(r => r.status === 'new').length;
-  document.getElementById('ev-rn-tag-bulk-confirm-btn').textContent = `Confirmar y crear ${toCreate} tag${toCreate===1?'':'s'}`;
+  document.getElementById('ev-rn-tag-bulk-confirm-btn').textContent = (toCreate===1
+    ? evRnT('rn.tags.bulk_confirm_fmt_one','Confirmar y crear 1 tag')
+    : evRnT('rn.tags.bulk_confirm_fmt_many','Confirmar y crear {n} tags').replace('{n}', toCreate));
 }
 function evRnTagCloseBulk() {
   document.getElementById('ev-rn-tag-bulk-modal').classList.remove('active');
@@ -11154,7 +11170,7 @@ function evRnReportRender() {
   const d = evRnReportCache;
   const statusEl = document.getElementById('ev-rn-report-status');
   if (!d) {
-    if (statusEl) statusEl.textContent = 'No se pudo cargar el reporte';
+    if (statusEl) statusEl.textContent = evRnT('rn.empty.report_err','No se pudo cargar el reporte');
     return;
   }
   // Estado envío: la info live viene del evento. Lo tomamos de evRnCurrentEvent.config si está, si no "No enviado".
@@ -11174,7 +11190,7 @@ function evRnReportRender() {
   const cov = (e.coverage || 0) * 100;
   document.getElementById('ev-rn-rep-k-total').textContent = m.total ?? '—';
   document.getElementById('ev-rn-rep-k-ebv').textContent   = m.with_ebv ?? '—';
-  document.getElementById('ev-rn-rep-k-cov').textContent   = `${cov.toFixed(0)}% cobertura`;
+  document.getElementById('ev-rn-rep-k-cov').textContent   = `${cov.toFixed(0)}${evRnT('rn.rep.cov_suffix','% cobertura')}`;
   document.getElementById('ev-rn-rep-k-avg').textContent   = evRnFmtCop(e.avg_per_meeting);
   document.getElementById('ev-rn-rep-k-sum').textContent   = evRnFmtCop(e.total_estimated);
   // Detalle
@@ -11198,7 +11214,7 @@ function evRnReportRender() {
   const tb = document.getElementById('ev-rn-rep-tbody');
   const top = Array.isArray(d.top) ? d.top : [];
   if (!top.length) {
-    tb.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">Sin meetings con EBV capturado</td></tr>';
+    tb.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.meetings_ebv','Sin meetings con EBV capturado')}</td></tr>`;
   } else {
     tb.innerHTML = top.map((t, i) => {
       const fillColor = t.fill_type === 'bilateral' ? '#22c55e' : '#FF8C00';
@@ -11221,7 +11237,7 @@ async function evRnSendReport(force) {
   if (!evCurrentEventId) return;
   const btn = document.getElementById('ev-rn-report-send-btn');
   if (!force && !confirm('¿Enviar reporte post-evento por email al productor y delegados primarios?')) return;
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  if (btn) { btn.disabled = true; btn.textContent = evRnT('rn.rep.sending','Enviando…'); }
   try {
     const url = `${API_URL}/api/rn/events/${evCurrentEventId}/report/send${force ? '?force=1' : ''}`;
     const r = await fetch(url, { method:'POST', headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' }, body:'{}' });
@@ -11247,7 +11263,7 @@ async function evRnSendReport(force) {
   } catch(_) {
     showStatus('Error de conexión', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Enviar reporte por email'; }
+    if (btn) { btn.disabled = false; btn.textContent = evRnT('rn.rep.send','Enviar reporte por email'); }
   }
 }
 
