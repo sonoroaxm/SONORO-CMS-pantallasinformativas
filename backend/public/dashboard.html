@@ -4219,9 +4219,9 @@
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" data-i18n-attr="title:rn.hdr.link_title" title="Copiar link público"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> <span data-i18n="rn.hdr.link">Link</span></button>
-              <button class="btn btn-outline btn-sm" id="ev-rn-link-parent-btn" onclick="evRnOpenParentPicker()" data-i18n="rn.hdr.link_parent">Vincular a evento</button>
+              <button class="btn btn-outline btn-sm" id="ev-rn-link-parent-btn" onclick="evRnOpenParentPicker()"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg> <span data-i18n="rn.hdr.link_parent">Vincular a evento</span></button>
               <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="rn.hdr.back">Mis Eventos</span></button>
-              <button class="btn btn-outline btn-sm" data-i18n="rn.hdr.delete" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnDeleteCurrent()">Eliminar rueda</button>
+              <button class="btn btn-danger btn-sm" onclick="evRnDeleteCurrent()"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-x"/></svg> <span data-i18n="rn.hdr.delete">Eliminar rueda</span></button>
             </div>
           </div>
 
@@ -4573,25 +4573,45 @@
           <div class="ev-rn-panel hidden" id="ev-rn-panel-agenda">
             <div class="card" style="margin-bottom:14px;">
               <div class="card-title" data-i18n="rn.agenda.plan_title">Planificar rondas</div>
-              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end;">
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:end;">
                 <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_starts">Inicio</label><input id="ev-rn-plan-starts" type="datetime-local" class="ev-rn-cfg-inp"></div>
                 <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_total">Rondas</label><input id="ev-rn-plan-total" type="number" min="1" max="50" value="10" class="ev-rn-cfg-inp"></div>
-                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakev">Break c/N</label><input id="ev-rn-plan-breakev" type="number" min="0" max="20" value="0" class="ev-rn-cfg-inp"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakcnt"># breaks</label><input id="ev-rn-plan-breakev" type="number" min="0" max="10" value="0" class="ev-rn-cfg-inp"></div>
+                <div><label class="ev-rn-cfg-lbl" data-i18n="rn.agenda.plan_breakmin">Min. break</label><input id="ev-rn-plan-breakmin" type="number" min="1" max="60" value="10" class="ev-rn-cfg-inp"></div>
                 <div style="display:flex;gap:6px;">
                   <button class="btn btn-grad btn-sm" onclick="evRnPlanRounds()" data-i18n="rn.agenda.plan_gen">Generar</button>
                   <button class="btn btn-outline btn-sm" onclick="evRnResetRounds()" data-i18n="rn.agenda.plan_reset" title="Elimina todas las rondas planificadas">Reset</button>
                 </div>
               </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" data-i18n="rn.agenda.plan_hint">Los breaks se distribuyen equidistantes cada N rondas de citas.
+              </div>
               <div id="ev-rn-rounds-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);">—</div>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+              <div class="card-title"><span data-i18n="rn.agenda.zones_title">Zonas</span></div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;" data-i18n="rn.agenda.zones_hint">Opcional. Agrupa mesas por áreas del salón (ej. Lounge, Patio) para orientar a los asistentes en la agenda y callboard.</div>
+              <div style="display:grid;grid-template-columns:2fr 1fr 60px auto;gap:8px;align-items:center;margin-bottom:10px;">
+                <input id="ev-rn-zone-name" type="text" data-i18n-attr="placeholder:rn.agenda.zones_name_ph" placeholder="Nombre de la zona (ej. Lounge)"
+                  style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();evRnAddZone();}">
+                <input id="ev-rn-zone-venue" type="text" data-i18n-attr="placeholder:rn.agenda.zones_venue_ph" placeholder="Ubicación (ej. 2do piso)"
+                  style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
+                <input id="ev-rn-zone-color" type="color" value="#4F46E5" style="width:60px;height:36px;padding:2px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;" title="Color de la zona">
+                <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddZone()" data-i18n="rn.agenda.zones_add">+ Agregar</button>
+              </div>
+              <div id="ev-rn-zones-list" style="font-size:12px;color:var(--text-muted);">—</div>
             </div>
             <div class="card" style="margin-bottom:14px;">
               <div class="card-title">
                 <span data-i18n="rn.agenda.tables_title">Mesas</span>
               </div>
-              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+              <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:center;margin-bottom:10px;">
                 <input id="ev-rn-table-label" type="text" data-i18n-attr="placeholder:rn.agenda.tables_ph" placeholder="Nombre o número de la mesa (ej. Mesa 01, Isla A, Lounge)"
-                  style="flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
+                  style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();evRnAddTable();}">
+                <select id="ev-rn-table-zone" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;">
+                  <option value="" data-i18n="rn.agenda.tables_no_zone">Sin zona</option>
+                </select>
                 <button class="btn btn-grad btn-sm" style="white-space:nowrap;" onclick="evRnAddTable()" data-i18n="rn.agenda.tables_add">+ Agregar</button>
               </div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;" data-i18n="rn.agenda.tables_hint">El nombre aparecerá en la agenda, el callboard y los emails de reunión. Usa algo que los asistentes puedan identificar en el salón.</div>
@@ -10669,7 +10689,7 @@ function evOpenRueda(ev) {
   evRnLoadMeetings();
   evRnLoadConfig();
   evRnLoadRounds();
-  evRnLoadTables();
+  evRnLoadZones(); evRnLoadTables();
   evRnTagsLoad();
   evRnSubscribeSocket(ev.id);
 }
@@ -10829,7 +10849,8 @@ async function evRnPlanRounds() {
   if (!evCurrentEventId) return;
   const starts = document.getElementById('ev-rn-plan-starts').value;
   const total = parseInt(document.getElementById('ev-rn-plan-total').value, 10);
-  const breakEv = parseInt(document.getElementById('ev-rn-plan-breakev').value, 10) || 0;
+  const breakCount = parseInt(document.getElementById('ev-rn-plan-breakev').value, 10) || 0;
+  const breakMin = parseInt(document.getElementById('ev-rn-plan-breakmin').value, 10) || 10;
   const mm = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
   if (!starts) { showStatus('Inicio requerido', 'error'); return; }
   try {
@@ -10839,8 +10860,8 @@ async function evRnPlanRounds() {
         starts_at: new Date(starts).toISOString(),
         meeting_minutes: mm.meeting_duration_minutes || 20,
         total_rounds: total || 10,
-        break_every: breakEv,
-        break_minutes: 10,
+        break_count: breakCount,
+        break_minutes: breakMin,
       })
     });
     const data = await r.json();
@@ -10867,6 +10888,74 @@ async function evRnResetRounds() {
   } catch(_) { showStatus(evRnT('rn.agenda.plan_reset_err','No se pudo resetear'), 'error'); }
 }
 
+let evRnZonesCache = [];
+async function evRnLoadZones() {
+  if (!evCurrentEventId) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/zones`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+    evRnZonesCache = r.ok ? await r.json() : [];
+    const list = document.getElementById('ev-rn-zones-list');
+    if (list) {
+      if (!evRnZonesCache.length) {
+        list.textContent = evRnT('rn.empty.zones','Sin zonas configuradas');
+      } else {
+        list.innerHTML = evRnZonesCache.map(z =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span style="display:inline-flex;align-items:center;gap:8px;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${evRnEscape(z.color_hex||'#4F46E5')};"></span>
+              <span>${evRnEscape(z.name)}</span>
+              ${z.venue_label?'<span style="color:var(--text-muted);font-size:11px;">· '+evRnEscape(z.venue_label)+'</span>':''}
+            </span>
+            <button class="btn btn-outline btn-sm" style="padding:2px 10px;font-size:11px;color:#ef4444;border-color:#ef4444;" onclick="evRnDeleteZone('${z.id}')" title="${evRnT('rn.agenda.zones_delete','Eliminar zona')}">✕</button>
+          </div>`
+        ).join('');
+      }
+    }
+    const sel = document.getElementById('ev-rn-table-zone');
+    if (sel) {
+      const current = sel.value;
+      const none = evRnT('rn.agenda.tables_no_zone','Sin zona');
+      sel.innerHTML = `<option value="">${evRnEscape(none)}</option>` +
+        evRnZonesCache.map(z => `<option value="${z.id}">${evRnEscape(z.name)}</option>`).join('');
+      if (current) sel.value = current;
+    }
+  } catch(_) {}
+}
+async function evRnAddZone() {
+  if (!evCurrentEventId) return;
+  const name = document.getElementById('ev-rn-zone-name').value.trim();
+  const venue = document.getElementById('ev-rn-zone-venue').value.trim();
+  const color = document.getElementById('ev-rn-zone-color').value || '#4F46E5';
+  if (!name) { showStatus(evRnT('rn.agenda.zones_name_req','Nombre requerido'), 'error'); return; }
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/zones`, {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+      body: JSON.stringify({ name, venue_label: venue || null, color_hex: color })
+    });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.zones_add_err','No se pudo crear'), 'error'); return; }
+    document.getElementById('ev-rn-zone-name').value = '';
+    document.getElementById('ev-rn-zone-venue').value = '';
+    evRnLoadZones();
+    showStatus(evRnT('rn.agenda.zones_add_ok','Zona creada'), 'success');
+  } catch(_) { showStatus(evRnT('rn.agenda.zones_add_err','No se pudo crear'), 'error'); }
+}
+async function evRnDeleteZone(id) {
+  if (!evCurrentEventId) return;
+  if (!confirm(evRnT('rn.agenda.zones_delete_confirm','¿Eliminar esta zona? Las mesas de la zona quedarán sin zona asignada.'))) return;
+  try {
+    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/zones/${encodeURIComponent(id)}`, {
+      method:'DELETE', headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) {
+      let msg = evRnT('rn.agenda.zones_delete_err','No se pudo eliminar');
+      try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
+      showStatus(msg, 'error'); return;
+    }
+    evRnLoadZones(); evRnLoadTables();
+    showStatus(evRnT('rn.agenda.zones_delete_ok','Zona eliminada'), 'success');
+  } catch(_) { showStatus(evRnT('rn.agenda.zones_delete_err','No se pudo eliminar'), 'error'); }
+}
+
 async function evRnLoadTables() {
   if (!evCurrentEventId) return;
   try {
@@ -10885,15 +10974,16 @@ async function evRnLoadTables() {
 async function evRnAddTable() {
   if (!evCurrentEventId) return;
   const label = document.getElementById('ev-rn-table-label').value.trim();
+  const zoneId = document.getElementById('ev-rn-table-zone')?.value || null;
   if (!label) { showStatus('Label requerido', 'error'); return; }
   try {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/tables`, {
       method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
-      body: JSON.stringify({ label })
+      body: JSON.stringify({ label, zone_id: zoneId || null })
     });
     if (!r.ok) { const d = await r.json(); showStatus(d.error||'Error', 'error'); return; }
     document.getElementById('ev-rn-table-label').value = '';
-    evRnLoadTables();
+    evRnLoadZones(); evRnLoadTables();
   } catch(_) { showStatus('Error de conexión', 'error'); }
 }
 async function evRnDeleteTable(id) {
@@ -10908,7 +10998,7 @@ async function evRnDeleteTable(id) {
       try { const j = await r.json(); if (j && j.error) msg = j.error; } catch(_){}
       showStatus(msg, 'error'); return;
     }
-    evRnLoadTables();
+    evRnLoadZones(); evRnLoadTables();
     showStatus(evRnT('rn.agenda.tables_delete_ok','Mesa eliminada'), 'success');
   } catch(_) { showStatus(evRnT('rn.agenda.tables_delete_err','No se pudo eliminar'), 'error'); }
 }
@@ -11160,8 +11250,10 @@ function evRnRefreshLinkBtn() {
   if (!btn || !evRnCurrentEvent) return;
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb||k;
   const linked = !!evRnCurrentEvent.parent_event_id;
-  btn.setAttribute('data-i18n', linked ? 'rn.hdr.unlink_parent' : 'rn.hdr.link_parent');
-  btn.textContent = linked ? t('rn.hdr.unlink_parent','Cambiar vínculo') : t('rn.hdr.link_parent','Vincular a evento');
+  const span = btn.querySelector('span');
+  const key = linked ? 'rn.hdr.unlink_parent' : 'rn.hdr.link_parent';
+  const fb = linked ? 'Desvincular de evento' : 'Vincular a evento';
+  if (span) { span.setAttribute('data-i18n', key); span.textContent = t(key, fb); }
 }
 
 function evRnCopyPublicLink() {

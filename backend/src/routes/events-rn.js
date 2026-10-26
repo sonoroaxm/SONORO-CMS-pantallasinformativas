@@ -223,7 +223,7 @@ router.post('/events/:eventId/rounds/plan', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    const { starts_at, meeting_minutes = 20, total_rounds = 10, break_every = 0, break_minutes = 10 } = req.body || {};
+    const { starts_at, meeting_minutes = 20, total_rounds = 10, break_every = 0, break_count = 0, break_minutes = 10 } = req.body || {};
     if (!starts_at) return res.status(400).json({ error: 'starts_at requerido' });
     if (!Number.isInteger(total_rounds) || total_rounds < 1 || total_rounds > 50) {
       return res.status(400).json({ error: 'total_rounds inválido (1..50)' });
@@ -246,6 +246,17 @@ router.post('/events/:eventId/rounds/plan', auth, async (req, res) => {
       if (isNaN(cursor.getTime())) {
         const err = new Error('starts_at inválido'); err.httpStatus = 400; throw err;
       }
+      // Distribución equidistante: break_count prevalece sobre break_every (legacy).
+      // Con break_count=N y total_rounds=T, los breaks se insertan tras las rondas
+      // round(T*k/(N+1)) para k=1..N. Ej: T=10,N=1 → tras ronda 5. T=10,N=2 → tras 3 y 7.
+      const breakAfterSet = new Set();
+      const bc = Number.isInteger(break_count) && break_count > 0 ? break_count : 0;
+      if (bc > 0 && bc < total_rounds) {
+        for (let k = 1; k <= bc; k++) {
+          const pos = Math.round((total_rounds * k) / (bc + 1));
+          if (pos >= 1 && pos < total_rounds) breakAfterSet.add(pos);
+        }
+      }
       let roundNum = 1;
       for (let i = 1; i <= total_rounds; i++) {
         const ends = new Date(cursor.getTime() + meeting_minutes * 60000);
@@ -257,7 +268,9 @@ router.post('/events/:eventId/rounds/plan', auth, async (req, res) => {
         );
         rounds.push(ins.rows[0]);
         cursor = ends;
-        if (break_every > 0 && i < total_rounds && i % break_every === 0) {
+        const insertBreak = breakAfterSet.has(i)
+          || (bc === 0 && break_every > 0 && i < total_rounds && i % break_every === 0);
+        if (insertBreak && i < total_rounds) {
           const brEnds = new Date(cursor.getTime() + break_minutes * 60000);
           const br = await client.query(
             `INSERT INTO events.rn_rounds (event_id, round_number, starts_at, ends_at, kind, label)
