@@ -9656,6 +9656,10 @@ function evShowView(view) {
 
 // Type picker modal (#1 — Evento vs Rueda de Negocios)
 let _evPickerType = 'standard';
+(function(){ document.addEventListener('DOMContentLoaded', function(){
+  const m = document.getElementById('ev-type-picker-modal');
+  if (m && m.parentElement !== document.body) document.body.appendChild(m);
+}); })();
 function evOpenTypePicker() {
   _evPickerType = 'standard';
   const cs = document.getElementById('ev-picker-card-std');
