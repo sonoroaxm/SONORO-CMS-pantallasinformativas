@@ -3412,6 +3412,26 @@
           </div>
 
           <!-- MODAL: Role picker (S208n) -->
+          <!-- MODAL: Parent picker (vincular Rueda a evento) -->
+          <div id="ev-rn-parent-modal" class="modal" onclick="if(event.target.id==='ev-rn-parent-modal') evRnCloseParentPicker()">
+            <div class="modal-content" style="max-width:480px;">
+              <div class="modal-header">
+                <h3 data-i18n="rn.parent.title">Vincular a evento</h3>
+                <button class="modal-close" onclick="evRnCloseParentPicker()">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:12px;">
+                <div style="font-size:12.5px;color:var(--text-muted);" data-i18n="rn.parent.hint">Elige un evento estándar al que vincular esta rueda. La rueda aparecerá anidada bajo el evento en la lista.</div>
+                <select id="ev-rn-parent-select" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:14px;">
+                  <option value="" data-i18n="rn.parent.none">— Sin vincular (standalone) —</option>
+                </select>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="evRnCloseParentPicker()" data-i18n="ev.cancel">Cancelar</button>
+                <button class="btn btn-grad" onclick="evRnConfirmParent()" data-i18n="rn.parent.save">Guardar</button>
+              </div>
+            </div>
+          </div>
+
           <!-- MODAL: Type picker (Evento / Rueda de Negocios) -->
           <div id="ev-type-picker-modal" class="modal" onclick="if(event.target.id==='ev-type-picker-modal') evClosePickerModal()">
             <div class="modal-content" style="max-width:620px;">
@@ -4160,6 +4180,7 @@
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" data-i18n-attr="title:rn.hdr.link_title" title="Copiar link público"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> <span data-i18n="rn.hdr.link">Link</span></button>
+              <button class="btn btn-outline btn-sm" id="ev-rn-link-parent-btn" onclick="evRnOpenParentPicker()" data-i18n="rn.hdr.link_parent">Vincular a evento</button>
               <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="rn.hdr.back">Mis Eventos</span></button>
               <button class="btn btn-outline btn-sm" data-i18n="rn.hdr.delete" style="border-color:rgba(239,68,68,0.4);color:#ef4444;" onclick="evRnDeleteCurrent()">Eliminar rueda</button>
             </div>
@@ -9650,8 +9671,10 @@ function evShowView(view) {
 // Type picker modal (#1 — Evento vs Rueda de Negocios)
 let _evPickerType = 'standard';
 (function(){ document.addEventListener('DOMContentLoaded', function(){
-  const m = document.getElementById('ev-type-picker-modal');
-  if (m && m.parentElement !== document.body) document.body.appendChild(m);
+  ['ev-type-picker-modal','ev-rn-parent-modal'].forEach(id => {
+    const m = document.getElementById(id);
+    if (m && m.parentElement !== document.body) document.body.appendChild(m);
+  });
 }); })();
 function evOpenTypePicker() {
   _evPickerType = 'standard';
@@ -9707,14 +9730,23 @@ function evRenderList() {
     </div>`;
     return;
   }
-  grid.innerHTML = data.map(ev => {
+  // Group RN children under their parents (jerarquía 2 niveles)
+  const childrenByParent = {};
+  data.forEach(ev => {
+    if (ev.parent_event_id) {
+      (childrenByParent[ev.parent_event_id] = childrenByParent[ev.parent_event_id] || []).push(ev);
+    }
+  });
+  const topLevel = data.filter(ev => !ev.parent_event_id);
+  const renderRow = (ev, isChild) => {
     const tz = ev.timezone || 'UTC';
     const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
     const isRN = ev.config && ev.config.event_type === 'matchmaking';
     const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.new_type_rn','Rueda de Negocios')}</span>` : '';
-    return `<div class="card" style="cursor:pointer;" onclick="evOpenDetail('${ev.id}')">
+    const bg = isChild ? 'background:var(--surface2);' : '';
+    return `<div class="card" style="cursor:pointer;${bg}" onclick="evOpenDetail('${ev.id}')">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
         <div style="flex:1;">
           <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${ev.name}${pill}</div>
@@ -9725,6 +9757,14 @@ function evRenderList() {
           <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();evOpenDetail('${ev.id}')">${t('ev.manage')}</button>
         </div>
       </div>
+    </div>`;
+  };
+  grid.innerHTML = topLevel.map(ev => {
+    const kids = childrenByParent[ev.id] || [];
+    if (!kids.length) return renderRow(ev, false);
+    const kidsHtml = kids.map(k => renderRow(k, true)).join('');
+    return `<div>${renderRow(ev, false)}
+      <div style="margin:6px 0 12px 24px;padding-left:16px;border-left:2px dashed var(--border);display:flex;flex-direction:column;gap:8px;">${kidsHtml}</div>
     </div>`;
   }).join('');
 }
@@ -10608,6 +10648,7 @@ function evRnRenderHeader(ev, start, end, mm) {
   };
   const s = statusMap[ev.status] || statusMap.draft;
   pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+  if (typeof evRnRefreshLinkBtn === 'function') evRnRefreshLinkBtn();
 }
 // Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
 document.addEventListener('sonoro:localechange', function(){
@@ -10936,6 +10977,51 @@ async function evRnDeleteCurrent() {
     evLoadList();
     showStatus('Rueda eliminada', 'success');
   } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+
+function evRnOpenParentPicker() {
+  if (!evRnCurrentEvent) return;
+  const sel = document.getElementById('ev-rn-parent-select');
+  if (!sel) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb||k;
+  while (sel.options.length > 1) sel.remove(1);
+  const standards = (evListCache || []).filter(e => !(e.config && e.config.event_type === 'matchmaking'));
+  standards.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id; opt.textContent = e.name;
+    sel.appendChild(opt);
+  });
+  sel.value = evRnCurrentEvent.parent_event_id || '';
+  document.getElementById('ev-rn-parent-modal')?.classList.add('active');
+}
+function evRnCloseParentPicker() {
+  document.getElementById('ev-rn-parent-modal')?.classList.remove('active');
+}
+async function evRnConfirmParent() {
+  if (!evRnCurrentEvent) return;
+  const newParent = document.getElementById('ev-rn-parent-select').value || null;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}/parent`, {
+      method:'PATCH',
+      headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ parent_event_id: newParent })
+    });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok) { showStatus(d.error || 'No se pudo vincular', 'error'); return; }
+    evRnCurrentEvent.parent_event_id = d.parent_event_id || null;
+    evRnCloseParentPicker();
+    evRnRefreshLinkBtn();
+    evLoadList();
+    showStatus(newParent ? 'Rueda vinculada' : 'Rueda desvinculada', 'success');
+  } catch(_) { showStatus('Error de conexión', 'error'); }
+}
+function evRnRefreshLinkBtn() {
+  const btn = document.getElementById('ev-rn-link-parent-btn');
+  if (!btn || !evRnCurrentEvent) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb||k;
+  const linked = !!evRnCurrentEvent.parent_event_id;
+  btn.setAttribute('data-i18n', linked ? 'rn.hdr.unlink_parent' : 'rn.hdr.link_parent');
+  btn.textContent = linked ? t('rn.hdr.unlink_parent','Cambiar vínculo') : t('rn.hdr.link_parent','Vincular a evento');
 }
 
 function evRnCopyPublicLink() {

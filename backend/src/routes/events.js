@@ -90,6 +90,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const q = `SELECT e.id, e.name, e.slug, e.status, e.starts_at, e.ends_at, e.timezone,
                       e.venue_name, e.cover_image_url, e.created_at,
+                      e.config, e.parent_event_id,
                       COUNT(r.id) FILTER (WHERE r.status != 'cancelled') AS registration_count
                FROM events.events e
                LEFT JOIN events.registrations r ON r.event_id = e.id
@@ -491,6 +492,44 @@ router.patch('/:id', auth, async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error('❌ PATCH /api/events/:id:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── VINCULAR / DESVINCULAR RUEDA A EVENTO PADRE (E-RN-9c #4/5) ───────────────
+router.patch('/:id/parent', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const childId = req.params.id;
+  const parentId = req.body.parent_event_id || null;
+  try {
+    const child = await pool.query(
+      `SELECT id, user_id, config FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+      isAdmin ? [childId] : [childId, req.user.id]
+    );
+    if (!child.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const isRN = child.rows[0].config && child.rows[0].config.event_type === 'matchmaking';
+    if (!isRN) return res.status(400).json({ error: 'Solo las ruedas de negocios pueden vincularse a un evento padre' });
+
+    if (parentId) {
+      if (parentId === childId) return res.status(400).json({ error: 'Un evento no puede ser su propio padre' });
+      const parent = await pool.query(
+        `SELECT id, user_id, config, parent_event_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+        isAdmin ? [parentId] : [parentId, req.user.id]
+      );
+      if (!parent.rows[0]) return res.status(404).json({ error: 'Evento padre no encontrado' });
+      const parentIsRN = parent.rows[0].config && parent.rows[0].config.event_type === 'matchmaking';
+      if (parentIsRN) return res.status(400).json({ error: 'El padre debe ser un evento estándar, no una rueda' });
+      if (parent.rows[0].parent_event_id) return res.status(400).json({ error: 'Jerarquía máxima: 2 niveles' });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE events.events SET parent_event_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [parentId, childId]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('❌ PATCH /api/events/:id/parent:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
