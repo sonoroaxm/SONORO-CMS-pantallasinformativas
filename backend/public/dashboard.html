@@ -10526,19 +10526,7 @@ function evOpenRueda(ev) {
   const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
   const mm = (ev.config && ev.config.matchmaking) || {};
-  document.getElementById('ev-rn-title').textContent = ev.name;
-  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · ${evRnT('rn.hdr.sub_mode','modo')}: ${mm.matching_mode || 'tags'} · ${evRnT('rn.hdr.sub_zone','zona')}: ${mm.zone_mode || 'classic'}`;
-  // Status pill
-  const pill = document.getElementById('ev-rn-status-pill');
-  const statusMap = {
-    draft:     { label:evRnT('rn.hdr.status_draft','Borrador'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
-    published: { label:evRnT('rn.hdr.status_published','Publicada'),bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
-    live:      { label:evRnT('rn.hdr.status_live','En curso'),      bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
-    closed:    { label:evRnT('rn.hdr.status_closed','Cerrada'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
-    archived:  { label:evRnT('rn.hdr.status_archived','Archivada'), bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
-  };
-  const s = statusMap[ev.status] || statusMap.draft;
-  pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+  evRnRenderHeader(ev, start, end, mm);
 
   document.getElementById('ev-rn-stats').textContent = '';
   document.getElementById('ev-rn-meetings-tbody').innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.loading','Cargando…')}</td></tr>`;
@@ -10555,11 +10543,33 @@ function evOpenRueda(ev) {
 
 // ── E-RN-7b-2 wizard setup helpers ──────────────────────────────
 function evRnT(k, fb) { return (window.SonoroI18n && window.SonoroI18n.t) ? window.SonoroI18n.t(k, fb) : fb; }
+function evRnRenderHeader(ev, start, end, mm) {
+  if (!ev) return;
+  if (start == null || end == null) {
+    const tz = ev.timezone || 'UTC';
+    start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
+    mm = (ev.config && ev.config.matchmaking) || {};
+  }
+  document.getElementById('ev-rn-title').textContent = ev.name;
+  document.getElementById('ev-rn-sub').textContent = `${ev.venue_name ? ev.venue_name + ' · ' : ''}${start} — ${end} · ${evRnT('rn.hdr.sub_mode','modo')}: ${mm.matching_mode || 'tags'} · ${evRnT('rn.hdr.sub_zone','zona')}: ${mm.zone_mode || 'classic'}`;
+  const pill = document.getElementById('ev-rn-status-pill');
+  const statusMap = {
+    draft:     { label:evRnT('rn.hdr.status_draft','Borrador'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    published: { label:evRnT('rn.hdr.status_published','Publicada'),bg:'rgba(34,197,94,0.14)',   fg:'#22c55e' },
+    live:      { label:evRnT('rn.hdr.status_live','En curso'),      bg:'rgba(255,27,141,0.14)',  fg:'#FF1B8D' },
+    closed:    { label:evRnT('rn.hdr.status_closed','Cerrada'),     bg:'rgba(107,114,128,0.14)', fg:'#9ca3af' },
+    archived:  { label:evRnT('rn.hdr.status_archived','Archivada'), bg:'rgba(107,114,128,0.14)', fg:'#6b7280' },
+  };
+  const s = statusMap[ev.status] || statusMap.draft;
+  pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+}
 // Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
 document.addEventListener('sonoro:localechange', function(){
   try {
     var view = document.getElementById('ev-rueda-detail-view');
     if (!view || view.classList.contains('hidden')) return;
+    if (evRnCurrentEvent) evRnRenderHeader(evRnCurrentEvent);
     if (typeof evRnLiveRender === 'function' && typeof evRnLiveCache !== 'undefined' && evRnLiveCache) evRnLiveRender();
     if (typeof evRnDirRender === 'function') evRnDirRender();
     if (typeof evRnReportRender === 'function' && typeof evRnReportCache !== 'undefined' && evRnReportCache) evRnReportRender();
