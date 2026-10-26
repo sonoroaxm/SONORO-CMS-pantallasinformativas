@@ -95,6 +95,13 @@
   .modal textarea:focus{outline:none;border-color:var(--magenta)}
   .empty{text-align:center;padding:40px 20px;color:var(--mute);font-size:13px}
   .footer{text-align:center;color:var(--mute);font-size:11px;margin-top:20px}
+  .ac-drop{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;max-height:200px;overflow:auto;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.3);display:none}
+  .ac-drop.on{display:block}
+  .ac-item{padding:9px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;color:var(--text)}
+  .ac-item:hover{background:var(--card2);color:var(--magenta)}
+  .ac-item .cat{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.4px}
+  .ac-item.empty{color:var(--mute);cursor:default;font-style:italic}
+  .ac-item.empty:hover{background:transparent;color:var(--mute)}
 </style>
 </head>
 <body>
@@ -146,16 +153,36 @@
 
     <div class="tab active" data-tab="tags">
     <div class="card" id="tagsCard" style="display:none">
-      <p class="section-title" data-i18n-es="Mis servicios · Qué ofrezco y qué busco" data-i18n-en="My services · What I offer and look for" data-i18n-pt="Meus serviços · O que ofereço e busco">Mis servicios · Qué ofrezco y qué busco</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">
+        <p class="section-title" style="margin:0" data-i18n-es="Mis servicios · Qué ofrezco y qué busco" data-i18n-en="My services · What I offer and look for" data-i18n-pt="Meus serviços · O que ofereço e busco">Mis servicios · Qué ofrezco y qué busco</p>
+        <button class="btn ghost" id="btnEditTags" onclick="toggleEditTags()" style="padding:6px 12px;font-size:12px" data-i18n-es="Editar" data-i18n-en="Edit" data-i18n-pt="Editar">Editar</button>
+      </div>
+      <div class="ro-note" id="editHint" data-i18n-es="Cambiar tus tags re-dispara el matcher. Las reuniones solicitadas manualmente no se afectan." data-i18n-en="Changing tags re-runs the matcher. Manually requested meetings are not affected." data-i18n-pt="Alterar tags reexecuta o matcher. Reuniões solicitadas manualmente não são afetadas.">Cambiar tus tags re-dispara el matcher. Las reuniones solicitadas manualmente no se afectan.</div>
+
       <label data-i18n-es="Lo que ofrezco" data-i18n-en="What I offer" data-i18n-pt="O que eu ofereço">Lo que ofrezco</label>
-      <select id="selOffer" onchange="tagAdd('offer', this)"><option value=""></option></select>
       <div class="chips" id="chipsOffer"></div>
+      <div class="ac" id="acOffer" style="display:none;position:relative;margin-top:6px">
+        <input type="text" id="acOfferInput" oninput="acFilter('offer')" onfocus="acFilter('offer')" placeholder="Agregar tag…" data-ph-es="Agregar tag…" data-ph-en="Add tag…" data-ph-pt="Adicionar tag…">
+        <div class="ac-drop" id="acOfferDrop"></div>
+      </div>
+
       <label data-i18n-es="Lo que busco" data-i18n-en="What I need" data-i18n-pt="O que eu procuro">Lo que busco</label>
-      <select id="selDemand" onchange="tagAdd('demand', this)"><option value=""></option></select>
       <div class="chips" id="chipsDemand"></div>
+      <div class="ac" id="acDemand" style="display:none;position:relative;margin-top:6px">
+        <input type="text" id="acDemandInput" oninput="acFilter('demand')" onfocus="acFilter('demand')" placeholder="Agregar tag…" data-ph-es="Agregar tag…" data-ph-en="Add tag…" data-ph-pt="Adicionar tag…">
+        <div class="ac-drop" id="acDemandDrop"></div>
+      </div>
+
       <div class="ro-note" id="roNote" style="display:none" data-i18n-es="Solo lectura. Para editar, usa el link del delegado primario." data-i18n-en="Read-only. Primary delegate must edit." data-i18n-pt="Somente leitura.">Solo lectura. Para editar, usa el link del delegado primario.</div>
-      <div class="row">
-        <button class="btn" id="btnSave" onclick="saveTags()" data-i18n-es="Guardar tags" data-i18n-en="Save tags" data-i18n-pt="Salvar tags">Guardar tags</button>
+
+      <div id="tagsImpact" style="display:none;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.35);border-radius:10px;padding:10px 12px;font-size:12px;color:#d97706;margin-top:12px;line-height:1.5">
+        <strong style="display:block;color:var(--text);margin-bottom:3px" data-i18n-es="Antes de guardar" data-i18n-en="Before saving" data-i18n-pt="Antes de salvar">Antes de guardar</strong>
+        <span data-i18n-es="Al cambiar tus tags, el productor re-calculará reuniones del matcher. Tus reuniones solicitadas manualmente permanecen." data-i18n-en="Changing tags, the organizer re-runs matcher meetings. Manually requested meetings remain." data-i18n-pt="Ao alterar tags, o organizador recalculará reuniões do matcher. Reuniões solicitadas manualmente permanecem.">Al cambiar tus tags, el productor re-calculará reuniones del matcher. Tus reuniones solicitadas manualmente permanecen.</span>
+      </div>
+
+      <div class="row" id="tagsActions" style="display:none">
+        <button class="btn ghost" onclick="cancelEditTags()" data-i18n-es="Cancelar" data-i18n-en="Cancel" data-i18n-pt="Cancelar">Cancelar</button>
+        <button class="btn" id="btnSave" onclick="saveTags()" data-i18n-es="Guardar y re-matchear" data-i18n-en="Save and re-match" data-i18n-pt="Salvar e re-matchear">Guardar y re-matchear</button>
       </div>
     </div>
 
@@ -326,6 +353,9 @@ async function load(){
 }
 function fail(){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; }
 
+let mineSnapshot = { offer:[], demand:[] };
+let editingTags = false;
+
 async function loadTags(){
   try {
     const r = await fetch('/api/rn/public/delegates/me/tags?token=' + encodeURIComponent(token));
@@ -338,36 +368,88 @@ async function loadTags(){
     if (!availableTags.length) return;
     document.getElementById('tagsCard').style.display='block';
     if (!canEdit){
-      document.getElementById('selOffer').disabled = true;
-      document.getElementById('selDemand').disabled = true;
-      document.getElementById('btnSave').style.display = 'none';
+      document.getElementById('btnEditTags').style.display = 'none';
+      document.getElementById('editHint').style.display = 'none';
       document.getElementById('roNote').style.display = 'block';
     }
-    fillSelects();
     renderChips('offer'); renderChips('demand');
   } catch(e){}
 }
-function fillSelects(){
-  const empty = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>';
-  const opts = availableTags.map(t=>'<option value="'+t.id+'">'+esc(t.label)+(t.category?' · '+esc(t.category):'')+'</option>').join('');
-  document.getElementById('selOffer').innerHTML = empty + opts;
-  document.getElementById('selDemand').innerHTML = empty + opts;
+function toggleEditTags(){
+  if (!canEdit) return;
+  editingTags = !editingTags;
+  if (editingTags) {
+    mineSnapshot = { offer:[...mine.offer], demand:[...mine.demand] };
+  }
+  applyEditState();
 }
-function tagAdd(kind, sel){
-  if (!canEdit) { sel.value=''; return; }
-  const id = sel.value; if (!id) return;
-  if (mine[kind].includes(id)) { sel.value=''; return; }
-  mine[kind].push(id); renderChips(kind); sel.value='';
+function cancelEditTags(){
+  mine = { offer:[...mineSnapshot.offer], demand:[...mineSnapshot.demand] };
+  editingTags = false;
+  applyEditState();
+  renderChips('offer'); renderChips('demand');
 }
-function tagRemove(kind, id){ if (!canEdit) return; mine[kind] = mine[kind].filter(x=>x!==id); renderChips(kind); }
+function applyEditState(){
+  const btn = document.getElementById('btnEditTags');
+  btn.textContent = editingTags
+    ? (LANG==='en'?'Cancel':LANG==='pt'?'Cancelar':'Cancelar')
+    : (LANG==='en'?'Edit':LANG==='pt'?'Editar':'Editar');
+  document.getElementById('acOffer').style.display = editingTags ? 'block' : 'none';
+  document.getElementById('acDemand').style.display = editingTags ? 'block' : 'none';
+  document.getElementById('tagsImpact').style.display = editingTags ? 'block' : 'none';
+  document.getElementById('tagsActions').style.display = editingTags ? 'flex' : 'none';
+  renderChips('offer'); renderChips('demand');
+  if (!editingTags) {
+    document.getElementById('acOfferDrop').classList.remove('on');
+    document.getElementById('acDemandDrop').classList.remove('on');
+  }
+}
+function acFilter(kind){
+  const input = document.getElementById(kind==='offer'?'acOfferInput':'acDemandInput');
+  const drop  = document.getElementById(kind==='offer'?'acOfferDrop':'acDemandDrop');
+  const q = (input.value || '').trim().toLowerCase();
+  const used = new Set(mine[kind]);
+  const matches = availableTags.filter(t => !used.has(t.id) && (!q || t.label.toLowerCase().includes(q) || (t.category||'').toLowerCase().includes(q))).slice(0, 30);
+  if (!matches.length) {
+    const msg = q ? (LANG==='en'?'No matches':LANG==='pt'?'Sem resultados':'Sin resultados') : (LANG==='en'?'All added':LANG==='pt'?'Todos adicionados':'Todos agregados');
+    drop.innerHTML = '<div class="ac-item empty">'+esc(msg)+'</div>';
+  } else {
+    drop.innerHTML = matches.map(t =>
+      '<div class="ac-item" onclick="tagPick(\''+kind+'\',\''+t.id+'\')"><span>'+esc(t.label)+'</span>'+(t.category?'<span class="cat">'+esc(t.category)+'</span>':'')+'</div>'
+    ).join('');
+  }
+  drop.classList.add('on');
+}
+function tagPick(kind, id){
+  if (!editingTags) return;
+  if (!mine[kind].includes(id)) mine[kind].push(id);
+  const input = document.getElementById(kind==='offer'?'acOfferInput':'acDemandInput');
+  input.value = '';
+  renderChips(kind);
+  acFilter(kind);
+  input.focus();
+}
+function tagRemove(kind, id){ if (!editingTags) return; mine[kind] = mine[kind].filter(x=>x!==id); renderChips(kind); }
 function renderChips(kind){
   const c = document.getElementById(kind==='offer'?'chipsOffer':'chipsDemand');
   c.innerHTML = mine[kind].map(id=>{
     const t = availableTags.find(x=>x.id===id); if (!t) return '';
-    const x = canEdit ? ' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button>' : '';
+    const x = editingTags ? ' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button>' : '';
     return '<span class="chip '+kind+'">'+esc(t.label)+x+'</span>';
   }).join('');
+  if (!mine[kind].length) {
+    const msg = LANG==='en'?'No tags yet':LANG==='pt'?'Sem tags':'Sin tags';
+    c.innerHTML = '<span style="color:var(--mute);font-size:12px;padding:4px 6px">'+msg+'</span>';
+  }
 }
+document.addEventListener('click', e => {
+  if (!editingTags) return;
+  const inAc = e.target.closest('#acOffer') || e.target.closest('#acDemand');
+  if (!inAc) {
+    document.getElementById('acOfferDrop').classList.remove('on');
+    document.getElementById('acDemandDrop').classList.remove('on');
+  }
+});
 async function saveTags(){
   const btn = document.getElementById('btnSave'); btn.disabled = true;
   try {
@@ -378,6 +460,9 @@ async function saveTags(){
     const data = await r.json();
     if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
     alertBox(LANG==='en'?'Tags saved':LANG==='pt'?'Tags salvos':'Tags guardados', 'ok');
+    mineSnapshot = { offer:[...mine.offer], demand:[...mine.demand] };
+    editingTags = false;
+    applyEditState();
   } catch(e){ alertBox('Network error', 'err'); }
   finally { btn.disabled = false; }
 }
