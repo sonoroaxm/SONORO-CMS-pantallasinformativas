@@ -186,6 +186,21 @@
       </div>
     </div>
 
+      <!-- S211w — Visibilidad en directorio público -->
+      <div style="margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1 1 240px;min-width:200px">
+          <div style="font-weight:600;font-size:13px" data-i18n-es="Visible en el directorio" data-i18n-en="Visible in directory" data-i18n-pt="Visível no diretório">Visible en el directorio</div>
+          <div style="font-size:11px;color:var(--mute);margin-top:3px" data-i18n-es="Si lo desactivas, tu empresa deja de aparecer en el listado público, pero tus citas existentes se mantienen." data-i18n-en="If disabled, your company won't appear in the public listing, but existing meetings remain." data-i18n-pt="Se desativar, sua empresa deixa de aparecer no listado público, mas as reuniões existentes permanecem.">Si lo desactivas, tu empresa deja de aparecer en el listado público, pero tus citas existentes se mantienen.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span id="visibilityFeedback" style="font-size:11px;color:#22c55e;font-weight:600;opacity:0;transition:opacity .2s"></span>
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer" id="visibilityToggleWrap">
+            <input type="checkbox" id="chkVisibility" onchange="toggleVisibility()" />
+            <span id="visibilityState" data-i18n-es="Visible" data-i18n-en="Visible" data-i18n-pt="Visível">Visible</span>
+          </label>
+        </div>
+      </div>
+
     </div><!-- /tab tags -->
 
     <div class="tab" data-tab="directory">
@@ -349,7 +364,59 @@ async function load(){
     document.getElementById('evName').textContent = ctx.event.name;
     document.getElementById('delName').textContent = ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
     await loadTags();
+    // S211w — Visibility toggle (solo primario)
+    try {
+      const chk = document.getElementById('chkVisibility');
+      const wrap = document.getElementById('visibilityToggleWrap');
+      if (ctx.delegate && ctx.delegate.is_primary) {
+        chk.checked = ctx.delegate.visible_in_directory !== false;
+        refreshVisibilityLabel();
+      } else if (wrap) {
+        wrap.style.display = 'none';
+      }
+    } catch(_){}
   } catch(e){ fail(); }
+}
+function refreshVisibilityLabel(){
+  const chk = document.getElementById('chkVisibility');
+  const lbl = document.getElementById('visibilityState');
+  if (!chk || !lbl) return;
+  if (chk.checked) {
+    lbl.textContent = LANG==='en'?'Visible':LANG==='pt'?'Visível':'Visible';
+  } else {
+    lbl.textContent = LANG==='en'?'Hidden':LANG==='pt'?'Oculto':'Oculta';
+  }
+}
+async function toggleVisibility(){
+  const chk = document.getElementById('chkVisibility');
+  if (!chk) return;
+  const desired = !!chk.checked;
+  chk.disabled = true;
+  try {
+    const r = await fetch('/api/rn/public/delegates/me/visibility?token=' + encodeURIComponent(token), {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ visible: desired }),
+    });
+    if (!r.ok) throw new Error('http');
+    refreshVisibilityLabel();
+    const fb = document.getElementById('visibilityFeedback');
+    if (fb) {
+      fb.textContent = desired
+        ? (LANG==='en'?'✓ Now visible in directory':LANG==='pt'?'✓ Agora visível no diretório':'✓ Ahora visible en el directorio')
+        : (LANG==='en'?'✓ Hidden from directory':LANG==='pt'?'✓ Oculto do diretório':'✓ Oculta del directorio');
+      fb.style.color = desired ? '#22c55e' : '#d97706';
+      fb.style.opacity = '1';
+      clearTimeout(window.__visFbTimer);
+      window.__visFbTimer = setTimeout(()=>{ fb.style.opacity = '0'; }, 2500);
+    }
+  } catch(_){
+    chk.checked = !desired;
+    refreshVisibilityLabel();
+    alert(LANG==='en'?'Could not update visibility':LANG==='pt'?'Não foi possível atualizar':'No se pudo actualizar la visibilidad');
+  } finally {
+    chk.disabled = false;
+  }
 }
 function fail(){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; }
 

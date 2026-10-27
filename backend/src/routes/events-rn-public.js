@@ -59,6 +59,7 @@ async function resolveToken(pool, token) {
             d.can_manage_team,
             d.accepted_at,
             d.locale           AS delegate_locale,
+            d.visible_in_directory,
             r.event_id,
             r.user_id,
             e.name             AS event_name,
@@ -442,6 +443,7 @@ router.get('/delegates/me', rnReadLimiter, async (req, res) => {
         can_manage_team: ctx.can_manage_team,
         accepted_at: ctx.accepted_at,
         locale: ctx.delegate_locale,
+        visible_in_directory: ctx.visible_in_directory !== false,
       },
       event: {
         name: ctx.event_name,
@@ -535,6 +537,34 @@ router.put('/delegates/me/tags', rnTokenMutationLimiter, async (req, res) => {
     console.log(`[rn-public] tags updated event=${ctx.event_slug} delegate=${ctx.delegate_email} offer=${validOffer.length} demand=${validDemand.length}`);
     res.json({ ok: true, offer: validOffer, demand: validDemand });
   } catch (err) { handleError(res, err, 'PUT /me/tags'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// S211w · Visibility en directorio público (modo privado — ≠ opt_out)
+// PATCH /api/rn/public/delegates/me/visibility?token=<agenda_token>  body: { visible:boolean }
+// Solo delegado primario. Oculta a la empresa del listado /directory sin cancelar registro.
+// ──────────────────────────────────────────────────────────────────────────────
+router.patch('/delegates/me/visibility', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!ctx.is_primary) return res.status(403).json({ error: 'Solo el delegado primario puede cambiar la visibilidad' });
+    const visible = !!(req.body && req.body.visible);
+    await pool.query(
+      `UPDATE events.rn_delegates
+          SET visible_in_directory = $1
+        WHERE registration_id = $2 AND is_primary = TRUE`,
+      [visible, ctx.registration_id]
+    );
+    try {
+      const io = global.io;
+      if (io) io.to(`event_${ctx.event_id}`).emit('rn.visibility_updated', {
+        registration_id: ctx.registration_id, visible,
+      });
+    } catch(_){}
+    console.log(`[rn-public] visibility event=${ctx.event_slug} reg=${ctx.registration_id} visible=${visible}`);
+    res.json({ ok: true, visible });
+  } catch (err) { handleError(res, err, 'PATCH /me/visibility'); }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -708,6 +738,14 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
     if (eventVis === 'mixed') {
       where += ` AND (r.custom_fields->>'rn_visibility') = 'public'`;
     }
+
+    // S211w — Visibility: ocultar empresas cuyo delegado primario marcó visible_in_directory=FALSE
+    where += ` AND EXISTS (
+      SELECT 1 FROM events.rn_delegates d
+      WHERE d.registration_id = r.id
+        AND d.is_primary = TRUE
+        AND d.visible_in_directory = TRUE
+    )`;
 
     // Blocklist bidireccional — oculta ambos lados
     where += ` AND NOT EXISTS (
