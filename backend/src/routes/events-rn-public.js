@@ -1102,6 +1102,7 @@ router.get('/callboard/:eventSlug/:zoneSlug?', rnReadLimiter, async (req, res) =
 
     res.json({
       event: {
+        id: event.id,
         name: event.name,
         slug: event.slug,
         status: event.status,

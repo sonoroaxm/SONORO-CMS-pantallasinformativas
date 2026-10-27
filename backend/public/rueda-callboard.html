@@ -185,7 +185,7 @@
     <a href="/" class="brand-logo">SONORO <span>CMS</span></a>
     <div class="ev-info">
       <div class="ev-kicker" data-i18n="kicker">Rueda de Negocios</div>
-      <h1 class="ev-title">Macrorrueda AgroExport 2026 · Hotel Tequendama</h1>
+      <h1 class="ev-title" id="evTitle">—</h1>
     </div>
   </div>
   <div class="top-r">
@@ -197,7 +197,7 @@
       <svg class="ico-moon" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23Z"/></svg>
       <svg class="ico-sun" width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg>
     </button>
-    <div class="wall-clock">11:42</div>
+    <div class="wall-clock" id="wallClock">—</div>
   </div>
 </header>
 
@@ -207,37 +207,40 @@
   <!-- State pill -->
   <div class="state-row">
     <span class="dot"></span>
-    <span class="s-label" data-i18n="state">Ronda en curso</span>
-    <span class="s-round"><span data-i18n="round">Ronda</span> <b>4</b> <span data-i18n="of">de</span> <b>8</b></span>
+    <span class="s-label" id="stateLabel" data-i18n="noRound">Sin ronda abierta</span>
+    <span class="s-round" id="roundInfo" style="display:none"><span data-i18n="round">Ronda</span> <b id="roundNum">—</b> <span data-i18n="of">de</span> <b id="roundTotal">—</b></span>
   </div>
 
   <!-- Monumental timer -->
-  <div class="timer">
+  <div class="timer" id="timerBox" style="display:none">
     <div class="t-label" data-i18n="endsIn">Termina en</div>
-    <span class="t-time">07:24</span>
+    <span class="t-time" id="timerTime">—</span>
   </div>
 
   <!-- Progress bar -->
-  <div class="progress-wrap">
+  <div class="progress-wrap" id="progressWrap" style="display:none">
     <div class="progress-meta">
-      <span class="pm-l"><span data-i18n="start">Inicio</span> · 11:35</span>
-      <span class="pm-c">4:36 <span data-i18n="progOf">de</span> 12:00 min</span>
-      <span class="pm-r"><span data-i18n="end">Fin</span> · 11:47</span>
+      <span class="pm-l"><span data-i18n="start">Inicio</span> · <span id="pmStart">—</span></span>
+      <span class="pm-c"><span id="pmElapsed">—</span> <span data-i18n="progOf">de</span> <span id="pmTotal">—</span> min</span>
+      <span class="pm-r"><span data-i18n="end">Fin</span> · <span id="pmEnd">—</span></span>
     </div>
     <div class="progress">
-      <div class="progress-fill" style="width:38%"></div>
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
     </div>
   </div>
 
   <!-- Next up -->
-  <div class="next">
+  <div class="next" id="nextBox" style="display:none">
     <span class="n-label" data-i18n="next">Siguiente</span>
     <span class="n-divider"></span>
-    <span class="n-text">
-      <svg width="18" height="18" viewBox="0 0 256 256" fill="currentColor"><path d="M232,96a16,16,0,0,0-16-16H56A16,16,0,0,0,40,96v24a88.08,88.08,0,0,0,80,87.63V216H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16H136V207.63a88.26,88.26,0,0,0,69.9-57.63H208a24,24,0,0,0,24-24ZM120,191.52A72.09,72.09,0,0,1,56,120V96H200v24A72.09,72.09,0,0,1,136,191.52ZM208,134h-.73a89,89,0,0,0,.73-14V96h8v30A8,8,0,0,1,208,134Z"/></svg>
-      <span data-i18n="coffee">Coffee break</span>
-    </span>
-    <span class="n-chip">10 min · 11:49</span>
+    <span class="n-text" id="nextText">—</span>
+    <span class="n-chip" id="nextChip">—</span>
+  </div>
+
+  <!-- Meetings grid (zona u overview) -->
+  <div class="meetings" id="meetingsBox" style="display:none;margin-top:24px;">
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--mute);margin-bottom:10px;" id="meetingsTitle">Reuniones en curso</div>
+    <div id="meetingsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;"></div>
   </div>
 
 </section>
@@ -274,7 +277,7 @@
     </div>
     <div class="foot-txt">
       <div class="foot-kicker" data-i18n="footKicker">Tu agenda personal</div>
-      <div class="foot-url">cms.sonoro.com.co/rueda/agroexport</div>
+      <div class="foot-url" id="footUrl">—</div>
       <div class="foot-sub" data-i18n="footSub">Escanea el QR o abre el enlace en tu celular</div>
     </div>
   </div>
@@ -287,9 +290,9 @@
 (function(){
   // ===== i18n dictionary =====
   const DICT = {
-    es: { kicker:'Rueda de Negocios', state:'Ronda en curso', round:'Ronda', of:'de', endsIn:'Termina en', start:'Inicio', progOf:'de', end:'Fin', next:'Siguiente', coffee:'Coffee break', footKicker:'Tu agenda personal', footSub:'Escanea el QR o abre el enlace en tu celular', live:'En vivo', themeLabel:'Claro / Oscuro' },
-    en: { kicker:'Business Matchmaking', state:'Round in progress', round:'Round', of:'of', endsIn:'Ends in', start:'Start', progOf:'of', end:'End', next:'Next', coffee:'Coffee break', footKicker:'Your personal agenda', footSub:'Scan the QR or open the link on your phone', live:'Live', themeLabel:'Light / Dark' },
-    pt: { kicker:'Rodada de Negócios', state:'Rodada em curso', round:'Rodada', of:'de', endsIn:'Termina em', start:'Início', progOf:'de', end:'Fim', next:'Próximo', coffee:'Coffee break', footKicker:'Sua agenda pessoal', footSub:'Escaneie o QR ou abra o link no seu celular', live:'Ao vivo', themeLabel:'Claro / Escuro' }
+    es: { kicker:'Rueda de Negocios', state:'Ronda en curso', noRound:'Esperando próxima ronda', round:'Ronda', of:'de', endsIn:'Termina en', start:'Inicio', progOf:'de', end:'Fin', next:'Siguiente', nextRound:'Siguiente ronda', meetings:'Reuniones en curso', empty:'Mesa libre', footKicker:'Tu agenda personal', footSub:'Escanea el QR o abre el enlace en tu celular', live:'En vivo', themeLabel:'Claro / Oscuro' },
+    en: { kicker:'Business Matchmaking', state:'Round in progress', noRound:'Waiting for next round', round:'Round', of:'of', endsIn:'Ends in', start:'Start', progOf:'of', end:'End', next:'Next', nextRound:'Next round', meetings:'Meetings in progress', empty:'Table available', footKicker:'Your personal agenda', footSub:'Scan the QR or open the link on your phone', live:'Live', themeLabel:'Light / Dark' },
+    pt: { kicker:'Rodada de Negócios', state:'Rodada em curso', noRound:'Aguardando próxima rodada', round:'Rodada', of:'de', endsIn:'Termina em', start:'Início', progOf:'de', end:'Fim', next:'Próximo', nextRound:'Próxima rodada', meetings:'Reuniões em curso', empty:'Mesa livre', footKicker:'Sua agenda pessoal', footSub:'Escaneie o QR ou abra o link no seu celular', live:'Ao vivo', themeLabel:'Claro / Escuro' }
   };
   const FLAGS = {
     es: '<svg viewBox="0 0 6 4" width="16" height="11" aria-hidden="true"><rect width="6" height="2" fill="#FCD116"/><rect y="2" width="6" height="1" fill="#003893"/><rect y="3" width="6" height="1" fill="#CE1126"/></svg>',
@@ -338,8 +341,142 @@
   // ===== Init + rotation =====
   applyLang('es');
   setInterval(rotate, 10000);
+
+  // ===== Wiring: fetch + poll + socket + timer =====
+  const PATH = window.location.pathname.split('/').filter(Boolean);
+  // /rueda/callboard/<slug>[/<zoneSlug>]
+  const SLUG = PATH[2] || '';
+  const ZONE = PATH[3] || '';
+  const API_URL = `/api/rn/public/callboard/${encodeURIComponent(SLUG)}${ZONE ? '/' + encodeURIComponent(ZONE) : ''}`;
+  let EVENT_TZ = 'America/Bogota';
+  let EVENT_ID = null;
+  let TIMER = null; // {starts, ends}
+
+  function fmtHHMM(d){
+    try { return new Intl.DateTimeFormat('es-CO',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:EVENT_TZ}).format(d); }
+    catch(_){ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+  }
+  function fmtMMSS(sec){
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec/60), s = sec%60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function tickClock(){
+    document.getElementById('wallClock').textContent = fmtHHMM(new Date());
+  }
+  function tickTimer(){
+    if (!TIMER) return;
+    const now = Date.now();
+    const total = TIMER.ends - TIMER.starts;
+    const remaining = Math.max(0, TIMER.ends - now);
+    const elapsed = Math.max(0, now - TIMER.starts);
+    document.getElementById('timerTime').textContent = fmtMMSS(remaining/1000);
+    const pct = total > 0 ? Math.min(100, Math.max(0, (elapsed/total)*100)) : 0;
+    document.getElementById('progressFill').style.width = pct.toFixed(1) + '%';
+    document.getElementById('pmElapsed').textContent = fmtMMSS(elapsed/1000);
+  }
+
+  async function loadBoard(){
+    try {
+      const r = await fetch(API_URL, { cache:'no-store' });
+      if (!r.ok) return;
+      const data = await r.json();
+      EVENT_TZ = (data.event && data.event.timezone) || EVENT_TZ;
+      const prevId = EVENT_ID;
+      EVENT_ID = (data.event && data.event.id) || EVENT_ID;
+      document.getElementById('evTitle').textContent = (data.event && data.event.name) || '—';
+      document.getElementById('footUrl').textContent = `${window.location.host}/rueda/${data.event.slug}/register`;
+
+      const d = DICT[LANGS[idx]];
+      if (data.round && data.round.current) {
+        document.getElementById('stateLabel').textContent = d.state;
+        document.getElementById('roundInfo').style.display = '';
+        document.getElementById('roundNum').textContent = data.round.current.number;
+        document.getElementById('roundTotal').textContent = data.round.total_estimated || '—';
+        if (data.round.timer) {
+          TIMER = {
+            starts: new Date(data.round.timer.starts_at).getTime(),
+            ends:   new Date(data.round.timer.ends_at).getTime(),
+          };
+          document.getElementById('timerBox').style.display = '';
+          document.getElementById('progressWrap').style.display = '';
+          document.getElementById('pmStart').textContent = fmtHHMM(new Date(TIMER.starts));
+          document.getElementById('pmEnd').textContent   = fmtHHMM(new Date(TIMER.ends));
+          document.getElementById('pmTotal').textContent = Math.round((TIMER.ends - TIMER.starts)/60000);
+          tickTimer();
+        }
+      } else {
+        TIMER = null;
+        document.getElementById('stateLabel').textContent = d.noRound;
+        document.getElementById('roundInfo').style.display = 'none';
+        document.getElementById('timerBox').style.display = 'none';
+        document.getElementById('progressWrap').style.display = 'none';
+      }
+
+      if (data.round && data.round.next) {
+        document.getElementById('nextBox').style.display = '';
+        document.getElementById('nextText').textContent = `${d.nextRound} #${data.round.next.number}`;
+        document.getElementById('nextChip').textContent = fmtHHMM(new Date(data.round.next.starts_at));
+      } else {
+        document.getElementById('nextBox').style.display = 'none';
+      }
+
+      const meetings = Array.isArray(data.meetings) ? data.meetings : [];
+      const empty = Array.isArray(data.empty_tables) ? data.empty_tables : [];
+      const grid = document.getElementById('meetingsGrid');
+      const box  = document.getElementById('meetingsBox');
+      document.getElementById('meetingsTitle').textContent = d.meetings;
+      if (meetings.length || empty.length) {
+        box.style.display = '';
+        const cells = [];
+        meetings.forEach(m => {
+          cells.push(`<div style="background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 14px;">
+            <div style="font-size:10px;color:var(--mute);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">${escapeHtml(m.table_label)}</div>
+            <div style="font-size:14px;font-weight:700;margin-top:4px;">${escapeHtml(m.company_a)}</div>
+            <div style="font-size:11px;color:var(--mute);margin:2px 0;">↔</div>
+            <div style="font-size:14px;font-weight:700;">${escapeHtml(m.company_b)}</div>
+          </div>`);
+        });
+        empty.forEach(label => {
+          cells.push(`<div style="background:var(--surface);border:1px dashed rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;opacity:.55;">
+            <div style="font-size:10px;color:var(--mute);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">${escapeHtml(label)}</div>
+            <div style="font-size:12px;color:var(--mute);margin-top:6px;">${d.empty}</div>
+          </div>`);
+        });
+        grid.innerHTML = cells.join('');
+      } else {
+        box.style.display = 'none';
+      }
+
+      // (Re)conectar socket si cambió event id
+      if (EVENT_ID && EVENT_ID !== prevId) joinSocket();
+    } catch(_){}
+  }
+
+  function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+  let socket = null;
+  function joinSocket(){
+    try {
+      if (!window.io || !EVENT_ID) return;
+      if (!socket) {
+        socket = io({ transports:['websocket','polling'] });
+        ['rn.round.opened','rn.round.closed','rn.checkin','rn.meeting.started','rn.meeting.ended','rn.meetings_updated']
+          .forEach(ev => socket.on(ev, loadBoard));
+      }
+      socket.emit('join', `event_${EVENT_ID}`);
+    } catch(_){}
+  }
+
+  tickClock();
+  loadBoard();
+  setInterval(tickClock, 15000);
+  setInterval(tickTimer, 1000);
+  setInterval(loadBoard, 10000);
 })();
 </script>
+<script src="/socket.io/socket.io.js"></script>
 
 </body>
 </html>

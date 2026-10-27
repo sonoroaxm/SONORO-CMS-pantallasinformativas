@@ -4735,6 +4735,51 @@
             </div>
           </div>
           <div class="ev-rn-panel hidden" id="ev-rn-panel-live">
+            <!-- S211x — Pantallas públicas (Callboard / Registro) -->
+            <div class="card" id="ev-rn-screens-card" style="margin-bottom:14px;">
+              <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <span data-i18n-es="Pantallas públicas" data-i18n-en="Public screens" data-i18n-pt="Telas públicas">Pantallas públicas</span>
+                <span style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,27,141,0.15);color:#FF1B8D;">Live</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);line-height:1.4;margin:6px 0 14px;" data-i18n-es="URLs públicas para proyectar durante la rueda. El callboard muestra mesa, turno y asistentes en tiempo real." data-i18n-en="Public URLs to project during the round. Callboard shows table, turn and attendees live." data-i18n-pt="URLs públicas para projetar durante a rodada. Callboard mostra mesa, turno e participantes ao vivo.">URLs públicas para proyectar durante la rueda. El callboard muestra mesa, turno y asistentes en tiempo real.</div>
+
+              <!-- Callboard general -->
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;" data-i18n-es="Callboard general" data-i18n-en="General callboard" data-i18n-pt="Callboard geral">Callboard general</div>
+                <div id="ev-rn-callboard-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                  <a id="ev-rn-callboard-open" href="#" target="_blank" class="btn btn-primary btn-sm" data-i18n="common.open">Abrir</a>
+                  <button class="btn btn-outline btn-sm" onclick="evCopyRnUrl('callboard')" data-i18n="common.copy">Copiar</button>
+                </div>
+              </div>
+
+              <!-- Callboard por zona -->
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;" data-i18n-es="Callboard por zona" data-i18n-en="Callboard by zone" data-i18n-pt="Callboard por zona">Callboard por zona</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                  <select id="ev-rn-zone-select" onchange="evRefreshRnZoneUrl()" style="padding:7px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;">
+                    <option value="" data-i18n-es="— Selecciona zona —" data-i18n-en="— Pick zone —" data-i18n-pt="— Selecione zona —">— Selecciona zona —</option>
+                  </select>
+                  <span id="ev-rn-zone-empty" style="font-size:11px;color:var(--text-muted);" data-i18n-es="Sin zonas creadas aún." data-i18n-en="No zones yet." data-i18n-pt="Sem zonas ainda.">Sin zonas creadas aún.</span>
+                </div>
+                <div id="ev-rn-zone-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none;"></div>
+                <div id="ev-rn-zone-actions" style="display:none;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                  <a id="ev-rn-zone-open" href="#" target="_blank" class="btn btn-primary btn-sm" data-i18n="common.open">Abrir</a>
+                  <button class="btn btn-outline btn-sm" onclick="evCopyRnUrl('zone')" data-i18n="common.copy">Copiar</button>
+                </div>
+              </div>
+
+              <!-- Registro público -->
+              <div>
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;" data-i18n-es="Registro público (empresas)" data-i18n-en="Public registration (companies)" data-i18n-pt="Cadastro público (empresas)">Registro público (empresas)</div>
+                <div id="ev-rn-register-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                  <a id="ev-rn-register-open" href="#" target="_blank" class="btn btn-outline btn-sm" data-i18n="common.open">Abrir</a>
+                  <button class="btn btn-outline btn-sm" onclick="evCopyRnUrl('register')" data-i18n="common.copy">Copiar</button>
+                </div>
+              </div>
+            </div>
+
             <div class="card" style="margin-bottom:14px;">
               <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <span data-i18n="rn.live.callboard">Callboard productor</span>
@@ -11585,7 +11630,7 @@ function evRnSwitchPanelTab(tab) {
   const el = document.getElementById('ev-rn-panel-' + tab);
   if (el) el.classList.remove('hidden');
   if (tab === 'directorio') evRnLoadDirectory();
-  else if (tab === 'live')  evRnLoadLive();
+  else if (tab === 'live')  { evRnLoadLive(); evSetupRnScreens(evRnCurrentEvent, window.location.origin); }
   else if (tab === 'reporte') evRnLoadReport();
   else if (tab === 'tags')  evRnTagsLoad();
 }
@@ -13218,6 +13263,64 @@ function evSelectConfirmMode(mode) {
 function evCopyLink(elementId) {
   const url = document.getElementById(elementId).textContent;
   navigator.clipboard.writeText(url).then(() => showStatus('Enlace copiado', 'success'));
+}
+
+// S211x — Pantallas Rueda de Negocios en sub-tab Producción
+async function evSetupRnScreens(ev, origin) {
+  const card = document.getElementById('ev-rn-screens-card');
+  if (!card || !ev || !ev.slug) return;
+  card.style.display = 'block';
+
+  const callboardUrl = `${origin}/rueda/callboard/${ev.slug}`;
+  const registerUrl  = `${origin}/rueda/${ev.slug}/register`;
+  document.getElementById('ev-rn-callboard-url').textContent = callboardUrl;
+  document.getElementById('ev-rn-callboard-open').href = callboardUrl;
+  document.getElementById('ev-rn-register-url').textContent = registerUrl;
+  document.getElementById('ev-rn-register-open').href = registerUrl;
+
+  // Zonas: usa cache si existe o fetch
+  try {
+    let zones = Array.isArray(evRnZonesCache) ? evRnZonesCache : [];
+    if (!zones.length) {
+      const r = await fetch(`${API_URL}/api/rn/events/${ev.id}/zones`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
+      zones = r.ok ? await r.json() : [];
+      evRnZonesCache = zones;
+    }
+    const sel = document.getElementById('ev-rn-zone-select');
+    const empty = document.getElementById('ev-rn-zone-empty');
+    sel.innerHTML = '<option value="">— Selecciona zona —</option>' +
+      zones.map(z => `<option value="${z.slug}">${(z.name||z.slug).replace(/</g,'&lt;')}</option>`).join('');
+    empty.style.display = zones.length ? 'none' : 'inline';
+    sel.style.display = zones.length ? 'inline-block' : 'none';
+    document.getElementById('ev-rn-zone-url').style.display = 'none';
+    document.getElementById('ev-rn-zone-actions').style.display = 'none';
+  } catch(_){}
+}
+
+function evRefreshRnZoneUrl(){
+  const ev = evCurrentEvent;
+  const sel = document.getElementById('ev-rn-zone-select');
+  if (!ev || !sel) return;
+  const slug = sel.value;
+  const urlEl = document.getElementById('ev-rn-zone-url');
+  const actions = document.getElementById('ev-rn-zone-actions');
+  if (!slug) {
+    urlEl.style.display = 'none';
+    actions.style.display = 'none';
+    return;
+  }
+  const url = `${window.location.origin}/rueda/callboard/${ev.slug}/${encodeURIComponent(slug)}`;
+  urlEl.textContent = url;
+  document.getElementById('ev-rn-zone-open').href = url;
+  urlEl.style.display = 'block';
+  actions.style.display = 'flex';
+}
+
+function evCopyRnUrl(kind){
+  const map = { callboard:'ev-rn-callboard-url', zone:'ev-rn-zone-url', register:'ev-rn-register-url' };
+  const el = document.getElementById(map[kind]);
+  if (!el || !el.textContent) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showStatus('Enlace copiado', 'success'));
 }
 
 // ── SESIONES ───────────────────────────────────────────────────
