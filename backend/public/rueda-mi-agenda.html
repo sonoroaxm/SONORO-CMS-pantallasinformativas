@@ -42,6 +42,44 @@
   .chip button{background:transparent;border:0;cursor:pointer;font-size:14px;line-height:1}
   .chip.offer{background:rgba(255,27,141,.2);border:1px solid var(--magenta)}
   .chip.demand{background:rgba(255,140,0,.2);border:1px solid var(--orange)}
+  /* ───── S211x · Card Cita en vivo (sticky top tab Reuniones) ───── */
+  .vivo{position:relative;border-radius:14px;padding:18px 18px 16px;margin-bottom:14px;overflow:hidden;color:#fff;background:linear-gradient(135deg,var(--magenta) 0%,var(--orange) 55%,var(--yellow,#FFE566) 100%)}
+  .vivo::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 90% 10%,rgba(255,255,255,.18),transparent 55%);pointer-events:none}
+  .vivo-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;position:relative}
+  .vivo-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:4px 10px;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
+  .vivo-pill .dot{width:7px;height:7px;border-radius:50%;background:#fff;animation:vpulse 1.4s ease-in-out infinite}
+  @keyframes vpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  .vivo-round{margin-left:auto;font-size:11px;font-weight:800;opacity:.9;letter-spacing:.3px}
+  .vivo-count{font-size:52px;font-weight:900;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums;margin-bottom:2px;position:relative}
+  .vivo-count .sep{opacity:.5;margin:0 2px}
+  .vivo-countsub{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;opacity:.85;margin-bottom:14px;position:relative}
+  .vivo-progress{position:relative;height:5px;background:rgba(255,255,255,.2);border-radius:999px;overflow:hidden;margin-bottom:16px}
+  .vivo-progress .bar{position:absolute;top:0;left:0;bottom:0;background:#fff;border-radius:999px;transition:width 1s linear}
+  .vivo-meta{position:relative;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
+  .vivo-mesa{min-width:54px;height:54px;border-radius:12px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex-direction:column;flex-shrink:0;padding:0 8px}
+  .vivo-mesa .lbl{font-size:9px;font-weight:800;letter-spacing:1.2px;opacity:.8;text-transform:uppercase}
+  .vivo-mesa .num{font-size:18px;font-weight:900;letter-spacing:-.5px;line-height:1}
+  .vivo-pair-lbl{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;opacity:.85;margin-bottom:3px}
+  .vivo-pair-name{font-size:16px;font-weight:800;letter-spacing:-.2px;line-height:1.2}
+  .vivo-pair-role{font-size:11.5px;font-weight:600;opacity:.85;margin-top:2px}
+  .vivo.next{background:var(--card);color:var(--text);border:1px solid var(--border)}
+  .vivo.next::before{display:none}
+  .vivo.next .vivo-pill{background:rgba(217,119,6,.1);border-color:rgba(217,119,6,.25);color:#B45309}
+  .vivo.next .vivo-pill .dot{background:#B45309}
+  .vivo.next .vivo-round{color:var(--mute)}
+  .vivo.next .vivo-count{background:linear-gradient(135deg,var(--magenta),var(--orange));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .vivo.next .vivo-countsub{color:var(--mute)}
+  .vivo.next .vivo-progress{background:var(--card2)}
+  .vivo.next .vivo-progress .bar{background:linear-gradient(135deg,var(--magenta),var(--orange))}
+  .vivo.next .vivo-mesa{background:var(--card2);border-color:var(--border);color:var(--text)}
+  .vivo.next .vivo-mesa .lbl{color:var(--mute)}
+  .vivo.next .vivo-pair-lbl{color:var(--mute)}
+  .vivo.next .vivo-pair-role{color:var(--mute)}
+  .vivo.idle{background:var(--card);color:var(--text);border:1px solid var(--border);text-align:center;padding:22px 18px}
+  .vivo.idle::before{display:none}
+  .vivo.idle .idle-ic{width:46px;height:46px;border-radius:50%;background:var(--card2);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;color:var(--mute);font-size:22px;font-weight:800}
+  .vivo.idle h3{margin:0 0 4px;font-size:15px;font-weight:800}
+  .vivo.idle p{margin:0;font-size:12.5px;color:var(--mute);font-weight:600;line-height:1.5}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--magenta),var(--orange));color:#fff;border:0;padding:10px 18px;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px}
   .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
   .btn.danger{background:transparent;border:1px solid var(--err);color:var(--err)}
@@ -134,10 +172,14 @@
 
   <div id="main" style="display:none">
     <div class="card">
-      <h1 id="h1">—</h1>
-      <div class="meta">
-        <div id="evName"></div>
-        <div id="delName"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <h1 id="h1">—</h1>
+          <div class="meta">
+            <div id="evName"></div>
+            <div id="delName"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -240,6 +282,7 @@
     </div>
 
     <div class="tab" data-tab="meetings">
+      <div id="vivoCard" style="display:none"></div>
       <div class="card">
         <p class="section-title" data-i18n-es="Mi agenda de reuniones" data-i18n-en="My meeting schedule" data-i18n-pt="Minha agenda de reuniões">Mi agenda de reuniones</p>
         <div id="mtgList" style="margin-top:14px"></div>
@@ -333,6 +376,7 @@ function applyLang(){
     document.getElementById('h1').textContent = (LANG==='en'?'Welcome':LANG==='pt'?'Bem-vindo':'Bienvenido') + ', ' + ctx.delegate.full_name;
     document.getElementById('delName').textContent = ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
   }
+  if (typeof vivoCardRender === 'function' && Array.isArray(mtgCache) && mtgCache.length) vivoCardRender();
 }
 document.getElementById('langSw').addEventListener('click', e=>{
   const b = e.target.closest('button'); if (!b) return; LANG = b.dataset.lang; applyLang();
@@ -692,6 +736,109 @@ async function reqRespond(id, action){
 
 // ─── Reuniones (agenda personal) ──────────────────────────────────────────────
 let mtgCache = [];
+let mtgEventTz = null;
+let vivoTick = null;
+
+function vivoFmt(sec){
+  if (sec < 0) sec = 0;
+  const m = String(Math.floor(sec/60)).padStart(2,'0');
+  const s = String(sec%60).padStart(2,'0');
+  return m + '<span class="sep">:</span>' + s;
+}
+function vivoPickState(){
+  if (!Array.isArray(mtgCache) || !mtgCache.length) return { kind:'idle' };
+  const now = Date.now();
+  const parse = v => v ? new Date(v).getTime() : null;
+  const live = mtgCache.find(m => m.status === 'active');
+  if (live){
+    const start = parse(live.started_at) || parse(live.round_starts_at);
+    const end   = parse(live.round_ends_at) || (start ? start + 20*60*1000 : null);
+    return { kind:'live', m:live, start, end };
+  }
+  const upcoming = mtgCache
+    .filter(m => m.status === 'scheduled' && parse(m.round_starts_at) && parse(m.round_starts_at) > now)
+    .sort((a,b) => parse(a.round_starts_at) - parse(b.round_starts_at));
+  if (upcoming[0]){
+    const m = upcoming[0];
+    const start = parse(m.round_starts_at);
+    const end   = parse(m.round_ends_at) || (start + 20*60*1000);
+    return { kind:'next', m, start, end };
+  }
+  return { kind:'idle' };
+}
+function vivoLabels(){
+  const L = (typeof LANG !== 'undefined' && LANG) || 'es';
+  return {
+    live:   L==='en' ? 'Live'      : L==='pt' ? 'Ao vivo'       : 'En vivo',
+    next:   L==='en' ? 'Next'      : L==='pt' ? 'Próxima'       : 'Próxima',
+    remain: L==='en' ? 'Time left' : L==='pt' ? 'Tempo restante': 'Tiempo restante',
+    starts: L==='en' ? 'Starts in' : L==='pt' ? 'Começa em'     : 'Comienza en',
+    mesa:   L==='en' ? 'Table'     : L==='pt' ? 'Mesa'          : 'Mesa',
+    meet:   L==='en' ? 'Meeting with' : L==='pt' ? 'Reunião com' : 'Reunión con',
+    nextWith: L==='en' ? 'Next meeting' : L==='pt' ? 'Próxima reunião' : 'Siguiente cita',
+    idleTitle: L==='en' ? 'No active meeting' : L==='pt' ? 'Sem reunião ativa' : 'Sin cita activa',
+    idleSub:   L==='en' ? 'No meeting in progress. Your next appointment appears below when it is near.'
+             : L==='pt' ? 'Nenhuma reunião em curso. Sua próxima aparece abaixo quando se aproximar.'
+             : 'No tienes una reunión en curso. Tu siguiente cita aparece abajo cuando se acerque.',
+    roundOf: L==='en' ? 'of' : L==='pt' ? 'de' : 'de',
+    round:   L==='en' ? 'Round' : L==='pt' ? 'Rodada' : 'Ronda'
+  };
+}
+function vivoCardRender(){
+  const box = document.getElementById('vivoCard');
+  if (!box) return;
+  const st = vivoPickState();
+  const L  = vivoLabels();
+  if (vivoTick){ clearInterval(vivoTick); vivoTick = null; }
+  if (st.kind === 'idle'){
+    box.innerHTML = '<div class="vivo idle"><div class="idle-ic">—</div><h3>'+L.idleTitle+'</h3><p>'+L.idleSub+'</p></div>';
+    box.style.display = 'block';
+    return;
+  }
+  const m = st.m;
+  const roundLbl = m.round_label || (L.round + ' ' + (m.round_number || ''));
+  const mesaNum  = (m.table_label || '').toString();
+  const coName   = m.other_company || '—';
+  const coRole   = [m.other_delegate_name, m.other_delegate_role].filter(Boolean).join(' · ');
+  const liveMode = st.kind === 'live';
+  const sub = liveMode ? L.remain : L.starts;
+  const pairLbl = liveMode ? L.meet : L.nextWith;
+  const pillLbl = liveMode ? L.live : L.next;
+  const cls = liveMode ? 'vivo' : 'vivo next';
+  box.innerHTML = ''
+    + '<div class="'+cls+'">'
+    + '  <div class="vivo-head"><span class="vivo-pill"><span class="dot"></span>'+pillLbl+'</span><span class="vivo-round">'+esc(roundLbl)+'</span></div>'
+    + '  <div class="vivo-count" id="vivoCount">--<span class="sep">:</span>--</div>'
+    + '  <div class="vivo-countsub">'+sub+'</div>'
+    + '  <div class="vivo-progress"><div class="bar" id="vivoBar" style="width:0%"></div></div>'
+    + '  <div class="vivo-meta">'
+    + '    <div class="vivo-mesa"><span class="lbl">'+L.mesa+'</span><span class="num">'+esc(mesaNum || '—')+'</span></div>'
+    + '    <div><div class="vivo-pair-lbl">'+pairLbl+'</div><div class="vivo-pair-name">'+esc(coName)+'</div>'
+    + (coRole ? '<div class="vivo-pair-role">'+esc(coRole)+'</div>' : '')
+    + '</div></div></div>';
+  box.style.display = 'block';
+  const countEl = document.getElementById('vivoCount');
+  const barEl   = document.getElementById('vivoBar');
+  const total   = Math.max(1, (st.end - st.start) / 1000);
+  const refTarget = liveMode ? st.end : st.start;
+  function tick(){
+    const now = Date.now();
+    const remain = Math.max(0, Math.floor((refTarget - now)/1000));
+    if (countEl) countEl.innerHTML = vivoFmt(remain);
+    if (barEl){
+      const pct = liveMode
+        ? Math.min(100, 100 - (remain / total * 100))
+        : Math.min(100, 100 - (remain / total * 100));
+      barEl.style.width = pct.toFixed(1) + '%';
+    }
+    if (remain <= 0){
+      clearInterval(vivoTick); vivoTick = null;
+      setTimeout(() => { if (document.querySelector('.tab.active[data-tab=\"meetings\"]')) mtgLoad(); }, 2000);
+    }
+  }
+  tick();
+  vivoTick = setInterval(tick, 1000);
+}
 function fmtTime(iso, tz){
   if (!iso) return '';
   const d = new Date(iso);
@@ -714,6 +861,8 @@ async function mtgLoad(){
     if (!r.ok){ list.innerHTML = '<div class="empty">Error</div>'; return; }
     const data = await r.json();
     mtgCache = data.meetings || [];
+    mtgEventTz = (data.event && data.event.timezone) || null;
+    vivoCardRender();
     if (!mtgCache.length){
       list.innerHTML = '<div class="empty">' + (LANG==='en'?'No meetings scheduled yet':LANG==='pt'?'Sem reuniões ainda':'Sin reuniones agendadas aún') + '</div>';
       return;
