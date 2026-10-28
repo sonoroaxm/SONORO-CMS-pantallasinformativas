@@ -1127,6 +1127,87 @@ router.get('/callboard/:eventSlug/:zoneSlug?', rnReadLimiter, async (req, res) =
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// E-RN-11 — Mini KPI de la Rueda para el bloque de la vista producción del evento padre
+// GET /api/rn/public/mini-kpi/:ruedaId
+// Payload compacto: ronda actual, mesas activas, reuniones en curso, check-ins.
+// Público (no requiere auth) porque la vista producción del padre lo consume vía
+// public token también; el id de la rueda ya es UUID impredecible.
+// ──────────────────────────────────────────────────────────────────────────────
+router.get('/mini-kpi/:ruedaId', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ev = await pool.query(
+      `SELECT id, name, slug, status, timezone, config
+         FROM events.events
+        WHERE id = $1`,
+      [req.params.ruedaId]
+    );
+    if (ev.rowCount === 0) return res.status(404).json({ error: 'Rueda no encontrada' });
+    const event = ev.rows[0];
+    if ((event.config || {}).event_type !== 'matchmaking') {
+      return res.status(400).json({ error: 'Evento no es rueda de negocios' });
+    }
+
+    const rounds = (await pool.query(
+      `SELECT id, round_number, starts_at, ends_at
+         FROM events.rn_rounds
+        WHERE event_id = $1
+        ORDER BY round_number`,
+      [event.id]
+    )).rows;
+    const now = new Date();
+    let current = null;
+    for (const r of rounds) {
+      const s = new Date(r.starts_at), e = new Date(r.ends_at);
+      if (now >= s && now < e) { current = r; break; }
+    }
+    const totalEstimated = (event.config?.matchmaking?.total_rounds_estimated) || rounds.length;
+
+    const tablesQ = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE active = TRUE)::int AS total
+         FROM events.rn_tables WHERE event_id = $1`,
+      [event.id]
+    );
+    const totalTables = tablesQ.rows[0].total;
+
+    let activeMeetings = 0, activeTables = 0;
+    if (current) {
+      const mq = await pool.query(
+        `SELECT COUNT(*)::int AS active,
+                COUNT(DISTINCT table_id)::int AS tables_in_use
+           FROM events.rn_meetings
+          WHERE event_id = $1 AND round_id = $2
+            AND status IN ('scheduled','in_progress')`,
+        [event.id, current.id]
+      );
+      activeMeetings = mq.rows[0].active;
+      activeTables = mq.rows[0].tables_in_use;
+    }
+
+    const regQ = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM events.registrations WHERE event_id = $1 AND status = 'confirmed'`,
+      [event.id]
+    );
+    const checkinQ = await pool.query(
+      `SELECT COUNT(*)::int AS done FROM events.rn_checkins WHERE event_id = $1`,
+      [event.id]
+    );
+
+    res.json({
+      event: { id: event.id, name: event.name, slug: event.slug, status: event.status },
+      round: current
+        ? { number: current.round_number, total: totalEstimated,
+            starts_at: current.starts_at, ends_at: current.ends_at }
+        : { number: null, total: totalEstimated, starts_at: null, ends_at: null },
+      tables: { active: activeTables, total: totalTables },
+      meetings: { in_progress: activeMeetings },
+      checkins: { done: checkinQ.rows[0].done, total: regQ.rows[0].total },
+      server_time: now.toISOString(),
+    });
+  } catch (err) { handleError(res, err, 'GET mini-kpi'); }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // E-RN-5 — Runtime: check-in · start/end meeting · EBV capture (D-RN-15)
 // ──────────────────────────────────────────────────────────────────────────────
 

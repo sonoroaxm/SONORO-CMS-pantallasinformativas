@@ -540,7 +540,8 @@ router.post('/:id/sessions', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const { name, description, session_type = 'plenary', venue_zone,
           starts_at, ends_at, capacity, requires_registration = false,
-          speaker_name = null, visibility = 'public' } = req.body;
+          speaker_name = null, visibility = 'public',
+          linked_rueda_id = null } = req.body;
   if (!name?.trim() || !starts_at || !ends_at) {
     return res.status(400).json({ error: 'name, starts_at y ends_at son requeridos' });
   }
@@ -550,24 +551,46 @@ router.post('/:id/sessions', auth, async (req, res) => {
   if (!['public','private','invite_only'].includes(visibility)) {
     return res.status(400).json({ error: 'visibility inválido' });
   }
+  if (session_type === 'rueda' && !linked_rueda_id) {
+    return res.status(400).json({ error: 'session_type=rueda requiere linked_rueda_id' });
+  }
   const evCheck = await pool.query(
-    `SELECT id, user_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
+    `SELECT id, user_id, timezone FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
     isAdmin ? [req.params.id] : [req.params.id, req.user.id]
   );
   if (!evCheck.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+
+  // Validar que la rueda vinculada existe, es del mismo tenant y es matchmaking.
+  if (linked_rueda_id) {
+    const rq = await pool.query(
+      `SELECT id, user_id, (config->>'event_type') AS etype
+         FROM events.events WHERE id = $1`,
+      [linked_rueda_id]
+    );
+    if (rq.rowCount === 0) return res.status(400).json({ error: 'linked_rueda_id no existe' });
+    if (rq.rows[0].user_id !== evCheck.rows[0].user_id) {
+      return res.status(400).json({ error: 'linked_rueda_id pertenece a otro tenant' });
+    }
+    if (rq.rows[0].etype !== 'matchmaking') {
+      return res.status(400).json({ error: 'linked_rueda_id no es rueda de negocios' });
+    }
+  }
+
   try {
     const tz = evCheck.rows[0].timezone || 'America/Bogota';
     const { rows } = await pool.query(
       `INSERT INTO events.event_sessions
          (event_id, user_id, name, description, session_type, venue_zone,
-          starts_at, ends_at, capacity, requires_registration, speaker_name, visibility)
+          starts_at, ends_at, capacity, requires_registration, speaker_name, visibility,
+          linked_rueda_id)
        VALUES ($1,$2,$3,$4,$5,$6,
          ($7::timestamp AT TIME ZONE $11),
          ($8::timestamp AT TIME ZONE $11),
-         $9,$10,$12,$13) RETURNING *`,
+         $9,$10,$12,$13,$14) RETURNING *`,
       [req.params.id, evCheck.rows[0].user_id, name.trim(), description || null,
        session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz,
-       (speaker_name && String(speaker_name).trim()) || null, visibility]
+       (speaker_name && String(speaker_name).trim()) || null, visibility,
+       linked_rueda_id]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -584,9 +607,12 @@ router.get('/:id/sessions', auth, async (req, res) => {
   const join   = isAdmin ? '' : 'JOIN events.events e ON e.id = s.event_id AND e.user_id = $2';
   try {
     const { rows } = await pool.query(
-      `SELECT s.*, estf.name AS assigned_staff_name
+      `SELECT s.*, estf.name AS assigned_staff_name,
+              rev.name AS linked_rueda_name, rev.slug AS linked_rueda_slug,
+              rev.status AS linked_rueda_status
        FROM events.event_sessions s ${join}
        LEFT JOIN events.event_staff estf ON estf.id = s.assigned_staff_id
+       LEFT JOIN events.events rev ON rev.id = s.linked_rueda_id
        WHERE s.event_id = $1 ORDER BY s.starts_at`,
       params
     );
