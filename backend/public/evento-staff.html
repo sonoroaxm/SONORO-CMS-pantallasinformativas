@@ -847,9 +847,12 @@ async function showSessionPicker() {
     const locale = (L[LANG] && L[LANG].dateLoc) || 'es-CO';
 
     const generalEntry = t('generalEntry');
+    const safeGeneral = generalEntry.replace(/"/g, '&quot;');
     const generalSection = [
       `<div class="sess-group-lbl">${esc(t('generalAccess'))}</div>`,
-      `<button class="sess-pick-btn general" onclick="pickSession(null, ${JSON.stringify(generalEntry)}, null)">
+      `<button class="sess-pick-btn general"
+        data-sid="" data-sname="${safeGeneral}" data-smeta=""
+        onclick="pickSessionFromBtn(this)">
         <div class="sess-pick-label">${esc(generalEntry)}</div>
         <div class="sess-pick-meta">${esc(t('generalEntryDesc'))}</div>
        </button>`,
