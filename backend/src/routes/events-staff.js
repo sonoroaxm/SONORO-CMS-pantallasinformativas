@@ -133,10 +133,19 @@ router.get('/:eventId/sessions', authenticateEventStaff, async (req, res) => {
   const pool = global.pool;
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, session_type, venue_zone, starts_at, ends_at
-       FROM events.event_sessions
-       WHERE event_id = $1 AND status != 'cancelled'
-       ORDER BY starts_at`,
+      `SELECT s.id, s.name, s.session_type, s.venue_zone, s.starts_at, s.ends_at,
+              COALESCE(c.cnt, 0)::int AS check_in_count,
+              COALESCE((SELECT COUNT(*)::int FROM events.registrations
+                        WHERE event_id = $1 AND status NOT IN ('cancelled','refunded')), 0) AS total_registered
+       FROM events.event_sessions s
+       LEFT JOIN (
+         SELECT session_id, COUNT(*)::int AS cnt
+         FROM events.registration_checkins
+         WHERE session_id IS NOT NULL
+         GROUP BY session_id
+       ) c ON c.session_id = s.id
+       WHERE s.event_id = $1 AND s.status != 'cancelled'
+       ORDER BY s.starts_at`,
       [req.params.eventId]
     );
     res.json(rows);
