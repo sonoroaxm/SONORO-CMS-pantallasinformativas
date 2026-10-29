@@ -3084,6 +3084,19 @@
                     </label>
                     <div id="ev-edit-publish-cal-status" style="font-size:12px;color:var(--muted);margin-top:8px;margin-left:26px;"></div>
                   </div>
+                  <!-- Modo de inscripción del evento (movido desde card Sesiones) -->
+                  <div class="form-group" style="margin:0;">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                      <span data-i18n="ev.sess_regmode_label">Modo de inscripción del evento</span>
+                      <span title="Las sesiones privadas o solo-invitación nunca aparecen en el formulario público." style="color:var(--text-muted);cursor:help;font-size:11px;" data-i18n-attr="title:ev.sess_regmode_help">ⓘ</span>
+                    </label>
+                    <select id="ev-regmode-select" onchange="evSaveRegMode()">
+                      <option value="full_event" data-i18n="ev.sess_regmode_full">Inscripción general (todas las sesiones)</option>
+                      <option value="per_session" data-i18n="ev.sess_regmode_per">Multisesiones (inscripción a sesiones específicas)</option>
+                    </select>
+                    <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" style="display:none;">
+                    <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" style="display:none;">
+                  </div>
                   <!-- Acceso y confirmación viven en la pestaña Formulario -->
                   <div class="form-group" style="margin:0;">
                     <label style="display:flex;align-items:center;justify-content:space-between;">
@@ -3102,17 +3115,6 @@
                 <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
                   <span data-i18n="ev.sess_card">Sesiones / Jornadas</span>
                   <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()" data-i18n="ev.sess_add">+ Agregar</button>
-                </div>
-                <!-- E3.5: modo de inscripción -->
-                <div style="margin:0 0 10px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;">
-                  <span style="color:var(--text-muted);" data-i18n="ev.sess_regmode_label">Tipo de inscripción:</span>
-                  <select id="ev-regmode-select" onchange="evSaveRegMode()" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;">
-                    <option value="full_event" data-i18n="ev.sess_regmode_full">Inscripción general (todas las sesiones)</option>
-                    <option value="per_session" data-i18n="ev.sess_regmode_per">Multisesiones (inscripción a sesiones específicas)</option>
-                  </select>
-                  <input type="radio" name="ev-reg-mode" value="per_session" id="ev-regmode-per" style="display:none;">
-                  <input type="radio" name="ev-reg-mode" value="full_event" id="ev-regmode-full" style="display:none;">
-                  <span title="Las sesiones privadas o solo-invitación nunca aparecen en el formulario público." style="color:var(--text-muted);cursor:help;" data-i18n-attr="title:ev.sess_regmode_help">ⓘ</span>
                 </div>
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
@@ -3139,12 +3141,12 @@
                       <textarea id="ev-sess-obs" rows="2" placeholder="Notas o indicaciones especiales..."
                         style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box;" data-i18n-attr="placeholder:ev.sess_f_obs_ph"></textarea>
                     </div>
-                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_visibility">Visibilidad</label>
+                    <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_f_visibility">Tipo de sesión</label>
                       <select id="ev-sess-visibility"
                         style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
                         <option value="public" data-i18n="ev.sess_vis_public">Pública — todos pueden verla e inscribirse</option>
-                        <option value="private" data-i18n="ev.sess_vis_private">Privada — solo el productor la asigna manualmente</option>
-                        <option value="invite_only" data-i18n="ev.sess_vis_invite">Solo invitados — requiere link de invitación</option>
+                        <option value="private" data-i18n="ev.sess_vis_private">Privada — asignación manual del productor</option>
+                        <option value="invite_only" data-i18n="ev.sess_vis_invite">Privada — link compartible</option>
                       </select>
                     </div>
                     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -3339,6 +3341,20 @@
                     <a id="ev-kiosko-url-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:4px 10px;font-size:11px;text-decoration:none;"><span data-i18n="ev.reg_open">Abrir</span> <svg width="12" height="12" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg></a>
                   </div>
                 </div>
+                <div style="border-top:1px solid rgba(245,158,11,0.12);"></div>
+                <!-- Invitaciones privadas -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,27,141,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="12" height="12" fill="#FF1B8D"><use href="#ph-lock"/></svg>
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;" data-i18n="ev.reg_link_invitations">Invitaciones privadas</div>
+                    <div style="font-size:11px;color:var(--text-muted);" data-i18n="ev.reg_link_invitations_hint">Enlace único por invitado (claim code). Para sesiones privadas o acceso restringido.</div>
+                  </div>
+                  <div style="display:flex;gap:6px;flex-shrink:0;">
+                    <button class="btn btn-outline btn-sm" onclick="evSwitchSubTab('staff'); setTimeout(function(){ evSwitchStaffSubtab('invitations'); }, 50);" style="border-color:#FF1B8D;color:#FF1B8D;padding:4px 10px;font-size:11px;" data-i18n="ev.reg_link_invitations_open">Abrir panel invitaciones</button>
+                  </div>
+                </div>
               </div>
             </div>
             <!-- Stat cards -->
@@ -3352,14 +3368,24 @@
                 <input type="file" accept=".csv,.xlsx,.xls" id="ev-csv-input" style="display:none;" onchange="evImportCSV(this)">
               </label>
               <button type="button" class="btn btn-outline btn-sm" onclick="evDownloadTemplate()" title="Plantilla XLSX con las columnas del formulario de este evento + instrucciones" data-i18n="ev.reg_template" data-i18n-attr="title:ev.reg_template_title">Plantilla</button>
-              <button class="btn btn-outline btn-sm" onclick="evExportRegsCSV()" data-i18n="ev.reg_export_csv">Exportar CSV</button>
-              <button class="btn btn-outline btn-sm" onclick="evExportRegsPDF()" data-i18n="ev.reg_export_pdf">Exportar PDF</button>
+              <button class="btn btn-outline btn-sm" onclick="evOpenExportModal()" data-i18n="ev.reg_export">Exportar</button>
               <button class="btn btn-outline btn-sm" onclick="evPrintAllLabels()" title="Imprimir etiquetas QR de todos los registros" data-i18n-attr="title:ev.reg_print_all_title"><svg width="14" height="14" style="vertical-align:middle;fill:currentColor"><use href="#ph-printer"/></svg> <span data-i18n="ev.reg_print_all">Imprimir todos</span></button>
+            </div>
+            <!-- Bulk actions bar -->
+            <div id="ev-regs-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(255,27,141,0.10),rgba(181,44,224,0.10));border:1px solid rgba(255,27,141,0.35);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+              <span id="ev-regs-bulk-count" style="font-size:13px;font-weight:700;color:#FF1B8D;">0 seleccionados</span>
+              <div style="flex:1;"></div>
+              <button type="button" class="btn btn-sm" style="background:#00e676;color:#000;font-weight:700;border:none;padding:5px 12px;border-radius:6px;" onclick="evRegsBulkConfirm()" data-i18n="ev.reg_bulk_confirm">Confirmar</button>
+              <button type="button" class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid #ff4444;padding:5px 12px;border-radius:6px;" onclick="evRegsBulkCancel()" data-i18n="ev.reg_bulk_cancel">Cancelar</button>
+              <button type="button" class="btn btn-sm" style="background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);padding:5px 12px;border-radius:6px;" onclick="evRegsBulkAssignSessions()" data-i18n="ev.reg_bulk_assign">Asignar sesión</button>
+              <button type="button" class="btn btn-sm" style="background:#ff4444;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-weight:700;" onclick="evRegsBulkDelete()" data-i18n="ev.reg_bulk_delete">Eliminar</button>
+              <button type="button" class="btn btn-sm" style="background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:5px 12px;border-radius:6px;" onclick="evRegsBulkDeselect()" data-i18n="ev.reg_bulk_clear">Deseleccionar</button>
             </div>
             <div id="ev-regs-table-wrap" style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead>
                   <tr style="border-bottom:1px solid var(--border);">
+                    <th style="padding:8px 10px;width:28px;"><input type="checkbox" id="ev-regs-check-all" onclick="evRegsToggleAll(this)" title="Seleccionar todos" data-i18n-attr="title:ev.reg_bulk_sel_all"></th>
                     <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_name">Nombre</th>
                     <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_email">Email</th>
                     <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);" data-i18n="ev.reg_th_type">Tipo</th>
@@ -4340,6 +4366,19 @@
 
           <!-- SETUP panel · E-RN-7b-2 wizard (6 cards config) -->
           <div class="ev-rn-panel" id="ev-rn-panel-setup">
+            <!-- Summary (collapsed state) -->
+            <div class="card" id="ev-rn-cfg-summary" style="display:none;margin-bottom:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div class="card-title" style="margin-bottom:4px;" data-i18n="rn.setup.summary_title">Configuración guardada</div>
+                  <div style="font-size:12px;color:var(--text-muted);" data-i18n="rn.setup.summary_hint">Resumen de la configuración actual. Puedes editarla cuando quieras.</div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="evRnShowForm()" data-i18n="rn.setup.summary_edit">Editar configuración</button>
+              </div>
+              <div id="ev-rn-cfg-summary-body" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px;font-size:13px;"></div>
+            </div>
+            <!-- Form wrapper (expanded state) -->
+            <div id="ev-rn-cfg-form-wrap">
             <!-- Card 01 Info -->
             <div class="card" style="margin-bottom:14px;">
               <div class="card-title" data-i18n="rn.setup.c1_title">01 · Información básica</div>
@@ -4482,6 +4521,7 @@
               <button class="btn btn-outline btn-sm" onclick="evRnLoadConfig()" data-i18n="rn.setup.discard">Descartar cambios</button>
               <button class="btn btn-grad" onclick="evRnSaveConfig()" data-i18n="rn.setup.save">Guardar configuración</button>
             </div>
+            </div><!-- /#ev-rn-cfg-form-wrap -->
           </div>
 
           <!-- TAGS panel · B.0 taxonomía (port rueda-setup-tags-card-v1.html) -->
@@ -10991,6 +11031,45 @@ function evRnLoadConfig() {
   document.getElementById('ev-rn-cfg-ebv').checked    = !!mm.capture_ebv;
   document.getElementById('ev-rn-cfg-team').checked   = !!mm.allow_team_invite;
   document.getElementById('ev-rn-cfg-savestate').textContent = '';
+  // Collapse si ya hay config guardada previamente
+  const alreadySaved = !!(mm && mm.saved_at) || !!(ev.name && ev.starts_at && ev.ends_at);
+  if (alreadySaved) evRnShowSummary(); else evRnShowForm();
+}
+function evRnFmtSummaryDate(iso, tz) {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat(evRnT('rn.locale','es-CO'), { timeZone: tz || 'America/Bogota',
+      day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(iso));
+  } catch(_) { return iso; }
+}
+function evRnShowSummary() {
+  const ev = evRnCurrentEvent; if (!ev) return;
+  const mm = (ev.config && ev.config.matchmaking) || {};
+  const tz = ev.timezone || 'America/Bogota';
+  const rows = [
+    [evRnT('rn.setup.sum_name','Nombre'),           ev.name || '—'],
+    [evRnT('rn.setup.sum_venue','Sede'),            ev.venue_name || '—'],
+    [evRnT('rn.setup.sum_starts','Inicio'),         evRnFmtSummaryDate(ev.starts_at, tz)],
+    [evRnT('rn.setup.sum_ends','Fin'),              evRnFmtSummaryDate(ev.ends_at, tz)],
+    [evRnT('rn.setup.sum_tz','Timezone'),           tz],
+    [evRnT('rn.setup.sum_zone','Modo'),             mm.zone_mode === 'zoned' ? evRnT('rn.setup.c2_zoned','Zoned') : evRnT('rn.setup.c2_classic','Classic')],
+    [evRnT('rn.setup.sum_match','Matching'),        mm.matching_mode === 'manual_only' ? evRnT('rn.setup.c3_manual','Solo manual') : evRnT('rn.setup.c3_tags','Por intereses (tags)')],
+    [evRnT('rn.setup.sum_vis','Visibilidad'),       mm.visibility === 'private' ? evRnT('rn.setup.c4_private','Privada') : mm.visibility === 'mixed' ? evRnT('rn.setup.c4_mixed','Mixta') : evRnT('rn.setup.c4_public','Pública')],
+    [evRnT('rn.setup.sum_dur','Duración cita'),     (mm.meeting_duration_minutes || 20) + ' min'],
+    [evRnT('rn.setup.sum_currency','Moneda'),       mm.base_currency || 'COP'],
+    [evRnT('rn.setup.sum_langs','Idiomas'),         Array.isArray(mm.languages) && mm.languages.length ? mm.languages.map(l => l.toUpperCase()).join(', ') : 'ES'],
+    [evRnT('rn.setup.sum_deflocale','Idioma por defecto'), (ev.default_locale || 'es').toUpperCase()],
+  ];
+  const body = document.getElementById('ev-rn-cfg-summary-body');
+  body.innerHTML = rows.map(([k,v]) =>
+    `<div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">${k}</div><div style="font-weight:600;">${v}</div></div>`
+  ).join('');
+  document.getElementById('ev-rn-cfg-summary').style.display = '';
+  document.getElementById('ev-rn-cfg-form-wrap').style.display = 'none';
+}
+function evRnShowForm() {
+  document.getElementById('ev-rn-cfg-summary').style.display = 'none';
+  document.getElementById('ev-rn-cfg-form-wrap').style.display = '';
 }
 document.addEventListener('input', (e) => {
   if (e.target && e.target.id === 'ev-rn-cfg-name') {
@@ -11041,9 +11120,14 @@ async function evRnSaveConfig() {
     });
     const data = await r.json();
     if (!r.ok) { state.textContent = ''; showStatus(data.error || evRnT('rn.toast.save_err','Error al guardar'), 'error'); return; }
+    // Stamp saved_at local para colapsar aunque backend no lo persista
+    if (!data.config) data.config = {};
+    if (!data.config.matchmaking) data.config.matchmaking = {};
+    data.config.matchmaking.saved_at = new Date().toISOString();
     evRnCurrentEvent = data; evCurrentEvent = data;
     state.textContent = evRnT('rn.toast.saved_prefix','Guardado · ') + new Date().toLocaleTimeString();
     showStatus('Configuración guardada', 'success');
+    evRnShowSummary();
   } catch(_) { state.textContent=''; showStatus(evRnT('rn.toast.net_err','Error de conexión'), 'error'); }
 }
 
@@ -13465,13 +13549,25 @@ async function evLoadSessions(eventId) {
       const visBadge = s.visibility === 'private'
         ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#fef3c7;color:#92400e;margin-left:6px;">${t('ev.sess_vis_private_badge')}</span>`
         : (s.visibility === 'invite_only'
-          ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#dbeafe;color:#1e40af;margin-left:6px;">${t('ev.sess_vis_invite_badge')}</span>`
+          ? `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:#fce7f3;color:#9d174d;margin-left:6px;">${t('ev.sess_vis_invite_badge','Link compartible')}</span>`
           : '');
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
+      const shareUrl = (s.visibility === 'invite_only' && s.share_token)
+        ? `${window.location.origin}/evento/sesion/${s.share_token}`
+        : null;
+      const shareBlock = shareUrl
+        ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(255,27,141,0.08);border:1px solid rgba(255,27,141,0.25);border-radius:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+             <div style="font-size:10px;font-weight:700;color:#FF1B8D;text-transform:uppercase;letter-spacing:.5px;" data-i18n="ev.sess_share_url_label">Link de inscripción</div>
+             <div id="sess-share-url-${s.id}" style="flex:1;min-width:160px;font-size:11px;color:var(--text-muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${shareUrl}</div>
+             <button class="btn btn-outline btn-sm" style="border-color:#FF1B8D;color:#FF1B8D;padding:3px 8px;font-size:11px;" onclick="evCopySessionShareUrl('${s.id}')" data-i18n="common.copy">Copiar</button>
+             <a href="${shareUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:3px 8px;font-size:11px;text-decoration:none;" data-i18n="ev.reg_open">Abrir</a>
+           </div>`
+        : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;">${s.name}${visBadge}</div>
           <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' ' + t('ev.sess_cap_word') : ''}</div>
           ${s.assigned_staff_name ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-user"/></svg> ${s.assigned_staff_name}</div>` : ''}
+          ${shareBlock}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>
@@ -13480,6 +13576,17 @@ async function evLoadSessions(eventId) {
       </div>`;
     }).join('');
   } catch(e) { list.innerHTML = `<div style="color:#ff4444;font-size:12px;">${t('ev.sess_error')}</div>`; }
+}
+
+function evCopySessionShareUrl(sessionId) {
+  const el = document.getElementById('sess-share-url-' + sessionId);
+  if (!el) return;
+  const url = el.textContent.trim();
+  navigator.clipboard.writeText(url).then(() => {
+    showStatus(t('ev.sess_share_copied','Link copiado'), 'success');
+  }).catch(() => {
+    showStatus(t('ev.sess_share_copy_err','No se pudo copiar'), 'error');
+  });
 }
 
 function evOpenAddSession() {
@@ -13803,7 +13910,7 @@ async function evSaveFormConfig() {
 async function evLoadRegistrations() {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
   const tbody = document.getElementById('ev-regs-tbody');
-  tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.sess_loading')}</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.sess_loading')}</td></tr>`;
   try {
     const params = new URLSearchParams({ page: evRegsPage, limit: 25 });
     if (evRegsSearchTerm) params.set('search', evRegsSearchTerm);
@@ -13849,7 +13956,7 @@ async function evLoadRegistrations() {
     const rows = data.registrations || [];
     evRegsCache = {};
     rows.forEach(r => { evRegsCache[r.id] = r; });
-    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.reg_no_results')}</td></tr>`; evRenderRegsPagination(0); return; }
+    if (!rows.length) { tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--text-muted);font-size:13px;">${t('ev.reg_no_results')}</td></tr>`; evRenderRegsPagination(0); evRegsUpdateBulkBar(); return; }
     const tz = evCurrentEvent?.timezone || 'America/Bogota';
     tbody.innerHTML = rows.map(r => {
       const date = new Date(r.registered_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz });
@@ -13868,7 +13975,9 @@ async function evLoadRegistrations() {
       const cancelBtn = r.status !== 'cancelled'
         ? `<button class="btn btn-sm" style="background:transparent;color:#ff4444;border:1px solid #ff4444;padding:4px 10px;border-radius:6px;" onclick="event.stopPropagation();evSetRegStatus('${r.id}','cancelled')">${t('ev.reg_cancel')}</button>`
         : '';
+      const isSel = evRegsSelected.has(r.id);
       return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="evToggleRegDetail('reg-detail-${r.id}')">
+        <td style="padding:10px 10px;" onclick="event.stopPropagation()"><input type="checkbox" class="ev-regs-row-cb" data-reg-id="${r.id}" ${isSel ? 'checked' : ''} onclick="evRegsToggleRow(this,'${r.id}')"></td>
         <td style="padding:10px 12px;font-size:13px;font-weight:600;">${r.attendee_name || ''}</td>
         <td style="padding:10px 12px;color:var(--text-muted);font-size:12px;">${r.email || ''}</td>
         <td style="padding:10px 12px;font-size:12px;">${r.ticket_type || '—'}</td>
@@ -13881,7 +13990,7 @@ async function evLoadRegistrations() {
         </td>
       </tr>
       <tr id="reg-detail-${r.id}" class="hidden">
-        <td colspan="6" style="padding:12px 16px 16px 16px;background:var(--surface2);border-bottom:2px solid var(--border);">
+        <td colspan="7" style="padding:12px 16px 16px 16px;background:var(--surface2);border-bottom:2px solid var(--border);">
           <div style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text-muted);margin-bottom:10px;">
             ${extraFields || `<span style="color:var(--text-muted)">${t('ev.reg_no_extra')}</span>`}
             ${r.sessions?.length ? `&nbsp;&nbsp;·&nbsp;&nbsp;<span><b>${t('ev.reg_sessions_label')}</b> ${sessions}</span>` : ''}
@@ -13914,9 +14023,159 @@ async function evLoadRegistrations() {
       </tr>`;
     }).join('');
     evRenderRegsPagination(data.total);
-  } catch(e) { tbody.innerHTML = `<tr><td colspan="6" style="padding:16px;color:#ff4444;font-size:13px;">${t('ev.reg_error')}</td></tr>`; }
+    evRegsUpdateBulkBar();
+  } catch(e) { tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:#ff4444;font-size:13px;">${t('ev.reg_error')}</td></tr>`; }
   // Cargar gráfica de check-ins por sesión
   evLoadSessionChart();
+}
+
+// ── Bulk actions Registros (E10) ──────────────────────────────
+const evRegsSelected = new Set();
+function evRegsToggleRow(cb, id) {
+  if (cb.checked) evRegsSelected.add(id); else evRegsSelected.delete(id);
+  evRegsUpdateBulkBar();
+}
+function evRegsToggleAll(cb) {
+  const boxes = document.querySelectorAll('.ev-regs-row-cb');
+  boxes.forEach(b => { b.checked = cb.checked; const id = b.dataset.regId; if (cb.checked) evRegsSelected.add(id); else evRegsSelected.delete(id); });
+  evRegsUpdateBulkBar();
+}
+function evRegsUpdateBulkBar() {
+  const bar = document.getElementById('ev-regs-bulk-bar');
+  const n = evRegsSelected.size;
+  if (!bar) return;
+  bar.style.display = n ? 'flex' : 'none';
+  const lbl = document.getElementById('ev-regs-bulk-count');
+  if (lbl) {
+    const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb;
+    lbl.textContent = `${n} ` + t('ev.reg_bulk_count', n === 1 ? 'seleccionado' : 'seleccionados');
+  }
+  // Sync header checkbox: checked si todos los visibles están, indeterminate si algunos
+  const headCb = document.getElementById('ev-regs-check-all');
+  const boxes = document.querySelectorAll('.ev-regs-row-cb');
+  if (headCb && boxes.length) {
+    const sel = Array.from(boxes).filter(b => b.checked).length;
+    headCb.checked = sel === boxes.length;
+    headCb.indeterminate = sel > 0 && sel < boxes.length;
+  }
+}
+function evRegsBulkDeselect() {
+  evRegsSelected.clear();
+  document.querySelectorAll('.ev-regs-row-cb').forEach(b => b.checked = false);
+  evRegsUpdateBulkBar();
+}
+async function evRegsBulkStatus(status) {
+  const ids = Array.from(evRegsSelected);
+  if (!ids.length) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb;
+  const label = status === 'confirmed' ? t('ev.reg_bulk_confirm','Confirmar') : t('ev.reg_bulk_cancel','Cancelar');
+  if (!confirm(`¿${label} ${ids.length} inscripción(es)?`)) return;
+  let ok = 0, fail = 0;
+  const CHUNK = 6;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const results = await Promise.all(slice.map(id =>
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+        body: JSON.stringify({ status })
+      }).then(r => r.ok).catch(() => false)
+    ));
+    results.forEach(r => r ? ok++ : fail++);
+  }
+  showStatus(`${ok} actualizadas${fail ? ' · ' + fail + ' con error' : ''}`, fail ? 'error' : 'success');
+  evRegsSelected.clear();
+  evLoadRegistrations();
+}
+function evRegsBulkConfirm() { evRegsBulkStatus('confirmed'); }
+function evRegsBulkCancel()  { evRegsBulkStatus('cancelled'); }
+
+async function evRegsBulkDelete() {
+  const ids = Array.from(evRegsSelected);
+  if (!ids.length) return;
+  if (!confirm(`¿Eliminar ${ids.length} inscripción(es)? Esta acción no se puede deshacer.`)) return;
+  const typed = prompt(`Confirmación final: escribe ELIMINAR en mayúsculas para borrar ${ids.length} inscripción(es).`);
+  if (typed !== 'ELIMINAR') { showStatus('Eliminación cancelada', 'info'); return; }
+  let ok = 0, fail = 0;
+  const CHUNK = 6;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const results = await Promise.all(slice.map(id =>
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization':`Bearer ${authToken}` }
+      }).then(r => r.ok).catch(() => false)
+    ));
+    results.forEach(r => r ? ok++ : fail++);
+  }
+  showStatus(`${ok} eliminadas${fail ? ' · ' + fail + ' con error' : ''}`, fail ? 'error' : 'success');
+  evRegsSelected.clear();
+  evLoadRegistrations();
+}
+
+async function evRegsBulkAssignSessions() {
+  const ids = Array.from(evRegsSelected);
+  if (!ids.length) return;
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb;
+  let modal = document.getElementById('ev-regs-bulk-sess-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ev-regs-bulk-sess-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `<div class="modal-content" style="max-width:500px;">
+      <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;">${t('ev.reg_bulk_assign_title','Asignar sesión a seleccionados')}</h3>
+        <button type="button" class="modal-close" onclick="document.getElementById('ev-regs-bulk-sess-modal').classList.remove('active')" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;">×</button>
+      </div>
+      <div style="padding:16px 0;">
+        <div id="ev-regs-bulk-sess-info" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;"></div>
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">${t('ev.reg_bulk_assign_pick','Elige la sesión')}</label>
+        <select id="ev-regs-bulk-sess-select" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);"></select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('ev-regs-bulk-sess-modal').classList.remove('active')">${t('common.cancel','Cancelar')}</button>
+        <button type="button" class="btn btn-grad btn-sm" onclick="evRegsBulkAssignConfirm()">${t('ev.reg_bulk_assign_do','Asignar')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('ev-regs-bulk-sess-info').textContent = `${ids.length} ` + t('ev.reg_bulk_count_sel','inscripciones seleccionadas');
+  const sel = document.getElementById('ev-regs-bulk-sess-select');
+  sel.innerHTML = `<option value="">${t('ev.reg_bulk_assign_loading','Cargando sesiones…')}</option>`;
+  modal.classList.add('active');
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    const sessions = await r.json();
+    if (!Array.isArray(sessions) || !sessions.length) {
+      sel.innerHTML = `<option value="">${t('ev.reg_bulk_assign_none','Sin sesiones configuradas')}</option>`;
+      return;
+    }
+    sel.innerHTML = sessions.map(s => `<option value="${s.id}">${s.name || 'Sesión'}</option>`).join('');
+  } catch(_) {
+    sel.innerHTML = `<option value="">${t('ev.reg_bulk_assign_err','Error cargando')}</option>`;
+  }
+}
+async function evRegsBulkAssignConfirm() {
+  const sid = document.getElementById('ev-regs-bulk-sess-select').value;
+  if (!sid) return;
+  const ids = Array.from(evRegsSelected);
+  const CHUNK = 6;
+  let ok = 0, fail = 0;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const results = await Promise.all(slice.map(id =>
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/${id}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+        body: JSON.stringify({ session_ids: [sid] })
+      }).then(r => r.ok).catch(() => false)
+    ));
+    results.forEach(r => r ? ok++ : fail++);
+  }
+  document.getElementById('ev-regs-bulk-sess-modal').classList.remove('active');
+  showStatus(`${ok} asignadas${fail ? ' · ' + fail + ' con error' : ''}`, fail ? 'error' : 'success');
+  evRegsSelected.clear();
+  evLoadRegistrations();
 }
 
 async function evLoadSessionChart() {
@@ -13938,7 +14197,9 @@ async function evLoadSessionChart() {
       const color  = isGeneral ? '#00e676' : '#60a5fa';
       const track  = isGeneral ? 'rgba(0,230,118,.10)' : 'rgba(96,165,250,.10)';
       const offset = (C * (1 - pct / 100)).toFixed(2);
-      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;">
+      const sidAttr = isGeneral ? 'general' : r.session_id;
+      const sname = (r.name || '').replace(/"/g,'&quot;');
+      return `<div onclick="evCheckinDrilldown('${sidAttr}', &quot;${sname}&quot;)" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;transition:border-color .15s,transform .1s;" onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="position:relative;width:76px;height:76px;">
           <svg viewBox="0 0 50 50" width="76" height="76" style="transform:rotate(-90deg);">
             <circle cx="25" cy="25" r="20" fill="none" stroke="${track}" stroke-width="6"/>
@@ -13953,8 +14214,12 @@ async function evLoadSessionChart() {
       </div>`;
     }).join('');
     chartEl.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
-      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);margin-bottom:14px;">${t('ev.regs_chart_title')}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap;">
+        <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);">${t('ev.regs_chart_title')}</div>
+        <div style="font-size:11px;color:var(--text-muted);font-style:italic;">${t('ev.regs_chart_hint','Click en una tarjeta para ver el detalle')}</div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">${donuts}</div>
+      <div id="ev-checkin-drilldown" style="margin-top:14px;"></div>
     </div>`;
   } catch(e) { chartEl.innerHTML = ''; }
 }
@@ -14252,9 +14517,118 @@ async function evImportCSV(input) {
   input.value = '';
 }
 
-async function evExportRegsCSV() {
+// ── Drill-down check-ins por sesión (E12) ─────────────────────────────
+async function evCheckinDrilldown(sessionId, sessionName) {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb;
+  const box = document.getElementById('ev-checkin-drilldown');
+  if (!box) return;
+  box.innerHTML = `<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px;">${t('ev.chk_drill_loading','Cargando check-ins…')}</div>`;
   try {
-    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/csv`,
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/checkin-detail?session_id=${encodeURIComponent(sessionId)}`,
+      { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    if (!r.ok) { box.innerHTML = `<div style="padding:14px;color:#ef4444;font-size:12px;">${t('ev.chk_drill_err','Error cargando')}</div>`; return; }
+    const rows = await r.json();
+    const header = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <div style="font-size:12px;font-weight:700;color:var(--text);">${t('ev.chk_drill_title','Check-ins')} · ${sessionName} <span style="color:var(--text-muted);font-weight:400;">(${rows.length})</span></div>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('ev-checkin-drilldown').innerHTML=''">${t('common.close','Cerrar')}</button>
+      </div>`;
+    if (!rows.length) {
+      box.innerHTML = header + `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;">${t('ev.chk_drill_empty','Sin check-ins registrados en esta sesión.')}</div>`;
+      return;
+    }
+    const body = rows.map(r => `<tr style="border-top:1px solid var(--border);">
+      <td style="padding:8px 10px;font-size:12px;color:var(--text);">${(r.attendee_name||'').replace(/</g,'&lt;')}</td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--text-muted);">${(r.email||'').replace(/</g,'&lt;')}</td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--text-muted);white-space:nowrap;">${r.event_day||''}</td>
+      <td style="padding:8px 10px;font-size:11px;color:var(--text);font-weight:600;white-space:nowrap;">${r.checked_in_at_label||''}</td>
+    </tr>`).join('');
+    box.innerHTML = header + `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:360px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:var(--surface2);">
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">${t('ev.chk_col_name','Asistente')}</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">${t('ev.chk_col_email','Email')}</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">${t('ev.chk_col_day','Día')}</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);">${t('ev.chk_col_time','Hora')}</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+  } catch(e) { box.innerHTML = `<div style="padding:14px;color:#ef4444;font-size:12px;">${t('ev.chk_drill_err','Error cargando')}</div>`; }
+}
+
+// ── Export modal (E12) ────────────────────────────────────────────────
+async function evOpenExportModal() {
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,fb)=>fb;
+  let modal = document.getElementById('ev-export-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'ev-export-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `<div class="modal-content" style="max-width:460px;">
+      <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;">${t('ev.exp_title','Exportar registros')}</h3>
+        <button type="button" class="modal-close" onclick="document.getElementById('ev-export-modal').classList.remove('active')" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;">×</button>
+      </div>
+      <div style="padding:14px 0;">
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">${t('ev.exp_scope','Qué exportar')}</label>
+        <select id="ev-exp-scope" style="width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);margin-bottom:14px;">
+          <option value="all">${t('ev.exp_scope_all','Todo el evento (todos los registros)')}</option>
+          <option value="general">${t('ev.exp_scope_general','Solo check-ins de entrada general')}</option>
+          <option value="session">${t('ev.exp_scope_session','Sesión específica')}</option>
+        </select>
+        <div id="ev-exp-sess-wrap" style="display:none;margin-bottom:14px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">${t('ev.exp_sess_pick','Elige la sesión')}</label>
+          <select id="ev-exp-sess" style="width:100%;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);"></select>
+        </div>
+        <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">${t('ev.exp_fmt','Formato')}</label>
+        <div style="display:flex;gap:8px;">
+          <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface2);"><input type="radio" name="ev-exp-fmt" value="csv" checked> CSV</label>
+          <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface2);"><input type="radio" name="ev-exp-fmt" value="pdf"> PDF</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('ev-export-modal').classList.remove('active')">${t('common.cancel','Cancelar')}</button>
+        <button type="button" class="btn btn-grad btn-sm" onclick="evDoExport()">${t('ev.exp_do','Descargar')}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('ev-exp-scope').addEventListener('change', (e) => {
+      document.getElementById('ev-exp-sess-wrap').style.display = e.target.value === 'session' ? '' : 'none';
+    });
+  }
+  const sel = document.getElementById('ev-exp-sess');
+  sel.innerHTML = `<option value="">${t('ev.exp_sess_loading','Cargando…')}</option>`;
+  modal.classList.add('active');
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    const sessions = await r.json();
+    if (Array.isArray(sessions) && sessions.length) {
+      sel.innerHTML = sessions.map(s => `<option value="${s.id}">${(s.name || 'Sesión').replace(/</g,'&lt;')}</option>`).join('');
+    } else {
+      sel.innerHTML = `<option value="">${t('ev.exp_sess_none','Sin sesiones')}</option>`;
+    }
+  } catch(_) { sel.innerHTML = `<option value="">${t('ev.exp_sess_err','Error')}</option>`; }
+}
+
+async function evDoExport() {
+  const scope = document.getElementById('ev-exp-scope').value;
+  const fmt = document.querySelector('input[name="ev-exp-fmt"]:checked').value;
+  let sid = 'all';
+  if (scope === 'general') sid = 'general';
+  else if (scope === 'session') {
+    const s = document.getElementById('ev-exp-sess').value;
+    if (!s) return;
+    sid = s;
+  }
+  document.getElementById('ev-export-modal').classList.remove('active');
+  if (fmt === 'csv') return evExportRegsCSV(sid);
+  return evExportRegsPDF(sid);
+}
+
+async function evExportRegsCSV(sessionId) {
+  try {
+    const qs = sessionId && sessionId !== 'all' ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/csv${qs}`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!r.ok) { showStatus(evI18n('ev.err_export_csv'), 'error'); return; }
     const blob = await r.blob();
@@ -14266,10 +14640,11 @@ async function evExportRegsCSV() {
   } catch(e) { showStatus(evI18n('ev.err_export_csv'), 'error'); }
 }
 
-async function evExportRegsPDF() {
+async function evExportRegsPDF(sessionId) {
   if (!evCurrentEventId) return;
   try {
-    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/pdf`,
+    const qs = sessionId && sessionId !== 'all' ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/registrations/export/pdf${qs}`,
       { headers: { 'Authorization': `Bearer ${authToken}` } });
     if (!r.ok) { showStatus(evI18n('ev.err_generate_pdf'), 'error'); return; }
     const blob = await r.blob();

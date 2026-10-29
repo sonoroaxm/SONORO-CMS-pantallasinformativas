@@ -9027,6 +9027,9 @@ app.use('/api', licensesAdminRouter);
 app.get('/evento/invitacion/:code', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento.html'));
 });
+app.get('/evento/sesion/:share_token', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'evento-sesion.html'));
+});
 app.get('/evento/:slug', async (req, res) => {
   await renderEventoWithOG(req, res, req.params.slug);
 });

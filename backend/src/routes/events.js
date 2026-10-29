@@ -582,11 +582,12 @@ router.post('/:id/sessions', auth, async (req, res) => {
       `INSERT INTO events.event_sessions
          (event_id, user_id, name, description, session_type, venue_zone,
           starts_at, ends_at, capacity, requires_registration, speaker_name, visibility,
-          linked_rueda_id)
+          linked_rueda_id, share_token)
        VALUES ($1,$2,$3,$4,$5,$6,
          ($7::timestamp AT TIME ZONE $11),
          ($8::timestamp AT TIME ZONE $11),
-         $9,$10,$12,$13,$14) RETURNING *`,
+         $9,$10,$12,$13::varchar,$14,
+         CASE WHEN $13::varchar = 'invite_only' THEN gen_random_uuid() ELSE NULL END) RETURNING *`,
       [req.params.id, evCheck.rows[0].user_id, name.trim(), description || null,
        session_type, venue_zone || null, starts_at, ends_at, capacity || null, requires_registration, tz,
        (speaker_name && String(speaker_name).trim()) || null, visibility,
@@ -951,8 +952,8 @@ router.post('/:id/registrations/import', auth, async (req, res) => {
         );
         const ins = await client.query(
           `INSERT INTO events.registrations
-             (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms)
-           VALUES ($1,$2,$3,$4,'import',$5,TRUE)
+             (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
+           VALUES ($1,$2,$3,$4,'import',$5,TRUE,'pending')
            ON CONFLICT (event_id, attendee_id) DO NOTHING`,
           [req.params.id, att.rows[0].id, userId, ticket, JSON.stringify(customFields)]
         );
@@ -1273,6 +1274,16 @@ router.get('/:id/registrations/export/csv', auth, async (req, res) => {
     if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
     const { name: evName, timezone: tz } = evRes.rows[0];
 
+    const sid = String(req.query.session_id || 'all');
+    let scopeFilter = '';
+    const qParams = [req.params.id, tz];
+    if (sid === 'general') {
+      scopeFilter = ` AND EXISTS (SELECT 1 FROM events.registration_checkins c2 WHERE c2.registration_id = r.id AND c2.session_id IS NULL)`;
+    } else if (sid !== 'all') {
+      scopeFilter = ` AND EXISTS (SELECT 1 FROM events.registration_checkins c2 WHERE c2.registration_id = r.id AND c2.session_id = $3)`;
+      qParams.push(sid);
+    }
+
     const { rows } = await pool.query(
       `SELECT r.id, r.qr_token, r.ticket_type, r.status, r.origin, r.created_at AS registered_at,
               r.custom_fields,
@@ -1287,9 +1298,9 @@ router.get('/:id/registrations/export/csv', auth, async (req, res) => {
                FROM events.registration_checkins c WHERE c.registration_id = r.id) AS checkins
        FROM events.registrations r
        JOIN events.attendees a ON a.id = r.attendee_id
-       WHERE r.event_id = $1
+       WHERE r.event_id = $1 ${scopeFilter}
        ORDER BY r.created_at ASC`,
-      [req.params.id, tz]
+      qParams
     );
 
     const escCSV = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -1369,23 +1380,34 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
          ORDER BY s.starts_at`,
         [req.params.id]
       ),
-      pool.query(
-        `SELECT a.name AS attendee_name, a.email, a.phone, r.ticket_type, r.status,
-                (SELECT string_agg(sess.name, ', ' ORDER BY sess.starts_at)
-                 FROM events.registration_sessions rs
-                 JOIN events.event_sessions sess ON sess.id = rs.session_id
-                 WHERE rs.registration_id = r.id) AS sessions,
-                (SELECT string_agg(c.event_day::text || ' ' ||
-                   to_char(c.checked_in_at AT TIME ZONE $2, 'HH12:MI AM'), ', '
-                   ORDER BY c.checked_in_at)
-                 FROM events.registration_checkins c WHERE c.registration_id = r.id) AS checkins,
-                r.created_at AS registered_at
-         FROM events.registrations r
-         JOIN events.attendees a ON a.id = r.attendee_id
-         WHERE r.event_id = $1
-         ORDER BY r.created_at ASC`,
-        [req.params.id, tz]
-      ),
+      (() => {
+        const sid = String(req.query.session_id || 'all');
+        let scopeFilter = '';
+        const qp = [req.params.id, tz];
+        if (sid === 'general') {
+          scopeFilter = ` AND EXISTS (SELECT 1 FROM events.registration_checkins c2 WHERE c2.registration_id = r.id AND c2.session_id IS NULL)`;
+        } else if (sid !== 'all') {
+          scopeFilter = ` AND EXISTS (SELECT 1 FROM events.registration_checkins c2 WHERE c2.registration_id = r.id AND c2.session_id = $3)`;
+          qp.push(sid);
+        }
+        return pool.query(
+          `SELECT a.name AS attendee_name, a.email, a.phone, r.ticket_type, r.status,
+                  (SELECT string_agg(sess.name, ', ' ORDER BY sess.starts_at)
+                   FROM events.registration_sessions rs
+                   JOIN events.event_sessions sess ON sess.id = rs.session_id
+                   WHERE rs.registration_id = r.id) AS sessions,
+                  (SELECT string_agg(c.event_day::text || ' ' ||
+                     to_char(c.checked_in_at AT TIME ZONE $2, 'HH12:MI AM'), ', '
+                     ORDER BY c.checked_in_at)
+                   FROM events.registration_checkins c WHERE c.registration_id = r.id) AS checkins,
+                  r.created_at AS registered_at
+           FROM events.registrations r
+           JOIN events.attendees a ON a.id = r.attendee_id
+           WHERE r.event_id = $1 ${scopeFilter}
+           ORDER BY r.created_at ASC`,
+          qp
+        );
+      })(),
     ]);
 
     const stats    = statsRes.rows[0];
@@ -1804,7 +1826,11 @@ router.patch('/:id/sessions/:sessionId', auth, async (req, res) => {
          assigned_staff_id = COALESCE($10, assigned_staff_id),
          observations      = COALESCE($11, observations),
          speaker_name      = COALESCE($12, speaker_name),
-         visibility        = COALESCE($13, visibility)
+         visibility        = COALESCE($13::varchar, visibility),
+         share_token       = CASE
+           WHEN COALESCE($13::varchar, visibility) = 'invite_only' AND share_token IS NULL THEN gen_random_uuid()
+           ELSE share_token
+         END
        WHERE id = $1 AND event_id = $2 RETURNING *`,
       [req.params.sessionId, req.params.id,
        name?.trim() || null, starts_at || null, ends_at || null,
@@ -3110,6 +3136,52 @@ router.get('/:id/brief/pdf', auth, async (req, res) => {
 });
 
 // ── CHECK-IN STATS POR SESIÓN (para gráfica en dashboard) ──────────────────
+// Detalle de check-ins por sesión (drill-down). session_id = 'all' | 'general' | <uuid>
+router.get('/:id/checkin-detail', auth, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const evRes = await pool.query(
+      `SELECT user_id, timezone FROM events.events WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!evRes.rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    if (evRes.rows[0].user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Sin acceso' });
+    }
+    const tz = evRes.rows[0].timezone || 'America/Bogota';
+    const sid = String(req.query.session_id || 'all');
+
+    let where = 'c.event_id = $1';
+    const params = [req.params.id];
+    if (sid === 'general') {
+      where += ' AND c.session_id IS NULL';
+    } else if (sid !== 'all') {
+      where += ' AND c.session_id = $2';
+      params.push(sid);
+    }
+
+    const { rows } = await pool.query(
+      `SELECT c.id, c.registration_id, c.session_id, c.event_day,
+              c.checked_in_at,
+              to_char(c.checked_in_at AT TIME ZONE '${tz.replace(/'/g, "''")}', 'HH12:MI AM') AS checked_in_at_label,
+              a.name AS attendee_name, a.email, a.phone,
+              COALESCE(s.name, 'Entrada general') AS session_name
+         FROM events.registration_checkins c
+         JOIN events.registrations r ON r.id = c.registration_id
+         JOIN events.attendees a      ON a.id = r.attendee_id
+         LEFT JOIN events.event_sessions s ON s.id = c.session_id
+        WHERE ${where}
+        ORDER BY c.checked_in_at DESC
+        LIMIT 500`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /api/events/:id/checkin-detail:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 router.get('/:id/checkin-stats', auth, async (req, res) => {
   const pool = global.pool;
   try {

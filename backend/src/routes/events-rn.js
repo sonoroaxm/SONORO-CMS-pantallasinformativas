@@ -1501,7 +1501,7 @@ router.post('/events/:eventId/registrations/bulk', auth, async (req, res) => {
           const regRes = await client.query(
             `INSERT INTO events.registrations
                (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
-             VALUES ($1,$2,$3,'rueda','import',$4,TRUE,'confirmed')
+             VALUES ($1,$2,$3,'rueda','import',$4,TRUE,'pending')
              ON CONFLICT (event_id, attendee_id) DO NOTHING
              RETURNING id`,
             [eventId, attendeeId, userId, JSON.stringify(customFields)]

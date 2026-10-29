@@ -33,6 +33,7 @@ TRACKED=(
   "backend/public/evento-staff.html"
   "backend/public/evento-produccion.html"
   "backend/public/evento-kiosko.html"
+  "backend/public/evento-sesion.html"
   "backend/public/proveedor-registro.html"
   "backend/public/cotizacion.html"
   "backend/public/fids.html"

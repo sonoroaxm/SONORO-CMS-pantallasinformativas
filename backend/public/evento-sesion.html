@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Inscripción a sesión privada</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #f5f5f5;
+      --surface: #ffffff;
+      --border:  #e5e5e5;
+      --text:    #111111;
+      --muted:   #777777;
+      --faint:   #aaaaaa;
+      --brand:   #FF1B8D;
+      --orange:  #FF8C00;
+      --yellow:  #FFE566;
+      --success: #16A34A;
+      --error:   #DC2626;
+      --r:       12px;
+      --shadow:  0 1px 4px rgba(0,0,0,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .ev-header {
+      background: #111;
+      color: #fff;
+      padding: 40px 24px 36px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .ev-header::after {
+      content: '';
+      display: block;
+      height: 3px;
+      background: linear-gradient(135deg, #FF1B8D, #FF8C00, #FFE566);
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+    }
+    .ev-brand {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #FF1B8D, #FF8C00, #FFE566);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+    .ev-title {
+      font-size: clamp(22px, 5vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+    .ev-event-name { font-size: 13px; color: rgba(255,255,255,.6); margin-bottom: 14px; font-weight: 600; }
+    .ev-meta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .ev-meta-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: rgba(255,255,255,.7); font-weight: 500;
+    }
+    .ev-meta-item strong { color: #fff; font-weight: 700; }
+    .ev-private-badge {
+      display: inline-block;
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+      background: rgba(255,27,141,.18); color: #FF1B8D;
+      border: 1px solid rgba(255,27,141,.35);
+      margin-bottom: 12px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      max-width: 560px;
+      margin: 20px auto 0;
+      padding: 28px 28px 24px;
+    }
+    @media (max-width: 600px) { .card { margin: 16px 12px 0; padding: 20px 18px; } }
+    .card-title    { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .card-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    .cap-bar {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--muted);
+      padding: 10px 14px; background: #f9f9f9; border-radius: 8px; margin-bottom: 18px;
+      font-weight: 600;
+    }
+    .cap-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+    .cap-fill  { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #FF1B8D, #FF8C00); transition: width .4s; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+    label  { font-size: 12px; font-weight: 700; color: var(--text); }
+    label .req { color: var(--brand); margin-left: 2px; }
+    input[type=text], input[type=email], input[type=tel] {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 14px; color: var(--text); background: var(--surface);
+      outline: none; transition: border-color .15s;
+      font-family: inherit;
+    }
+    input:focus { border-color: var(--brand); }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 480px) { .row-2 { grid-template-columns: 1fr; } }
+
+    .terms-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 14px; background: #f9f9f9; border-radius: 8px;
+      margin-top: 6px; margin-bottom: 18px;
+    }
+    .terms-row input[type=checkbox] { width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px; accent-color: var(--brand); }
+    .terms-row label { font-size: 13px; font-weight: 400; color: var(--muted); cursor: pointer; line-height: 1.5; }
+
+    .btn {
+      padding: 11px 24px; border-radius: 8px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      border: none; outline: none; transition: opacity .15s, transform .1s;
+      font-family: inherit; width: 100%;
+    }
+    .btn:hover   { opacity: .9; }
+    .btn:active  { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, #FF1B8D, #FF8C00); color: #fff; }
+
+    .msg { padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; font-weight: 600; }
+    .msg-error { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .msg-success { background: #DCFCE7; color: #166534; border: 1px solid #86EFAC; }
+
+    .status-card {
+      max-width: 480px; margin: 48px auto; text-align: center;
+      padding: 40px 24px;
+      background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow);
+    }
+    .status-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .status-card p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    .success-wrap { text-align: center; padding: 8px 0 12px; }
+    .check-circle {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: #DCFCE7; margin: 0 auto 18px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--success); font-size: 32px; font-weight: 800;
+    }
+
+    .ev-footer {
+      max-width: 560px; margin: 20px auto 48px;
+      text-align: center; font-size: 12px; color: var(--faint); line-height: 1.8;
+    }
+
+    .hp-field { position: absolute; left: -9999px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="ev-header" id="ev-header" style="display:none;">
+  <div class="ev-brand">SONORO · EVENTOS</div>
+  <div class="ev-private-badge">Sesión privada · Invitación</div>
+  <h1 class="ev-title" id="ev-title"></h1>
+  <div class="ev-event-name" id="ev-event-name"></div>
+  <div class="ev-meta" id="ev-meta"></div>
+</div>
+
+<div class="status-card" id="screen-loading">
+  <p style="color:var(--faint);font-size:14px;">Cargando sesión…</p>
+</div>
+
+<div class="status-card hidden" id="screen-error">
+  <h2 id="err-title">Sesión no disponible</h2>
+  <p id="err-msg">Este link no es válido o la inscripción está cerrada.</p>
+</div>
+
+<div class="card hidden" id="screen-form">
+  <div class="card-title">Tus datos</div>
+  <div class="card-subtitle">Completa la información para confirmar tu cupo.</div>
+
+  <div class="cap-bar hidden" id="cap-bar">
+    <span>Cupos</span>
+    <div class="cap-track"><div class="cap-fill" id="cap-fill" style="width:0%"></div></div>
+    <span id="cap-count"></span>
+  </div>
+
+  <div id="msg"></div>
+
+  <form id="reg-form">
+    <input type="text" class="hp-field" name="hp_field" tabindex="-1" autocomplete="off">
+
+    <div class="row-2">
+      <div class="field">
+        <label for="f-name">Nombre completo<span class="req">*</span></label>
+        <input type="text" id="f-name" required maxlength="120" autocomplete="name">
+      </div>
+      <div class="field">
+        <label for="f-email">Correo electrónico<span class="req">*</span></label>
+        <input type="email" id="f-email" required maxlength="160" autocomplete="email">
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label for="f-phone">Teléfono</label>
+        <input type="tel" id="f-phone" maxlength="40" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label for="f-org">Organización</label>
+        <input type="text" id="f-org" maxlength="160">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="f-job">Cargo</label>
+      <input type="text" id="f-job" maxlength="120">
+    </div>
+
+    <div class="terms-row">
+      <input type="checkbox" id="f-terms" required>
+      <label for="f-terms">Acepto el tratamiento de mis datos personales y los términos del evento.</label>
+    </div>
+
+    <button type="submit" id="btn-submit" class="btn btn-primary">Confirmar inscripción</button>
+  </form>
+</div>
+
+<div class="card hidden" id="screen-success">
+  <div class="success-wrap">
+    <div class="check-circle">✓</div>
+    <h2 style="font-size:20px;font-weight:800;margin-bottom:10px;">¡Inscripción recibida!</h2>
+    <p id="success-msg" style="color:var(--muted);font-size:14px;line-height:1.6;"></p>
+  </div>
+</div>
+
+<div class="ev-footer">
+  SONORO Eventos · Gestión profesional de eventos
+</div>
+
+<script>
+(function() {
+  const parts = location.pathname.split('/').filter(Boolean);
+  const shareToken = parts[parts.length - 1];
+  const API = location.origin + '/api/events/public/session/' + shareToken;
+  const formStartedAt = Date.now();
+  let eventData = null, sessionData = null;
+
+  function fmtDate(iso, tz) {
+    try {
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', timeZone: tz });
+      const time = d.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12: true, timeZone: tz });
+      return date + ' · ' + time;
+    } catch { return iso; }
+  }
+
+  function showMsg(text, type) {
+    const el = document.getElementById('msg');
+    el.className = 'msg msg-' + type;
+    el.textContent = text;
+  }
+
+  function showError(title, msg) {
+    document.getElementById('screen-loading').classList.add('hidden');
+    document.getElementById('err-title').textContent = title;
+    document.getElementById('err-msg').textContent = msg;
+    document.getElementById('screen-error').classList.remove('hidden');
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(API);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: 'No disponible' }));
+        showError('Sesión no disponible', err.error || 'Link no válido');
+        return;
+      }
+      const data = await r.json();
+      eventData = data.event;
+      sessionData = data.session;
+      renderHeader();
+      document.getElementById('screen-loading').classList.add('hidden');
+      document.getElementById('ev-header').style.display = '';
+      document.getElementById('screen-form').classList.remove('hidden');
+    } catch (e) {
+      showError('Error', 'No se pudo cargar la sesión.');
+    }
+  }
+
+  function renderHeader() {
+    document.title = sessionData.name + ' — ' + eventData.name;
+    document.getElementById('ev-title').textContent = sessionData.name;
+    document.getElementById('ev-event-name').textContent = eventData.name;
+    const tz = eventData.timezone || 'America/Bogota';
+    const rows = [];
+    rows.push('<div class="ev-meta-item"><strong>Inicio:</strong> ' + fmtDate(sessionData.starts_at, tz) + '</div>');
+    if (sessionData.venue_zone) {
+      rows.push('<div class="ev-meta-item"><strong>Lugar:</strong> ' + sessionData.venue_zone + '</div>');
+    } else if (eventData.venue_name) {
+      rows.push('<div class="ev-meta-item"><strong>Lugar:</strong> ' + eventData.venue_name + '</div>');
+    }
+    if (sessionData.speaker_name) {
+      rows.push('<div class="ev-meta-item"><strong>Speaker:</strong> ' + sessionData.speaker_name + '</div>');
+    }
+    document.getElementById('ev-meta').innerHTML = rows.join('');
+
+    if (sessionData.capacity) {
+      const remaining = Math.max(0, sessionData.capacity - sessionData.registered_count);
+      const pct = Math.min(100, (sessionData.registered_count / sessionData.capacity) * 100);
+      document.getElementById('cap-bar').classList.remove('hidden');
+      document.getElementById('cap-fill').style.width = pct + '%';
+      document.getElementById('cap-count').textContent = remaining + ' de ' + sessionData.capacity + ' disponibles';
+    }
+  }
+
+  document.getElementById('reg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    const payload = {
+      name: document.getElementById('f-name').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
+      phone: document.getElementById('f-phone').value.trim() || null,
+      organization: document.getElementById('f-org').value.trim() || null,
+      job_title: document.getElementById('f-job').value.trim() || null,
+      accepted_terms: document.getElementById('f-terms').checked,
+      hp_field: document.querySelector('input[name="hp_field"]').value,
+      locale: 'es',
+    };
+    try {
+      const r = await fetch(API + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Form-Started-At': String(formStartedAt) },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        showMsg(data.error || 'No se pudo completar la inscripción', 'error');
+        btn.disabled = false; btn.textContent = 'Confirmar inscripción';
+        return;
+      }
+      const msg = data.already_registered
+        ? 'Ya tenías una inscripción activa en este evento. Hemos añadido la sesión "' + data.session_name + '" a tu agenda.'
+        : 'Te hemos enviado un correo con los detalles. Nos vemos en "' + data.session_name + '".';
+      document.getElementById('screen-form').classList.add('hidden');
+      document.getElementById('success-msg').textContent = msg;
+      document.getElementById('screen-success').classList.remove('hidden');
+    } catch (err) {
+      showMsg('Error de red. Intenta de nuevo.', 'error');
+      btn.disabled = false; btn.textContent = 'Confirmar inscripción';
+    }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

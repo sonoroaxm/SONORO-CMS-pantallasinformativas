@@ -461,6 +461,217 @@ router.post('/proveedor-registro/:token', eventPublicReadLimiter, async (req, re
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SESSION SHARE TOKEN — Link compartible para sesión privada (CP1)
+// La sesión se identifica por share_token (UUID) en vez de slug+session_id.
+// Solo opera sobre sesiones visibility='invite_only'.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const sessionShareLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes' },
+});
+
+// GET metadata del evento + sesión para renderizar form público filtrado
+router.get('/session/:share_token', sessionShareLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.id AS session_id, s.name AS session_name, s.description AS session_description,
+              s.starts_at, s.ends_at, s.capacity, s.venue_zone, s.speaker_name,
+              e.id AS event_id, e.name AS event_name, e.slug AS event_slug,
+              e.timezone, e.venue_name, e.venue_address, e.cover_image_url, e.config,
+              e.user_id, e.status AS event_status,
+              (SELECT COUNT(*)::int FROM events.registration_sessions rs
+                 JOIN events.registrations r ON r.id = rs.registration_id
+                WHERE rs.session_id = s.id AND r.status != 'cancelled') AS registered_count
+         FROM events.event_sessions s
+         JOIN events.events e ON e.id = s.event_id
+        WHERE s.share_token = $1 AND s.status != 'cancelled' AND s.visibility = 'invite_only'
+        LIMIT 1`,
+      [req.params.share_token]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Link no válido o sesión no disponible' });
+    const row = rows[0];
+    if (!['published','live'].includes(row.event_status)) {
+      return res.status(404).json({ error: 'Evento no disponible' });
+    }
+    res.json({
+      session: {
+        id: row.session_id, name: row.session_name, description: row.session_description,
+        starts_at: row.starts_at, ends_at: row.ends_at, capacity: row.capacity,
+        venue_zone: row.venue_zone, speaker_name: row.speaker_name,
+        registered_count: row.registered_count,
+      },
+      event: {
+        id: row.event_id, name: row.event_name, slug: row.event_slug,
+        timezone: row.timezone, venue_name: row.venue_name, venue_address: row.venue_address,
+        cover_image_url: row.cover_image_url, config: row.config || {},
+      },
+    });
+  } catch (err) {
+    console.error('❌ GET /session/:share_token:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// POST inscripción vía share_token
+router.post('/session/:share_token/register', sessionShareLimiter, async (req, res) => {
+  const pool = global.pool;
+  const {
+    name, email, phone, id_number, id_type = 'CC',
+    organization, job_title,
+    ticket_type = 'general',
+    custom_fields = {},
+    hp_field = '',
+    accepted_terms,
+    locale: rawLocale,
+  } = req.body;
+  const locale = ['es','en','pt-BR'].includes(rawLocale) ? rawLocale : 'es';
+
+  if (hp_field !== '') {
+    global.io?.emit('registration.honeypot', { ip_hash: 'x', share_token: req.params.share_token });
+    return res.status(400).json({ error: 'Error de validación' });
+  }
+  const formStartedAt = req.headers['x-form-started-at'];
+  if (formStartedAt && Date.now() - parseInt(formStartedAt) < 3000) {
+    return res.status(400).json({ error: 'Formulario enviado demasiado rápido' });
+  }
+  if (!name?.trim())      return res.status(400).json({ error: 'El nombre es requerido' });
+  if (!email?.trim())     return res.status(400).json({ error: 'El email es requerido' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email inválido' });
+  if (!accepted_terms)    return res.status(400).json({ error: 'Debes aceptar los términos' });
+
+  try {
+    const result = await withTransaction(pool, async (client) => {
+      const sq = await client.query(
+        `SELECT s.id AS session_id, s.event_id, s.capacity, s.name AS session_name,
+                e.user_id, e.name AS event_name, e.slug, e.timezone, e.config, e.starts_at, e.ends_at,
+                e.venue_name, e.venue_address, e.cover_image_url
+           FROM events.event_sessions s
+           JOIN events.events e ON e.id = s.event_id
+          WHERE s.share_token = $1 AND s.status != 'cancelled' AND s.visibility = 'invite_only'
+            AND e.status IN ('published','live')
+          FOR UPDATE OF s`,
+        [req.params.share_token]
+      );
+      if (!sq.rowCount) {
+        const err = new Error('Link no válido o sesión no disponible'); err.httpStatus = 404; throw err;
+      }
+      const row = sq.rows[0];
+
+      // Capacidad de la sesión (si aplica)
+      if (row.capacity) {
+        const cq = await client.query(
+          `SELECT COUNT(*)::int AS c
+             FROM events.registration_sessions rs
+             JOIN events.registrations r ON r.id = rs.registration_id
+            WHERE rs.session_id = $1 AND r.status != 'cancelled'`,
+          [row.session_id]
+        );
+        if (cq.rows[0].c >= row.capacity) {
+          const err = new Error('Sesión llena'); err.httpStatus = 409; throw err;
+        }
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      const autoConfirm = row.config?.auto_confirm === true;
+
+      // Upsert attendee (CRM por tenant)
+      const attRes = await client.query(
+        `INSERT INTO events.attendees
+           (user_id, email, name, phone, id_number, id_type, organization, job_title, locale)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         ON CONFLICT (user_id, email) DO UPDATE SET
+           name         = EXCLUDED.name,
+           phone        = COALESCE(EXCLUDED.phone,        events.attendees.phone),
+           id_number    = COALESCE(EXCLUDED.id_number,    events.attendees.id_number),
+           organization = COALESCE(EXCLUDED.organization, events.attendees.organization),
+           job_title    = COALESCE(EXCLUDED.job_title,    events.attendees.job_title),
+           locale       = EXCLUDED.locale,
+           updated_at   = NOW()
+         RETURNING id`,
+        [row.user_id, cleanEmail, name.trim(), phone || null,
+         id_number || null, id_type, organization || null, job_title || null, locale]
+      );
+      const attendee_id = attRes.rows[0].id;
+
+      // Registration — origin='invitation' queda dentro del CHECK existente
+      const regRes = await client.query(
+        `INSERT INTO events.registrations
+           (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status)
+         VALUES ($1,$2,$3,$4,'invitation',$5,TRUE,$6)
+         ON CONFLICT (event_id, attendee_id) DO NOTHING
+         RETURNING id, qr_token, ticket_type, status`,
+        [row.event_id, attendee_id, row.user_id, ticket_type, JSON.stringify(custom_fields),
+         autoConfirm ? 'confirmed' : 'pending']
+      );
+
+      let registration;
+      let isNew;
+      if (regRes.rows[0]) {
+        registration = regRes.rows[0];
+        isNew = true;
+      } else {
+        const existing = await client.query(
+          `SELECT id, qr_token, ticket_type FROM events.registrations
+            WHERE event_id = $1 AND attendee_id = $2`,
+          [row.event_id, attendee_id]
+        );
+        registration = existing.rows[0];
+        isNew = false;
+      }
+
+      // Añadir la sesión privada al registration (idempotente)
+      await client.query(
+        `INSERT INTO events.registration_sessions (registration_id, session_id)
+         VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+        [registration.id, row.session_id]
+      );
+
+      return { registration, isNew, event: row, session_name: row.session_name };
+    });
+
+    const autoConfirm = result.event.config?.auto_confirm === true;
+    const eventPayload = {
+      id: result.event.event_id, name: result.event.event_name, slug: result.event.slug,
+      timezone: result.event.timezone, starts_at: result.event.starts_at, ends_at: result.event.ends_at,
+      venue_name: result.event.venue_name, venue_address: result.event.venue_address,
+      cover_image_url: result.event.cover_image_url, config: result.event.config || {},
+    };
+    const emailConfig = { from_name: result.event.config?.email_from_name || null, reply_to: result.event.config?.email_reply_to || null };
+    if (result.isNew) {
+      if (autoConfirm) {
+        sendEventRegistrationEmail(
+          { name: name.trim(), email: email.toLowerCase().trim(), locale },
+          eventPayload, result.registration, emailConfig
+        ).catch(e => console.error('⚠️ Email confirmación share_token fallido:', e.message));
+      } else {
+        sendEventPendingEmail(
+          { name: name.trim(), email: email.toLowerCase().trim(), locale },
+          eventPayload, emailConfig
+        ).catch(e => console.error('⚠️ Email pending share_token fallido:', e.message));
+      }
+    }
+
+    global.io?.to(`event_${result.event.event_id}`).emit('attendee.registered', {
+      user_id: result.event.user_id, event_id: result.event.event_id,
+      origin: 'invitation', session_count: 1, via: 'share_token',
+    });
+
+    res.status(201).json({
+      registration_id: result.registration.id,
+      qr_token: result.registration.qr_token,
+      session_name: result.session_name,
+      already_registered: !result.isNew,
+    });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ POST /session/:share_token/register:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INVITATION CLAIM — Acceso público por claim_code (E1.5)
 // El claim_code reemplaza al :slug — el batch resuelve event_id y user_id.
 // ═══════════════════════════════════════════════════════════════════════════
