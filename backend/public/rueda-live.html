@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rueda · En vivo (productor) — mockup v1</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root, [data-theme="dark"]{
+    --magenta:#FF1B8D; --orange:#FF8C00; --yellow:#FFE566;
+    --grad:linear-gradient(135deg, var(--magenta) 0%, var(--orange) 55%, var(--yellow) 100%);
+    --bg:#0f0f0f; --surface:#161616; --surface2:#1e1e1e; --surface3:#272727;
+    --border:#2e2e2e; --border-2:#3a3a3a;
+    --text:#f0f0f0; --text-muted:#888; --text-dim:#666;
+    --magenta-soft:rgba(255,27,141,.12);
+    --orange-soft:rgba(255,140,0,.14);
+    --warn:#f59e0b; --warn-soft:rgba(245,158,11,.14);
+    --danger:#ef4444; --danger-soft:rgba(239,68,68,.14);
+    --live:#FF1B8D;
+  }
+  [data-theme="light"]{
+    --bg:#f7f7f7; --surface:#ffffff; --surface2:#f4f4f4; --surface3:#ececec;
+    --border:#d8d8d8; --border-2:#bfbfbf;
+    --text:#111; --text-muted:#666; --text-dim:#999;
+    --magenta-soft:rgba(255,27,141,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+  .wrap{max-width:1240px;margin:0 auto;padding:24px 24px 48px}
+
+  .breadcrumb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-dim);margin-bottom:14px;letter-spacing:.3px}
+  .breadcrumb a{color:var(--text-muted);text-decoration:none;font-weight:600}
+  .breadcrumb a:hover{color:var(--magenta)}
+  .breadcrumb .sep{opacity:.6}
+
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:18px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .page-head h1{margin:0 0 6px;font-size:24px;font-weight:800;letter-spacing:-.5px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .page-head h1 .kicker{display:block;width:100%;font-size:11px;font-weight:800;letter-spacing:2.2px;color:var(--magenta);text-transform:uppercase;margin-bottom:6px}
+  .page-head .meta{color:var(--text-muted);font-size:13px;font-weight:600;display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .ph-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+  .live-pill{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:800;padding:4px 11px;border-radius:999px;letter-spacing:1.4px;background:var(--magenta-soft);color:var(--live);text-transform:uppercase}
+  .live-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .2s}
+  .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
+  .btn-outline:hover{border-color:var(--magenta);color:var(--magenta)}
+  .btn-grad{background:var(--grad);color:white}
+  .btn-grad:hover{opacity:.9}
+  .btn-sm{padding:7px 14px;font-size:12px}
+  .btn-danger-ghost{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
+  .btn-danger-ghost:hover{border-color:var(--danger);color:var(--danger)}
+
+  /* Hero: ronda actual */
+  .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:14px}
+  .hero-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;position:relative;overflow:hidden}
+  .hero-current{background:linear-gradient(135deg, rgba(255,27,141,.14) 0%, rgba(255,140,0,.08) 60%, transparent 100%);border-color:var(--border)}
+  .hc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+  .hc-k{font-size:10.5px;font-weight:800;letter-spacing:1.6px;color:var(--text-muted);text-transform:uppercase}
+  .hc-ttl{display:flex;align-items:baseline;gap:14px;margin-bottom:4px}
+  .hc-ttl .big{font-size:62px;font-weight:800;letter-spacing:-2.5px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+  .hc-ttl .lbl{font-size:14px;font-weight:700;color:var(--text-muted);letter-spacing:-.2px}
+  .hc-sub{color:var(--text-muted);font-size:12.5px;font-weight:600}
+  .timer-row{display:flex;align-items:center;gap:18px;margin-top:18px}
+  .timer{font-family:ui-monospace,Consolas,monospace;font-size:46px;font-weight:800;letter-spacing:-2px;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+  .timer .sep{opacity:.3}
+  .progress{flex:1;height:8px;background:var(--surface3);border-radius:999px;overflow:hidden}
+  .progress>i{display:block;height:100%;width:62%;background:linear-gradient(90deg,#FF1B8D,#FF8C00);border-radius:999px}
+  .ctrl-row{display:flex;gap:8px;margin-top:18px}
+
+  .hero-next{background:var(--surface)}
+  .next-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+  .next-item{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px}
+  .ni-num{width:30px;height:30px;border-radius:7px;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text);flex-shrink:0;font-variant-numeric:tabular-nums}
+  .ni-body{flex:1;min-width:0}
+  .ni-body .nm{font-size:12px;font-weight:700;color:var(--text)}
+  .ni-body .sub{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:1px}
+  .ni-time{font-size:11.5px;color:var(--text-muted);font-weight:700;font-family:ui-monospace,Consolas,monospace;letter-spacing:-.2px}
+
+  /* Donuts + stats row */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+  .stat .k{font-size:10.5px;font-weight:800;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px}
+  .stat .v{font-size:26px;font-weight:800;letter-spacing:-1px;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+  .stat .trend{font-size:11.5px;color:var(--text-muted);font-weight:700;margin-top:4px}
+  .stat .donut-mini{width:52px;height:52px;flex-shrink:0;position:relative}
+  .stat .donut-mini svg{transform:rotate(-90deg)}
+  .stat .donut-mini .c{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--text)}
+  .stat.alert{border-color:rgba(239,68,68,.3)}
+  .stat.alert .v{color:var(--danger)}
+
+  /* Grid de mesas */
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:4px}
+  .section-head h2{margin:0;font-size:12px;font-weight:800;letter-spacing:1.6px;color:var(--text-muted);text-transform:uppercase}
+  .section-head .legend{display:flex;gap:14px;font-size:11px;font-weight:700;color:var(--text-muted)}
+  .section-head .legend span{display:inline-flex;align-items:center;gap:6px}
+  .section-head .legend i{width:9px;height:9px;border-radius:2px;background:var(--surface3);border:1px solid var(--border)}
+  .section-head .legend i.on{background:#FF1B8D;border-color:transparent}
+  .section-head .legend i.late{background:#FF8C00;border-color:transparent}
+  .section-head .legend i.ns{background:var(--danger);border-color:transparent}
+
+  .grid-main{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+
+  .mesas{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .mesa{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;position:relative}
+  .mesa .m-num{font-size:10.5px;font-weight:800;letter-spacing:1.4px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .mesa .m-pair{font-size:12.5px;font-weight:700;color:var(--text);line-height:1.4}
+  .mesa .m-vs{display:block;font-size:10px;font-weight:800;color:var(--text-dim);letter-spacing:1px;margin:3px 0}
+  .mesa.on{border-color:#FF1B8D;background:linear-gradient(135deg,rgba(255,27,141,.08),transparent 70%)}
+  .mesa.on .m-num i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#FF1B8D;margin-right:5px;vertical-align:middle}
+  .mesa.late{border-color:#FF8C00}
+  .mesa.late .m-num{color:#FF8C00}
+  .mesa.ns{border-color:rgba(239,68,68,.4);background:var(--danger-soft)}
+  .mesa.ns .m-num{color:var(--danger)}
+  .mesa.empty{opacity:.5}
+
+  /* Sidebar: alertas */
+  .side{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px}
+  .card-body{padding:16px 18px}
+  .side h3{margin:0 0 12px;font-size:11px;font-weight:800;letter-spacing:1.6px;color:var(--text-dim);text-transform:uppercase}
+
+  .alerts{display:flex;flex-direction:column;gap:10px}
+  .alert{display:flex;gap:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--text-muted);border-radius:8px}
+  .alert .ic{width:22px;height:22px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--text-muted);flex-shrink:0}
+  .alert.warn{border-left-color:#FF8C00}
+  .alert.warn .ic{background:var(--orange-soft);color:#FF8C00}
+  .alert.danger{border-left-color:var(--danger)}
+  .alert.danger .ic{background:var(--danger-soft);color:var(--danger)}
+  .alert .body{min-width:0;flex:1}
+  .alert .ttl{font-size:12.5px;font-weight:700;color:var(--text);line-height:1.4}
+  .alert .sub{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:2px}
+  .alert .act{display:flex;gap:6px;margin-top:8px}
+  .alert .act button{background:transparent;border:1px solid var(--border);color:var(--text-muted);font-family:inherit;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
+  .alert .act button:hover{color:var(--text);border-color:var(--border-2)}
+
+  .mini-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+  .mini-row:last-child{border:0}
+  .mini-row .k{color:var(--text-muted);font-weight:600}
+  .mini-row .v{color:var(--text);font-weight:800;font-variant-numeric:tabular-nums}
+
+  .theme-tog{position:fixed;top:16px;right:16px;z-index:60;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px;display:flex;gap:2px}
+  .theme-tog button{background:transparent;border:0;color:var(--text-muted);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;cursor:pointer}
+  .theme-tog button.on{background:var(--magenta-soft);color:var(--magenta)}
+  .lang-sw{position:fixed;top:16px;right:170px;z-index:60;display:inline-flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .lang-sw button{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--text-muted);padding:5px 10px;border-radius:999px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.6px;font-family:inherit}
+  .lang-sw button.active{background:var(--magenta-soft);color:var(--magenta)}
+  .lang-sw svg.flag{width:16px;height:11px;display:block;border-radius:2px}
+
+  @media (max-width:1000px){
+    .hero,.grid-main{grid-template-columns:1fr}
+    .side{position:static}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="sonoro-flag-us" viewBox="0 0 30 20"><rect width="30" height="20" fill="#b22234"/><g fill="#fff"><rect y="1.54" width="30" height="1.54"/><rect y="4.62" width="30" height="1.54"/><rect y="7.69" width="30" height="1.54"/><rect y="10.77" width="30" height="1.54"/><rect y="13.85" width="30" height="1.54"/><rect y="16.92" width="30" height="1.54"/></g><rect width="12" height="10.77" fill="#3c3b6e"/></symbol>
+  <symbol id="sonoro-flag-br" viewBox="0 0 30 20"><rect width="30" height="20" fill="#009c3b"/><polygon points="15,2.5 27.5,10 15,17.5 2.5,10" fill="#ffdf00"/><circle cx="15" cy="10" r="4" fill="#012169"/></symbol>
+  <symbol id="sonoro-flag-co" viewBox="0 0 30 20"><rect width="30" height="10" fill="#fcd116"/><rect y="10" width="30" height="5" fill="#003893"/><rect y="15" width="30" height="5" fill="#ce1126"/></symbol>
+</svg>
+
+<div class="lang-sw" id="langSw">
+  <button data-lang="es" class="active"><svg class="flag"><use href="#sonoro-flag-co"/></svg>es</button>
+  <button data-lang="en"><svg class="flag"><use href="#sonoro-flag-us"/></svg>en</button>
+  <button data-lang="pt"><svg class="flag"><use href="#sonoro-flag-br"/></svg>pt</button>
+</div>
+
+<div class="theme-tog">
+  <button id="t-dark" class="on">Dark</button>
+  <button id="t-light">Light</button>
+</div>
+
+<div class="wrap">
+  <nav class="breadcrumb">
+    <a href="#" data-i18n-es="Dashboard" data-i18n-en="Dashboard" data-i18n-pt="Painel">Dashboard</a><span class="sep">/</span>
+    <a href="#" data-i18n-es="Mis Eventos" data-i18n-en="My Events" data-i18n-pt="Meus Eventos">Mis Eventos</a><span class="sep">/</span>
+    <a href="#">Rueda Pacífico 2026</a><span class="sep">/</span>
+    <span data-i18n-es="En vivo" data-i18n-en="Live" data-i18n-pt="Ao vivo">En vivo</span>
+  </nav>
+
+  <header class="page-head">
+    <div>
+      <h1><span class="kicker" data-i18n-es="Rueda en vivo" data-i18n-en="Live round" data-i18n-pt="Rodada ao vivo">Rueda en vivo</span>Rueda Pacífico 2026 <span class="live-pill"><span class="dot"></span><span data-i18n-es="En vivo" data-i18n-en="Live" data-i18n-pt="Ao vivo">En vivo</span></span></h1>
+      <div class="meta">
+        <span>Día 1 de 2 · 18 nov 2026</span>
+        <span>·</span>
+        <span>Hotel Intercontinental Cali</span>
+        <span>·</span>
+        <span>12 mesas · 47 asistentes</span>
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button class="btn btn-outline" data-i18n-es="Pantallas públicas" data-i18n-en="Public screens" data-i18n-pt="Telas públicas">Pantallas públicas</button>
+      <button class="btn btn-outline" data-i18n-es="Callboard" data-i18n-en="Callboard" data-i18n-pt="Callboard">Callboard</button>
+      <button class="btn btn-danger-ghost" data-i18n-es="Pausar rueda" data-i18n-en="Pause round" data-i18n-pt="Pausar rodada">Pausar rueda</button>
+    </div>
+  </header>
+
+  <!-- Hero: ronda actual + próximas -->
+  <div class="hero">
+    <div class="hero-card hero-current">
+      <div class="hc-top">
+        <div class="hc-k" data-i18n-es="Ronda en curso" data-i18n-en="Current round" data-i18n-pt="Rodada em curso">Ronda en curso</div>
+        <div class="hc-k" style="color:var(--magenta)">12 / 24</div>
+      </div>
+      <div class="hc-ttl">
+        <span class="big">12</span>
+        <span class="lbl" data-i18n-es="de 24 rondas · bloque mañana" data-i18n-en="of 24 rounds · morning block" data-i18n-pt="de 24 rodadas · bloco manhã">de 24 rondas · bloque mañana</span>
+      </div>
+      <div class="hc-sub">11:40 — 12:00 · <span data-i18n-es="próximo coffee break tras la ronda 16" data-i18n-en="next coffee break after round 16" data-i18n-pt="próximo coffee break após a rodada 16">próximo coffee break tras la ronda 16</span></div>
+      <div class="timer-row">
+        <div class="timer">08<span class="sep">:</span>23</div>
+        <div class="progress"><i></i></div>
+      </div>
+      <div class="ctrl-row">
+        <button class="btn btn-outline btn-sm" data-i18n-es="+1 min a todas las mesas" data-i18n-en="+1 min to all tables" data-i18n-pt="+1 min a todas as mesas">+1 min a todas las mesas</button>
+        <button class="btn btn-outline btn-sm" data-i18n-es="Avisar 2 min" data-i18n-en="2 min warning" data-i18n-pt="Avisar 2 min">Avisar 2 min</button>
+        <span style="font-size:11px;color:var(--text-dim);font-weight:600;margin-left:auto;align-self:center" data-i18n-es="La ronda se cierra sola al llegar a 0" data-i18n-en="The round closes automatically at 0" data-i18n-pt="A rodada se encerra sozinha ao chegar a 0">La ronda se cierra sola al llegar a 0</span>
+      </div>
+    </div>
+
+    <div class="hero-card hero-next">
+      <div class="hc-top">
+        <div class="hc-k" data-i18n-es="Próximas rondas" data-i18n-en="Upcoming rounds" data-i18n-pt="Próximas rodadas">Próximas rondas</div>
+        <button class="btn btn-outline btn-sm" data-i18n-es="Ver agenda" data-i18n-en="View agenda" data-i18n-pt="Ver agenda">Ver agenda</button>
+      </div>
+      <div class="next-list">
+        <div class="next-item">
+          <div class="ni-num">13</div>
+          <div class="ni-body"><div class="nm"><span data-i18n-es="Ronda" data-i18n-en="Round" data-i18n-pt="Rodada">Ronda</span> 13</div><div class="sub">12 <span data-i18n-es="mesas" data-i18n-en="tables" data-i18n-pt="mesas">mesas</span> · 24 <span data-i18n-es="reuniones" data-i18n-en="meetings" data-i18n-pt="reuniões">reuniones</span></div></div>
+          <div class="ni-time">12:05</div>
+        </div>
+        <div class="next-item">
+          <div class="ni-num">14</div>
+          <div class="ni-body"><div class="nm"><span data-i18n-es="Ronda" data-i18n-en="Round" data-i18n-pt="Rodada">Ronda</span> 14</div><div class="sub">12 <span data-i18n-es="mesas" data-i18n-en="tables" data-i18n-pt="mesas">mesas</span> · 23 <span data-i18n-es="reuniones" data-i18n-en="meetings" data-i18n-pt="reuniões">reuniones</span></div></div>
+          <div class="ni-time">12:30</div>
+        </div>
+        <div class="next-item">
+          <div class="ni-num">—</div>
+          <div class="ni-body"><div class="nm" data-i18n-es="Coffee break" data-i18n-en="Coffee break" data-i18n-pt="Coffee break">Coffee break</div><div class="sub" data-i18n-es="tras ronda 16" data-i18n-en="after round 16" data-i18n-pt="após rodada 16">tras ronda 16</div></div>
+          <div class="ni-time">13:40</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats row con donuts mini -->
+  <div class="stats">
+    <div class="stat">
+      <div class="donut-mini">
+        <svg viewBox="0 0 36 36" width="52" height="52">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#gradMO)" stroke-width="3.6" stroke-dasharray="91 100" stroke-linecap="round"/>
+        </svg>
+        <div class="c">91%</div>
+      </div>
+      <div style="min-width:0">
+        <div class="k" data-i18n-es="Presentes" data-i18n-en="Present" data-i18n-pt="Presentes">Presentes</div>
+        <div class="v">43 <span style="font-size:14px;color:var(--text-muted);font-weight:700">/47</span></div>
+        <div class="trend" data-i18n-es="4 asistentes sin check-in" data-i18n-en="4 attendees without check-in" data-i18n-pt="4 participantes sem check-in">4 asistentes sin check-in</div>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="donut-mini">
+        <svg viewBox="0 0 36 36" width="52" height="52">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#gradMO)" stroke-width="3.6" stroke-dasharray="83 100" stroke-linecap="round"/>
+        </svg>
+        <div class="c">83%</div>
+      </div>
+      <div style="min-width:0">
+        <div class="k" data-i18n-es="Mesas ocupadas" data-i18n-en="Busy tables" data-i18n-pt="Mesas ocupadas">Mesas ocupadas</div>
+        <div class="v">10 <span style="font-size:14px;color:var(--text-muted);font-weight:700">/12</span></div>
+        <div class="trend" data-i18n-es="2 mesas libres" data-i18n-en="2 free tables" data-i18n-pt="2 mesas livres">2 mesas libres</div>
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="donut-mini">
+        <svg viewBox="0 0 36 36" width="52" height="52">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#FF8C00" stroke-width="3.6" stroke-dasharray="12 100" stroke-linecap="round"/>
+        </svg>
+        <div class="c">3</div>
+      </div>
+      <div style="min-width:0">
+        <div class="k" data-i18n-es="Tardes" data-i18n-en="Late" data-i18n-pt="Atrasos">Tardes</div>
+        <div class="v" style="color:#FF8C00">3</div>
+        <div class="trend" data-i18n-es="esperando &gt;3 min" data-i18n-en="waiting &gt;3 min" data-i18n-pt="aguardando &gt;3 min">esperando &gt;3 min</div>
+      </div>
+    </div>
+
+    <div class="stat alert">
+      <div class="donut-mini">
+        <svg viewBox="0 0 36 36" width="52" height="52">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--surface3)" stroke-width="3.6"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--danger)" stroke-width="3.6" stroke-dasharray="8 100" stroke-linecap="round"/>
+        </svg>
+        <div class="c" style="color:var(--danger)">2</div>
+      </div>
+      <div style="min-width:0">
+        <div class="k" data-i18n-es="No-show" data-i18n-en="No-show" data-i18n-pt="Ausentes">No-show</div>
+        <div class="v">2</div>
+        <div class="trend" data-i18n-es="pendientes de reemparejar" data-i18n-en="pending rematching" data-i18n-pt="pendentes de reemparelhar">pendientes de reemparejar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gradient defs -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="gradMO" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#FF1B8D"/>
+        <stop offset="100%" stop-color="#FF8C00"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div class="grid-main">
+    <!-- Mesas -->
+    <div>
+      <div class="section-head">
+        <h2 data-i18n-es="Mesas · Ronda 12" data-i18n-en="Tables · Round 12" data-i18n-pt="Mesas · Rodada 12">Mesas · Ronda 12</h2>
+        <div class="legend">
+          <span><i class="on"></i><span data-i18n-es="En curso" data-i18n-en="In progress" data-i18n-pt="Em curso">En curso</span></span>
+          <span><i class="late"></i><span data-i18n-es="Tarde" data-i18n-en="Late" data-i18n-pt="Atrasado">Tarde</span></span>
+          <span><i class="ns"></i><span data-i18n-es="No-show" data-i18n-en="No-show" data-i18n-pt="Ausente">No-show</span></span>
+          <span><i></i><span data-i18n-es="Libre" data-i18n-en="Free" data-i18n-pt="Livre">Libre</span></span>
+        </div>
+      </div>
+      <div class="mesas">
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 1</span></div><div class="m-pair">Agroindustrial Pacífico<span class="m-vs">×</span>BanVerde Capital</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 2</span></div><div class="m-pair">Cooperativa Pacífica<span class="m-vs">×</span>Fondo Andino</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 3</span></div><div class="m-pair">DelicatesaX Foods<span class="m-vs">×</span>GreenTech Pacífico</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 4</span></div><div class="m-pair">HarborLogistics<span class="m-vs">×</span>Inversiones Valle</div></div>
+        <div class="mesa late"><div class="m-num">Mesa 5 · tarde</div><div class="m-pair">JademarTextil<span class="m-vs">×</span>Kioscos del Mar</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 6</span></div><div class="m-pair">Lácteos Nariño<span class="m-vs">×</span>MercaExport</div></div>
+        <div class="mesa ns"><div class="m-num">Mesa 7 · no-show</div><div class="m-pair">NutriPacífico<span class="m-vs">×</span>— ausente</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 8</span></div><div class="m-pair">OceanTrade<span class="m-vs">×</span>Puertos Buenaventura</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 9</span></div><div class="m-pair">QueroCafé<span class="m-vs">×</span>Ribera Capital</div></div>
+        <div class="mesa on"><div class="m-num"><span><i></i>Mesa 10</span></div><div class="m-pair">SelvaOrgánica<span class="m-vs">×</span>TropicalFinca</div></div>
+        <div class="mesa empty"><div class="m-num">Mesa 11 · libre</div><div class="m-pair" style="color:var(--text-dim)">Sin reunión asignada</div></div>
+        <div class="mesa empty"><div class="m-num">Mesa 12 · libre</div><div class="m-pair" style="color:var(--text-dim)">Sin reunión asignada</div></div>
+      </div>
+    </div>
+
+    <!-- Sidebar: alertas + atajos -->
+    <aside class="side">
+      <div class="card">
+        <div class="card-body">
+          <h3><span data-i18n-es="Alertas" data-i18n-en="Alerts" data-i18n-pt="Alertas">Alertas</span> <span style="color:var(--danger)">· 2</span></h3>
+          <div class="alerts">
+            <div class="alert danger">
+              <div class="ic">!</div>
+              <div class="body">
+                <div class="ttl" data-i18n-es="No-show en Mesa 7" data-i18n-en="No-show at Table 7" data-i18n-pt="Ausência na Mesa 7">No-show en Mesa 7</div>
+                <div class="sub" data-i18n-es="NutriPacífico sin reportarse · 4 min" data-i18n-en="NutriPacífico not checked in · 4 min" data-i18n-pt="NutriPacífico sem check-in · 4 min">NutriPacífico sin reportarse · 4 min</div>
+                <div class="act">
+                  <button data-i18n-es="Reemparejar" data-i18n-en="Rematch" data-i18n-pt="Reemparelhar">Reemparejar</button>
+                  <button data-i18n-es="Marcar presente" data-i18n-en="Mark present" data-i18n-pt="Marcar presente">Marcar presente</button>
+                </div>
+              </div>
+            </div>
+            <div class="alert warn">
+              <div class="ic">!</div>
+              <div class="body">
+                <div class="ttl" data-i18n-es="Mesa 5 inició tarde" data-i18n-en="Table 5 started late" data-i18n-pt="Mesa 5 iniciou atrasada">Mesa 5 inició tarde</div>
+                <div class="sub" data-i18n-es="JademarTextil llegó 2 min después" data-i18n-en="JademarTextil arrived 2 min late" data-i18n-pt="JademarTextil chegou 2 min depois">JademarTextil llegó 2 min después</div>
+                <div class="act">
+                  <button data-i18n-es="Extender +2 min" data-i18n-en="Extend +2 min" data-i18n-pt="Estender +2 min">Extender +2 min</button>
+                </div>
+              </div>
+            </div>
+            <div class="alert">
+              <div class="ic">i</div>
+              <div class="body">
+                <div class="ttl" data-i18n-es="3 solicitudes de reunión directa" data-i18n-en="3 direct meeting requests" data-i18n-pt="3 solicitações de reunião direta">3 solicitudes de reunión directa</div>
+                <div class="sub" data-i18n-es="Pendientes de aprobar en el callboard" data-i18n-en="Pending approval in the callboard" data-i18n-pt="Pendentes de aprovação no callboard">Pendientes de aprobar en el callboard</div>
+                <div class="act">
+                  <button data-i18n-es="Ver callboard" data-i18n-en="View callboard" data-i18n-pt="Ver callboard">Ver callboard</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h3 data-i18n-es="Resumen de la jornada" data-i18n-en="Day summary" data-i18n-pt="Resumo da jornada">Resumen de la jornada</h3>
+          <div class="mini-row"><span class="k" data-i18n-es="Reuniones hechas" data-i18n-en="Meetings done" data-i18n-pt="Reuniões realizadas">Reuniones hechas</span><span class="v">216</span></div>
+          <div class="mini-row"><span class="k" data-i18n-es="Reuniones restantes" data-i18n-en="Meetings left" data-i18n-pt="Reuniões restantes">Reuniones restantes</span><span class="v">104</span></div>
+          <div class="mini-row"><span class="k" data-i18n-es="Potencial reportado" data-i18n-en="Reported potential" data-i18n-pt="Potencial reportado">Potencial reportado</span><span class="v">$2.4B COP</span></div>
+          <div class="mini-row"><span class="k" data-i18n-es="Tiempo promedio" data-i18n-en="Average time" data-i18n-pt="Tempo médio">Tiempo promedio</span><span class="v">18:42</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  const html=document.documentElement;
+  document.getElementById('t-dark').onclick=()=>{html.setAttribute('data-theme','dark');document.getElementById('t-dark').classList.add('on');document.getElementById('t-light').classList.remove('on')};
+  document.getElementById('t-light').onclick=()=>{html.setAttribute('data-theme','light');document.getElementById('t-light').classList.add('on');document.getElementById('t-dark').classList.remove('on')};
+
+  // ── i18n (ES/EN/PT) ──────────────────────────────────────────────────────
+  window.LANG = (function(){ try { return localStorage.getItem('cms_lang') || 'es'; } catch(e){ return 'es'; } })();
+  if (!['es','en','pt'].includes(window.LANG)) window.LANG = 'es';
+  function applyLang(){
+    const L = window.LANG;
+    document.documentElement.lang = L === 'pt' ? 'pt-BR' : L;
+    document.querySelectorAll('[data-i18n-'+L+']').forEach(el=>{
+      el.innerHTML = el.getAttribute('data-i18n-'+L);
+    });
+    document.querySelectorAll('[data-ph-'+L+']').forEach(el=>{
+      el.setAttribute('placeholder', el.getAttribute('data-ph-'+L));
+    });
+    const sw = document.getElementById('langSw');
+    if (sw) sw.querySelectorAll('button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.lang === L);
+    });
+    if (typeof window.rnLiveReRender === 'function') window.rnLiveReRender();
+  }
+  (function(){
+    const sw = document.getElementById('langSw');
+    if (!sw) return;
+    sw.addEventListener('click', e=>{
+      const b = e.target.closest('button'); if (!b) return;
+      window.LANG = b.dataset.lang;
+      try { localStorage.setItem('cms_lang', window.LANG); } catch(e){}
+      applyLang();
+    });
+    applyLang();
+  })();
+</script>
+
+<!-- S211x · Wiring Rueda En Vivo (productor desktop). Visual intacto. -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function(){
+  // ── Slug + auth productor ────────────────────────────────────────────────
+  // URL pattern: /evento/<slug>/vivo
+  const pathParts = location.pathname.split('/').filter(Boolean);
+  const slug = pathParts[1] || '';
+  const qs = new URLSearchParams(location.search);
+  const authToken = (function(){ try { return localStorage.getItem('authToken') || ''; } catch(e){ return ''; } })();
+  const staffPin = qs.get('pin');
+  if (!authToken && !staffPin) {
+    // Fallback: redirect al dashboard
+    const back = encodeURIComponent('/evento/'+slug+'/vivo');
+    location.replace('/dashboard.html?returnTo=' + back);
+    return;
+  }
+
+  // ── Helpers DOM ──────────────────────────────────────────────────────────
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // ── i18n helper ──────────────────────────────────────────────────────────
+  const I18N = {
+    es: { round:'Ronda', table:'Mesa', meetings:'reuniones', tables:'mesas',
+          nextRound:'Próxima ronda', noNext:'Sin próximas rondas',
+          dayEndedOrStart:'La jornada finalizó o está por iniciar',
+          between:'Entre rondas', noActive:'Sin ronda activa',
+          nextAt:'Próxima ronda', ofRounds:'de', rounds:'rondas',
+          noShow:'no-show', free:'libre', noMeeting:'Sin reunión asignada',
+          tablesHdr:'Mesas', loading:'Cargando', noData:'Sin datos',
+          loadError:'Error al cargar' },
+    en: { round:'Round', table:'Table', meetings:'meetings', tables:'tables',
+          nextRound:'Next round', noNext:'No upcoming rounds',
+          dayEndedOrStart:'The day has ended or is about to start',
+          between:'Between rounds', noActive:'No active round',
+          nextAt:'Next round', ofRounds:'of', rounds:'rounds',
+          noShow:'no-show', free:'free', noMeeting:'No meeting assigned',
+          tablesHdr:'Tables', loading:'Loading', noData:'No data',
+          loadError:'Loading error' },
+    pt: { round:'Rodada', table:'Mesa', meetings:'reuniões', tables:'mesas',
+          nextRound:'Próxima rodada', noNext:'Sem próximas rodadas',
+          dayEndedOrStart:'A jornada terminou ou está prestes a começar',
+          between:'Entre rodadas', noActive:'Sem rodada ativa',
+          nextAt:'Próxima rodada', ofRounds:'de', rounds:'rodadas',
+          noShow:'ausente', free:'livre', noMeeting:'Sem reunião atribuída',
+          tablesHdr:'Mesas', loading:'Carregando', noData:'Sem dados',
+          loadError:'Erro ao carregar' }
+  };
+  const t = k => (I18N[window.LANG] || I18N.es)[k] || k;
+  const localeTag = () => (window.LANG === 'en' ? 'en-US' : (window.LANG === 'pt' ? 'pt-BR' : 'es-CO'));
+
+  // Timer state
+  let timerInt = null;
+  let timerEndsAt = null; // Date
+  let timerStartsAt = null;
+  const timerEl = $('.timer');
+  const progressEl = $('.progress>i');
+
+  function stopTimer(){ if (timerInt){ clearInterval(timerInt); timerInt = null; } }
+  function renderTimer(){
+    if (!timerEndsAt){ timerEl.innerHTML = '--<span class="sep">:</span>--'; progressEl.style.width='0%'; return; }
+    const now = Date.now();
+    const ms = timerEndsAt.getTime() - now;
+    if (ms <= 0){
+      timerEl.innerHTML = '00<span class="sep">:</span>00';
+      progressEl.style.width = '100%';
+      stopTimer();
+      return;
+    }
+    const total = Math.max(1, timerEndsAt.getTime() - timerStartsAt.getTime());
+    const elapsed = Math.max(0, now - timerStartsAt.getTime());
+    const s = Math.ceil(ms/1000);
+    const m = String(Math.floor(s/60)).padStart(2,'0');
+    const r = String(s%60).padStart(2,'0');
+    timerEl.innerHTML = `${m}<span class="sep">:</span>${r}`;
+    progressEl.style.width = Math.min(100, (elapsed*100/total)) + '%';
+  }
+  function startTimer(startsAt, endsAt){
+    stopTimer();
+    timerStartsAt = startsAt ? new Date(startsAt) : null;
+    timerEndsAt = endsAt ? new Date(endsAt) : null;
+    renderTimer();
+    if (timerEndsAt) timerInt = setInterval(renderTimer, 1000);
+  }
+
+  function fmtTime(iso, tz){
+    if (!iso) return '--:--';
+    try {
+      return new Date(iso).toLocaleTimeString(localeTag(), { hour:'2-digit', minute:'2-digit', hour12:true, timeZone: tz || undefined });
+    } catch(e){ return '--:--'; }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  let eventId = null;
+  let eventTz = null;
+  const nextListEl = $('.next-list');
+  const mesasEl = $('.mesas');
+
+  function renderHeader(ev, round){
+    const meta = $('.page-head .meta');
+    if (meta && ev){
+      const parts = [];
+      if (ev.name) { /* name queda en el h1 */ }
+      if (round && round.current) parts.push(t('round') + ' ' + round.current.number + (round.current.label ? ' · '+esc(round.current.label) : ''));
+      if (round && round.timer) parts.push(fmtTime(round.timer.starts_at, eventTz) + ' — ' + fmtTime(round.timer.ends_at, eventTz));
+      if (parts.length){
+        meta.innerHTML = parts.map(p => '<span>'+p+'</span>').join('<span>·</span>');
+      }
+    }
+    const h1 = $('.page-head h1');
+    if (h1 && ev && ev.name){
+      // conservar kicker + live-pill, reemplazar sólo el texto del evento
+      const kicker = h1.querySelector('.kicker');
+      const pill = h1.querySelector('.live-pill');
+      h1.innerHTML = '';
+      if (kicker) h1.appendChild(kicker);
+      h1.appendChild(document.createTextNode(' ' + ev.name + ' '));
+      if (pill) h1.appendChild(pill);
+    }
+  }
+
+  function renderCurrent(round, meetings){
+    const hcK = $('.hero-current .hc-top .hc-k:last-child');
+    const bigEl = $('.hero-current .hc-ttl .big');
+    const lblEl = $('.hero-current .hc-ttl .lbl');
+    const subEl = $('.hero-current .hc-sub');
+    const totalEst = round && round.total_estimated ? round.total_estimated : (round && round.current ? round.current.number : '--');
+    if (round && round.current){
+      if (bigEl) bigEl.textContent = round.current.number;
+      if (lblEl) lblEl.textContent = t('ofRounds') + ' ' + totalEst + ' ' + t('rounds') + (round.current.label ? ' · '+round.current.label : '');
+      if (hcK) hcK.textContent = round.current.number + ' / ' + totalEst;
+      if (subEl) subEl.textContent = (round.timer ? fmtTime(round.timer.starts_at, eventTz)+' — '+fmtTime(round.timer.ends_at, eventTz) : '');
+      if (round.timer) startTimer(round.timer.starts_at, round.timer.ends_at); else { stopTimer(); renderTimer(); }
+    } else {
+      if (bigEl) bigEl.textContent = '—';
+      if (lblEl) lblEl.textContent = t('between');
+      if (subEl) subEl.textContent = round && round.next ? (t('nextRound') + ' ' + round.next.number + ' · ' + fmtTime(round.next.starts_at, eventTz)) : t('noActive');
+      stopTimer();
+      timerEndsAt = null;
+      renderTimer();
+    }
+  }
+
+  function renderNextList(round){
+    if (!nextListEl) return;
+    nextListEl.innerHTML = '';
+    if (round && round.next){
+      const el = document.createElement('div');
+      el.className = 'next-item';
+      el.innerHTML =
+        '<div class="ni-num">'+esc(round.next.number)+'</div>'+
+        '<div class="ni-body"><div class="nm">'+t('round')+' '+esc(round.next.number)+'</div><div class="sub">'+t('nextRound')+'</div></div>'+
+        '<div class="ni-time">'+fmtTime(round.next.starts_at, eventTz)+'</div>';
+      nextListEl.appendChild(el);
+    } else {
+      nextListEl.innerHTML = '<div class="next-item"><div class="ni-num">—</div><div class="ni-body"><div class="nm">'+t('noNext')+'</div><div class="sub">'+t('dayEndedOrStart')+'</div></div><div class="ni-time">—</div></div>';
+    }
+  }
+
+  function renderMesas(meetings, emptyTables, round){
+    if (!mesasEl) return;
+    const sectionH = $('.section-head h2');
+    if (sectionH) sectionH.textContent = round && round.current ? (t('tablesHdr')+' · '+t('round')+' ' + round.current.number) : t('tablesHdr');
+    mesasEl.innerHTML = '';
+    const occupied = (meetings || []).map(m => {
+      const cls = m.status === 'no_show' ? 'mesa ns'
+                : m.status === 'completed' ? 'mesa'
+                : m.status === 'active' ? 'mesa on'
+                : 'mesa';
+      const vs = '<span class="m-vs">×</span>';
+      const label = m.status === 'no_show'
+        ? t('table')+' '+esc(m.table_label)+' · '+t('noShow')
+        : t('table')+' '+esc(m.table_label);
+      const dot = (m.status === 'active') ? '<span><i></i>'+label+'</span>' : label;
+      return '<div class="'+cls+'"><div class="m-num">'+dot+'</div><div class="m-pair">'+esc(m.company_a||'—')+vs+esc(m.company_b||'—')+'</div></div>';
+    }).join('');
+    const free = (emptyTables || []).map(lbl =>
+      '<div class="mesa empty"><div class="m-num">'+t('table')+' '+esc(lbl)+' · '+t('free')+'</div><div class="m-pair" style="color:var(--text-dim)">'+t('noMeeting')+'</div></div>'
+    ).join('');
+    mesasEl.innerHTML = occupied + free;
+  }
+
+  // ── Fetch ────────────────────────────────────────────────────────────────
+  let socket = null;
+  let lastData = null;
+  window.rnLiveReRender = function(){
+    if (!lastData) return;
+    renderHeader(lastData.event, lastData.round);
+    renderCurrent(lastData.round, lastData.meetings);
+    renderNextList(lastData.round);
+    renderMesas(lastData.meetings, lastData.empty_tables, lastData.round);
+  };
+  async function loadCallboard(){
+    try {
+      const headers = {};
+      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+      const r = await fetch('/api/rn/public/callboard/' + encodeURIComponent(slug), { headers });
+      if (!r.ok) {
+        console.warn('callboard fetch failed', r.status);
+        return;
+      }
+      const data = await r.json();
+      lastData = data;
+      eventId = data.event && data.event.id;
+      eventTz = data.event && data.event.timezone;
+      renderHeader(data.event, data.round);
+      renderCurrent(data.round, data.meetings);
+      renderNextList(data.round);
+      renderMesas(data.meetings, data.empty_tables, data.round);
+      // Socket.io join (idempotente)
+      if (!socket && window.io && eventId){
+        try {
+          socket = io({ transports: ['websocket','polling'] });
+          socket.on('connect', () => {
+            socket.emit('join', 'event_'+eventId);
+            socket.emit('join', 'event_rueda_'+eventId);
+          });
+          // TODO: backend emite rn_round_advance / rn_meeting_update al cerrar ronda
+          ['rn_round_advance','rn_meeting_update','rn.checkin'].forEach(ev => {
+            socket.on(ev, () => loadCallboard());
+          });
+        } catch(e){ console.warn('socket init failed', e); }
+      }
+    } catch(e){ console.error('loadCallboard error', e); }
+  }
+
+  // Initial + refresh cada 30s (fallback por si no llega socket)
+  loadCallboard();
+  setInterval(loadCallboard, 30000);
+})();
+</script>
+</body>
+</html>

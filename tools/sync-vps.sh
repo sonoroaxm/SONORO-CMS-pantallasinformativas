@@ -68,6 +68,8 @@ TRACKED=(
   "backend/public/legal/privacidad-events.html"
   "backend/public/rueda-registro.html"
   "backend/public/rueda-mi-agenda.html"
+  "backend/public/rueda-live.html"
+  "backend/public/rueda-live-mobile.html"
   "backend/src/routes/events-rn.js"
   "backend/src/routes/events-rn-public.js"
   "backend/src/services/matchmaking-tags.js"

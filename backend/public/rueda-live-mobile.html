@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rueda · En vivo (móvil) — mockup v1</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root, [data-theme="dark"]{
+    --magenta:#FF1B8D; --orange:#FF8C00; --yellow:#FFE566;
+    --grad:linear-gradient(135deg, var(--magenta) 0%, var(--orange) 100%);
+    --bg:#0f0f0f; --surface:#161616; --surface2:#1e1e1e; --surface3:#272727;
+    --border:#2e2e2e; --border-2:#3a3a3a;
+    --text:#f0f0f0; --text-muted:#888; --text-dim:#666;
+    --magenta-soft:rgba(255,27,141,.12);
+    --orange-soft:rgba(255,140,0,.14);
+    --warn:#f59e0b; --warn-soft:rgba(245,158,11,.14);
+    --danger:#ef4444; --danger-soft:rgba(239,68,68,.14);
+  }
+  [data-theme="light"]{
+    --bg:#f3f3f3; --surface:#ffffff; --surface2:#f4f4f4; --surface3:#ececec;
+    --border:#d8d8d8; --border-2:#bfbfbf;
+    --text:#111; --text-muted:#666; --text-dim:#999;
+    --magenta-soft:rgba(255,27,141,.08);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{overscroll-behavior:none}
+  body{margin:0;font-family:'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.4;max-width:520px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+
+  /* ===== Sticky header — bloque unificado ===== */
+  .hdr{position:sticky;top:0;z-index:40;background:linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%);border-bottom:1px solid var(--border);border-radius:0 0 20px 20px;padding:10px 16px 18px;padding-top:calc(10px + env(safe-area-inset-top));box-shadow:0 10px 24px -14px rgba(0,0,0,.55), 0 1px 0 var(--border)}
+  [data-theme="light"] .hdr{box-shadow:0 10px 24px -16px rgba(0,0,0,.18), 0 1px 0 var(--border)}
+  .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .back{display:flex;align-items:center;gap:6px;background:transparent;border:0;color:var(--text-muted);font-family:inherit;font-size:12px;font-weight:700;padding:6px 2px;cursor:pointer;letter-spacing:.3px}
+  .back::before{content:"‹";font-size:22px;line-height:0}
+  .live-pill{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:1.3px;background:var(--magenta-soft);color:var(--magenta);text-transform:uppercase}
+  .live-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--magenta);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  .alerts-btn{position:relative;background:transparent;border:1px solid var(--border);border-radius:10px;width:40px;height:40px;color:var(--text);font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .alerts-btn .badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;padding:0 5px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+
+  .hero{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px dashed var(--border)}
+  .ronda-num{font-size:56px;font-weight:800;letter-spacing:-2.5px;line-height:1;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums}
+  .ronda-meta{flex:1;min-width:0}
+  .ronda-meta .k{font-size:9.5px;font-weight:800;letter-spacing:1.4px;color:var(--text-dim);text-transform:uppercase;margin-bottom:3px}
+  .ronda-meta .ttl{font-size:14px;font-weight:800;color:var(--text);letter-spacing:-.3px;line-height:1.2}
+  .ronda-meta .sub{font-size:11.5px;color:var(--text-muted);font-weight:600;margin-top:2px}
+
+  .timer-wrap{margin-top:14px}
+  .timer-label{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:var(--text-dim);text-transform:uppercase;text-align:center;margin-bottom:4px}
+  .timer{font-family:ui-monospace,Consolas,monospace;font-size:72px;font-weight:800;letter-spacing:-3.5px;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;text-align:center}
+  .timer .sep{opacity:.3}
+  .timer.warn{color:#FF8C00}
+  .progress{height:7px;background:var(--surface3);border-radius:999px;overflow:hidden;margin-top:12px}
+  .progress>i{display:block;height:100%;width:62%;background:var(--grad);border-radius:999px;transition:width 1s linear}
+
+  /* ===== Section tabs (quick filter) ===== */
+  .filter-row{display:flex;gap:6px;padding:12px 14px 2px;overflow-x:auto;scrollbar-width:none}
+  .filter-row::-webkit-scrollbar{display:none}
+  .fchip{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:700;color:var(--text-muted);font-family:inherit;white-space:nowrap;flex-shrink:0;cursor:pointer}
+  .fchip.on{background:var(--magenta-soft);border-color:var(--magenta);color:var(--magenta)}
+  .fchip .n{font-size:10.5px;background:var(--surface3);padding:1px 7px;border-radius:999px;margin-left:5px;font-weight:800}
+  .fchip.on .n{background:var(--magenta);color:#fff}
+
+  /* ===== Mesa list ===== */
+  .section{padding:14px 14px 4px}
+  .section-ttl{font-size:10.5px;font-weight:800;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;margin:0 0 8px;display:flex;align-items:center;gap:7px}
+  .section-ttl .dot{width:7px;height:7px;border-radius:50%;background:var(--text-dim)}
+  .section-ttl.danger .dot{background:var(--danger)}
+  .section-ttl.warn .dot{background:#FF8C00}
+  .section-ttl.ok .dot{background:var(--magenta)}
+
+  .mesa-list{display:flex;flex-direction:column;gap:8px}
+  .mesa{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;min-height:72px}
+  .mesa .m-num{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--text);flex-shrink:0;font-variant-numeric:tabular-nums}
+  .mesa .m-body{flex:1;min-width:0}
+  .mesa .m-pair{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .mesa .m-vs{color:var(--text-dim);font-weight:800;font-size:11px;margin:0 4px}
+  .mesa .m-sub{font-size:11px;color:var(--text-muted);font-weight:600;margin-top:3px;display:flex;align-items:center;gap:6px}
+  .mesa .m-act{flex-shrink:0;width:40px;height:40px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+  .mesa.danger{border-color:rgba(239,68,68,.4);background:var(--danger-soft)}
+  .mesa.danger .m-num{background:var(--danger);color:#fff}
+  .mesa.danger .m-sub{color:var(--danger)}
+  .mesa.warn{border-color:rgba(255,140,0,.4)}
+  .mesa.warn .m-num{background:#FF8C00;color:#fff}
+  .mesa.warn .m-sub{color:#FF8C00}
+  .mesa.ok .m-num{background:var(--magenta-soft);color:var(--magenta)}
+  .mesa.ok .m-sub .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--magenta);animation:pulse 1.4s infinite}
+  .mesa.empty{opacity:.55}
+  .mesa.empty .m-pair{color:var(--text-muted);font-weight:600}
+
+  /* ===== Bottom action bar ===== */
+  .bbar{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:rgba(15,15,15,.96);backdrop-filter:blur(14px);border-top:1px solid var(--border);padding:10px 14px calc(10px + env(safe-area-inset-bottom)) 14px;z-index:50;display:flex;gap:8px}
+  [data-theme="light"] .bbar{background:rgba(243,243,243,.96)}
+  .bbar .btn{flex:1;height:56px;border-radius:12px;border:0;font-family:inherit;font-size:14px;font-weight:800;letter-spacing:.4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+  .bbar .btn-sec{background:var(--surface);border:1px solid var(--border);color:var(--text);flex:0 0 92px}
+  .bbar .btn-grad{background:var(--grad);color:#fff;flex:1}
+
+  /* ===== Alerts sheet ===== */
+  .sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+  .sheet-mask.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--surface);border-radius:18px 18px 0 0;z-index:70;transform:translateY(100%);transition:transform .25s cubic-bezier(.3,.9,.3,1);max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+  .sheet.on{transform:translateY(0)}
+  .sheet-grab{width:40px;height:4px;border-radius:999px;background:var(--border-2);margin:9px auto 2px}
+  .sheet-head{display:flex;justify-content:space-between;align-items:center;padding:10px 18px 14px;border-bottom:1px solid var(--border)}
+  .sheet-head h3{margin:0;font-size:14px;font-weight:800;letter-spacing:-.2px}
+  .sheet-head button{background:transparent;border:0;color:var(--text-muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+  .sheet-body{padding:14px 14px calc(14px + env(safe-area-inset-bottom));overflow-y:auto}
+  .alert{display:flex;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--text-muted);border-radius:12px;margin-bottom:10px}
+  .alert .ic{width:28px;height:28px;border-radius:50%;background:var(--surface3);color:var(--text-muted);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0}
+  .alert.danger{border-left-color:var(--danger)}
+  .alert.danger .ic{background:var(--danger-soft);color:var(--danger)}
+  .alert.warn{border-left-color:#FF8C00}
+  .alert.warn .ic{background:var(--orange-soft);color:#FF8C00}
+  .alert .ttl{font-size:13.5px;font-weight:800;color:var(--text);line-height:1.3}
+  .alert .sub{font-size:11.5px;color:var(--text-muted);font-weight:600;margin-top:3px}
+  .alert .act{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .alert .act button{background:transparent;border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:11.5px;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .alert .act button.primary{background:var(--grad);border:0;color:#fff}
+
+  /* ===== Theme toggle + state toggle (demo) ===== */
+  .theme-tog{position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:80;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px;display:flex;gap:1px}
+  .theme-tog button{background:transparent;border:0;color:var(--text-muted);font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;cursor:pointer}
+  .theme-tog button.on{background:var(--magenta-soft);color:var(--magenta)}
+  .state-tog{position:fixed;top:calc(52px + env(safe-area-inset-top));right:10px;z-index:80;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px;display:flex;gap:1px;font-size:9.5px}
+  .state-tog button{background:transparent;border:0;color:var(--text-muted);font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;cursor:pointer;font-family:inherit}
+  .state-tog button.on{background:var(--magenta-soft);color:var(--magenta)}
+
+  /* ===== Entre rondas ===== */
+  .next-wrap{display:none}
+  body.state-between .round-wrap{display:none}
+  body.state-between .next-wrap{display:block}
+  body.state-between .filter-row,
+  body.state-between .section{opacity:.5;pointer-events:none}
+
+  .next-kicker{font-size:9.5px;font-weight:800;letter-spacing:1.6px;color:var(--text-dim);text-transform:uppercase;text-align:center;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .mode-pill{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:1px;background:var(--surface3);color:var(--text-muted);text-transform:uppercase;border:1px solid var(--border);cursor:pointer}
+  .mode-pill.auto{background:var(--magenta-soft);color:var(--magenta);border-color:transparent}
+  .mode-pill .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+  .next-countdown{font-family:ui-monospace,Consolas,monospace;font-size:56px;font-weight:800;letter-spacing:-2.5px;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;text-align:center;margin:2px 0 6px}
+  .next-countdown .sep{opacity:.3}
+  .next-sub{font-size:11.5px;color:var(--text-muted);font-weight:600;text-align:center}
+</style>
+</head>
+<body>
+
+<div class="theme-tog">
+  <button id="t-dark" class="on">Dark</button>
+  <button id="t-light">Light</button>
+</div>
+<div class="state-tog">
+  <button id="s-live" class="on">En vivo</button>
+  <button id="s-between">Entre rondas</button>
+</div>
+
+<!-- Sticky header -->
+<header class="hdr">
+  <div class="hdr-top">
+    <button class="back">Panel</button>
+    <span class="live-pill"><span class="dot"></span>En vivo</span>
+    <button class="alerts-btn" id="openAlerts">
+      !
+      <span class="badge">2</span>
+    </button>
+  </div>
+
+  <!-- Estado: EN CURSO -->
+  <div class="round-wrap">
+    <div class="hero">
+      <div class="ronda-num">12</div>
+      <div class="ronda-meta">
+        <div class="k">Ronda en curso · 12 / 24</div>
+        <div class="ttl">Bloque mañana</div>
+        <div class="sub">11:40 — 12:00 · tras ronda 16: coffee</div>
+      </div>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="timer-label">Tiempo restante</div>
+      <div class="timer" id="timer">08<span class="sep">:</span>23</div>
+      <div class="progress"><i id="progress"></i></div>
+    </div>
+  </div>
+
+  <!-- Estado: ENTRE RONDAS -->
+  <div class="next-wrap">
+    <div class="hero">
+      <div class="ronda-num">13</div>
+      <div class="ronda-meta">
+        <div class="k">Siguiente · 13 / 24</div>
+        <div class="ttl">Cambio de mesa</div>
+        <div class="sub">12 mesas · 24 reuniones · bloque mañana</div>
+      </div>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="next-kicker">Próxima ronda inicia en <button class="mode-pill auto" id="modeToggle"><span class="dot"></span>Auto</button></div>
+      <div class="next-countdown" id="nextTimer">01<span class="sep">:</span>32</div>
+      <div class="next-sub">Modo <strong style="color:var(--text)">Auto</strong> · arranca sola al llegar a 0</div>
+    </div>
+  </div>
+</header>
+
+<!-- Filtros rápidos -->
+<div class="filter-row">
+  <button class="fchip on">Todas <span class="n">12</span></button>
+  <button class="fchip">Alertas <span class="n">2</span></button>
+  <button class="fchip">En curso <span class="n">8</span></button>
+  <button class="fchip">Libres <span class="n">2</span></button>
+</div>
+
+<!-- Alertas primero -->
+<section class="section">
+  <h2 class="section-ttl danger"><span class="dot"></span>Requieren atención · 2</h2>
+  <div class="mesa-list">
+    <div class="mesa danger">
+      <div class="m-num">7</div>
+      <div class="m-body">
+        <div class="m-pair">NutriPacífico <span class="m-vs">×</span> — ausente</div>
+        <div class="m-sub">No-show · 4 min sin reportarse</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa warn">
+      <div class="m-num">5</div>
+      <div class="m-body">
+        <div class="m-pair">JademarTextil <span class="m-vs">×</span> Kioscos del Mar</div>
+        <div class="m-sub">Inició tarde · 2 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+  </div>
+</section>
+
+<!-- En curso -->
+<section class="section">
+  <h2 class="section-ttl ok"><span class="dot"></span>En curso · 8</h2>
+  <div class="mesa-list">
+    <div class="mesa ok">
+      <div class="m-num">1</div>
+      <div class="m-body">
+        <div class="m-pair">Agroindustrial Pacífico <span class="m-vs">×</span> BanVerde Capital</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">2</div>
+      <div class="m-body">
+        <div class="m-pair">Cooperativa Pacífica <span class="m-vs">×</span> Fondo Andino</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">3</div>
+      <div class="m-body">
+        <div class="m-pair">DelicatesaX Foods <span class="m-vs">×</span> GreenTech Pacífico</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">4</div>
+      <div class="m-body">
+        <div class="m-pair">HarborLogistics <span class="m-vs">×</span> Inversiones Valle</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">6</div>
+      <div class="m-body">
+        <div class="m-pair">Lácteos Nariño <span class="m-vs">×</span> MercaExport</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">8</div>
+      <div class="m-body">
+        <div class="m-pair">OceanTrade <span class="m-vs">×</span> Puertos Buenaventura</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">9</div>
+      <div class="m-body">
+        <div class="m-pair">QueroCafé <span class="m-vs">×</span> Ribera Capital</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+    <div class="mesa ok">
+      <div class="m-num">10</div>
+      <div class="m-body">
+        <div class="m-pair">SelvaOrgánica <span class="m-vs">×</span> TropicalFinca</div>
+        <div class="m-sub"><span class="dot"></span>Activa · 8 min</div>
+      </div>
+      <button class="m-act">›</button>
+    </div>
+  </div>
+</section>
+
+<!-- Libres -->
+<section class="section">
+  <h2 class="section-ttl"><span class="dot"></span>Libres · 2</h2>
+  <div class="mesa-list">
+    <div class="mesa empty">
+      <div class="m-num">11</div>
+      <div class="m-body">
+        <div class="m-pair">Sin reunión asignada</div>
+        <div class="m-sub">Disponible para asignación manual</div>
+      </div>
+      <button class="m-act">+</button>
+    </div>
+    <div class="mesa empty">
+      <div class="m-num">12</div>
+      <div class="m-body">
+        <div class="m-pair">Sin reunión asignada</div>
+        <div class="m-sub">Disponible para asignación manual</div>
+      </div>
+      <button class="m-act">+</button>
+    </div>
+  </div>
+</section>
+
+<!-- Bottom action bar — contextual al estado -->
+<nav class="bbar" id="bbarLive">
+  <button class="btn btn-sec" style="flex:1">+1 min a la ronda</button>
+</nav>
+<nav class="bbar" id="bbarBetween" style="display:none">
+  <button class="btn btn-sec" id="delayBtn">+2 min</button>
+  <button class="btn btn-grad" style="flex:1">Iniciar ronda 13</button>
+</nav>
+
+<!-- Alerts sheet -->
+<div class="sheet-mask" id="mask"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-grab"></div>
+  <div class="sheet-head">
+    <h3>Alertas · 2</h3>
+    <button id="closeSheet">Cerrar</button>
+  </div>
+  <div class="sheet-body">
+    <div class="alert danger">
+      <div class="ic">!</div>
+      <div style="flex:1;min-width:0">
+        <div class="ttl">No-show en Mesa 7</div>
+        <div class="sub">NutriPacífico sin reportarse · 4 min</div>
+        <div class="act">
+          <button class="primary">Reemparejar</button>
+          <button>Marcar presente</button>
+        </div>
+      </div>
+    </div>
+    <div class="alert warn">
+      <div class="ic">!</div>
+      <div style="flex:1;min-width:0">
+        <div class="ttl">Mesa 5 inició tarde</div>
+        <div class="sub">JademarTextil llegó 2 min después</div>
+        <div class="act">
+          <button class="primary">Extender +2 min</button>
+          <button>Ignorar</button>
+        </div>
+      </div>
+    </div>
+    <div class="alert">
+      <div class="ic">i</div>
+      <div style="flex:1;min-width:0">
+        <div class="ttl">3 solicitudes directas</div>
+        <div class="sub">Pendientes en el callboard</div>
+        <div class="act">
+          <button>Ver callboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const html=document.documentElement;
+  document.getElementById('t-dark').onclick=()=>{html.setAttribute('data-theme','dark');document.getElementById('t-dark').classList.add('on');document.getElementById('t-light').classList.remove('on')};
+  document.getElementById('t-light').onclick=()=>{html.setAttribute('data-theme','light');document.getElementById('t-light').classList.add('on');document.getElementById('t-dark').classList.remove('on')};
+
+  // Filter chips
+  document.querySelectorAll('.fchip').forEach(c=>c.onclick=()=>{document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));c.classList.add('on')});
+
+  // Timer
+  let s=8*60+23;
+  const TOTAL=20*60;
+  const t=document.getElementById('timer');
+  const p=document.getElementById('progress');
+  setInterval(()=>{
+    if(s<=0) return;
+    s--;
+    const m=String(Math.floor(s/60)).padStart(2,'0');
+    const r=String(s%60).padStart(2,'0');
+    t.innerHTML=`${m}<span class="sep">:</span>${r}`;
+    p.style.width=(100-s*100/TOTAL)+'%';
+    if(s<120) t.classList.add('warn');
+  },1000);
+
+  // State toggle (demo)
+  const sLive=document.getElementById('s-live');
+  const sBetween=document.getElementById('s-between');
+  const bbL=document.getElementById('bbarLive');
+  const bbB=document.getElementById('bbarBetween');
+  sLive.onclick=()=>{document.body.classList.remove('state-between');sLive.classList.add('on');sBetween.classList.remove('on');bbL.style.display='flex';bbB.style.display='none'};
+  sBetween.onclick=()=>{document.body.classList.add('state-between');sBetween.classList.add('on');sLive.classList.remove('on');bbL.style.display='none';bbB.style.display='flex'};
+
+  // Toggle Auto / Manual
+  const modeBtn=document.getElementById('modeToggle');
+  modeBtn.onclick=()=>{
+    const auto=modeBtn.classList.toggle('auto');
+    modeBtn.innerHTML=`<span class="dot"></span>${auto?'Auto':'Manual'}`;
+    const sub=document.querySelector('.next-sub');
+    sub.innerHTML = auto
+      ? 'Modo <strong style="color:var(--text)">Auto</strong> · arranca sola al llegar a 0'
+      : 'Modo <strong style="color:var(--text)">Manual</strong> · tú decides cuándo iniciar';
+    document.getElementById('nextTimer').style.opacity = auto ? '1' : '.35';
+  };
+
+  // Sheet
+  const sheet=document.getElementById('sheet');
+  const mask=document.getElementById('mask');
+  const open=()=>{sheet.classList.add('on');mask.classList.add('on')};
+  const close=()=>{sheet.classList.remove('on');mask.classList.remove('on')};
+  document.getElementById('openAlerts').onclick=open;
+  document.getElementById('closeSheet').onclick=close;
+  mask.onclick=close;
+</script>
+
+</body>
+</html>

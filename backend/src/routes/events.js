@@ -855,10 +855,18 @@ router.get('/:id/registrations/template.xlsx', auth, async (req, res) => {
   }
 });
 
-router.post('/:id/registrations/import', auth, upload.single('file'), async (req, res) => {
+router.post('/:id/registrations/import', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
-  if (!req.file) return res.status(400).json({ error: 'Se requiere archivo CSV/XLSX (campo: file)' });
+  // express-fileupload global middleware (index.js) consume el body multipart
+  // antes de llegar al router, por eso aquí leemos de req.files en vez de multer.
+  if (!req.files || !req.files.file) {
+    return res.status(400).json({ error: 'Se requiere archivo CSV/XLSX (campo: file)' });
+  }
+  const uploaded = req.files.file;
+  const buf = (uploaded.data && uploaded.data.length)
+    ? uploaded.data
+    : require('fs').readFileSync(uploaded.tempFilePath);
 
   const evCheck = await pool.query(
     `SELECT id, user_id FROM events.events WHERE id = $1 ${isAdmin ? '' : 'AND user_id = $2'}`,
@@ -868,12 +876,12 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
   const userId = evCheck.rows[0].user_id;
 
   // Detectar formato por extensión del archivo subido
-  const fname = (req.file.originalname || '').toLowerCase();
+  const fname = (uploaded.name || '').toLowerCase();
   const isXlsx = fname.endsWith('.xlsx') || fname.endsWith('.xls');
   let rows;
   try {
     if (isXlsx) {
-      const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const wb = XLSX.read(buf, { type: 'buffer' });
       // Preferir hoja "Asistentes", si no existe tomar la primera
       const sheetName = wb.SheetNames.includes('Asistentes') ? 'Asistentes' : wb.SheetNames[0];
       const sheet = wb.Sheets[sheetName];
@@ -885,7 +893,7 @@ router.post('/:id/registrations/import', auth, upload.single('file'), async (req
         return o;
       });
     } else {
-      rows = parseCSV(req.file.buffer.toString('utf-8'));
+      rows = parseCSV(buf.toString('utf-8'));
     }
   } catch (err) {
     return res.status(400).json({ error: 'No se pudo parsear el archivo: ' + err.message });

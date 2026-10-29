@@ -9089,6 +9089,12 @@ app.get('/evento/:slug/orador/:session_id', (req, res) => {
 app.get('/evento/:slug/kiosko', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'evento-kiosko.html'));
 });
+// Rueda · En vivo (productor desktop / asistente móvil) — mobile-detect UA
+app.get('/evento/:slug/vivo', (req, res) => {
+  const ua = req.headers['user-agent'] || '';
+  const isMobile = /iPhone|iPod|Android.*Mobile|Mobile/i.test(ua);
+  res.sendFile(path.join(__dirname, '..', 'public', isMobile ? 'rueda-live-mobile.html' : 'rueda-live.html'));
+});
 // Rueda de Negocios v1 — pantallas públicas (E-RN-4)
 app.get('/rueda/callboard/:slug/:zoneSlug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard-zonificado.html'));

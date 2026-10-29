@@ -4753,6 +4753,17 @@
                 </div>
               </div>
 
+              <!-- Vista productor en vivo (S211x) -->
+              <div style="margin-bottom:14px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;" data-i18n-es="Vista productor en vivo" data-i18n-en="Live producer view" data-i18n-pt="Vista produtor ao vivo">Vista productor en vivo</div>
+                <div style="font-size:12px;color:var(--text-muted);line-height:1.4;margin-bottom:6px;" data-i18n-es="Cronograma de rondas, duración de cada cita y mesas ocupadas en tiempo real." data-i18n-en="Round schedule, meeting duration and live table occupancy." data-i18n-pt="Cronograma de rodadas, duração de cada reunião e mesas ocupadas ao vivo.">Cronograma de rondas, duración de cada cita y mesas ocupadas en tiempo real.</div>
+                <div id="ev-rn-live-url" style="font-family:monospace;font-size:11px;color:var(--text-muted);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+                  <a id="ev-rn-live-open" href="#" target="_blank" class="btn btn-primary btn-sm" data-i18n="common.open">Abrir</a>
+                  <button class="btn btn-outline btn-sm" onclick="evCopyRnUrl('live')" data-i18n="common.copy">Copiar</button>
+                </div>
+              </div>
+
               <!-- Callboard por zona -->
               <div style="margin-bottom:14px;">
                 <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;" data-i18n-es="Callboard por zona" data-i18n-en="Callboard by zone" data-i18n-pt="Callboard por zona">Callboard por zona</div>
@@ -13273,8 +13284,13 @@ async function evSetupRnScreens(ev, origin) {
 
   const callboardUrl = `${origin}/rueda/callboard/${ev.slug}`;
   const registerUrl  = `${origin}/rueda/${ev.slug}/register`;
+  const liveUrl      = `${origin}/evento/${ev.slug}/vivo`;
   document.getElementById('ev-rn-callboard-url').textContent = callboardUrl;
   document.getElementById('ev-rn-callboard-open').href = callboardUrl;
+  const liveUrlEl = document.getElementById('ev-rn-live-url');
+  const liveOpenEl = document.getElementById('ev-rn-live-open');
+  if (liveUrlEl) liveUrlEl.textContent = liveUrl;
+  if (liveOpenEl) liveOpenEl.href = liveUrl;
   document.getElementById('ev-rn-register-url').textContent = registerUrl;
   document.getElementById('ev-rn-register-open').href = registerUrl;
 
@@ -13317,7 +13333,7 @@ function evRefreshRnZoneUrl(){
 }
 
 function evCopyRnUrl(kind){
-  const map = { callboard:'ev-rn-callboard-url', zone:'ev-rn-zone-url', register:'ev-rn-register-url' };
+  const map = { callboard:'ev-rn-callboard-url', zone:'ev-rn-zone-url', register:'ev-rn-register-url', live:'ev-rn-live-url' };
   const el = document.getElementById(map[kind]);
   if (!el || !el.textContent) return;
   navigator.clipboard.writeText(el.textContent).then(() => showStatus('Enlace copiado', 'success'));
