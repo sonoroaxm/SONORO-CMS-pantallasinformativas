@@ -13836,9 +13836,15 @@ async function evSaveRueda() {
     });
     const dataS = await resS.json();
     if (!dataS.id) { showStatus(dataS.error || t('ev.sess_rueda_err_link','Error al vincular'), 'error'); return; }
+    // Vincular la rueda al evento padre (anida en Mis Eventos)
+    await fetch(`${API_URL}/api/events/${ruedaId}/parent`, {
+      method:'PATCH', headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
+      body: JSON.stringify({ parent_event_id: evCurrentEventId })
+    }).catch(()=>{});
     showStatus(t('ev.sess_rueda_ok','Rueda vinculada'), 'success');
     evCloseAddRueda();
     evLoadSessions(evCurrentEventId);
+    if (typeof loadEvents === 'function') loadEvents();
   } catch(e) {
     showStatus(t('ev.sess_rueda_err_net','Error de conexión'), 'error');
   } finally {
