@@ -12249,12 +12249,21 @@ async function evRnBulkImport(input) {
 
     let msg = `${evRnT('rn.dir.bulk_rows','Filas')}: ${j1.total_rows} · ${evRnT('rn.dir.bulk_valid','válidas')}: ${j1.valid}`;
     if ((j1.errors||[]).length) msg += `\n${evRnT('rn.dir.bulk_errors','Errores')}:\n` + j1.errors.slice(0,10).map(e=>`  ${evRnT('rn.dir.bulk_row','fila')} ${e.row}: ${e.reason}`).join('\n');
-    if ((j1.unknown_tags||[]).length) msg += `\n${evRnT('rn.dir.bulk_unknown_tags','Tags no reconocidos (se ignoran)')}: ${j1.unknown_tags.slice(0,20).join(', ')}`;
+    const unknownTags = (j1.unknown_tags || []);
+    if (unknownTags.length) msg += `\n${evRnT('rn.dir.bulk_unknown_tags','Tags no reconocidos (se ignoran)')}: ${unknownTags.slice(0,20).join(', ')}`;
     msg += `\n\n${evRnT('rn.dir.bulk_confirm','¿Importar {n} inscripción(es)?').replace('{n}', j1.valid)}`;
     if (!confirm(msg)) return;
 
+    // Capa (a): si hay tags no reconocidos, ofrecer crearlos en catálogo
+    let createUnknown = false;
+    if (unknownTags.length) {
+      const msg2 = evRnT('rn.dir.bulk_create_tags','¿Crear los {n} tags no reconocidos en el catálogo RN?\n(OK = crear + asociar · Cancelar = ignorarlos)').replace('{n}', unknownTags.length);
+      createUnknown = confirm(msg2 + '\n\n' + unknownTags.slice(0,30).join(', '));
+    }
+
     const fd2 = new FormData();
     fd2.append('file', file);
+    if (createUnknown) fd2.append('create_unknown_tags', '1');
     const r2 = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/bulk`, {
       method:'POST', headers:{ 'Authorization': `Bearer ${authToken}` }, body: fd2
     });

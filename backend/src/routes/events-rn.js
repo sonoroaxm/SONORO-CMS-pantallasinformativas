@@ -1403,6 +1403,32 @@ router.post('/events/:eventId/registrations/bulk', auth, async (req, res) => {
     )).rows;
     const tagBySlug = new Map(tagRows.map(t => [t.slug, t]));
 
+    // Capa (a): auto-crear tags no reconocidos en catálogo si el productor lo pidió.
+    // Flag en body: create_unknown_tags=1 (solo aplica si !dryRun).
+    const slugify = (lbl) => String(lbl).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+    const createUnknown = (String(req.body.create_unknown_tags || '').toLowerCase() === '1'
+                       || String(req.body.create_unknown_tags || '').toLowerCase() === 'true');
+    if (createUnknown && !dryRun) {
+      const seen = new Set();
+      for (const r of parsed) {
+        for (const lbl of ((r.offer_tags||[]).concat(r.demand_tags||[]))) {
+          const slug = slugify(lbl);
+          if (!slug || seen.has(slug) || tagBySlug.has(slug)) continue;
+          seen.add(slug);
+          await pool.query(
+            `INSERT INTO events.rn_tags (user_id, slug, label) VALUES ($1,$2,$3) ON CONFLICT (user_id, slug) DO NOTHING`,
+            [userId, slug, String(lbl).trim().slice(0,100)]
+          );
+        }
+      }
+      // Recargar catálogo con los recién creados
+      const fresh = (await pool.query(
+        `SELECT id, slug, label FROM events.rn_tags WHERE user_id = $1`, [userId]
+      )).rows;
+      tagBySlug.clear();
+      fresh.forEach(t => tagBySlug.set(t.slug, t));
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const seenEmails = new Set();
     const resolved = []; // filas válidas listas para persistir
