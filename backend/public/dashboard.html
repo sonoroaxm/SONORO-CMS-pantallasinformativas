@@ -2854,27 +2854,6 @@
                 </div>
 
                 <div class="evp-card">
-                  <div class="evp-label" data-i18n="ev.panel.k_proj">Presupuesto proyectado</div>
-                  <div class="evp-main">
-                    <div class="evp-donut">
-                      <svg viewBox="0 0 36 36">
-                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
-                        <circle id="evp-donut-proj" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#FF1B8D" stroke-dasharray="0 100"/>
-                      </svg>
-                      <div class="evp-donut-text" id="evp-donut-proj-pct">—</div>
-                    </div>
-                    <div>
-                      <div class="evp-value sm" id="evp-k-proj">—</div>
-                      <div class="evp-unit" id="evp-k-proj-sub">—</div>
-                    </div>
-                  </div>
-                  <div class="evp-legend">
-                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF1B8D"></span><span data-i18n="ev.panel.k_total">Total</span></span><span class="evp-legend-val" id="evp-l-proj">0</span></div>
-                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_avg">Promedio evento</span></span><span class="evp-legend-val" id="evp-l-avg">0</span></div>
-                  </div>
-                </div>
-
-                <div class="evp-card">
                   <div class="evp-label" data-i18n="ev.panel.k_paid">Presupuesto pagado</div>
                   <div class="evp-main">
                     <div class="evp-donut">
@@ -2892,6 +2871,27 @@
                   <div class="evp-legend">
                     <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF8C00"></span><span data-i18n="ev.panel.k_paid_lbl">Pagado</span></span><span class="evp-legend-val" id="evp-l-paid">0</span></div>
                     <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#f59e0b"></span><span data-i18n="ev.panel.k_pending">Pendiente</span></span><span class="evp-legend-val" id="evp-l-pending">0</span></div>
+                  </div>
+                </div>
+
+                <div class="evp-card">
+                  <div class="evp-label" data-i18n="ev.panel.k_proj">Presupuesto proyectado</div>
+                  <div class="evp-main">
+                    <div class="evp-donut">
+                      <svg viewBox="0 0 36 36">
+                        <circle class="evp-donut-track" cx="18" cy="18" r="15.9" stroke-width="3"/>
+                        <circle id="evp-donut-proj" class="evp-donut-fill" cx="18" cy="18" r="15.9" stroke-width="3" stroke="#FF1B8D" stroke-dasharray="0 100"/>
+                      </svg>
+                      <div class="evp-donut-text" id="evp-donut-proj-pct">—</div>
+                    </div>
+                    <div>
+                      <div class="evp-value sm" id="evp-k-proj">—</div>
+                      <div class="evp-unit" id="evp-k-proj-sub">—</div>
+                    </div>
+                  </div>
+                  <div class="evp-legend">
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF1B8D"></span><span data-i18n="ev.panel.k_total">Total</span></span><span class="evp-legend-val" id="evp-l-proj">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_avg">Promedio evento</span></span><span class="evp-legend-val" id="evp-l-avg">0</span></div>
                   </div>
                 </div>
               </div>
@@ -9978,7 +9978,9 @@ function evRenderList() {
     const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
     const isRN = ev.config && ev.config.event_type === 'matchmaking';
-    const pill = isRN ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.new_type_rn','Rueda de Negocios')}</span>` : '';
+    const pill = isRN
+      ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF1B8D;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.new_type_rn','Rueda de Negocios')}</span>`
+      : ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:#FF8C00;color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.pill_event','Evento')}</span>`;
     const bg = isChild ? 'background:var(--surface2);' : '';
     return `<div class="card" style="cursor:pointer;${bg}" onclick="evOpenDetail('${ev.id}')">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
