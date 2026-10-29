@@ -4560,11 +4560,11 @@
                 <span data-i18n="rn.dir.title">Asistentes inscritos</span>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                   <div class="ev-rn-bulk-group" role="group">
-                    <label class="ev-rn-bulk-btn ev-rn-bulk-btn--primary" title="Importar CSV/XLSX">
+                    <input id="ev-rn-dir-bulk-file" type="file" accept=".xlsx,.xls,.csv" onchange="evRnBulkImport(this)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+                    <button type="button" class="ev-rn-bulk-btn ev-rn-bulk-btn--primary" title="Importar CSV/XLSX" onclick="document.getElementById('ev-rn-dir-bulk-file').click()">
                       <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 152v56a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16v-56a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0ZM93.66 85.66L120 59.31V152a8 8 0 0 0 16 0V59.31l26.34 26.35a8 8 0 0 0 11.32-11.32l-40-40a8 8 0 0 0-11.32 0l-40 40a8 8 0 0 0 11.32 11.32Z"/></svg>
                       <span data-i18n="rn.dir.bulk_import">Importar</span>
-                      <input id="ev-rn-dir-bulk-file" type="file" accept=".xlsx,.xls,.csv" onchange="evRnBulkImport(this)" style="display:none;">
-                    </label>
+                    </button>
                     <button type="button" class="ev-rn-bulk-btn ev-rn-bulk-btn--secondary" onclick="evRnBulkTemplate()" title="Descargar plantilla">
                       <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224 152v56a16 16 0 0 1-16 16H48a16 16 0 0 1-16-16v-56a8 8 0 0 1 16 0v56h160v-56a8 8 0 0 1 16 0Zm-101.66 5.66a8 8 0 0 0 11.32 0l40-40a8 8 0 0 0-11.32-11.32L136 132.69V40a8 8 0 0 0-16 0v92.69l-26.34-26.35a8 8 0 0 0-11.32 11.32Z"/></svg>
                       <span data-i18n="rn.dir.bulk_template">Plantilla</span>
@@ -14291,12 +14291,12 @@ function evEditReg(regId) {
       </div>
       <form id="ev-edit-form" onsubmit="event.preventDefault();evSaveReg('${regId}');">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Nombre</label><input type="text" id="ev-edit-name" value="${(r.attendee_name||'').replace(/"/g,'&quot;')}" required></div>
-          <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="ev-edit-email" value="${(r.email||'').replace(/"/g,'&quot;')}"></div>
-          <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="text" id="ev-edit-phone" value="${(r.phone||'').replace(/"/g,'&quot;')}"></div>
-          <div class="form-group" style="margin:0;"><label>Documento</label><input type="text" id="ev-edit-id" value="${(r.id_number||'').replace(/"/g,'&quot;')}"></div>
-          <div class="form-group" style="margin:0;"><label>Cargo</label><input type="text" id="ev-edit-job" value="${(r.job_title||'').replace(/"/g,'&quot;')}"></div>
-          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Organización</label><input type="text" id="ev-edit-org" value="${(r.organization||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Nombre</label><input type="text" id="ev-reg-edit-name" value="${(r.attendee_name||'').replace(/"/g,'&quot;')}" required></div>
+          <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="ev-reg-edit-email" value="${(r.email||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Teléfono</label><input type="text" id="ev-reg-edit-phone" value="${(r.phone||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Documento</label><input type="text" id="ev-reg-edit-id" value="${(r.id_number||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;"><label>Cargo</label><input type="text" id="ev-reg-edit-job" value="${(r.job_title||'').replace(/"/g,'&quot;')}"></div>
+          <div class="form-group" style="margin:0;grid-column:1 / -1;"><label>Organización</label><input type="text" id="ev-reg-edit-org" value="${(r.organization||'').replace(/"/g,'&quot;')}"></div>
         </div>
         ${cfRows ? `<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:8px;">Campos personalizados</div><div id="ev-edit-cf" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${cfRows}</div></div>` : '<div id="ev-edit-cf"></div>'}
         <div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px;flex-wrap:wrap;">
@@ -14335,12 +14335,12 @@ async function evSaveReg(regId, alsoResend) {
   const custom_fields = {};
   cfInputs.forEach(i => { custom_fields[i.dataset.cfkey] = i.value; });
   const body = {
-    name:         document.getElementById('ev-edit-name').value.trim(),
-    email:        document.getElementById('ev-edit-email').value.trim(),
-    phone:        document.getElementById('ev-edit-phone').value.trim(),
-    id_number:    document.getElementById('ev-edit-id').value.trim(),
-    job_title:    document.getElementById('ev-edit-job').value.trim(),
-    organization: document.getElementById('ev-edit-org').value.trim(),
+    name:         document.getElementById('ev-reg-edit-name').value.trim(),
+    email:        document.getElementById('ev-reg-edit-email').value.trim(),
+    phone:        document.getElementById('ev-reg-edit-phone').value.trim(),
+    id_number:    document.getElementById('ev-reg-edit-id').value.trim(),
+    job_title:    document.getElementById('ev-reg-edit-job').value.trim(),
+    organization: document.getElementById('ev-reg-edit-org').value.trim(),
   };
   if (cfInputs.length) body.custom_fields = custom_fields;
 

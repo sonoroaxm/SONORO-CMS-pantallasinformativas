@@ -532,14 +532,22 @@ router.get('/events/:eventId/tags/export', auth, async (req, res) => {
 });
 
 // Bulk preview — parse y diffing, NO persiste
-router.post('/events/:eventId/tags/bulk', auth, uploadTags.single('file'), async (req, res) => {
+// Nota: usa express-fileupload (middleware global en index.js) en lugar de
+// multer.single — multer colisiona con express-fileupload (doble parser de
+// multipart, mismo bug cerrado en S212 para registrations/import).
+router.post('/events/:eventId/tags/bulk', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'file requerido' });
+    const uploaded = req.files && req.files.file;
+    if (!uploaded) return res.status(400).json({ error: 'file requerido' });
+    const buffer = uploaded.data && uploaded.data.length
+      ? uploaded.data
+      : (uploaded.tempFilePath ? require('fs').readFileSync(uploaded.tempFilePath) : null);
+    if (!buffer) return res.status(400).json({ error: 'file requerido' });
 
     let parsed;
-    try { parsed = tagsSvc.parseBulkBuffer(req.file.buffer); }
+    try { parsed = tagsSvc.parseBulkBuffer(buffer); }
     catch (e) { return res.status(400).json({ error: e.message }); }
 
     const client = await pool.connect();
