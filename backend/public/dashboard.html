@@ -4554,6 +4554,38 @@
             </div>
           </div>
 
+          <!-- Modal preview bulk directorio RN (capa a: tags unknown) -->
+          <div id="ev-rn-dir-bulk-modal" class="modal" onclick="if(event.target.id==='ev-rn-dir-bulk-modal') evRnDirBulkCloseModal('cancel')">
+            <div class="modal-content" style="max-width:620px;">
+              <div class="modal-header">
+                <h3 data-i18n="rn.dir.bulk_title">Importar directorio</h3>
+                <button class="modal-close" onclick="evRnDirBulkCloseModal('cancel')">&times;</button>
+              </div>
+              <div class="modal-body" style="display:grid;gap:14px;">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;">
+                    <div style="font-size:22px;font-weight:700;" id="ev-rn-dir-bulk-m-total">0</div>
+                    <div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;" data-i18n="rn.dir.bulk_rows">Filas</div>
+                  </div>
+                  <div style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;text-align:center;">
+                    <div style="font-size:22px;font-weight:700;color:#22c55e;" id="ev-rn-dir-bulk-m-valid">0</div>
+                    <div style="font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;" data-i18n="rn.dir.bulk_valid">Válidas</div>
+                  </div>
+                </div>
+                <div id="ev-rn-dir-bulk-m-errors" style="display:none;padding:10px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.08);border-radius:8px;font-size:12px;color:#ef4444;"></div>
+                <div id="ev-rn-dir-bulk-m-unknown" style="display:none;">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;" data-i18n="rn.dir.bulk_unknown_label">Tags no reconocidos en catálogo:</div>
+                  <div id="ev-rn-dir-bulk-m-unknown-list" style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow:auto;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;"></div>
+                </div>
+              </div>
+              <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                <button class="btn btn-outline" onclick="evRnDirBulkCloseModal('cancel')" data-i18n="common.cancel">Cancelar</button>
+                <button class="btn btn-outline" id="ev-rn-dir-bulk-btn-ignore" onclick="evRnDirBulkCloseModal('ignore')" data-i18n="rn.dir.bulk_import_ignore">Importar e ignorar tags</button>
+                <button class="btn btn-grad" id="ev-rn-dir-bulk-btn-create" onclick="evRnDirBulkCloseModal('create')" data-i18n="rn.dir.bulk_import_create">Importar + crear tags</button>
+              </div>
+            </div>
+          </div>
+
           <div class="ev-rn-panel hidden" id="ev-rn-panel-directorio">
             <div class="card">
               <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -12232,6 +12264,42 @@ async function evRnBulkTemplate() {
   } catch(_) { showToast(evRnT('rn.dir.bulk_err','No se pudo descargar'), 'error'); }
 }
 
+// Modal preview bulk directorio — capa (a) tags unknown
+let evRnDirBulkResolver = null;
+function evRnDirBulkOpenModal({ total, valid, errors, unknownTags }) {
+  document.getElementById('ev-rn-dir-bulk-m-total').textContent = total || 0;
+  document.getElementById('ev-rn-dir-bulk-m-valid').textContent = valid || 0;
+  const errBox = document.getElementById('ev-rn-dir-bulk-m-errors');
+  if ((errors||[]).length) {
+    errBox.style.display = 'block';
+    errBox.textContent = errors.slice(0,8).map(e => `fila ${e.row}: ${e.reason}`).join(' · ');
+  } else { errBox.style.display = 'none'; }
+  const unkBox = document.getElementById('ev-rn-dir-bulk-m-unknown');
+  const unkList = document.getElementById('ev-rn-dir-bulk-m-unknown-list');
+  const btnCreate = document.getElementById('ev-rn-dir-bulk-btn-create');
+  const btnIgnore = document.getElementById('ev-rn-dir-bulk-btn-ignore');
+  if ((unknownTags||[]).length) {
+    unkBox.style.display = 'block';
+    unkList.innerHTML = unknownTags.slice(0,60).map(t =>
+      `<span style="font-size:11px;padding:3px 8px;background:var(--surface);border:1px solid var(--border);border-radius:999px;">${evRnEsc(t)}</span>`
+    ).join('');
+    btnCreate.style.display = '';
+    btnIgnore.style.display = '';
+    btnCreate.textContent = evRnT('rn.dir.bulk_import_create_fmt','Importar + crear {n} tags').replace('{n}', unknownTags.length);
+    btnIgnore.textContent = evRnT('rn.dir.bulk_import_ignore','Importar e ignorar tags');
+  } else {
+    unkBox.style.display = 'none';
+    btnCreate.style.display = 'none';
+    btnIgnore.textContent = evRnT('rn.dir.bulk_import_go','Importar');
+  }
+  document.getElementById('ev-rn-dir-bulk-modal').classList.add('active');
+  return new Promise(resolve => { evRnDirBulkResolver = resolve; });
+}
+function evRnDirBulkCloseModal(decision) {
+  document.getElementById('ev-rn-dir-bulk-modal').classList.remove('active');
+  if (evRnDirBulkResolver) { evRnDirBulkResolver(decision); evRnDirBulkResolver = null; }
+}
+
 async function evRnBulkImport(input) {
   if (!evCurrentEventId || !input.files || !input.files[0]) return;
   const file = input.files[0];
@@ -12247,21 +12315,12 @@ async function evRnBulkImport(input) {
     const j1 = await r1.json().catch(()=>({}));
     if (!r1.ok) { showToast(j1.error || evRnT('rn.dir.bulk_err','Error importando'), 'error'); return; }
 
-    let msg = `${evRnT('rn.dir.bulk_rows','Filas')}: ${j1.total_rows} · ${evRnT('rn.dir.bulk_valid','válidas')}: ${j1.valid}`;
-    if ((j1.errors||[]).length) msg += `\n${evRnT('rn.dir.bulk_errors','Errores')}:\n` + j1.errors.slice(0,10).map(e=>`  ${evRnT('rn.dir.bulk_row','fila')} ${e.row}: ${e.reason}`).join('\n');
     const unknownTags = (j1.unknown_tags || []);
-    if (unknownTags.length) msg += `\n${evRnT('rn.dir.bulk_unknown_tags','Tags no reconocidos (se ignoran)')}: ${unknownTags.slice(0,20).join(', ')}`;
-    msg += `\n\n${evRnT('rn.dir.bulk_confirm','¿Importar {n} inscripción(es)?').replace('{n}', j1.valid)}`;
-    if (!confirm(msg)) return;
-
-    // Capa (a): si hay tags no reconocidos, ofrecer crearlos en catálogo
-    // Nota: setTimeout para romper el dialog throttling de Chrome (dos confirm
-    // consecutivos sincrónicos → el segundo se suprime).
-    let createUnknown = false;
-    if (unknownTags.length) {
-      const msg2 = evRnT('rn.dir.bulk_create_tags','¿Crear los {n} tags no reconocidos en el catálogo RN?\n(OK = crear + asociar · Cancelar = ignorarlos)').replace('{n}', unknownTags.length);
-      createUnknown = await new Promise(resolve => setTimeout(() => resolve(confirm(msg2 + '\n\n' + unknownTags.slice(0,30).join(', '))), 100));
-    }
+    const decision = await evRnDirBulkOpenModal({
+      total: j1.total_rows, valid: j1.valid, errors: j1.errors || [], unknownTags
+    });
+    if (decision === 'cancel') return;
+    const createUnknown = (decision === 'create');
 
     const fd2 = new FormData();
     fd2.append('file', file);
