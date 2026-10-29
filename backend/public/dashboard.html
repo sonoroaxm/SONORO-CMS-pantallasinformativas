@@ -12255,10 +12255,12 @@ async function evRnBulkImport(input) {
     if (!confirm(msg)) return;
 
     // Capa (a): si hay tags no reconocidos, ofrecer crearlos en catálogo
+    // Nota: setTimeout para romper el dialog throttling de Chrome (dos confirm
+    // consecutivos sincrónicos → el segundo se suprime).
     let createUnknown = false;
     if (unknownTags.length) {
       const msg2 = evRnT('rn.dir.bulk_create_tags','¿Crear los {n} tags no reconocidos en el catálogo RN?\n(OK = crear + asociar · Cancelar = ignorarlos)').replace('{n}', unknownTags.length);
-      createUnknown = confirm(msg2 + '\n\n' + unknownTags.slice(0,30).join(', '));
+      createUnknown = await new Promise(resolve => setTimeout(() => resolve(confirm(msg2 + '\n\n' + unknownTags.slice(0,30).join(', '))), 100));
     }
 
     const fd2 = new FormData();
