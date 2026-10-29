@@ -13725,8 +13725,15 @@ async function evOpenAddRueda() {
   if (ev) {
     const startEl = document.getElementById('ev-rueda-new-start');
     const endEl = document.getElementById('ev-rueda-new-end');
-    if (startEl && !startEl.value) startEl.value = new Date(ev.starts_at).toISOString().slice(0,16);
-    if (endEl && !endEl.value) endEl.value = new Date(ev.ends_at).toISOString().slice(0,16);
+    const toLocal = (iso) => {
+      const d = new Date(iso); const p = (n)=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    const s = ev.starts_at ? new Date(ev.starts_at) : new Date();
+    let e = ev.ends_at ? new Date(ev.ends_at) : new Date(s.getTime() + 2*3600*1000);
+    if (e <= s) e = new Date(s.getTime() + 2*3600*1000);
+    if (startEl && !startEl.value) startEl.value = toLocal(s);
+    if (endEl && !endEl.value) endEl.value = toLocal(e);
   }
 }
 function evCloseAddRueda() {
@@ -13789,6 +13796,9 @@ async function evSaveRueda() {
       const startLocal = document.getElementById('ev-rueda-new-start').value;
       const endLocal = document.getElementById('ev-rueda-new-end').value;
       if (!name || !startLocal || !endLocal) { showStatus(t('ev.sess_rueda_err_fields','Completa nombre y fechas'), 'error'); return; }
+      if (new Date(endLocal) <= new Date(startLocal)) {
+        showStatus(t('ev.sess_rueda_err_dates','La fecha de fin debe ser posterior a la de inicio'), 'error'); return;
+      }
       // Slug auto
       const slug = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
         .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) + '-' + Math.random().toString(36).slice(2,6);
