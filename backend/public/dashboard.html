@@ -13598,7 +13598,7 @@ async function evLoadSessions(eventId) {
         ? `<span style="font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;margin-left:6px;">${t('ev.sess_rueda_chip','Rueda')}</span>`
         : '';
       const ruedaBlock = (isRueda && s.linked_rueda_name)
-        ? `<div style="font-size:11px;color:#a855f7;margin-top:3px;font-weight:700;">${t('ev.sess_rueda_linked_to','Vinculada:')} ${s.linked_rueda_name} <a href="#events?evid=${s.linked_rueda_id}" style="color:#a855f7;text-decoration:underline;margin-left:4px;" data-i18n="ev.sess_rueda_open">Abrir panel Rueda</a></div>`
+        ? `<div style="font-size:11px;color:#a855f7;margin-top:3px;font-weight:700;">${t('ev.sess_rueda_linked_to','Vinculada:')} ${s.linked_rueda_name} <a href="javascript:void(0)" onclick="event.stopPropagation();evOpenDetail('${s.linked_rueda_id}')" style="color:#a855f7;text-decoration:underline;margin-left:4px;" data-i18n="ev.sess_rueda_open">Abrir panel Rueda</a></div>`
         : '';
       const sideBar = isRueda ? 'box-shadow:inset 3px 0 0 0 #a855f7;' : '';
       return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;${sideBar}">
@@ -13779,7 +13779,10 @@ async function evLoadLinkableRuedas() {
     sel.innerHTML = `<option value="">${t('ev.sess_rueda_pick_placeholder','— Selecciona —')}</option>`;
   }
 }
+let evSavingRueda = false;
 async function evSaveRueda() {
+  if (evSavingRueda) return;
+  evSavingRueda = true;
   const linkPane = !document.getElementById('ev-rueda-pane-link').classList.contains('hidden');
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,d)=>d||k;
   try {
@@ -13838,6 +13841,8 @@ async function evSaveRueda() {
     evLoadSessions(evCurrentEventId);
   } catch(e) {
     showStatus(t('ev.sess_rueda_err_net','Error de conexión'), 'error');
+  } finally {
+    evSavingRueda = false;
   }
 }
 
