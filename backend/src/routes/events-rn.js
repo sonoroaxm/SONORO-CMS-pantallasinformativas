@@ -1371,11 +1371,16 @@ function parseRegsBuffer(buffer) {
   }));
 }
 
-router.post('/events/:eventId/registrations/bulk', auth, uploadRegs.single('file'), async (req, res) => {
+router.post('/events/:eventId/registrations/bulk', auth, async (req, res) => {
   const pool = global.pool;
   try {
     await assertRnEventOwned(pool, req.params.eventId, req.user.id);
-    if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Archivo requerido (field name: file)' });
+    const uploaded = req.files && req.files.file;
+    if (!uploaded) return res.status(400).json({ error: 'Archivo requerido (field name: file)' });
+    const fileBuffer = uploaded.data && uploaded.data.length
+      ? uploaded.data
+      : (uploaded.tempFilePath ? require('fs').readFileSync(uploaded.tempFilePath) : null);
+    if (!fileBuffer) return res.status(400).json({ error: 'Archivo requerido (field name: file)' });
     const dryRun = String(req.body.dry_run || '').toLowerCase() === '1' || String(req.body.dry_run||'').toLowerCase() === 'true';
 
     const eventId = req.params.eventId;
@@ -1389,7 +1394,7 @@ router.post('/events/:eventId/registrations/bulk', auth, uploadRegs.single('file
     const defaultLocale = (ev.rows[0].config && ev.rows[0].config.default_locale) || 'es';
 
     let parsed;
-    try { parsed = parseRegsBuffer(req.file.buffer); }
+    try { parsed = parseRegsBuffer(fileBuffer); }
     catch (e) { return res.status(e.httpStatus || 400).json({ error: e.message }); }
 
     // Catálogo de tags del tenant (slug → {id,label})

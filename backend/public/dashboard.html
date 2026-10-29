@@ -5841,6 +5841,8 @@ function updateStatus(message, type = 'info') {
 
 // alias usado en loadDevices
 function showStatus(msg, type) { updateStatus(msg, type); }
+// alias usado en flujos RN/Events (bulk import, templates, exports)
+function showToast(msg, type) { updateStatus(msg, type); }
 
 function connectWebSocket() {
   socket = io(API_URL, { auth: { token: authToken } });
