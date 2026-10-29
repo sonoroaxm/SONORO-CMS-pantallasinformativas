@@ -3112,9 +3112,12 @@
                 </div>
               </div>
               <div class="card">
-                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
                   <span data-i18n="ev.sess_card">Sesiones / Jornadas</span>
-                  <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()" data-i18n="ev.sess_add">+ Agregar</button>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="evOpenAddSession()" data-i18n="ev.sess_add">+ Agregar</button>
+                    <button class="btn btn-sm" onclick="evOpenAddRueda()" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;border:0;font-weight:700;" data-i18n="ev.sess_add_rueda">+ Rueda de Negocios</button>
+                  </div>
                 </div>
                 <div id="ev-sessions-list" style="display:grid;gap:8px;"></div>
                 <!-- Formulario añadir sesión (oculto) -->
@@ -3153,6 +3156,34 @@
                       <button class="btn btn-outline btn-sm" onclick="evCloseAddSession()" data-i18n="ev.cancel">Cancelar</button>
                       <button class="btn btn-primary btn-sm" onclick="evSaveSession()" data-i18n="ev.sess_save">Guardar sesión</button>
                     </div>
+                  </div>
+                </div>
+                <!-- Formulario sesión Rueda de Negocios (oculto) -->
+                <div id="ev-add-rueda-form" class="hidden" style="margin-top:16px;padding:14px;border:1.5px dashed rgba(168,85,247,.4);background:rgba(168,85,247,.05);border-radius:11px;">
+                  <div style="font-size:10px;font-weight:800;letter-spacing:1.4px;color:#a855f7;text-transform:uppercase;margin-bottom:10px;" data-i18n="ev.sess_rueda_lab">Configuración de la Rueda de Negocios</div>
+                  <div style="display:flex;gap:3px;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:12px;">
+                    <button type="button" id="ev-rueda-tab-link" onclick="evRuedaTab('link')" class="btn-sm" style="flex:1;padding:8px;text-align:center;font-size:11.5px;font-weight:800;border-radius:6px;border:0;background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;cursor:pointer;" data-i18n="ev.sess_rueda_mode_link">Vincular existente</button>
+                    <button type="button" id="ev-rueda-tab-new" onclick="evRuedaTab('new')" class="btn-sm" style="flex:1;padding:8px;text-align:center;font-size:11.5px;font-weight:800;border-radius:6px;border:0;background:transparent;color:var(--text-muted);cursor:pointer;" data-i18n="ev.sess_rueda_mode_new">Crear nueva</button>
+                  </div>
+                  <div id="ev-rueda-pane-link">
+                    <div class="form-group" style="margin:0 0 10px;">
+                      <label data-i18n="ev.sess_rueda_pick">Elige una Rueda</label>
+                      <select id="ev-rueda-link-select" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px;">
+                        <option value="" data-i18n="ev.sess_rueda_pick_placeholder">— Selecciona —</option>
+                      </select>
+                      <div id="ev-rueda-link-empty" class="hidden" style="font-size:11px;color:var(--text-muted);margin-top:6px;" data-i18n="ev.sess_rueda_pick_empty">No tienes Ruedas disponibles. Crea una nueva.</div>
+                    </div>
+                  </div>
+                  <div id="ev-rueda-pane-new" class="hidden">
+                    <div class="form-group" style="margin:0 0 10px;"><label data-i18n="ev.sess_rueda_new_name">Nombre de la Rueda</label><input type="text" id="ev-rueda-new-name" placeholder="Ej: Rueda Agro & Alimentos" data-i18n-attr="placeholder:ev.sess_rueda_new_name_ph"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_rueda_new_start">Fecha y hora inicio</label><input type="datetime-local" id="ev-rueda-new-start"></div>
+                      <div class="form-group" style="margin:0;"><label data-i18n="ev.sess_rueda_new_end">Fecha y hora fin</label><input type="datetime-local" id="ev-rueda-new-end"></div>
+                    </div>
+                  </div>
+                  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                    <button class="btn btn-outline btn-sm" onclick="evCloseAddRueda()" data-i18n="ev.cancel">Cancelar</button>
+                    <button class="btn btn-sm" onclick="evSaveRueda()" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;border:0;font-weight:700;" data-i18n="ev.sess_rueda_save">Guardar</button>
                   </div>
                 </div>
               </div>
@@ -13562,15 +13593,24 @@ async function evLoadSessions(eventId) {
              <a href="${shareUrl}" target="_blank" class="btn btn-outline btn-sm" style="border-color:#555;color:var(--text-muted);padding:3px 8px;font-size:11px;text-decoration:none;" data-i18n="ev.reg_open">Abrir</a>
            </div>`
         : '';
-      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;">
+      const isRueda = s.session_type === 'rueda';
+      const ruedaChip = isRueda
+        ? `<span style="font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;margin-left:6px;">${t('ev.sess_rueda_chip','Rueda')}</span>`
+        : '';
+      const ruedaBlock = (isRueda && s.linked_rueda_name)
+        ? `<div style="font-size:11px;color:#a855f7;margin-top:3px;font-weight:700;">${t('ev.sess_rueda_linked_to','Vinculada:')} ${s.linked_rueda_name} <a href="#events?evid=${s.linked_rueda_id}" style="color:#a855f7;text-decoration:underline;margin-left:4px;" data-i18n="ev.sess_rueda_open">Abrir panel Rueda</a></div>`
+        : '';
+      const sideBar = isRueda ? 'box-shadow:inset 3px 0 0 0 #a855f7;' : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:8px;${sideBar}">
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;">${s.name}${visBadge}</div>
+          <div style="font-size:13px;font-weight:700;">${s.name}${visBadge}${ruedaChip}</div>
           <div style="font-size:12px;color:var(--text-muted);">${dateStr} · ${startT} – ${endT}${s.capacity ? ' · ' + s.capacity + ' ' + t('ev.sess_cap_word') : ''}</div>
           ${s.assigned_staff_name ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;display:inline-flex;align-items:center;gap:4px;"><svg width="11" height="11" style="fill:currentColor"><use href="#ph-user"/></svg> ${s.assigned_staff_name}</div>` : ''}
+          ${ruedaBlock}
           ${shareBlock}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>
+          ${isRueda ? '' : `<button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>`}
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteSession('${s.id}')">×</button>
         </div>
       </div>`;
@@ -13673,6 +13713,122 @@ async function evSaveSession() {
       evLoadSessions(evCurrentEventId);
     } else { showStatus(data.error || 'Error', 'error'); }
   } catch(e) { showStatus('Error de conexión', 'error'); }
+}
+
+// ── RUEDA DE NEGOCIOS: sub-form sesión ────────────────────────
+async function evOpenAddRueda() {
+  document.getElementById('ev-add-rueda-form').classList.remove('hidden');
+  evRuedaTab('link');
+  await evLoadLinkableRuedas();
+  // Pre-fill fechas con rango del evento
+  const ev = evCurrentEvent;
+  if (ev) {
+    const startEl = document.getElementById('ev-rueda-new-start');
+    const endEl = document.getElementById('ev-rueda-new-end');
+    if (startEl && !startEl.value) startEl.value = new Date(ev.starts_at).toISOString().slice(0,16);
+    if (endEl && !endEl.value) endEl.value = new Date(ev.ends_at).toISOString().slice(0,16);
+  }
+}
+function evCloseAddRueda() {
+  document.getElementById('ev-add-rueda-form').classList.add('hidden');
+  ['ev-rueda-link-select','ev-rueda-new-name','ev-rueda-new-start','ev-rueda-new-end'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+}
+function evRuedaTab(mode) {
+  const link = document.getElementById('ev-rueda-pane-link');
+  const nw = document.getElementById('ev-rueda-pane-new');
+  const tLink = document.getElementById('ev-rueda-tab-link');
+  const tNew = document.getElementById('ev-rueda-tab-new');
+  const on = 'background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;';
+  const off = 'background:transparent;color:var(--text-muted);';
+  const base = 'flex:1;padding:8px;text-align:center;font-size:11.5px;font-weight:800;border-radius:6px;border:0;cursor:pointer;';
+  if (mode === 'link') {
+    link.classList.remove('hidden'); nw.classList.add('hidden');
+    tLink.style.cssText = base + on; tNew.style.cssText = base + off;
+  } else {
+    link.classList.add('hidden'); nw.classList.remove('hidden');
+    tLink.style.cssText = base + off; tNew.style.cssText = base + on;
+  }
+}
+async function evLoadLinkableRuedas() {
+  const sel = document.getElementById('ev-rueda-link-select');
+  const empty = document.getElementById('ev-rueda-link-empty');
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,d)=>d||k;
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+    const all = await res.json();
+    // Filtrar: ruedas (matchmaking) · no la rueda actual · no vinculadas ya a este evento
+    const linkedIds = (evSessionsList || []).filter(x => x.linked_rueda_id).map(x => x.linked_rueda_id);
+    const ruedas = all.filter(e =>
+      e.config && e.config.event_type === 'matchmaking' &&
+      e.id !== evCurrentEventId &&
+      !linkedIds.includes(e.id)
+    );
+    sel.innerHTML = `<option value="">${t('ev.sess_rueda_pick_placeholder','— Selecciona —')}</option>` +
+      ruedas.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+    empty.classList.toggle('hidden', ruedas.length > 0);
+  } catch(e) {
+    sel.innerHTML = `<option value="">${t('ev.sess_rueda_pick_placeholder','— Selecciona —')}</option>`;
+  }
+}
+async function evSaveRueda() {
+  const linkPane = !document.getElementById('ev-rueda-pane-link').classList.contains('hidden');
+  const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,d)=>d||k;
+  try {
+    let ruedaId, ruedaName, startsAt, endsAt;
+    if (linkPane) {
+      ruedaId = document.getElementById('ev-rueda-link-select').value;
+      if (!ruedaId) { showStatus(t('ev.sess_rueda_err_pick','Selecciona una Rueda'), 'error'); return; }
+      // Toma el nombre + rango del evento rueda
+      const res = await fetch(`${API_URL}/api/events/${ruedaId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+      const r = await res.json();
+      ruedaName = r.name; startsAt = r.starts_at; endsAt = r.ends_at;
+    } else {
+      const name = document.getElementById('ev-rueda-new-name').value.trim();
+      const startLocal = document.getElementById('ev-rueda-new-start').value;
+      const endLocal = document.getElementById('ev-rueda-new-end').value;
+      if (!name || !startLocal || !endLocal) { showStatus(t('ev.sess_rueda_err_fields','Completa nombre y fechas'), 'error'); return; }
+      // Slug auto
+      const slug = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+        .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) + '-' + Math.random().toString(36).slice(2,6);
+      const tz = (evCurrentEvent && evCurrentEvent.timezone) || 'America/Bogota';
+      const payload = {
+        name, slug,
+        starts_at: new Date(startLocal).toISOString(),
+        ends_at: new Date(endLocal).toISOString(),
+        timezone: tz,
+        parent_event_id: evCurrentEventId,
+        config: { event_type: 'matchmaking' }
+      };
+      const resE = await fetch(`${API_URL}/api/events`, {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
+        body: JSON.stringify(payload)
+      });
+      const dataE = await resE.json();
+      if (!dataE.id) { showStatus(dataE.error || t('ev.sess_rueda_err_create','Error al crear Rueda'), 'error'); return; }
+      ruedaId = dataE.id; ruedaName = name; startsAt = payload.starts_at; endsAt = payload.ends_at;
+    }
+    // Crear sesión del evento padre vinculada
+    const resS = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
+      body: JSON.stringify({
+        name: ruedaName,
+        session_type: 'rueda',
+        linked_rueda_id: ruedaId,
+        starts_at: startsAt,
+        ends_at: endsAt,
+        visibility: 'public'
+      })
+    });
+    const dataS = await resS.json();
+    if (!dataS.id) { showStatus(dataS.error || t('ev.sess_rueda_err_link','Error al vincular'), 'error'); return; }
+    showStatus(t('ev.sess_rueda_ok','Rueda vinculada'), 'success');
+    evCloseAddRueda();
+    evLoadSessions(evCurrentEventId);
+  } catch(e) {
+    showStatus(t('ev.sess_rueda_err_net','Error de conexión'), 'error');
+  }
 }
 
 // ── CONSTRUCTOR DE FORMULARIO ──────────────────────────────────
