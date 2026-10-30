@@ -1493,4 +1493,207 @@ router.get('/report', rnReadLimiter, async (req, res) => {
   }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-10 · Expediente post-cita
+// GET  /meetings/:id/outcome?token=<agenda_token>
+// PUT  /meetings/:id/outcome?token=<agenda_token>  body:{result,next_step,owner_side?,due_at?,completed?,share_with_counterpart?,share_with_producer?}
+// GET  /meetings/:id/feedback?token=<agenda_token>
+// POST /meetings/:id/feedback?token=<agenda_token>  body:{dim_fit,dim_docs,dim_price,dim_capacity,dim_timing,dim_clarity,note?,visibility?}
+// PATCH /delegates/me/comms-opt-out?token=<agenda_token>  body:{opt_out:boolean}
+// Side ('A'/'B') se deriva de assertMeetingDelegate (lowercase → uppercase).
+// Idempotencia: UNIQUE(meeting_id, side) permite upsert via ON CONFLICT.
+// ──────────────────────────────────────────────────────────────────────────────
+
+const RESULT_VALUES    = ['match','conditional','needs_info','no_match','no_show'];
+const NEXT_STEP_VALUES = ['quote','sample','catalog','tech_spec','intro','second_meeting','pilot','none'];
+const OWNER_VALUES     = ['A','B','both'];
+const DIM_VALUES       = ['good','partial','poor','na'];
+const VIS_VALUES       = ['counterpart','producer_only','both'];
+
+router.get('/meetings/:id/outcome', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { side: lcSide } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    const mySide = lcSide.toUpperCase();
+    const otherSide = mySide === 'A' ? 'B' : 'A';
+
+    const { rows } = await pool.query(
+      `SELECT side, result, next_step, owner_side, due_at, completed_at,
+              share_with_counterpart, share_with_producer, created_at, updated_at
+         FROM events.rn_meeting_outcomes
+        WHERE meeting_id = $1 AND side = ANY($2::varchar[])`,
+      [req.params.id, [mySide, otherSide]]
+    );
+    const mine  = rows.find(r => r.side === mySide) || null;
+    const otherRaw = rows.find(r => r.side === otherSide) || null;
+    // Contraparte visible solo si marcó share_with_counterpart
+    const other = otherRaw && otherRaw.share_with_counterpart ? {
+      result: otherRaw.result,
+      next_step: otherRaw.next_step,
+      owner_side: otherRaw.owner_side,
+      due_at: otherRaw.due_at,
+      completed_at: otherRaw.completed_at,
+      updated_at: otherRaw.updated_at,
+    } : null;
+
+    res.json({ meeting_id: req.params.id, my_side: mySide, mine, counterpart: other });
+  } catch (err) { handleError(res, err, 'GET outcome'); }
+});
+
+router.put('/meetings/:id/outcome', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { meeting, side: lcSide } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    const mySide = lcSide.toUpperCase();
+
+    const b = req.body || {};
+    const result     = RESULT_VALUES.includes(b.result) ? b.result : null;
+    const next_step  = NEXT_STEP_VALUES.includes(b.next_step) ? b.next_step : null;
+    if (!result)     return res.status(400).json({ error: 'result inválido' });
+    if (!next_step)  return res.status(400).json({ error: 'next_step inválido' });
+
+    // no_match / no_show cierran ficha → forzamos next_step='none' + due null
+    const closed = result === 'no_match' || result === 'no_show';
+    const finalNext = closed ? 'none' : next_step;
+
+    let owner = (b.owner_side != null && OWNER_VALUES.includes(String(b.owner_side).toUpperCase()))
+      ? String(b.owner_side).toUpperCase() : null;
+    if (closed || finalNext === 'none') owner = null;
+
+    let due = null;
+    if (!closed && finalNext !== 'none' && b.due_at) {
+      const d = new Date(b.due_at);
+      if (isFinite(d.getTime())) due = d.toISOString();
+    }
+
+    const completed = closed ? new Date().toISOString() : (b.completed === true ? new Date().toISOString() : null);
+    const shareCp   = closed ? false : (b.share_with_counterpart === true);
+    const shareProd = closed ? true  : (b.share_with_producer !== false);
+
+    const r = await withTransaction(pool, async (client) => {
+      const ins = await client.query(
+        `INSERT INTO events.rn_meeting_outcomes
+           (meeting_id, side, user_id, delegate_id, result, next_step, owner_side, due_at, completed_at,
+            share_with_counterpart, share_with_producer, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
+         ON CONFLICT (meeting_id, side) DO UPDATE SET
+           result = EXCLUDED.result,
+           next_step = EXCLUDED.next_step,
+           owner_side = EXCLUDED.owner_side,
+           due_at = EXCLUDED.due_at,
+           completed_at = EXCLUDED.completed_at,
+           share_with_counterpart = EXCLUDED.share_with_counterpart,
+           share_with_producer = EXCLUDED.share_with_producer,
+           updated_at = NOW()
+         RETURNING id, side, result, next_step, owner_side, due_at, completed_at,
+                   share_with_counterpart, share_with_producer, created_at, updated_at`,
+        [req.params.id, mySide, ctx.user_id, ctx.delegate_id, result, finalNext, owner, due, completed, shareCp, shareProd]
+      );
+      return ins.rows[0];
+    });
+
+    global.io?.to(`event_rueda_${meeting.event_id}`).emit('rn.outcome.saved', {
+      meeting_id: req.params.id, side: mySide, result, next_step: finalNext,
+    });
+    res.json(r);
+  } catch (err) { handleError(res, err, 'PUT outcome'); }
+});
+
+router.get('/meetings/:id/feedback', rnReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { side: lcSide } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    const mySide = lcSide.toUpperCase();
+    const otherSide = mySide === 'A' ? 'B' : 'A';
+
+    const { rows } = await pool.query(
+      `SELECT from_side, dim_fit, dim_docs, dim_price, dim_capacity, dim_timing, dim_clarity,
+              note, visibility, created_at, updated_at
+         FROM events.rn_meeting_feedback
+        WHERE meeting_id = $1 AND from_side = ANY($2::varchar[])`,
+      [req.params.id, [mySide, otherSide]]
+    );
+    const mine  = rows.find(r => r.from_side === mySide) || null;
+    const otherRaw = rows.find(r => r.from_side === otherSide) || null;
+    // Contraparte solo si visibility incluye 'counterpart' o 'both'
+    const other = otherRaw && (otherRaw.visibility === 'counterpart' || otherRaw.visibility === 'both') ? {
+      dim_fit: otherRaw.dim_fit, dim_docs: otherRaw.dim_docs, dim_price: otherRaw.dim_price,
+      dim_capacity: otherRaw.dim_capacity, dim_timing: otherRaw.dim_timing, dim_clarity: otherRaw.dim_clarity,
+      note: otherRaw.note, updated_at: otherRaw.updated_at,
+    } : null;
+
+    res.json({ meeting_id: req.params.id, my_side: mySide, mine, counterpart: other });
+  } catch (err) { handleError(res, err, 'GET feedback'); }
+});
+
+router.post('/meetings/:id/feedback', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+    const { side: lcSide } = await assertMeetingDelegate(pool, req.params.id, ctx.delegate_id);
+    const mySide = lcSide.toUpperCase();
+
+    const b = req.body || {};
+    const dim = (k) => (DIM_VALUES.includes(b[k]) ? b[k] : null);
+    const vals = {
+      dim_fit:      dim('dim_fit'),
+      dim_docs:     dim('dim_docs'),
+      dim_price:    dim('dim_price'),
+      dim_capacity: dim('dim_capacity'),
+      dim_timing:   dim('dim_timing'),
+      dim_clarity:  dim('dim_clarity'),
+    };
+    const note = b.note ? String(b.note).slice(0, 500) : null;
+    const visibility = VIS_VALUES.includes(b.visibility) ? b.visibility : 'producer_only';
+
+    const r = await pool.query(
+      `INSERT INTO events.rn_meeting_feedback
+         (meeting_id, from_side, user_id, delegate_id,
+          dim_fit, dim_docs, dim_price, dim_capacity, dim_timing, dim_clarity,
+          note, visibility, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+       ON CONFLICT (meeting_id, from_side) DO UPDATE SET
+         dim_fit = EXCLUDED.dim_fit,
+         dim_docs = EXCLUDED.dim_docs,
+         dim_price = EXCLUDED.dim_price,
+         dim_capacity = EXCLUDED.dim_capacity,
+         dim_timing = EXCLUDED.dim_timing,
+         dim_clarity = EXCLUDED.dim_clarity,
+         note = EXCLUDED.note,
+         visibility = EXCLUDED.visibility,
+         updated_at = NOW()
+       RETURNING id, from_side, dim_fit, dim_docs, dim_price, dim_capacity, dim_timing, dim_clarity,
+                 note, visibility, created_at, updated_at`,
+      [req.params.id, mySide, ctx.user_id, ctx.delegate_id,
+       vals.dim_fit, vals.dim_docs, vals.dim_price, vals.dim_capacity, vals.dim_timing, vals.dim_clarity,
+       note, visibility]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'POST feedback'); }
+});
+
+router.patch('/delegates/me/comms-opt-out', rnTokenMutationLimiter, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const ctx = await resolveToken(pool, req.query.token);
+    const optOut = req.body?.opt_out === true;
+    const r = await pool.query(
+      `UPDATE events.rn_delegates
+          SET comms_opt_out    = $2,
+              comms_opt_out_at = CASE WHEN $2 THEN COALESCE(comms_opt_out_at, NOW()) ELSE NULL END
+        WHERE id = $1
+        RETURNING id, comms_opt_out, comms_opt_out_at`,
+      [ctx.delegate_id, optOut]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { handleError(res, err, 'PATCH comms-opt-out'); }
+});
+
 module.exports = router;

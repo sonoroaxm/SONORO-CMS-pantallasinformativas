@@ -4114,4 +4114,227 @@ router.get('/analytics/overview/export.pdf', auth, requireAnalyticsAccess, async
   }
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// E-RN-10 · Reporte postrueda (v3)
+// GET /api/events/:id/analytics/postrueda
+// Devuelve 6 bloques: pipeline, agenda, delegates, compromisos, heatmap, brechas.
+// Protegido por requireAnalyticsAccess (misma gate que /analytics/overview).
+// ──────────────────────────────────────────────────────────────────────────────
+async function assertEventOwner(pool, eventId, userId) {
+  const r = await pool.query(
+    'SELECT id, user_id, name, starts_at, ends_at FROM events.events WHERE id = $1',
+    [eventId]
+  );
+  if (!r.rows.length) { const e = new Error('Evento no encontrado'); e.httpStatus = 404; throw e; }
+  const ev = r.rows[0];
+  if (String(ev.user_id) !== String(userId)) { const e = new Error('Prohibido'); e.httpStatus = 403; throw e; }
+  return ev;
+}
+
+router.get('/:id/analytics/postrueda', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    if (req.user.role !== 'admin') await assertEventOwner(pool, eventId, req.user.id);
+
+    // ── 1) PIPELINE: outcomes agregados por result ─────────────────────────────
+    const pipelineAgg = await pool.query(
+      `SELECT o.result, COUNT(*) AS n
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+        WHERE m.event_id = $1
+        GROUP BY o.result`,
+      [eventId]
+    );
+    const pipelineTotal = pipelineAgg.rows.reduce((s, r) => s + Number(r.n), 0);
+    const pipeline = { total: pipelineTotal, by_result: {}, top: {} };
+    for (const row of pipelineAgg.rows) {
+      pipeline.by_result[row.result] = { n: Number(row.n), pct: pipelineTotal ? Number(row.n) / pipelineTotal : 0 };
+    }
+
+    // Top 3 compromisos por result (match/conditional/needs_info) con due_at más próximo
+    for (const result of ['match', 'conditional', 'needs_info']) {
+      const r = await pool.query(
+        `SELECT o.meeting_id, o.due_at, o.next_step,
+                ra.company_name AS company_a, rb.company_name AS company_b
+           FROM events.rn_meeting_outcomes o
+           JOIN events.rn_meetings m ON m.id = o.meeting_id
+           JOIN events.registrations ra ON ra.id = m.company_a_id
+           JOIN events.registrations rb ON rb.id = m.company_b_id
+          WHERE m.event_id = $1 AND o.result = $2 AND o.completed_at IS NULL
+          ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC
+          LIMIT 3`,
+        [eventId, result]
+      );
+      pipeline.top[result] = r.rows;
+    }
+    // Top 3 razones para no_match: usar dim con 'poor' más frecuente
+    const noMatchReasons = await pool.query(
+      `SELECT k.dim, COUNT(*) AS n
+         FROM events.rn_meeting_feedback f
+         JOIN events.rn_meetings m ON m.id = f.meeting_id
+         JOIN LATERAL (VALUES
+            ('fit', f.dim_fit), ('docs', f.dim_docs), ('price', f.dim_price),
+            ('capacity', f.dim_capacity), ('timing', f.dim_timing), ('clarity', f.dim_clarity)
+         ) AS k(dim, val) ON TRUE
+        WHERE m.event_id = $1 AND k.val = 'poor'
+        GROUP BY k.dim
+        ORDER BY n DESC
+        LIMIT 3`,
+      [eventId]
+    );
+    pipeline.top.no_match_reasons = noMatchReasons.rows;
+    // Concentración de no_show (ronda + mesa)
+    const nsRound = await pool.query(
+      `SELECT rr.round_number, COUNT(*) AS n
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.rn_rounds rr ON rr.id = m.round_id
+        WHERE m.event_id = $1 AND o.result = 'no_show'
+        GROUP BY rr.round_number
+        ORDER BY n DESC LIMIT 3`,
+      [eventId]
+    );
+    pipeline.top.no_show_rounds = nsRound.rows;
+
+    // ── 2) APROVECHAMIENTO AGENDA ─────────────────────────────────────────────
+    const agendaOverall = await pool.query(
+      `SELECT
+          COUNT(*) AS scheduled,
+          COUNT(*) FILTER (WHERE status IN ('completed','active')) AS effective
+         FROM events.rn_meetings
+        WHERE event_id = $1`,
+      [eventId]
+    );
+    const agendaByRound = await pool.query(
+      `SELECT rr.round_number, rr.label,
+              COUNT(m.id) AS scheduled,
+              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+         FROM events.rn_rounds rr
+         LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
+        WHERE rr.event_id = $1
+        GROUP BY rr.id, rr.round_number, rr.label
+        ORDER BY rr.round_number`,
+      [eventId]
+    );
+    const agendaByTable = await pool.query(
+      `SELECT t.label, t.display_order,
+              COUNT(m.id) AS scheduled,
+              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+         FROM events.rn_tables t
+         LEFT JOIN events.rn_meetings m ON m.table_id = t.id
+        WHERE t.event_id = $1 AND t.active = TRUE
+        GROUP BY t.id, t.label, t.display_order
+        ORDER BY t.display_order, t.label`,
+      [eventId]
+    );
+    const agenda = {
+      overall: agendaOverall.rows[0] || { scheduled: 0, effective: 0 },
+      by_round: agendaByRound.rows,
+      by_table: agendaByTable.rows,
+    };
+
+    // ── 3) DELEGADOS ANCLA Y COLA LARGA ───────────────────────────────────────
+    const anchors = await pool.query(
+      `SELECT r.id AS registration_id, r.company_name,
+              COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(*) AS total_outcomes
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.registrations r ON r.id = CASE WHEN o.side = 'A' THEN m.company_a_id ELSE m.company_b_id END
+        WHERE m.event_id = $1
+        GROUP BY r.id, r.company_name
+        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
+        ORDER BY positives DESC, total_outcomes DESC
+        LIMIT 5`,
+      [eventId]
+    );
+    const longtail = await pool.query(
+      `SELECT r.id AS registration_id, r.company_name,
+              COUNT(*) FILTER (WHERE o.result = 'no_match') AS negatives,
+              COUNT(*) AS total_outcomes
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.registrations r ON r.id = CASE WHEN o.side = 'A' THEN m.company_a_id ELSE m.company_b_id END
+        WHERE m.event_id = $1
+        GROUP BY r.id, r.company_name
+        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) = 0
+        ORDER BY total_outcomes DESC
+        LIMIT 5`,
+      [eventId]
+    );
+    const delegates = { anchors: anchors.rows, longtail: longtail.rows };
+
+    // ── 4) COMPROMISOS ACTIVOS ────────────────────────────────────────────────
+    const compromisos = await pool.query(
+      `SELECT o.meeting_id, o.side, o.next_step, o.owner_side, o.due_at, o.result,
+              ra.company_name AS company_a, rb.company_name AS company_b,
+              rr.round_number
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.rn_rounds rr ON rr.id = m.round_id
+         JOIN events.registrations ra ON ra.id = m.company_a_id
+         JOIN events.registrations rb ON rb.id = m.company_b_id
+        WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
+        ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC
+        LIMIT 100`,
+      [eventId]
+    );
+
+    // ── 5) HEATMAP mesa × ronda (outcomes positivos) ──────────────────────────
+    const heatmap = await pool.query(
+      `SELECT t.label AS table_label, t.display_order,
+              rr.round_number,
+              COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(m.id) AS total
+         FROM events.rn_meetings m
+         JOIN events.rn_tables  t  ON t.id  = m.table_id
+         JOIN events.rn_rounds  rr ON rr.id = m.round_id
+         LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
+        WHERE m.event_id = $1
+        GROUP BY t.id, t.label, t.display_order, rr.round_number
+        ORDER BY t.display_order, rr.round_number`,
+      [eventId]
+    );
+
+    // ── 6) BRECHAS por tag (demanda sin oferta / oferta sin demanda) ──────────
+    // Simplificación v1: contamos regs únicas que demandan/ofrecen cada tag en este evento.
+    const tagsAgg = await pool.query(
+      `SELECT t.id, t.label, t.category,
+              COUNT(DISTINCT CASE WHEN rt.kind = 'demand' THEN rt.registration_id END) AS n_demand,
+              COUNT(DISTINCT CASE WHEN rt.kind = 'offer'  THEN rt.registration_id END) AS n_offer
+         FROM events.rn_tags t
+         JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
+         JOIN events.registrations r ON r.id = rt.registration_id
+        WHERE r.event_id = $1
+        GROUP BY t.id, t.label, t.category`,
+      [eventId]
+    );
+    const demandWithoutOffer = tagsAgg.rows
+      .filter(r => Number(r.n_demand) > 0 && Number(r.n_offer) === 0)
+      .sort((a, b) => Number(b.n_demand) - Number(a.n_demand))
+      .slice(0, 20);
+    const offerWithoutDemand = tagsAgg.rows
+      .filter(r => Number(r.n_offer) > 0 && Number(r.n_demand) === 0)
+      .sort((a, b) => Number(b.n_offer) - Number(a.n_offer))
+      .slice(0, 20);
+    const brechas = { demand_without_offer: demandWithoutOffer, offer_without_demand: offerWithoutDemand };
+
+    res.json({
+      event_id: eventId,
+      generated_at: new Date().toISOString(),
+      pipeline,
+      agenda,
+      delegates,
+      compromisos: compromisos.rows,
+      heatmap: heatmap.rows,
+      brechas,
+    });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;

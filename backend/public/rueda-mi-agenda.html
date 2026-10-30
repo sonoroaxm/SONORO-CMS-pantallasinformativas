@@ -140,6 +140,51 @@
   .ac-item .cat{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.4px}
   .ac-item.empty{color:var(--mute);cursor:default;font-style:italic}
   .ac-item.empty:hover{background:transparent;color:var(--mute)}
+  /* ───── E-RN-10 · Outcome modal ───── */
+  .modal.oc{max-width:520px;max-height:90vh;overflow-y:auto;padding:18px}
+  .oc-hero{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+  .oc-hero .kick{font-size:10px;font-weight:800;letter-spacing:1.4px;color:var(--magenta);text-transform:uppercase;margin-bottom:4px}
+  .oc-hero .co{font-size:16px;font-weight:800;margin-bottom:2px}
+  .oc-hero .mt{color:var(--mute);font-size:12px}
+  .oc-sec{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+  .oc-sec:last-child{border-bottom:0}
+  .oc-sec h4{margin:0 0 3px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .oc-sec .sub{color:var(--mute);font-size:12px;margin-bottom:10px}
+  .oc-pills{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .oc-pills .pill:last-child{grid-column:1/-1}
+  .oc-pill{border:1.5px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;background:var(--card2);transition:all .15s}
+  .oc-pill .pl{font-size:12.5px;font-weight:800;color:var(--text);margin-bottom:2px}
+  .oc-pill .pd{font-size:11px;color:var(--mute);line-height:1.35}
+  .oc-pill.on{border-color:var(--magenta);background:rgba(255,27,141,.08)}
+  .oc-pill.on .pl{color:var(--magenta)}
+  .oc-pill[data-k="match"].on{border-color:var(--ok);background:rgba(34,197,94,.08)}
+  .oc-pill[data-k="match"].on .pl{color:var(--ok)}
+  .oc-pill[data-k="no_match"].on,.oc-pill[data-k="no_show"].on{border-color:var(--err);background:rgba(239,68,68,.08)}
+  .oc-pill[data-k="no_match"].on .pl,.oc-pill[data-k="no_show"].on .pl{color:var(--err)}
+  .oc-close-note{background:var(--card2);border:1px dashed var(--border);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--mute)}
+  .oc-owner{display:flex;gap:6px;margin-top:4px}
+  .oc-owner label{flex:1;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;padding:8px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--mute)}
+  .oc-owner label.on{border-color:var(--magenta);background:rgba(255,27,141,.08);color:var(--magenta)}
+  .oc-owner label input{display:none}
+  .oc-vis{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .oc-vis .lbl{font-size:12.5px;font-weight:700}
+  .oc-vis .lbl small{display:block;font-size:11px;color:var(--mute);font-weight:600;margin-top:2px}
+  .oc-sw{position:relative;width:42px;height:24px;background:var(--border);border-radius:999px;cursor:pointer;flex-shrink:0;transition:all .2s}
+  .oc-sw.on{background:var(--magenta)}
+  .oc-sw::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all .2s}
+  .oc-sw.on::after{left:20px}
+  .oc-dim{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+  .oc-dim:first-of-type{border-top:0;padding-top:0}
+  .oc-dim .dn{font-size:12.5px;font-weight:700}
+  .oc-dim .dn small{display:block;font-size:11px;color:var(--mute);font-weight:600}
+  .oc-dim-opts{display:flex;gap:3px}
+  .oc-dim-opt{padding:4px 8px;border-radius:7px;border:1.5px solid var(--border);font-size:10.5px;font-weight:800;color:var(--mute);cursor:pointer;letter-spacing:.3px;background:var(--card2)}
+  .oc-dim-opt.on.good{background:var(--ok);border-color:var(--ok);color:#fff}
+  .oc-dim-opt.on.partial{background:var(--orange);border-color:var(--orange);color:#fff}
+  .oc-dim-opt.on.poor{background:var(--err);border-color:var(--err);color:#fff}
+  .oc-dim-opt.on.na{background:var(--mute);border-color:var(--mute);color:#fff}
+  .oc-fb-note{background:rgba(255,140,0,.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:0 6px 6px 0;font-size:11.5px;color:var(--mute);line-height:1.5;margin-top:10px}
+  input[type="datetime-local"]{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font:inherit;font-size:16px}
 </style>
 </head>
 <body>
@@ -327,6 +372,78 @@
       <div class="row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn ghost" onclick="ebvClose()" data-i18n-es="Cancelar" data-i18n-en="Cancel" data-i18n-pt="Cancelar">Cancelar</button>
         <button class="btn" id="ebvSaveBtn" onclick="ebvSave()" data-i18n-es="Guardar" data-i18n-en="Save" data-i18n-pt="Salvar">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Outcome post-cita (E-RN-10) -->
+  <div class="modal-bg" id="outcomeModal">
+    <div class="modal oc">
+      <h3 data-i18n-es="Resultado de la cita" data-i18n-en="Meeting outcome" data-i18n-pt="Resultado da reunião">Resultado de la cita</h3>
+      <div class="oc-hero">
+        <div class="kick" data-i18n-es="Reunión cerrada · registrar resultado" data-i18n-en="Meeting closed · record outcome" data-i18n-pt="Reunião encerrada · registrar resultado">Reunión cerrada · registrar resultado</div>
+        <div class="co" id="ocHeroCo">—</div>
+        <div class="mt" id="ocHeroMt">—</div>
+      </div>
+
+      <div class="oc-sec">
+        <h4 data-i18n-es="Resultado" data-i18n-en="Result" data-i18n-pt="Resultado">Resultado</h4>
+        <div class="sub" data-i18n-es="¿Cómo terminó la conversación?" data-i18n-en="How did the conversation end?" data-i18n-pt="Como terminou a conversa?">¿Cómo terminó la conversación?</div>
+        <div class="oc-pills" id="ocPills">
+          <div class="oc-pill" data-k="match"><div class="pl" data-i18n-es="Match" data-i18n-en="Match" data-i18n-pt="Match">Match</div><div class="pd" data-i18n-es="Hay encaje claro, se avanza." data-i18n-en="Clear fit, moving forward." data-i18n-pt="Encaixe claro, avançando.">Hay encaje claro, se avanza.</div></div>
+          <div class="oc-pill" data-k="conditional"><div class="pl" data-i18n-es="Condicional" data-i18n-en="Conditional" data-i18n-pt="Condicional">Condicional</div><div class="pd" data-i18n-es="Encaje con condiciones a validar." data-i18n-en="Fit pending validation." data-i18n-pt="Encaixe com condições.">Encaje con condiciones a validar.</div></div>
+          <div class="oc-pill" data-k="needs_info"><div class="pl" data-i18n-es="Falta info" data-i18n-en="Needs info" data-i18n-pt="Falta info">Falta info</div><div class="pd" data-i18n-es="Pendiente docs o datos técnicos." data-i18n-en="Pending docs or tech data." data-i18n-pt="Pendente documentos.">Pendiente docs o datos técnicos.</div></div>
+          <div class="oc-pill" data-k="no_match"><div class="pl" data-i18n-es="Sin encaje" data-i18n-en="No match" data-i18n-pt="Sem encaixe">Sin encaje</div><div class="pd" data-i18n-es="No hay fit, se descarta." data-i18n-en="No fit, discarded." data-i18n-pt="Sem fit, descartado.">No hay fit, se descarta.</div></div>
+          <div class="oc-pill" data-k="no_show"><div class="pl" data-i18n-es="No asistió" data-i18n-en="No show" data-i18n-pt="Não compareceu">No asistió</div><div class="pd" data-i18n-es="La contraparte no se presentó." data-i18n-en="Counterpart didn't show up." data-i18n-pt="Contraparte não compareceu.">La contraparte no se presentó.</div></div>
+        </div>
+      </div>
+
+      <div class="oc-sec" id="ocCloseNote" style="display:none">
+        <div class="oc-close-note" id="ocCloseTxt" data-i18n-es="La cita queda cerrada sin próximo paso ni feedback." data-i18n-en="The meeting closes with no follow-up or feedback." data-i18n-pt="A reunião encerra sem follow-up.">La cita queda cerrada sin próximo paso ni feedback.</div>
+      </div>
+
+      <div class="oc-sec oc-followup">
+        <h4 data-i18n-es="Próximo paso" data-i18n-en="Next step" data-i18n-pt="Próximo passo">Próximo paso</h4>
+        <div class="sub" data-i18n-es="Compromiso concreto, responsable y fecha." data-i18n-en="Concrete commitment, owner and date." data-i18n-pt="Compromisso concreto.">Compromiso concreto, responsable y fecha.</div>
+        <label data-i18n-es="Acción" data-i18n-en="Action" data-i18n-pt="Ação">Acción</label>
+        <select id="ocNext">
+          <option value="quote" data-i18n-es="Cotización" data-i18n-en="Quote" data-i18n-pt="Cotação">Cotización</option>
+          <option value="sample" data-i18n-es="Envío de muestra" data-i18n-en="Send sample" data-i18n-pt="Enviar amostra">Envío de muestra</option>
+          <option value="catalog" data-i18n-es="Compartir catálogo" data-i18n-en="Share catalog" data-i18n-pt="Compartilhar catálogo">Compartir catálogo</option>
+          <option value="tech_spec" data-i18n-es="Ficha técnica" data-i18n-en="Tech spec" data-i18n-pt="Ficha técnica">Ficha técnica</option>
+          <option value="intro" data-i18n-es="Intro a tercero" data-i18n-en="Intro to third party" data-i18n-pt="Intro a terceiro">Intro a tercero</option>
+          <option value="second_meeting" data-i18n-es="Segunda reunión" data-i18n-en="Second meeting" data-i18n-pt="Segunda reunião">Segunda reunión</option>
+          <option value="pilot" data-i18n-es="Piloto / prueba" data-i18n-en="Pilot" data-i18n-pt="Piloto">Piloto / prueba</option>
+          <option value="none" data-i18n-es="Sin acción" data-i18n-en="No action" data-i18n-pt="Sem ação">Sin acción</option>
+        </select>
+        <label data-i18n-es="Responsable" data-i18n-en="Owner" data-i18n-pt="Responsável">Responsable</label>
+        <div class="oc-owner" id="ocOwner">
+          <label class="on" data-v="A"><input type="radio" name="ocOwner"><span data-i18n-es="Yo" data-i18n-en="Me" data-i18n-pt="Eu">Yo</span></label>
+          <label data-v="B"><input type="radio" name="ocOwner"><span data-i18n-es="Contraparte" data-i18n-en="Counterpart" data-i18n-pt="Contraparte">Contraparte</span></label>
+          <label data-v="both"><input type="radio" name="ocOwner"><span data-i18n-es="Ambos" data-i18n-en="Both" data-i18n-pt="Ambos">Ambos</span></label>
+        </div>
+        <label data-i18n-es="Fecha compromiso" data-i18n-en="Commitment date" data-i18n-pt="Data do compromisso">Fecha compromiso</label>
+        <input type="datetime-local" id="ocDue">
+      </div>
+
+      <div class="oc-sec oc-followup">
+        <h4 data-i18n-es="Visibilidad" data-i18n-en="Visibility" data-i18n-pt="Visibilidade">Visibilidad</h4>
+        <div class="oc-vis">
+          <div class="lbl" data-i18n-es="Compartir con la contraparte" data-i18n-en="Share with counterpart" data-i18n-pt="Compartilhar com contraparte">Compartir con la contraparte<small data-i18n-es="Ve resultado y próximo paso. No ve feedback privado." data-i18n-en="Sees result and next step. Not private feedback." data-i18n-pt="Vê resultado e próximo passo.">Ve resultado y próximo paso. No ve feedback privado.</small></div>
+          <div class="oc-sw on" id="ocShareCp" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+
+      <div class="oc-sec oc-followup">
+        <h4 data-i18n-es="Feedback privado · productor" data-i18n-en="Private feedback · producer" data-i18n-pt="Feedback privado · produtor">Feedback privado · productor</h4>
+        <div class="sub" data-i18n-es="6 dimensiones. Solo tú y el productor lo ven." data-i18n-en="6 dimensions. Only you and the producer see this." data-i18n-pt="6 dimensões privadas.">6 dimensiones. Solo tú y el productor lo ven.</div>
+        <div id="ocDims"></div>
+        <div class="oc-fb-note" data-i18n-es="Alimenta el reporte agregado del productor para calibrar matcher y detectar brechas." data-i18n-en="Feeds the producer's aggregate report to calibrate matching." data-i18n-pt="Alimenta o relatório do produtor.">Alimenta el reporte agregado del productor para calibrar matcher y detectar brechas.</div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end;margin-top:4px">
+        <button class="btn ghost" onclick="outcomeClose()" data-i18n-es="Cancelar" data-i18n-en="Cancel" data-i18n-pt="Cancelar">Cancelar</button>
+        <button class="btn" id="ocSaveBtn" onclick="outcomeSave()" data-i18n-es="Guardar resultado" data-i18n-en="Save outcome" data-i18n-pt="Salvar resultado">Guardar resultado</button>
       </div>
     </div>
   </div>
@@ -882,6 +999,9 @@ async function mtgLoad(){
       const ebvBtn = (m.status === 'completed' || m.status === 'active' || m.status === 'scheduled')
         ? '<button class="btn ghost" onclick="ebvOpen(\''+m.id+'\')" data-i18n-'+LANG+'="'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'">'+(m.my_ebv_amount != null ? (LANG==='en'?'Edit EBV':LANG==='pt'?'Editar EBV':'Editar EBV') : (LANG==='en'?'Add EBV':LANG==='pt'?'Registrar EBV':'Registrar EBV'))+'</button>'
         : '';
+      const outcomeBtn = (m.status === 'completed')
+        ? '<button class="btn" onclick="outcomeOpen(\''+m.id+'\')">'+(LANG==='en'?'Record outcome':LANG==='pt'?'Registrar resultado':'Registrar resultado')+'</button>'
+        : '';
       return '<div class="req-row">' +
         '<div class="top">' +
           '<div><div class="co">'+esc(m.other_company || '—')+' '+score+'</div>' +
@@ -890,7 +1010,7 @@ async function mtgLoad(){
         '</div>' +
         (m.other_pitch ? '<div class="msg">'+esc(m.other_pitch)+'</div>' : '') +
         ebv +
-        '<div class="row">'+ebvBtn+'</div>' +
+        '<div class="row">'+outcomeBtn+ebvBtn+'</div>' +
       '</div>';
     }).join('');
   } catch(e){ list.innerHTML = '<div class="empty">Error</div>'; }
@@ -922,6 +1042,138 @@ async function ebvSave(){
     if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
     ebvClose();
     alertBox(LANG==='en'?'EBV saved':LANG==='pt'?'EBV salvo':'EBV guardado', 'ok');
+    mtgLoad();
+  } catch(e){ alertBox('Network error', 'err'); }
+  finally { btn.disabled = false; }
+}
+
+// ─── E-RN-10 · Outcome post-cita ─────────────────────────────────────────────
+let ocMtgId = null;
+let ocResult = null;
+const OC_DIMS = [
+  { k:'dim_fit',      es:'Encaje',               en:'Fit',           pt:'Encaixe',       dEs:'¿La demanda real coincide con tu oferta?' },
+  { k:'dim_docs',     es:'Documentación',        en:'Documentation', pt:'Documentação',  dEs:'¿Llegó con RUT, cámara, financieros?' },
+  { k:'dim_price',    es:'Precio / presupuesto', en:'Price / budget',pt:'Preço',         dEs:'¿El rango esperado es realista?' },
+  { k:'dim_capacity', es:'Capacidad / escala',   en:'Capacity',      pt:'Capacidade',    dEs:'¿El volumen pedido es manejable?' },
+  { k:'dim_timing',   es:'Tiempos',              en:'Timing',        pt:'Prazos',        dEs:'¿Los plazos esperados son razonables?' },
+  { k:'dim_clarity',  es:'Claridad del pitch',   en:'Pitch clarity', pt:'Clareza',       dEs:'¿La propuesta fue clara?' },
+];
+const OC_DIM_OPTS = [
+  { k:'good',    es:'Bueno',   en:'Good',    pt:'Bom' },
+  { k:'partial', es:'Parcial', en:'Partial', pt:'Parcial' },
+  { k:'poor',    es:'Pobre',   en:'Poor',    pt:'Fraco' },
+  { k:'na',      es:'N/A',     en:'N/A',     pt:'N/A' },
+];
+function ocRenderDims(data){
+  const host = document.getElementById('ocDims');
+  host.innerHTML = OC_DIMS.map(d => {
+    const cur = data && data[d.k] || null;
+    const opts = OC_DIM_OPTS.map(o =>
+      '<div class="oc-dim-opt '+o.k+(cur===o.k?' on':'')+'" data-dim="'+d.k+'" data-v="'+o.k+'">'+(LANG==='en'?o.en:LANG==='pt'?o.pt:o.es)+'</div>'
+    ).join('');
+    return '<div class="oc-dim"><div class="dn">'+(LANG==='en'?d.en:LANG==='pt'?d.pt:d.es)+'<small>'+d.dEs+'</small></div><div class="oc-dim-opts">'+opts+'</div></div>';
+  }).join('');
+  host.querySelectorAll('.oc-dim-opt').forEach(el => {
+    el.addEventListener('click', () => {
+      el.parentElement.querySelectorAll('.oc-dim-opt').forEach(x => x.classList.remove('on'));
+      el.classList.add('on');
+    });
+  });
+}
+function ocSetResult(k){
+  ocResult = k;
+  document.querySelectorAll('#ocPills .oc-pill').forEach(p => p.classList.toggle('on', p.getAttribute('data-k') === k));
+  const closed = (k === 'no_match' || k === 'no_show');
+  document.querySelectorAll('#outcomeModal .oc-followup').forEach(el => el.style.display = closed ? 'none' : '');
+  document.getElementById('ocCloseNote').style.display = closed ? 'block' : 'none';
+  const txt = document.getElementById('ocCloseTxt');
+  if (closed) {
+    txt.textContent = k === 'no_show'
+      ? (LANG==='en'?"Counterpart didn't show up. Meeting closes.":LANG==='pt'?'Contraparte não compareceu.':'La contraparte no asistió. La cita se cierra.')
+      : (LANG==='en'?'No fit. Meeting closes.':LANG==='pt'?'Sem encaixe. Encerrada.':'Sin encaje. La cita se cierra.');
+    document.getElementById('ocNext').value = 'none';
+  }
+}
+async function outcomeOpen(id){
+  const m = mtgCache.find(x => x.id === id); if (!m) return;
+  ocMtgId = id;
+  document.getElementById('ocHeroCo').textContent = m.other_company || '—';
+  document.getElementById('ocHeroMt').textContent = (m.round_label || ('R'+m.round_number)) + ' · ' + (m.table_label || '') + ' · ' + fmtTime(m.round_starts_at, mtgEventTz);
+  // Defaults
+  ocResult = null;
+  document.querySelectorAll('#ocPills .oc-pill').forEach(p => p.classList.remove('on'));
+  document.getElementById('ocCloseNote').style.display = 'none';
+  document.querySelectorAll('#outcomeModal .oc-followup').forEach(el => el.style.display = '');
+  document.getElementById('ocNext').value = 'quote';
+  document.getElementById('ocDue').value = '';
+  document.getElementById('ocShareCp').classList.remove('on');
+  document.querySelectorAll('#ocOwner label').forEach((l,i) => l.classList.toggle('on', i === 0));
+  // Prefill desde servidor
+  try {
+    const [ro, rf] = await Promise.all([
+      fetch('/api/rn/public/meetings/'+encodeURIComponent(id)+'/outcome?token='+encodeURIComponent(token)),
+      fetch('/api/rn/public/meetings/'+encodeURIComponent(id)+'/feedback?token='+encodeURIComponent(token)),
+    ]);
+    let fbMine = null;
+    if (rf.ok) { const d = await rf.json(); fbMine = d.mine || null; }
+    ocRenderDims(fbMine);
+    if (ro.ok) {
+      const d = await ro.json();
+      if (d.mine) {
+        ocSetResult(d.mine.result);
+        document.getElementById('ocNext').value = d.mine.next_step || 'quote';
+        if (d.mine.due_at) {
+          const t = new Date(d.mine.due_at);
+          const pad = n => String(n).padStart(2,'0');
+          document.getElementById('ocDue').value = t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())+'T'+pad(t.getHours())+':'+pad(t.getMinutes());
+        }
+        document.getElementById('ocShareCp').classList.toggle('on', !!d.mine.share_with_counterpart);
+        document.querySelectorAll('#ocOwner label').forEach(l => l.classList.toggle('on', l.getAttribute('data-v') === (d.mine.owner_side || 'A')));
+      }
+    }
+  } catch(_){ ocRenderDims(null); }
+  document.getElementById('outcomeModal').classList.add('active');
+}
+function outcomeClose(){ document.getElementById('outcomeModal').classList.remove('active'); ocMtgId = null; }
+document.querySelectorAll('#ocPills .oc-pill').forEach(p => p.addEventListener('click', () => ocSetResult(p.getAttribute('data-k'))));
+document.querySelectorAll('#ocOwner label').forEach(l => l.addEventListener('click', () => {
+  document.querySelectorAll('#ocOwner label').forEach(x => x.classList.remove('on')); l.classList.add('on');
+}));
+async function outcomeSave(){
+  if (!ocMtgId) return;
+  if (!ocResult){ alertBox(LANG==='en'?'Pick a result':LANG==='pt'?'Escolha um resultado':'Elige un resultado', 'err'); return; }
+  const btn = document.getElementById('ocSaveBtn'); btn.disabled = true;
+  const closed = (ocResult === 'no_match' || ocResult === 'no_show');
+  const ownerEl = document.querySelector('#ocOwner label.on');
+  const payload = {
+    result: ocResult,
+    next_step: closed ? 'none' : document.getElementById('ocNext').value,
+    owner_side: closed ? null : (ownerEl ? ownerEl.getAttribute('data-v') : null),
+    due_at: closed ? null : (document.getElementById('ocDue').value || null),
+    share_with_counterpart: closed ? false : document.getElementById('ocShareCp').classList.contains('on'),
+    completed: true,
+  };
+  try {
+    const r = await fetch('/api/rn/public/meetings/'+encodeURIComponent(ocMtgId)+'/outcome?token='+encodeURIComponent(token), {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok){ alertBox(data.error || 'Error', 'err'); return; }
+    // Feedback privado (solo si no cerrado)
+    if (!closed) {
+      const fb = {};
+      document.querySelectorAll('#ocDims .oc-dim').forEach(row => {
+        const on = row.querySelector('.oc-dim-opt.on');
+        if (on) fb[on.getAttribute('data-dim')] = on.getAttribute('data-v');
+      });
+      if (Object.keys(fb).length) {
+        await fetch('/api/rn/public/meetings/'+encodeURIComponent(ocMtgId)+'/feedback?token='+encodeURIComponent(token), {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(fb),
+        });
+      }
+    }
+    alertBox(LANG==='en'?'Outcome saved':LANG==='pt'?'Resultado salvo':'Resultado guardado', 'ok');
+    outcomeClose();
     mtgLoad();
   } catch(e){ alertBox('Network error', 'err'); }
   finally { btn.disabled = false; }
