@@ -757,7 +757,8 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
     if (q) {
       params.push(`%${q.toLowerCase()}%`);
       where += ` AND (
-        LOWER(r.custom_fields->>'company_name') LIKE $${params.length}
+        LOWER(COALESCE(r.custom_fields->>'company_name', a.organization, a.name, '')) LIKE $${params.length}
+        OR LOWER(COALESCE(a.name, '')) LIKE $${params.length}
         OR LOWER(COALESCE(r.custom_fields->>'pitch','')) LIKE $${params.length}
       )`;
     }
