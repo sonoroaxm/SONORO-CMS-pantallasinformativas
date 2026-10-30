@@ -4393,6 +4393,7 @@
             <button class="ev-rn-subtab" data-rntab="directorio" onclick="evRnSwitchPanelTab('directorio')"><span data-i18n="rn.subtab.dir">Directorio</span> <span class="n" id="ev-rn-subtab-n-dir">—</span></button>
             <button class="ev-rn-subtab" data-rntab="agenda" onclick="evRnSwitchPanelTab('agenda')"><span data-i18n="rn.subtab.agenda">Agenda</span> <span class="n" id="ev-rn-subtab-n-ag">—</span></button>
             <button class="ev-rn-subtab" data-rntab="live" onclick="evRnSwitchPanelTab('live')"><span data-i18n="rn.subtab.live">Live</span></button>
+            <button class="ev-rn-subtab" data-rntab="comms" onclick="evRnSwitchPanelTab('comms')"><span data-i18n="rn.subtab.comms">Comunicaciones</span></button>
             <button class="ev-rn-subtab" data-rntab="reporte" onclick="evRnSwitchPanelTab('reporte')"><span data-i18n="rn.subtab.rep">Reporte</span></button>
           </div>
 
@@ -4958,6 +4959,177 @@
                   </thead>
                   <tbody id="ev-rn-live-tbody"><tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);" data-i18n="rn.live.empty">Sin meetings — abre una ronda</td></tr></tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+          <!-- COMMS panel · E-RN-10 Block 6 ─────────────────────────────────── -->
+          <div class="ev-rn-panel hidden" id="ev-rn-panel-comms">
+            <style id="rn-comms-style">
+              #ev-rn-panel-comms .rn-c-layout{display:grid;grid-template-columns:1fr 280px;gap:22px}
+              @media(max-width:1000px){#ev-rn-panel-comms .rn-c-layout{grid-template-columns:1fr}}
+              #ev-rn-panel-comms .rn-c-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+              #ev-rn-panel-comms .rn-c-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .18s ease}
+              #ev-rn-panel-comms .rn-c-head:hover{background:var(--surface-alt,rgba(255,255,255,.03))}
+              #ev-rn-panel-comms .rn-c-head h3{margin:0;font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--text)}
+              #ev-rn-panel-comms .rn-c-kicker{display:block;font-size:10px;font-weight:800;letter-spacing:2.2px;color:#FF1B8D;text-transform:uppercase;margin-bottom:3px}
+              #ev-rn-panel-comms .rn-c-chev{color:var(--text-dim);font-size:22px;font-weight:900;line-height:1;transition:transform .22s ease,color .22s ease;user-select:none}
+              #ev-rn-panel-comms .rn-c-card.collapsed .rn-c-chev{transform:rotate(90deg);color:#FF1B8D}
+              #ev-rn-panel-comms .rn-c-body{max-height:4000px;overflow:hidden;transition:max-height .32s ease,opacity .2s ease;opacity:1}
+              #ev-rn-panel-comms .rn-c-card.collapsed .rn-c-body{max-height:0;opacity:0}
+              #ev-rn-panel-comms .rn-c-intro{padding:16px 20px 4px;font-size:12.5px;color:var(--text-muted);line-height:1.55}
+              #ev-rn-panel-comms .rn-c-eod{margin:14px 20px 20px;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.3);border-left:3px solid #22c55e;border-radius:10px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start}
+              #ev-rn-panel-comms .rn-c-eod-chip{display:inline-flex;align-items:center;gap:6px;background:#22c55e;color:#031b0e;padding:3px 10px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;flex-shrink:0;align-self:flex-start;margin-top:1px}
+              #ev-rn-panel-comms .rn-c-eod-chip .dot{width:5px;height:5px;background:#031b0e;border-radius:50%;animation:rnCommsPulse 1.6s ease-in-out infinite}
+              @keyframes rnCommsPulse{0%,100%{opacity:1}50%{opacity:.35}}
+              #ev-rn-panel-comms .rn-c-eod-body h4{margin:0 0 2px;font-size:13.5px;font-weight:800;color:var(--text)}
+              #ev-rn-panel-comms .rn-c-eod-body p{margin:0;font-size:12.5px;color:var(--text-muted);font-weight:600;line-height:1.55}
+              #ev-rn-panel-comms .rn-c-eod-body .note{display:block;margin-top:6px;font-size:11px;color:var(--text-dim);font-weight:600}
+              #ev-rn-panel-comms .rn-c-nudges{padding:4px 20px 18px;display:flex;flex-direction:column;gap:10px}
+              #ev-rn-panel-comms .rn-c-nhead{font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:1.4px;text-transform:uppercase;margin:12px 0 2px}
+              #ev-rn-panel-comms .rn-c-row{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;background:var(--surface-alt,rgba(255,255,255,.02));border:1px solid var(--border);border-radius:10px;transition:border-color .18s ease}
+              #ev-rn-panel-comms .rn-c-row:hover{border-color:var(--border-strong,var(--border))}
+              #ev-rn-panel-comms .rn-c-num{font-size:18px;font-weight:900;letter-spacing:-.4px;background:linear-gradient(135deg,#FF1B8D 0%,#FF8C00 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1;min-width:28px;margin-top:2px}
+              #ev-rn-panel-comms .rn-c-row-body h5{margin:0 0 3px;font-size:13.5px;font-weight:800;color:var(--text)}
+              #ev-rn-panel-comms .rn-c-row-body p{margin:0;font-size:12px;color:var(--text-muted);font-weight:600;line-height:1.55}
+              #ev-rn-panel-comms .rn-c-meta{margin-top:7px;display:flex;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text-dim);font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+              #ev-rn-panel-comms .rn-c-meta span{background:var(--surface-alt,rgba(255,255,255,.03));padding:3px 8px;border-radius:5px;border:1px solid var(--border)}
+              #ev-rn-panel-comms .rn-c-tgl{position:relative;width:38px;height:22px;background:var(--surface-alt,rgba(255,255,255,.08));border:1px solid var(--border);border-radius:999px;cursor:pointer;flex-shrink:0;transition:all .2s;margin-top:2px}
+              #ev-rn-panel-comms .rn-c-tgl::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--text-muted);border-radius:50%;transition:all .2s}
+              #ev-rn-panel-comms .rn-c-tgl.on{background:#FF1B8D;border-color:#FF1B8D}
+              #ev-rn-panel-comms .rn-c-tgl.on::after{left:18px;background:#fff}
+              #ev-rn-panel-comms .rn-c-tgl.busy{opacity:.5;pointer-events:none}
+              #ev-rn-panel-comms .rn-c-side{display:flex;flex-direction:column;gap:14px}
+              #ev-rn-panel-comms .rn-c-scard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px}
+              #ev-rn-panel-comms .rn-c-scard h4{margin:0 0 3px;font-size:11px;font-weight:800;color:var(--text-muted);letter-spacing:1.4px;text-transform:uppercase}
+              #ev-rn-panel-comms .rn-c-scard .sub{font-size:11px;color:var(--text-dim);margin-bottom:12px;font-weight:600}
+              #ev-rn-panel-comms .rn-c-crow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--border);font-size:12px}
+              #ev-rn-panel-comms .rn-c-crow:first-of-type{border-top:0;padding-top:2px}
+              #ev-rn-panel-comms .rn-c-crow .cl{color:var(--text-muted);font-weight:700}
+              #ev-rn-panel-comms .rn-c-crow .cv{font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;font-size:15px;letter-spacing:-.3px}
+              #ev-rn-panel-comms .rn-c-crow.off .cv{color:var(--text-dim)}
+              #ev-rn-panel-comms .rn-c-crow .cv small{color:var(--text-dim);font-size:10px;font-weight:700;margin-left:4px;letter-spacing:.4px;text-transform:uppercase}
+              #ev-rn-panel-comms .rn-c-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border-radius:9px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;border:1px solid var(--border);background:var(--surface-alt,rgba(255,255,255,.03));color:var(--text);width:100%;transition:all .15s;letter-spacing:.2px}
+              #ev-rn-panel-comms .rn-c-btn:hover{filter:brightness(1.08)}
+              #ev-rn-panel-comms .rn-c-btn.danger{background:rgba(239,68,68,.14);border-color:#ef4444;color:#ef4444}
+              #ev-rn-panel-comms .rn-c-btn.danger:hover{background:#ef4444;color:#fff}
+              #ev-rn-panel-comms .rn-c-btn+.rn-c-btn{margin-top:8px}
+              #ev-rn-panel-comms .rn-c-legal{margin:18px 20px 20px;padding:14px 16px;background:var(--surface-alt,rgba(255,255,255,.02));border:1px solid var(--border);border-left:3px solid #38bdf8;border-radius:0 10px 10px 0;font-size:11.5px;color:var(--text-muted);font-weight:600;line-height:1.6}
+              #ev-rn-panel-comms .rn-c-legal strong{color:var(--text)}
+              #ev-rn-panel-comms .rn-c-legal code{background:var(--surface-alt,rgba(255,255,255,.05));padding:1px 6px;border-radius:4px;font-size:10.5px;font-family:ui-monospace,Consolas,monospace;color:var(--text)}
+              #ev-rn-panel-comms .rn-c-paused{display:none;background:rgba(239,68,68,.14);border:1px solid #ef4444;border-left:3px solid #ef4444;border-radius:10px;padding:12px 14px;margin:14px 20px 0;font-size:12.5px;color:#ef4444;font-weight:700;line-height:1.5}
+              #ev-rn-panel-comms .rn-c-paused.on{display:block}
+              #ev-rn-panel-comms .rn-c-paused strong{display:block;text-transform:uppercase;letter-spacing:.6px;font-size:11px;margin-bottom:3px}
+            </style>
+            <div class="rn-c-layout">
+              <section class="rn-c-card" id="rn-c-card">
+                <div class="rn-c-head" id="rn-c-head">
+                  <div>
+                    <span class="rn-c-kicker" data-i18n="rn.comms.kicker">E-RN-10 · Expediente post-cita</span>
+                    <h3 data-i18n="rn.comms.title">Comunicaciones post-cita</h3>
+                  </div>
+                  <div class="rn-c-chev">›</div>
+                </div>
+                <div class="rn-c-body">
+                  <p class="rn-c-intro" data-i18n="rn.comms.intro">Controla los recordatorios que el sistema envía a los asistentes después de cada cita. El resumen del día se envía siempre; los cuatro recordatorios son opcionales y arrancan apagados. Todos respetan la decisión del asistente de recibir o no estos correos.</p>
+                  <div class="rn-c-paused" id="rn-c-paused">
+                    <strong data-i18n="rn.comms.paused_h">Recordatorios en pausa</strong>
+                    <span data-i18n="rn.comms.paused_body">Mientras esté activa la pausa, el resumen del día se sigue enviando pero los cuatro recordatorios opcionales no. Útil durante incidentes o pausas de la rueda.</span>
+                  </div>
+                  <div class="rn-c-eod">
+                    <span class="rn-c-eod-chip"><span class="dot"></span><span data-i18n="rn.comms.always_on">Siempre activo</span></span>
+                    <div class="rn-c-eod-body">
+                      <h4 data-i18n="rn.comms.eod_title">Resumen del día</h4>
+                      <p data-i18n="rn.comms.eod_desc">Se envía automáticamente al cierre de cada jornada del evento con las citas que quedaron sin registro de resultado. No se puede desactivar.</p>
+                      <span class="note" data-i18n="rn.comms.eod_note">Un solo correo por asistente y por día. Respeta la decisión del asistente.</span>
+                    </div>
+                  </div>
+                  <div class="rn-c-nudges">
+                    <div class="rn-c-nhead" data-i18n="rn.comms.nudges_head">Recordatorios opcionales · apagados por defecto</div>
+                    <div class="rn-c-row">
+                      <div class="rn-c-num">01</div>
+                      <div class="rn-c-row-body" style="flex:1;min-width:0">
+                        <h5 data-i18n="rn.comms.n48.title">Recordatorio a las 48 horas · registro de resultado pendiente</h5>
+                        <p data-i18n="rn.comms.n48.desc">Si al asistente le quedan citas sin registro de resultado 48 horas después del cierre, le llega un correo con el enlace al listado. No se le re-envía el formulario completo.</p>
+                        <div class="rn-c-meta"><span><span data-i18n="rn.comms.key">Clave interna</span> <code>nudge_48h</code></span><span data-i18n="rn.comms.n48.meta1">Se envía: 48 h después del cierre</span><span data-i18n="rn.comms.n48.meta2">Un correo por cita y por asistente</span></div>
+                      </div>
+                      <div class="rn-c-tgl" data-key="nudge_48h" onclick="evRnCommsToggle(this)"></div>
+                    </div>
+                    <div class="rn-c-row">
+                      <div class="rn-c-num">02</div>
+                      <div class="rn-c-row-body" style="flex:1;min-width:0">
+                        <h5 data-i18n="rn.comms.n7d.title">Recordatorio a los 7 días · resumen semanal de compromisos</h5>
+                        <p data-i18n="rn.comms.n7d.desc">Resumen de los compromisos activos del asistente con el estado de cada uno (cumplido, próximo, vencido) y enlace al listado completo.</p>
+                        <div class="rn-c-meta"><span><span data-i18n="rn.comms.key">Clave interna</span> <code>nudge_7d</code></span><span data-i18n="rn.comms.n7d.meta1">Se envía: 7 días después del cierre</span><span data-i18n="rn.comms.n7d.meta2">Un correo por asistente y por semana</span></div>
+                      </div>
+                      <div class="rn-c-tgl" data-key="nudge_7d" onclick="evRnCommsToggle(this)"></div>
+                    </div>
+                    <div class="rn-c-row">
+                      <div class="rn-c-num">03</div>
+                      <div class="rn-c-row-body" style="flex:1;min-width:0">
+                        <h5 data-i18n="rn.comms.pre.title">Aviso 24 horas antes de vencer un compromiso</h5>
+                        <p data-i18n="rn.comms.pre.desc">Se envía por cada compromiso con fecha de vencimiento próxima. Correo al responsable del compromiso.</p>
+                        <div class="rn-c-meta"><span><span data-i18n="rn.comms.key">Clave interna</span> <code>due_pre_24h</code></span><span data-i18n="rn.comms.pre.meta1">Se envía: 24 h antes del vencimiento</span><span data-i18n="rn.comms.pre.meta2">Un correo por compromiso</span></div>
+                      </div>
+                      <div class="rn-c-tgl" data-key="due_pre_24h" onclick="evRnCommsToggle(this)"></div>
+                    </div>
+                    <div class="rn-c-row">
+                      <div class="rn-c-num">04</div>
+                      <div class="rn-c-row-body" style="flex:1;min-width:0">
+                        <h5 data-i18n="rn.comms.over.title">Aviso 24 horas después del vencimiento</h5>
+                        <p data-i18n="rn.comms.over.desc">Recordatorio de cortesía al responsable del compromiso, con copia al productor del evento. Solo se envía si el compromiso sigue sin marcarse como cumplido.</p>
+                        <div class="rn-c-meta"><span><span data-i18n="rn.comms.key">Clave interna</span> <code>due_overdue_24h</code></span><span data-i18n="rn.comms.over.meta1">Se envía: 24 h después del vencimiento</span><span data-i18n="rn.comms.over.meta2">Con copia al productor</span></div>
+                      </div>
+                      <div class="rn-c-tgl" data-key="due_overdue_24h" onclick="evRnCommsToggle(this)"></div>
+                    </div>
+                  </div>
+                  <div class="rn-c-legal">
+                    <strong data-i18n="rn.comms.legal_h">Respeta la decisión del asistente.</strong>
+                    <span data-i18n="rn.comms.legal_body">Si alguien pidió no recibir correos de seguimiento al registrarse en el evento, el sistema no le envía ningún recordatorio — sin importar cómo esté esta configuración.</span>
+                  </div>
+                </div>
+              </section>
+              <aside class="rn-c-side">
+                <div class="rn-c-scard">
+                  <h4 data-i18n="rn.comms.side.prog">En cola</h4>
+                  <div class="sub" data-i18n="rn.comms.side.prog_sub">Recordatorios por salir</div>
+                  <div class="rn-c-crow off" id="rn-c-cnt-48h"><span class="cl" data-i18n="rn.comms.side.r48">A las 48 horas</span><span class="cv">0 <small data-i18n="rn.comms.side.off">apagado</small></span></div>
+                  <div class="rn-c-crow off" id="rn-c-cnt-7d"><span class="cl" data-i18n="rn.comms.side.r7d">A los 7 días</span><span class="cv">0 <small data-i18n="rn.comms.side.off">apagado</small></span></div>
+                  <div class="rn-c-crow off" id="rn-c-cnt-pre"><span class="cl" data-i18n="rn.comms.side.rpre">24 h antes de vencer</span><span class="cv">0 <small data-i18n="rn.comms.side.off">apagado</small></span></div>
+                  <div class="rn-c-crow off" id="rn-c-cnt-over"><span class="cl" data-i18n="rn.comms.side.rover">24 h después de vencer</span><span class="cv">0 <small data-i18n="rn.comms.side.off">apagado</small></span></div>
+                </div>
+                <div class="rn-c-scard">
+                  <h4 data-i18n="rn.comms.side.sent">Enviados hoy</h4>
+                  <div class="sub" data-i18n="rn.comms.side.sent_sub">Resumen del día + recordatorios activos</div>
+                  <div class="rn-c-crow"><span class="cl" data-i18n="rn.comms.side.eod">Resumen del día</span><span class="cv" id="rn-c-sent-eod">0</span></div>
+                  <div class="rn-c-crow"><span class="cl" data-i18n="rn.comms.side.ntot">Recordatorios</span><span class="cv" id="rn-c-sent-nudges">0</span></div>
+                  <div class="rn-c-crow"><span class="cl" data-i18n="rn.comms.side.bounces">Correos no entregados</span><span class="cv" id="rn-c-sent-bounces">0</span></div>
+                </div>
+                <div class="rn-c-scard">
+                  <h4 data-i18n="rn.comms.side.actions">Acciones</h4>
+                  <div class="sub" data-i18n="rn.comms.side.actions_sub">Historial y pausa de emergencia</div>
+                  <button class="rn-c-btn" onclick="evRnCommsOpenLog()" data-i18n="rn.comms.side.btn_log">Ver historial de envíos</button>
+                  <button class="rn-c-btn danger" id="rn-c-pause-btn" onclick="evRnCommsTogglePause()" data-i18n="rn.comms.side.btn_pause">Pausar todos los recordatorios</button>
+                </div>
+              </aside>
+            </div>
+            <!-- Modal bitácora -->
+            <div id="rn-c-logModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9500;align-items:center;justify-content:center;padding:20px;">
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);">
+                  <h3 style="margin:0;font-size:15px;font-weight:800;" data-i18n="rn.comms.log.title">Historial de envíos · Comunicaciones post-cita</h3>
+                  <button class="btn btn-outline btn-sm" onclick="document.getElementById('rn-c-logModal').style.display='none'">✕</button>
+                </div>
+                <div style="padding:14px 20px;overflow:auto;flex:1;">
+                  <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                    <thead><tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-size:10px;">
+                      <th style="padding:8px" data-i18n="rn.comms.log.col_when">Momento</th>
+                      <th style="padding:8px" data-i18n="rn.comms.log.col_type">Tipo</th>
+                      <th style="padding:8px" data-i18n="rn.comms.log.col_del">Asistente</th>
+                      <th style="padding:8px" data-i18n="rn.comms.log.col_status">Estado</th>
+                    </tr></thead>
+                    <tbody id="rn-c-log-tbody"><tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text-muted);" data-i18n="rn.comms.log.loading">Cargando…</td></tr></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -12203,7 +12375,135 @@ function evRnSwitchPanelTab(tab) {
   else if (tab === 'live')  { evRnLoadLive(); evSetupRnScreens(evRnCurrentEvent, window.location.origin); }
   else if (tab === 'reporte') evRnLoadReport();
   else if (tab === 'tags')  evRnTagsLoad();
+  else if (tab === 'comms') evRnLoadComms();
 }
+
+// ── E-RN-10 Block 6 · Panel Comunicaciones post-cita ───────────────────────────
+async function evRnLoadComms() {
+  if (!evRnCurrentEvent?.id) return;
+  const cfg = (evRnCurrentEvent.config && evRnCurrentEvent.config.rn_comms) || {};
+  const KEYS = ['nudge_48h','nudge_7d','due_pre_24h','due_overdue_24h'];
+  KEYS.forEach(k => {
+    const t = document.querySelector(`#ev-rn-panel-comms .rn-c-tgl[data-key="${k}"]`);
+    if (t) t.classList.toggle('on', !!cfg[k]);
+  });
+  const paused = !!cfg.paused;
+  document.getElementById('rn-c-paused').classList.toggle('on', paused);
+  const pbtn = document.getElementById('rn-c-pause-btn');
+  if (pbtn) pbtn.textContent = paused
+    ? evRnT('rn.comms.side.btn_unpause','Reanudar recordatorios')
+    : evRnT('rn.comms.side.btn_pause','Pausar todos los recordatorios');
+  // Counts
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}/comms/counts`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (r.ok) {
+      const d = await r.json();
+      const CNT = { nudge_48h:'rn-c-cnt-48h', nudge_7d:'rn-c-cnt-7d', due_pre_24h:'rn-c-cnt-pre', due_overdue_24h:'rn-c-cnt-over' };
+      KEYS.forEach(k => {
+        const row = document.getElementById(CNT[k]); if (!row) return;
+        const on = !!cfg[k];
+        row.classList.toggle('off', !on);
+        const cv = row.querySelector('.cv');
+        const n = (d.programados && d.programados[k]) || 0;
+        cv.innerHTML = on
+          ? `${n} <small>${evRnT('rn.comms.side.queue','en cola')}</small>`
+          : `0 <small>${evRnT('rn.comms.side.off','apagado')}</small>`;
+      });
+      document.getElementById('rn-c-sent-eod').textContent = (d.enviados_hoy?.eod_digest) || 0;
+      document.getElementById('rn-c-sent-nudges').textContent = (d.enviados_hoy?.nudges_total) || 0;
+      document.getElementById('rn-c-sent-bounces').textContent = (d.enviados_hoy?.bounces) || 0;
+    }
+  } catch (e) { console.warn('comms/counts:', e); }
+}
+
+async function evRnCommsPatch(patch) {
+  if (!evRnCurrentEvent?.id) return false;
+  const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify({ config_patch: { rn_comms: patch } })
+  });
+  if (!r.ok) return false;
+  const ev = await r.json();
+  evRnCurrentEvent = ev;
+  return true;
+}
+
+async function evRnCommsToggle(el) {
+  if (el.classList.contains('busy')) return;
+  const key = el.dataset.key;
+  const nextOn = !el.classList.contains('on');
+  el.classList.add('busy');
+  const ok = await evRnCommsPatch({ [key]: nextOn });
+  el.classList.remove('busy');
+  if (!ok) { if (typeof showStatus === 'function') showStatus(evRnT('rn.comms.err','No se pudo guardar'), 'error'); return; }
+  el.classList.toggle('on', nextOn);
+  evRnLoadComms();
+}
+
+async function evRnCommsTogglePause() {
+  const cur = (evRnCurrentEvent?.config?.rn_comms?.paused) === true;
+  const ok = await evRnCommsPatch({ paused: !cur });
+  if (!ok) { if (typeof showStatus === 'function') showStatus(evRnT('rn.comms.err','No se pudo guardar'), 'error'); return; }
+  evRnLoadComms();
+}
+
+async function evRnCommsOpenLog() {
+  if (!evRnCurrentEvent?.id) return;
+  const modal = document.getElementById('rn-c-logModal');
+  const tbody = document.getElementById('rn-c-log-tbody');
+  modal.style.display = 'flex';
+  tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.comms.log.loading','Cargando…')}</td></tr>`;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}/comms/log?limit=100`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rows = await r.json();
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted);">${evRnT('rn.comms.log.empty','Sin registros todavía')}</td></tr>`;
+      return;
+    }
+    const esc = s => (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const fmt = ts => ts ? new Date(ts).toLocaleString(undefined, { year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit', hour12:true }) : '—';
+    const statusOf = row => row.skipped_reason
+      ? `<span style="color:#f59e0b;font-weight:700">${esc(row.skipped_reason)}</span>`
+      : row.sent_at
+        ? `<span style="color:#22c55e;font-weight:700">${evRnT('rn.comms.log.sent','Enviado')} · ${fmt(row.sent_at)}</span>`
+        : `<span style="color:var(--text-muted);font-weight:700">${evRnT('rn.comms.log.scheduled','Programado')} · ${fmt(row.scheduled_for)}</span>`;
+    tbody.innerHTML = rows.map(r => `
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px;color:var(--text-muted);white-space:nowrap">${fmt(r.created_at)}</td>
+        <td style="padding:8px;font-weight:700"><code style="background:var(--surface-alt,rgba(255,255,255,.05));padding:2px 6px;border-radius:4px;font-size:11px">${esc(r.nudge_type)}</code></td>
+        <td style="padding:8px">${esc(r.delegate_name)}<br><small style="color:var(--text-muted)">${esc(r.delegate_email||'')}</small></td>
+        <td style="padding:8px">${statusOf(r)}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px;text-align:center;color:#ef4444;">${evRnT('rn.comms.log.err','Error cargando bitácora')}</td></tr>`;
+  }
+}
+
+// Toggle colapsable del card principal
+(function initRnCommsCollapse(){
+  document.addEventListener('click', (e) => {
+    const h = e.target.closest('#rn-c-head');
+    if (!h) return;
+    if (e.target.closest('button,.rn-c-tgl')) return;
+    const card = document.getElementById('rn-c-card');
+    if (card) {
+      card.classList.toggle('collapsed');
+      try { localStorage.setItem('rn.comms.collapsed', card.classList.contains('collapsed') ? '1' : '0'); } catch(_){}
+    }
+  });
+  try {
+    if (localStorage.getItem('rn.comms.collapsed') === '1') {
+      const card = document.getElementById('rn-c-card'); if (card) card.classList.add('collapsed');
+    }
+  } catch(_){}
+})();
 
 // ── B.0 Taxonomía · catálogo de tags ────────────────────────────
 let evRnTagsCache = [];

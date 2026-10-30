@@ -5190,4 +5190,89 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
   }
 });
 
+// ─── E-RN-10 Block 6: Panel Comunicaciones post-cita ─────────────────────────
+// Lee agregados de rn_comms_log para alimentar las columnas Programados / Enviados hoy.
+// La persistencia de toggles (nudge_48h, nudge_7d, due_pre_24h, due_overdue_24h) y el
+// kill-switch (paused) se guardan en events.config.rn_comms vía PATCH /:id (config_patch).
+
+async function _requireEventOwner(req, res) {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  const q = isAdmin
+    ? `SELECT id, user_id, timezone, config FROM events.events WHERE id = $1`
+    : `SELECT id, user_id, timezone, config FROM events.events WHERE id = $1 AND user_id = $2`;
+  const params = isAdmin ? [req.params.id] : [req.params.id, req.user.id];
+  const { rows } = await pool.query(q, params);
+  if (!rows[0]) { res.status(404).json({ error: 'Evento no encontrado' }); return null; }
+  return rows[0];
+}
+
+router.get('/:id/comms/counts', auth, async (req, res) => {
+  try {
+    const ev = await _requireEventOwner(req, res); if (!ev) return;
+    const tz = ev.timezone || 'America/Bogota';
+    const pool = global.pool;
+    const { rows } = await pool.query(
+      `SELECT
+          nudge_type,
+          COUNT(*) FILTER (WHERE sent_at IS NULL AND skipped_reason IS NULL AND scheduled_for > NOW())::int AS programados,
+          COUNT(*) FILTER (WHERE sent_at IS NOT NULL AND (sent_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date)::int AS enviados_hoy,
+          COUNT(*) FILTER (WHERE skipped_reason IS NOT NULL AND (created_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date)::int AS bounces_hoy
+         FROM events.rn_comms_log
+        WHERE event_id = $1
+        GROUP BY nudge_type`,
+      [req.params.id, tz]
+    );
+    const by = {};
+    for (const r of rows) by[r.nudge_type] = r;
+    const pick = (k) => by[k] || { programados: 0, enviados_hoy: 0, bounces_hoy: 0 };
+    const eod = pick('eod_digest');
+    const n48 = pick('nudge_48h');
+    const n7d = pick('nudge_7d');
+    const pre = pick('due_pre_24h');
+    const over = pick('due_overdue_24h');
+    res.json({
+      programados: {
+        nudge_48h: n48.programados,
+        nudge_7d: n7d.programados,
+        due_pre_24h: pre.programados,
+        due_overdue_24h: over.programados
+      },
+      enviados_hoy: {
+        eod_digest: eod.enviados_hoy,
+        nudges_total: n48.enviados_hoy + n7d.enviados_hoy + pre.enviados_hoy + over.enviados_hoy,
+        bounces: eod.bounces_hoy + n48.bounces_hoy + n7d.bounces_hoy + pre.bounces_hoy + over.bounces_hoy
+      }
+    });
+  } catch (err) {
+    console.error('❌ GET /:id/comms/counts:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/:id/comms/log', auth, async (req, res) => {
+  try {
+    const ev = await _requireEventOwner(req, res); if (!ev) return;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const pool = global.pool;
+    const { rows } = await pool.query(
+      `SELECT c.id, c.nudge_type, c.scheduled_for, c.sent_at, c.skipped_reason, c.created_at,
+              COALESCE(a.name, d.id::text) AS delegate_name,
+              a.email AS delegate_email
+         FROM events.rn_comms_log c
+         LEFT JOIN events.rn_delegates d ON d.id = c.delegate_id
+         LEFT JOIN events.registrations r ON r.id = d.registration_id
+         LEFT JOIN events.attendees a ON a.id = r.attendee_id
+        WHERE c.event_id = $1
+        ORDER BY c.created_at DESC
+        LIMIT $2`,
+      [req.params.id, limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ GET /:id/comms/log:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 module.exports = router;
