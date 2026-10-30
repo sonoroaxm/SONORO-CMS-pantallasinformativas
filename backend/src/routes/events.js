@@ -4920,11 +4920,13 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     };
 
     // Helper: iniciar una página de sección (cada bloque empieza en página propia)
+    // lineBreak:false en title/sub previene auto-pagination de PDFKit cuando el texto
+    // excede el width calculado — causa clásica de páginas en blanco al final.
     const startSection = (title, sub) => {
       if (doc.y > 80) doc.addPage(); else doc.y = 72;
       pageHeader();
-      doc.fillColor('#0f172a').fontSize(16).font('Helvetica-Bold').text(title, M, doc.y, { width: PW - 2*M });
-      if (sub) { doc.fillColor('#64748b').fontSize(10).font('Helvetica').text(sub, M, doc.y, { width: PW - 2*M }); }
+      doc.fillColor('#0f172a').fontSize(16).font('Helvetica-Bold').text(title, M, doc.y, { width: PW - 2*M, lineBreak:false, ellipsis:true });
+      if (sub) { doc.fillColor('#64748b').fontSize(10).font('Helvetica').text(sub, M, doc.y, { width: PW - 2*M, lineBreak:false, ellipsis:true }); }
       doc.moveTo(M, doc.y + 6).lineTo(PW - M, doc.y + 6).strokeColor('#e2e8f0').lineWidth(1).stroke();
       doc.y += 14;
       doc.fillColor('#0f172a').font('Helvetica').fontSize(10);
@@ -4960,8 +4962,11 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     doc.y = kpiY + 70;
     const tasaEfect = kpis.reuniones ? ((Number(kpis.reuniones_efectivas) / Number(kpis.reuniones)) * 100).toFixed(1) : '0';
     const tasaMatch = pipelineTotal ? ((pipelineAgg.filter(r=>['match','conditional'].includes(r.result)).reduce((s,r)=>s+Number(r.n),0) / pipelineTotal) * 100).toFixed(1) : '0';
-    doc.fillColor('#475569').fontSize(10).font('Helvetica').text(`Tasa de reuniones efectivas: `, M, doc.y, { continued:true }).font('Helvetica-Bold').fillColor('#0f172a').text(`${tasaEfect}%`);
-    doc.fillColor('#475569').fontSize(10).font('Helvetica').text(`Tasa de encaje (match + condicional): `, M, doc.y, { continued:true }).font('Helvetica-Bold').fillColor('#0f172a').text(`${tasaMatch}%`);
+    // Evitar continued:true (cascada de páginas en blanco en PDFKit) — texto concatenado + lineBreak:false
+    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`Tasa de reuniones efectivas: ${tasaEfect}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
+    doc.y += 14;
+    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`Tasa de encaje (match + condicional): ${tasaMatch}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
+    doc.y += 14;
 
     // ═══ PÁGINA 2 · Pipeline ═══
     startSection('Pipeline de resultados', `${pipelineTotal} resultados registrados`);
@@ -5138,7 +5143,38 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       });
     }
 
-    // Footer en todas las páginas
+    // Trim de páginas en blanco al final (header-only sin contenido).
+    // PDFKit en bufferPages puede acumular páginas vacías cuando startSection/ensureSpace
+    // agregan addPage() especulativo y la sección subsiguiente no escribe nada relevante,
+    // o cuando text() con width auto-pagina. Inspeccionamos el stream de contenido:
+    // una página solo con pageHeader() mide < 650 bytes; con header + título ~900 bytes;
+    // con contenido real >> 1200 bytes. Umbral conservador: 1100 bytes.
+    try {
+      const pb = doc._pageBuffer;
+      const kids = doc._root && doc._root.data && doc._root.data.Pages && doc._root.data.Pages.data && doc._root.data.Pages.data.Kids;
+      if (Array.isArray(pb) && Array.isArray(kids)) {
+        while (pb.length > 1) {
+          const page = pb[pb.length - 1];
+          const contents = page && page.ref && page.ref.data && page.ref.data.Contents;
+          const chunks = contents && (contents.chunks || contents.data);
+          let bytes = 0;
+          if (Array.isArray(chunks)) {
+            for (const c of chunks) bytes += (c && c.length) ? c.length : 0;
+          } else if (chunks && typeof chunks.length === 'number') {
+            bytes = chunks.length;
+          }
+          if (bytes < 1100) {
+            pb.pop();
+            kids.pop();
+            doc._root.data.Pages.data.Count = pb.length;
+          } else {
+            break;
+          }
+        }
+      }
+    } catch (_) { /* trim best-effort — nunca falla el export */ }
+
+    // Footer en todas las páginas (después del trim para numerar bien)
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(range.start + i);
