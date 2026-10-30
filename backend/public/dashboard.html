@@ -13218,10 +13218,20 @@ function evRnReportRender() {
   evRnRepRestoreCollapsed();
 }
 async function evRnExportReport(fmt){
+  // E-RN-10 Block 5 Phase 1 — abrir modal con filtros (en vez de descarga directa)
+  if (!evCurrentEventId) return;
+  evRnOpenExportModal(fmt || 'xlsx');
+}
+async function _evRnDoExport(fmt, opts){
   if (!evCurrentEventId) return;
   const ext = (fmt||'xlsx').toLowerCase();
+  const qs = new URLSearchParams();
+  if (opts && Array.isArray(opts.sections) && opts.sections.length) qs.set('sections', opts.sections.join(','));
+  if (opts && opts.anonymize) qs.set('anonymize', '1');
+  if (opts && opts.note) qs.set('note', opts.note);
+  const query = qs.toString();
   try {
-    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda/export.${ext}`, {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda/export.${ext}${query ? '?' + query : ''}`, {
       headers:{ 'Authorization':`Bearer ${authToken}` }
     });
     if (!r.ok) { showToast('No se pudo exportar el reporte', 'error'); return; }
@@ -13234,6 +13244,78 @@ async function evRnExportReport(fmt){
     a.href = url; a.download = fname; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
   } catch(_) { showToast('No se pudo exportar el reporte', 'error'); }
+}
+function evRnOpenExportModal(defaultFmt){
+  let modal = document.getElementById('evRnExportModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'evRnExportModal';
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+          <h3 style="margin:0;">Exportar reporte Rueda de Negocios</h3>
+          <span class="close" onclick="evRnCloseExportModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-weight:600; margin-bottom:6px;">Formato</label>
+            <label style="margin-right:16px;"><input type="radio" name="evRnExpFmt" value="xlsx"> XLSX (hojas)</label>
+            <label><input type="radio" name="evRnExpFmt" value="pdf"> PDF (gráficos)</label>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-weight:600; margin-bottom:6px;">Secciones a incluir</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 16px;">
+              <label><input type="checkbox" class="evRnExpSec" value="pipeline" checked> Pipeline</label>
+              <label><input type="checkbox" class="evRnExpSec" value="agenda" checked> Agenda</label>
+              <label><input type="checkbox" class="evRnExpSec" value="delegates" checked> Delegados</label>
+              <label><input type="checkbox" class="evRnExpSec" value="commitments" checked> Compromisos</label>
+              <label><input type="checkbox" class="evRnExpSec" value="heatmap" checked> Mapa de calor</label>
+              <label><input type="checkbox" class="evRnExpSec" value="gaps" checked> Brechas</label>
+            </div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-weight:600; margin-bottom:6px;">Opciones</label>
+            <label style="display:block; margin-bottom:6px;"><input type="checkbox" id="evRnExpAnon"> Anonimizar nombres de empresas (iniciales)</label>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label for="evRnExpNote" style="display:block; font-weight:600; margin-bottom:6px;">Nota del productor (opcional)</label>
+            <textarea id="evRnExpNote" maxlength="500" rows="3" style="width:100%; box-sizing:border-box;" placeholder="Aparece en portada del PDF y en la hoja Resumen del XLSX"></textarea>
+            <div style="font-size:11px; color:#64748b; margin-top:4px;">Hasta 500 caracteres.</div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display:flex; gap:8px; justify-content:flex-end;">
+          <button class="btn btn-outline" onclick="evRnCloseExportModal()">Cancelar</button>
+          <button class="btn btn-primary" id="evRnExpBtn" onclick="evRnConfirmExport()">Descargar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  const radio = modal.querySelector(`input[name="evRnExpFmt"][value="${defaultFmt}"]`);
+  if (radio) radio.checked = true;
+  modal.style.display = 'flex';
+}
+function evRnCloseExportModal(){
+  const m = document.getElementById('evRnExportModal');
+  if (m) m.style.display = 'none';
+}
+async function evRnConfirmExport(){
+  const modal = document.getElementById('evRnExportModal');
+  if (!modal) return;
+  const fmt = (modal.querySelector('input[name="evRnExpFmt"]:checked') || {}).value || 'xlsx';
+  const sections = [...modal.querySelectorAll('.evRnExpSec:checked')].map(c => c.value);
+  if (!sections.length) { showToast('Selecciona al menos una sección', 'error'); return; }
+  const anonymize = !!(modal.querySelector('#evRnExpAnon') || {}).checked;
+  const note = (modal.querySelector('#evRnExpNote') || {}).value || '';
+  const btn = modal.querySelector('#evRnExpBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Descargando…'; }
+  try {
+    await _evRnDoExport(fmt, { sections, anonymize, note });
+    evRnCloseExportModal();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Descargar'; }
+  }
 }
 async function evRnSendReport(force) {
   if (!evCurrentEventId) return;

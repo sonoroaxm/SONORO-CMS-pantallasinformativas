@@ -4447,6 +4447,18 @@ router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess,
       if (req.user.role === 'admin') return null; throw e;
     });
 
+    // E-RN-10 Block 5 Phase 1 — filtros opcionales de export
+    const _rawSections = String(req.query.sections || '').split(',').map(s=>s.trim()).filter(Boolean);
+    const _wantAll = _rawSections.length === 0;
+    const want = (k) => _wantAll || _rawSections.includes(k);
+    const anonymize = req.query.anonymize === '1' || req.query.anonymize === 'true';
+    const prodNote = String(req.query.note || '').slice(0, 500);
+    const anonCo = (s) => {
+      if (!anonymize || !s) return s || '';
+      const ini = String(s).split(/\s+/).map(w => (w[0]||'').toUpperCase()).join('').slice(0,3) || 'ANN';
+      return ini + '***';
+    };
+
     const evRow = (await pool.query(
       `SELECT id, name, starts_at, ends_at, timezone FROM events.events WHERE id = $1`, [eventId]
     )).rows[0];
@@ -4601,68 +4613,82 @@ router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess,
       ['Inicio', fmtDate(evRow.starts_at)],
       ['Fin', fmtDate(evRow.ends_at)],
       ['Generado', fmtDate(new Date())],
+      ...(anonymize ? [['Modo', 'Anonimizado (nombres reemplazados por iniciales)']] : []),
+      ...(prodNote ? [[], ['Nota del productor', prodNote]] : []),
       [],
       ['Total de resultados registrados', pipelineTotal],
       ...pipelineAgg.map(r => [`  · ${trRes(r.result)}`, Number(r.n), pipelineTotal ? (Number(r.n)/pipelineTotal*100).toFixed(1)+'%' : '']),
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      pipelineAgg.map(r => ({ 'Resultado': trRes(r.result), 'Cantidad': Number(r.n), '% del total': pipelineTotal ? Number((Number(r.n)/pipelineTotal*100).toFixed(2)) : 0 }))
-    ), 'Pipeline');
+    if (want('pipeline')) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+        pipelineAgg.map(r => ({ 'Resultado': trRes(r.result), 'Cantidad': Number(r.n), '% del total': pipelineTotal ? Number((Number(r.n)/pipelineTotal*100).toFixed(2)) : 0 }))
+      ), 'Pipeline');
+    }
 
-    const agendaSheet = [
-      ['Agenda por ronda'],
-      ['Ronda','Etiqueta','Programadas','Efectivas'],
-      ...agendaByRound.map(r => [r.round_number, r.label || '', Number(r.scheduled), Number(r.effective)]),
-      [],
-      ['Agenda por mesa'],
-      ['Mesa','Orden','Programadas','Efectivas'],
-      ...agendaByTable.map(r => [r.label, r.display_order, Number(r.scheduled), Number(r.effective)]),
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agendaSheet), 'Agenda');
+    if (want('agenda')) {
+      const agendaSheet = [
+        ['Agenda por ronda'],
+        ['Ronda','Etiqueta','Programadas','Efectivas'],
+        ...agendaByRound.map(r => [r.round_number, r.label || '', Number(r.scheduled), Number(r.effective)]),
+        [],
+        ['Agenda por mesa'],
+        ['Mesa','Orden','Programadas','Efectivas'],
+        ...agendaByTable.map(r => [r.label, r.display_order, Number(r.scheduled), Number(r.effective)]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agendaSheet), 'Agenda');
+    }
 
-    const delegSheet = [
-      ['Delegados ancla (más resultados positivos)'],
-      ['Empresa','Positivos (match + condicional)','Total de resultados'],
-      ...anchors.map(r => [r.company, Number(r.positives), Number(r.total_outcomes)]),
-      [],
-      ['Cola larga (cero resultados positivos)'],
-      ['Empresa','Sin encaje','Total de resultados'],
-      ...longtail.map(r => [r.company, Number(r.negatives), Number(r.total_outcomes)]),
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delegSheet), 'Delegados');
+    if (want('delegates')) {
+      const delegSheet = [
+        ['Delegados ancla (más resultados positivos)'],
+        ['Empresa','Positivos (match + condicional)','Total de resultados'],
+        ...anchors.map(r => [anonCo(r.company), Number(r.positives), Number(r.total_outcomes)]),
+        [],
+        ['Cola larga (cero resultados positivos)'],
+        ['Empresa','Sin encaje','Total de resultados'],
+        ...longtail.map(r => [anonCo(r.company), Number(r.negatives), Number(r.total_outcomes)]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delegSheet), 'Delegados');
+    }
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      compromisos.map(r => ({
-        'Ronda': r.round_number,
-        'Empresa A': r.company_a,
-        'Empresa B': r.company_b,
-        'Lado': r.side === 'A' ? 'Empresa A' : 'Empresa B',
-        'Resultado': trRes(r.result),
-        'Próximo paso': trStep(r.next_step),
-        'Responsable': trOwn(r.owner_side),
-        'Fecha límite': r.due_at ? new Date(r.due_at).toLocaleDateString('es-CO', { timeZone: evRow.timezone || 'America/Bogota' }) : '',
-      }))
-    ), 'Compromisos');
+    if (want('commitments')) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+        compromisos.map(r => ({
+          'Ronda': r.round_number,
+          'Empresa A': anonCo(r.company_a),
+          'Empresa B': anonCo(r.company_b),
+          'Lado': r.side === 'A' ? 'Empresa A' : 'Empresa B',
+          'Resultado': trRes(r.result),
+          'Próximo paso': trStep(r.next_step),
+          'Responsable': trOwn(r.owner_side),
+          'Fecha límite': r.due_at ? new Date(r.due_at).toLocaleDateString('es-CO', { timeZone: evRow.timezone || 'America/Bogota' }) : '',
+        }))
+      ), 'Compromisos');
+    }
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-      heatmap.map(r => ({ 'Mesa': r.table_label, 'Ronda': r.round_number, 'Positivos (match+condicional)': Number(r.positives), 'Total reuniones': Number(r.total) }))
-    ), 'Heatmap');
+    if (want('heatmap')) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+        heatmap.map(r => ({ 'Mesa': r.table_label, 'Ronda': r.round_number, 'Positivos (match+condicional)': Number(r.positives), 'Total reuniones': Number(r.total) }))
+      ), 'Heatmap');
+    }
 
-    const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda', ok:'Oferta y demanda' };
-    const KIND_ES = { demand:'Demanda', offer:'Oferta' };
-    const brechasSheet = [
-      ['Tag','Categoría','# Demanda','# Oferta','Estado'],
-      ...brechasRows
-        .sort((a,b)=> (a.brecha===b.brecha?0:a.brecha==='demanda_sin_oferta'?-1:1))
-        .map(r => [r.label, r.category || '', r.demand, r.offer, BRECHA_ES[r.brecha] || r.brecha]),
-      [],
-      ['Detalle de empresas por tag'],
-      ['Tag','Tipo','Empresa','Delegado','Email'],
-      ...brechasDetail.map(r => [r.tag_label, KIND_ES[r.kind] || r.kind, r.company, r.delegate_name || '', r.delegate_email || '']),
-    ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brechasSheet), 'Brechas');
+    if (want('gaps')) {
+      const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda', ok:'Oferta y demanda' };
+      const KIND_ES = { demand:'Demanda', offer:'Oferta' };
+      const brechasSheet = [
+        ['Tag','Categoría','# Demanda','# Oferta','Estado'],
+        ...brechasRows
+          .sort((a,b)=> (a.brecha===b.brecha?0:a.brecha==='demanda_sin_oferta'?-1:1))
+          .map(r => [r.label, r.category || '', r.demand, r.offer, BRECHA_ES[r.brecha] || r.brecha]),
+        [],
+        ['Detalle de empresas por tag'],
+        ['Tag','Tipo','Empresa','Delegado','Email'],
+        ...brechasDetail.map(r => [r.tag_label, KIND_ES[r.kind] || r.kind, anonCo(r.company), anonymize ? '—' : (r.delegate_name || ''), anonymize ? '—' : (r.delegate_email || '')]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brechasSheet), 'Brechas');
+    }
 
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
     const safeName = String(evRow.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
@@ -4686,6 +4712,18 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     await assertEventOwner(pool, eventId, req.user.id).catch(e => {
       if (req.user.role === 'admin') return null; throw e;
     });
+
+    // E-RN-10 Block 5 Phase 1 — filtros opcionales de export
+    const _rawSections = String(req.query.sections || '').split(',').map(s=>s.trim()).filter(Boolean);
+    const _wantAll = _rawSections.length === 0;
+    const want = (k) => _wantAll || _rawSections.includes(k);
+    const anonymize = req.query.anonymize === '1' || req.query.anonymize === 'true';
+    const prodNote = String(req.query.note || '').slice(0, 500);
+    const anonCo = (s) => {
+      if (!anonymize || !s) return s || '';
+      const ini = String(s).split(/\s+/).map(w => (w[0]||'').toUpperCase()).join('').slice(0,3) || 'ANN';
+      return ini + '***';
+    };
 
     const evRow = (await pool.query(
       `SELECT id, name, starts_at, ends_at, timezone, venue_name, venue_address, organizer_legal_name
@@ -4968,7 +5006,27 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`Tasa de encaje (match + condicional): ${tasaMatch}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
     doc.y += 14;
 
+    if (anonymize) {
+      doc.y += 6;
+      doc.save();
+      doc.roundedRect(M, doc.y, PW - 2*M, 24, 4).fillAndStroke('#fef3c7', '#f59e0b');
+      doc.fillColor('#78350f').fontSize(9).font('Helvetica-Bold').text('Reporte anonimizado — los nombres de empresa aparecen como iniciales.', M + 10, doc.y + 8, { width: PW - 2*M - 20, lineBreak:false });
+      doc.restore();
+      doc.y += 30;
+    }
+    if (prodNote) {
+      doc.y += 4;
+      const noteH = Math.max(40, 16 + Math.ceil(prodNote.length / 90) * 12);
+      doc.save();
+      doc.roundedRect(M, doc.y, PW - 2*M, noteH, 6).fillAndStroke('#f1f5f9', '#cbd5e1');
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text('NOTA DEL PRODUCTOR', M + 10, doc.y + 8, { width: PW - 2*M - 20 });
+      doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(prodNote, M + 10, doc.y + 22, { width: PW - 2*M - 20 });
+      doc.restore();
+      doc.y += noteH + 10;
+    }
+
     // ═══ PÁGINA 2 · Pipeline ═══
+    if (want('pipeline')) {
     startSection('Pipeline de resultados', `${pipelineTotal} resultados registrados`);
     if (!pipelineTotal) emptyNote('Sin resultados registrados aún.');
     else {
@@ -4986,8 +5044,10 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       });
       doc.y = chartY + donutR * 2 + 20;
     }
+    } // end want('pipeline')
 
     // ═══ PÁGINA 3 · Agenda ═══
+    if (want('agenda')) {
     startSection('Agenda por ronda', 'Programadas vs. efectivas');
     if (!agendaByRound.length) emptyNote('Sin rondas configuradas.');
     else {
@@ -4998,13 +5058,17 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       legendRow([{color:'#3b82f6', label:'Programadas'}, {color:'#16a34a', label:'Efectivas'}], doc.y);
       doc.y += 20;
     }
+    } // end want('agenda')
 
     // ═══ PÁGINA 4 · Heatmap ═══
+    if (want('heatmap')) {
     startSection('Mapa de calor Mesa × Ronda', 'Positivos (match + condicional) sobre total de reuniones');
     if (!heatmap.length) emptyNote('Sin datos de agenda.');
     else { doc.y += 10; doc.y += drawHeatmap(M, doc.y, heatmap); }
+    } // end want('heatmap')
 
     // ═══ PÁGINA 5 · Delegados ancla ═══
+    if (want('delegates')) {
     startSection('Delegados ancla', 'Top 10 por resultados positivos');
     if (!anchors.length) emptyNote('Aún no hay delegados con resultados positivos.');
     else {
@@ -5015,15 +5079,17 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       anchors.forEach((a, i) => {
         const y = doc.y;
         doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`${i+1}.`, M, y + 7, { width: 18, lineBreak:false });
-        doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(a.company, M + 18, y + 7, { width: nameW - 18, lineBreak:false, ellipsis:true });
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(anonCo(a.company), M + 18, y + 7, { width: nameW - 18, lineBreak:false, ellipsis:true });
         const barW = (Number(a.positives) / maxP) * barAreaW;
         doc.rect(M + nameW, y + 6, Math.max(2, barW), 12).fill('#16a34a');
         doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(`${a.positives} / ${a.total_outcomes}`, M + nameW + barAreaW + 8, y + 7, { lineBreak:false });
         doc.y = y + rowH;
       });
     }
+    } // end want('delegates')
 
     // ═══ PÁGINA 6 · Compromisos (resumen con donuts) ═══
+    if (want('commitments')) {
     startSection('Compromisos abiertos', `${compromisos.length} acciones pendientes`);
     if (!compromisos.length) emptyNote('No hay compromisos abiertos.');
     else {
@@ -5077,14 +5143,16 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
         doc.y += 16;
       } else {
         soon.forEach(r => {
-          const line = `${fmtD(r.due_at)} · R${r.round_number} · ${r.company_a} ↔ ${r.company_b} — ${NEXT_STEP_ES[r.next_step] || r.next_step} (${OWNER_ES[r.owner_side] || '—'})`;
+          const line = `${fmtD(r.due_at)} · R${r.round_number} · ${anonCo(r.company_a)} ↔ ${anonCo(r.company_b)} — ${NEXT_STEP_ES[r.next_step] || r.next_step} (${OWNER_ES[r.owner_side] || '—'})`;
           doc.fillColor('#334155').fontSize(9).font('Helvetica').text(line, M, doc.y, { width: PW - 2*M, lineBreak:false, ellipsis:true });
           doc.y += 13;
         });
       }
     }
+    } // end want('commitments')
 
     // ═══ PÁGINA 7 · Brechas (donut + detalle) ═══
+    if (want('gaps')) {
     startSection('Brechas de catálogo', `${brechas.length} tags con desbalance oferta/demanda`);
     if (!brechas.length) emptyNote('Sin brechas detectadas: toda demanda tiene oferta y viceversa.');
     else {
@@ -5131,7 +5199,9 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
         doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(subLabel, M + 12, doc.y, { width: PW - 2*M - 12, lineBreak:false });
         doc.y += 11;
         list.slice(0, maxItems).forEach(c => {
-          const line = `• ${c.company}${c.delegate ? ' — ' + c.delegate : ''}${c.email ? ' <' + c.email + '>' : ''}`;
+          const line = anonymize
+            ? `• ${anonCo(c.company)}`
+            : `• ${c.company}${c.delegate ? ' — ' + c.delegate : ''}${c.email ? ' <' + c.email + '>' : ''}`;
           doc.fillColor('#334155').fontSize(8).font('Helvetica').text(line, M + 18, doc.y, { width: PW - 2*M - 18, lineBreak:false, ellipsis:true });
           doc.y += 11;
         });
@@ -5142,6 +5212,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
         doc.y += 6;
       });
     }
+    } // end want('gaps')
 
     // Trim de páginas en blanco al final (header-only sin contenido).
     // PDFKit en bufferPages puede acumular páginas vacías cuando startSection/ensureSpace
