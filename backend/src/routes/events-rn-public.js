@@ -804,9 +804,7 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
     );
     const total = countRes.rows[0].c;
 
-    const orderBy = (view === 'all')
-      ? `score DESC NULLS LAST, LOWER(r.custom_fields->>'company_name') ASC`
-      : `score DESC NULLS LAST, LOWER(r.custom_fields->>'company_name') ASC`;
+    const orderBy = `score DESC NULLS LAST, LOWER(COALESCE(r.custom_fields->>'company_name', a.organization, a.name)) ASC`;
 
     const offset = (page - 1) * PAGE_SIZE;
     params.push(PAGE_SIZE); params.push(offset);
@@ -815,11 +813,12 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
 
     const listRes = await pool.query(
       `SELECT r.id,
-              r.custom_fields->>'company_name' AS company_name,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company_name,
               r.custom_fields->>'pitch'        AS pitch,
               r.custom_fields->>'website'      AS website,
               ${scoreSelect}
          FROM events.registrations r
+         JOIN events.attendees a ON a.id = r.attendee_id
         WHERE ${where}
         ORDER BY ${orderBy}
         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
@@ -985,9 +984,10 @@ router.get('/requests', rnReadLimiter, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT q.id, q.status, q.message, q.created_at, q.responded_at,
               q.${otherCol} AS other_registration_id,
-              r.custom_fields->>'company_name' AS other_company
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS other_company
          FROM events.rn_meeting_requests q
          JOIN events.registrations r ON r.id = q.${otherCol}
+         JOIN events.attendees a ON a.id = r.attendee_id
         WHERE q.${sideCol} = $1 AND q.event_id = $2
         ORDER BY q.created_at DESC`,
       [ctx.registration_id, ctx.event_id]
@@ -1273,8 +1273,8 @@ router.get('/meetings', rnReadLimiter, async (req, res) => {
               CASE WHEN m.company_a_id = $1 THEN 'a' ELSE 'b' END AS my_side,
               CASE WHEN m.company_a_id = $1 THEN m.company_b_id ELSE m.company_a_id END AS other_registration_id,
               CASE WHEN m.company_a_id = $1
-                   THEN rb.custom_fields->>'company_name'
-                   ELSE ra.custom_fields->>'company_name' END AS other_company,
+                   THEN COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name)
+                   ELSE COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) END AS other_company,
               CASE WHEN m.company_a_id = $1
                    THEN rb.custom_fields->>'pitch'
                    ELSE ra.custom_fields->>'pitch' END AS other_pitch,
@@ -1287,6 +1287,8 @@ router.get('/meetings', rnReadLimiter, async (req, res) => {
          JOIN events.rn_tables t         ON t.id = m.table_id
          JOIN events.registrations ra    ON ra.id = m.company_a_id
          JOIN events.registrations rb    ON rb.id = m.company_b_id
+         JOIN events.attendees aa        ON aa.id = ra.attendee_id
+         JOIN events.attendees ab        ON ab.id = rb.attendee_id
         WHERE m.event_id = $2
           AND (m.company_a_id = $1 OR m.company_b_id = $1)
           AND m.status != 'cancelled'

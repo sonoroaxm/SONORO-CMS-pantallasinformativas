@@ -906,13 +906,15 @@ router.get('/events/:eventId/meetings', auth, async (req, res) => {
               m.tag_overlap_score,
               rd.round_number, rd.starts_at AS round_starts_at, rd.ends_at AS round_ends_at,
               t.label AS table_label,
-              ra.custom_fields->>'company_name' AS company_a,
-              rb.custom_fields->>'company_name' AS company_b
+              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b
          FROM events.rn_meetings m
          JOIN events.rn_rounds rd ON rd.id = m.round_id
          JOIN events.rn_tables t  ON t.id  = m.table_id
          JOIN events.registrations ra ON ra.id = m.company_a_id
          JOIN events.registrations rb ON rb.id = m.company_b_id
+         JOIN events.attendees aa ON aa.id = ra.attendee_id
+         JOIN events.attendees ab ON ab.id = rb.attendee_id
         WHERE m.event_id = $1
         ORDER BY rd.round_number ASC, t.display_order ASC NULLS LAST, t.label ASC`,
       [req.params.eventId]
@@ -1607,12 +1609,14 @@ router.get('/events/:eventId/live', auth, async (req, res) => {
       const m = await pool.query(
         `SELECT m.id, m.table_id, m.status, m.origin, m.locked,
                 t.label AS table_label,
-                ra.custom_fields->>'company_name' AS company_a,
-                rb.custom_fields->>'company_name' AS company_b
+                COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+                COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b
            FROM events.rn_meetings m
            JOIN events.rn_tables t ON t.id = m.table_id
            JOIN events.registrations ra ON ra.id = m.company_a_id
            JOIN events.registrations rb ON rb.id = m.company_b_id
+           JOIN events.attendees aa ON aa.id = ra.attendee_id
+           JOIN events.attendees ab ON ab.id = rb.attendee_id
           WHERE m.event_id = $1 AND m.round_id = $2
           ORDER BY t.display_order ASC NULLS LAST, t.label ASC`,
         [eventId, activeId]
@@ -1724,13 +1728,15 @@ router.get('/events/:eventId/report', auth, async (req, res) => {
         `SELECT m.id,
                 rd.round_number,
                 t.label AS table_label,
-                ra.custom_fields->>'company_name' AS company_a,
-                rb.custom_fields->>'company_name' AS company_b
+                COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+                COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b
            FROM events.rn_meetings m
            JOIN events.rn_rounds rd ON rd.id = m.round_id
            JOIN events.rn_tables t  ON t.id  = m.table_id
            JOIN events.registrations ra ON ra.id = m.company_a_id
            JOIN events.registrations rb ON rb.id = m.company_b_id
+           JOIN events.attendees aa ON aa.id = ra.attendee_id
+           JOIN events.attendees ab ON ab.id = rb.attendee_id
           WHERE m.id = ANY($1::uuid[])`,
         [topIds]
       )).rows;
@@ -1884,13 +1890,16 @@ router.post('/events/:eventId/report/send', auth, async (req, res) => {
                 t.label AS table_label,
                 CASE WHEN m.company_a_id=$1 THEN m.expected_value_a_amount
                      ELSE m.expected_value_b_amount END AS my_amount,
-                CASE WHEN m.company_a_id=$1 THEN rb.custom_fields->>'company_name'
-                     ELSE ra.custom_fields->>'company_name' END AS counterpart_company
+                CASE WHEN m.company_a_id=$1
+                       THEN COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name)
+                       ELSE COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) END AS counterpart_company
            FROM events.rn_meetings m
            JOIN events.rn_rounds rd ON rd.id=m.round_id
            JOIN events.rn_tables t  ON t.id=m.table_id
            JOIN events.registrations ra ON ra.id=m.company_a_id
            JOIN events.registrations rb ON rb.id=m.company_b_id
+           JOIN events.attendees aa ON aa.id=ra.attendee_id
+           JOIN events.attendees ab ON ab.id=rb.attendee_id
           WHERE m.event_id=$2 AND (m.company_a_id=$1 OR m.company_b_id=$1)
           ORDER BY rd.round_number ASC`,
         [regId, eventId]

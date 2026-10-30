@@ -474,10 +474,39 @@ router.patch('/:id', auth, async (req, res) => {
       params
     );
     if (!rows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    // Mirror: Rueda hija → sesión linked del padre (starts_at/ends_at)
+    try {
+      const touchedTime = (req.body.starts_at !== undefined) || (req.body.ends_at !== undefined);
+      const isRN = rows[0]?.config?.event_type === 'matchmaking';
+      if (touchedTime && isRN && rows[0].parent_event_id) {
+        await pool.query(
+          `UPDATE events.event_sessions
+              SET starts_at = $2, ends_at = $3
+            WHERE linked_rueda_id = $1 AND session_type = 'rueda'`,
+          [rows[0].id, rows[0].starts_at, rows[0].ends_at]
+        );
+      }
+    } catch (e) { console.error('⚠️ mirror rueda→session:', e.message); }
+
     if (req.body.status === 'published') {
       global.io?.to(`user_${rows[0].user_id}`).emit('event.published', {
         user_id: rows[0].user_id, event_id: rows[0].id
       });
+      // Cascade publish: ruedas hijas en draft pasan a published. No se propaga al despublicar.
+      try {
+        const { rows: cascaded } = await pool.query(
+          `UPDATE events.events
+              SET status = 'published', updated_at = NOW()
+            WHERE parent_event_id = $1
+              AND status = 'draft'
+              AND (config->>'event_type') = 'matchmaking'
+            RETURNING id, user_id`,
+          [rows[0].id]
+        );
+        for (const c of cascaded) {
+          global.io?.to(`user_${c.user_id}`).emit('event.published', { user_id: c.user_id, event_id: c.id });
+        }
+      } catch (e) { console.error('⚠️ cascade publish rueda hija:', e.message); }
     }
 
     // Calendar sync non-fatal
@@ -2429,12 +2458,25 @@ router.delete('/:id', auth, async (req, res) => {
     try { await deleteEventFromCalendars(pool, req.params.id, { purgeRows: false }); }
     catch (e) { console.error('⚠️ cal.delete on event-delete:', e.message); }
     await withTransaction(pool, async (client) => {
-      // Limpiar FKs sin CASCADE antes de borrar el evento
-      await client.query(`DELETE FROM events.service_redemptions WHERE event_id = $1`, [req.params.id]);
-      await client.query(`DELETE FROM events.registration_checkins WHERE event_id = $1`, [req.params.id]);
-      await client.query(`DELETE FROM events.supplier_quotes WHERE event_id = $1`, [req.params.id]);
-      // Borrar evento — CASCADE limpia el resto (registrations, sessions, staff, rundown_cues, event_suppliers)
-      await client.query(`DELETE FROM events.events WHERE id = $1`, [req.params.id]);
+      // Helper: limpia FKs sin CASCADE y borra el evento. Usado para el evento objetivo y para hijas matchmaking.
+      const _deleteEventRow = async (eventId) => {
+        await client.query(`DELETE FROM events.service_redemptions WHERE event_id = $1`, [eventId]);
+        await client.query(`DELETE FROM events.registration_checkins WHERE event_id = $1`, [eventId]);
+        await client.query(`DELETE FROM events.supplier_quotes WHERE event_id = $1`, [eventId]);
+        // Pre-borrar sesiones tipo 'rueda' que apunten a este evento (FK SET NULL colisiona con CHECK event_sessions_rueda_requires_link)
+        await client.query(`DELETE FROM events.event_sessions WHERE linked_rueda_id = $1 AND session_type = 'rueda'`, [eventId]);
+        // CASCADE limpia el resto (registrations, sessions, staff, rundown_cues, event_suppliers)
+        await client.query(`DELETE FROM events.events WHERE id = $1`, [eventId]);
+      };
+      // Cascade delete: ruedas hijas matchmaking se borran junto con el padre.
+      const { rows: children } = await client.query(
+        `SELECT id FROM events.events
+          WHERE parent_event_id = $1
+            AND (config->>'event_type') = 'matchmaking'`,
+        [req.params.id]
+      );
+      for (const c of children) { await _deleteEventRow(c.id); }
+      await _deleteEventRow(req.params.id);
     });
     res.json({ ok: true });
   } catch (err) {
@@ -4156,11 +4198,14 @@ router.get('/:id/analytics/postrueda', auth, requireAnalyticsAccess, async (req,
     for (const result of ['match', 'conditional', 'needs_info']) {
       const r = await pool.query(
         `SELECT o.meeting_id, o.due_at, o.next_step,
-                ra.company_name AS company_a, rb.company_name AS company_b
+                COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+                COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b
            FROM events.rn_meeting_outcomes o
            JOIN events.rn_meetings m ON m.id = o.meeting_id
            JOIN events.registrations ra ON ra.id = m.company_a_id
            JOIN events.registrations rb ON rb.id = m.company_b_id
+           JOIN events.attendees aa ON aa.id = ra.attendee_id
+           JOIN events.attendees ab ON ab.id = rb.attendee_id
           WHERE m.event_id = $1 AND o.result = $2 AND o.completed_at IS NULL
           ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC
           LIMIT 3`,
@@ -4236,28 +4281,32 @@ router.get('/:id/analytics/postrueda', auth, requireAnalyticsAccess, async (req,
 
     // ── 3) DELEGADOS ANCLA Y COLA LARGA ───────────────────────────────────────
     const anchors = await pool.query(
-      `SELECT r.id AS registration_id, r.company_name,
+      `SELECT r.id AS registration_id,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company_name,
               COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
               COUNT(*) AS total_outcomes
          FROM events.rn_meeting_outcomes o
          JOIN events.rn_meetings m ON m.id = o.meeting_id
          JOIN events.registrations r ON r.id = CASE WHEN o.side = 'A' THEN m.company_a_id ELSE m.company_b_id END
+         JOIN events.attendees a ON a.id = r.attendee_id
         WHERE m.event_id = $1
-        GROUP BY r.id, r.company_name
+        GROUP BY r.id, r.custom_fields, a.organization, a.name
         HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
         ORDER BY positives DESC, total_outcomes DESC
         LIMIT 5`,
       [eventId]
     );
     const longtail = await pool.query(
-      `SELECT r.id AS registration_id, r.company_name,
+      `SELECT r.id AS registration_id,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company_name,
               COUNT(*) FILTER (WHERE o.result = 'no_match') AS negatives,
               COUNT(*) AS total_outcomes
          FROM events.rn_meeting_outcomes o
          JOIN events.rn_meetings m ON m.id = o.meeting_id
          JOIN events.registrations r ON r.id = CASE WHEN o.side = 'A' THEN m.company_a_id ELSE m.company_b_id END
+         JOIN events.attendees a ON a.id = r.attendee_id
         WHERE m.event_id = $1
-        GROUP BY r.id, r.company_name
+        GROUP BY r.id, r.custom_fields, a.organization, a.name
         HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) = 0
         ORDER BY total_outcomes DESC
         LIMIT 5`,
@@ -4268,13 +4317,16 @@ router.get('/:id/analytics/postrueda', auth, requireAnalyticsAccess, async (req,
     // ── 4) COMPROMISOS ACTIVOS ────────────────────────────────────────────────
     const compromisos = await pool.query(
       `SELECT o.meeting_id, o.side, o.next_step, o.owner_side, o.due_at, o.result,
-              ra.company_name AS company_a, rb.company_name AS company_b,
+              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
               rr.round_number
          FROM events.rn_meeting_outcomes o
          JOIN events.rn_meetings m ON m.id = o.meeting_id
          JOIN events.rn_rounds rr ON rr.id = m.round_id
          JOIN events.registrations ra ON ra.id = m.company_a_id
          JOIN events.registrations rb ON rb.id = m.company_b_id
+         JOIN events.attendees aa ON aa.id = ra.attendee_id
+         JOIN events.attendees ab ON ab.id = rb.attendee_id
         WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
         ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC
         LIMIT 100`,
@@ -4334,6 +4386,771 @@ router.get('/:id/analytics/postrueda', auth, requireAnalyticsAccess, async (req,
     if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
     console.error('❌ GET /analytics/postrueda:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// E-RN-10 Block 4b · Detalle de brecha por tag (D-RN-16)
+// GET /api/events/:id/analytics/postrueda/tag/:tagId
+// Devuelve empresas que demandan/ofrecen un tag en este evento, con delegado primario.
+router.get('/:id/analytics/postrueda/tag/:tagId', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    const tagId   = req.params.tagId;
+    if (req.user.role !== 'admin') await assertEventOwner(pool, eventId, req.user.id);
+
+    const tag = await pool.query(
+      `SELECT id, label, category FROM events.rn_tags WHERE id = $1`,
+      [tagId]
+    );
+    if (!tag.rows.length) return res.status(404).json({ error: 'Tag no encontrado' });
+
+    const rows = await pool.query(
+      `SELECT rt.kind,
+              r.id AS registration_id,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company_name,
+              d.full_name AS delegate_name,
+              d.email     AS delegate_email,
+              d.locale    AS delegate_locale
+         FROM events.rn_registration_tags rt
+         JOIN events.registrations r ON r.id = rt.registration_id
+         JOIN events.attendees a     ON a.id = r.attendee_id
+         LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
+        WHERE rt.tag_id = $1 AND r.event_id = $2
+        ORDER BY company_name ASC NULLS LAST`,
+      [tagId, eventId]
+    );
+
+    const demand = rows.rows.filter(r => r.kind === 'demand');
+    const offer  = rows.rows.filter(r => r.kind === 'offer');
+
+    res.json({
+      tag: tag.rows[0],
+      demand,
+      offer,
+      counts: { demand: demand.length, offer: offer.length },
+    });
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda/tag:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// E-RN-10 Block 4b · Export XLSX multi-hoja del Reporte productor
+// GET /api/events/:id/analytics/postrueda/export.xlsx
+router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    const ev = await assertEventOwner(pool, eventId, req.user.id).catch(e => {
+      if (req.user.role === 'admin') return null; throw e;
+    });
+
+    const evRow = (await pool.query(
+      `SELECT id, name, starts_at, ends_at, timezone FROM events.events WHERE id = $1`, [eventId]
+    )).rows[0];
+    if (!evRow) { return res.status(404).json({ error: 'Evento no encontrado' }); }
+
+    // Pipeline
+    const pipelineAgg = (await pool.query(
+      `SELECT o.result, COUNT(*) AS n
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+        WHERE m.event_id = $1 GROUP BY o.result ORDER BY o.result`,
+      [eventId]
+    )).rows;
+    const pipelineTotal = pipelineAgg.reduce((s, r) => s + Number(r.n), 0);
+
+    // Agenda
+    const agendaByRound = (await pool.query(
+      `SELECT rr.round_number, rr.label,
+              COUNT(m.id) AS scheduled,
+              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+         FROM events.rn_rounds rr
+         LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
+        WHERE rr.event_id = $1
+        GROUP BY rr.id, rr.round_number, rr.label
+        ORDER BY rr.round_number`,
+      [eventId]
+    )).rows;
+    const agendaByTable = (await pool.query(
+      `SELECT t.label, t.display_order,
+              COUNT(m.id) AS scheduled,
+              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+         FROM events.rn_tables t
+         LEFT JOIN events.rn_meetings m ON m.table_id = t.id
+        WHERE t.event_id = $1 AND t.active = TRUE
+        GROUP BY t.id, t.label, t.display_order
+        ORDER BY t.display_order, t.label`,
+      [eventId]
+    )).rows;
+
+    // Delegados
+    const anchors = (await pool.query(
+      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+              COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(*) AS total_outcomes
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
+         JOIN events.attendees a ON a.id = r.attendee_id
+        WHERE m.event_id = $1
+        GROUP BY r.id, r.custom_fields, a.organization, a.name
+        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
+        ORDER BY positives DESC, total_outcomes DESC
+        LIMIT 20`,
+      [eventId]
+    )).rows;
+    const longtail = (await pool.query(
+      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+              COUNT(*) FILTER (WHERE o.result = 'no_match') AS negatives,
+              COUNT(*) AS total_outcomes
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
+         JOIN events.attendees a ON a.id = r.attendee_id
+        WHERE m.event_id = $1
+        GROUP BY r.id, r.custom_fields, a.organization, a.name
+        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) = 0
+        ORDER BY total_outcomes DESC
+        LIMIT 20`,
+      [eventId]
+    )).rows;
+
+    // Compromisos (todos abiertos)
+    const compromisos = (await pool.query(
+      `SELECT rr.round_number,
+              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
+              o.side, o.result, o.next_step, o.owner_side, o.due_at
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.rn_rounds rr ON rr.id = m.round_id
+         JOIN events.registrations ra ON ra.id = m.company_a_id
+         JOIN events.registrations rb ON rb.id = m.company_b_id
+         JOIN events.attendees aa ON aa.id = ra.attendee_id
+         JOIN events.attendees ab ON ab.id = rb.attendee_id
+        WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
+        ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC`,
+      [eventId]
+    )).rows;
+
+    // Heatmap
+    const heatmap = (await pool.query(
+      `SELECT t.label AS table_label, rr.round_number,
+              COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(m.id) AS total
+         FROM events.rn_meetings m
+         JOIN events.rn_tables  t  ON t.id  = m.table_id
+         JOIN events.rn_rounds  rr ON rr.id = m.round_id
+         LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
+        WHERE m.event_id = $1
+        GROUP BY t.id, t.label, t.display_order, rr.round_number
+        ORDER BY t.display_order, rr.round_number`,
+      [eventId]
+    )).rows;
+
+    // Brechas (con detalle de empresas por tag)
+    const brechasDetail = (await pool.query(
+      `SELECT t.label AS tag_label, t.category AS tag_category, rt.kind,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+              d.full_name AS delegate_name, d.email AS delegate_email
+         FROM events.rn_tags t
+         JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
+         JOIN events.registrations r ON r.id = rt.registration_id
+         JOIN events.attendees a ON a.id = r.attendee_id
+         LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
+        WHERE r.event_id = $1
+        ORDER BY t.label, rt.kind, company`,
+      [eventId]
+    )).rows;
+    const tagAgg = new Map();
+    for (const row of brechasDetail) {
+      const k = row.tag_label + '||' + (row.tag_category || '');
+      if (!tagAgg.has(k)) tagAgg.set(k, { label: row.tag_label, category: row.tag_category, demand: 0, offer: 0 });
+      tagAgg.get(k)[row.kind]++;
+    }
+    const brechasRows = [...tagAgg.values()].map(t => ({
+      ...t,
+      brecha: t.demand > 0 && t.offer === 0 ? 'demanda_sin_oferta'
+            : t.offer > 0 && t.demand === 0 ? 'oferta_sin_demanda'
+            : 'ok',
+    }));
+
+    // Diccionarios ES
+    const RESULT_ES = { match:'Match (acuerdo)', conditional:'Condicional', needs_info:'Necesita más información', no_match:'Sin encaje', no_show:'Ausente' };
+    const NEXT_STEP_ES = { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'Ninguno' };
+    const OWNER_ES = { A:'Empresa A', B:'Empresa B', both:'Ambas' };
+    const trRes  = v => RESULT_ES[v] || v || '';
+    const trStep = v => NEXT_STEP_ES[v] || v || '';
+    const trOwn  = v => v == null ? '' : (OWNER_ES[v] || v);
+    const fmtDate = d => {
+      if (!d) return '';
+      try { return new Date(d).toLocaleString('es-CO', { timeZone: evRow.timezone || 'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); }
+      catch(_) { return new Date(d).toISOString(); }
+    };
+
+    // Build XLSX
+    const wb = XLSX.utils.book_new();
+
+    const resumen = [
+      ['Evento', evRow.name],
+      ['ID del evento', evRow.id],
+      ['Zona horaria', evRow.timezone],
+      ['Inicio', fmtDate(evRow.starts_at)],
+      ['Fin', fmtDate(evRow.ends_at)],
+      ['Generado', fmtDate(new Date())],
+      [],
+      ['Total de resultados registrados', pipelineTotal],
+      ...pipelineAgg.map(r => [`  · ${trRes(r.result)}`, Number(r.n), pipelineTotal ? (Number(r.n)/pipelineTotal*100).toFixed(1)+'%' : '']),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      pipelineAgg.map(r => ({ 'Resultado': trRes(r.result), 'Cantidad': Number(r.n), '% del total': pipelineTotal ? Number((Number(r.n)/pipelineTotal*100).toFixed(2)) : 0 }))
+    ), 'Pipeline');
+
+    const agendaSheet = [
+      ['Agenda por ronda'],
+      ['Ronda','Etiqueta','Programadas','Efectivas'],
+      ...agendaByRound.map(r => [r.round_number, r.label || '', Number(r.scheduled), Number(r.effective)]),
+      [],
+      ['Agenda por mesa'],
+      ['Mesa','Orden','Programadas','Efectivas'],
+      ...agendaByTable.map(r => [r.label, r.display_order, Number(r.scheduled), Number(r.effective)]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agendaSheet), 'Agenda');
+
+    const delegSheet = [
+      ['Delegados ancla (más resultados positivos)'],
+      ['Empresa','Positivos (match + condicional)','Total de resultados'],
+      ...anchors.map(r => [r.company, Number(r.positives), Number(r.total_outcomes)]),
+      [],
+      ['Cola larga (cero resultados positivos)'],
+      ['Empresa','Sin encaje','Total de resultados'],
+      ...longtail.map(r => [r.company, Number(r.negatives), Number(r.total_outcomes)]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delegSheet), 'Delegados');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      compromisos.map(r => ({
+        'Ronda': r.round_number,
+        'Empresa A': r.company_a,
+        'Empresa B': r.company_b,
+        'Lado': r.side === 'A' ? 'Empresa A' : 'Empresa B',
+        'Resultado': trRes(r.result),
+        'Próximo paso': trStep(r.next_step),
+        'Responsable': trOwn(r.owner_side),
+        'Fecha límite': r.due_at ? new Date(r.due_at).toLocaleDateString('es-CO', { timeZone: evRow.timezone || 'America/Bogota' }) : '',
+      }))
+    ), 'Compromisos');
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      heatmap.map(r => ({ 'Mesa': r.table_label, 'Ronda': r.round_number, 'Positivos (match+condicional)': Number(r.positives), 'Total reuniones': Number(r.total) }))
+    ), 'Heatmap');
+
+    const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda', ok:'Oferta y demanda' };
+    const KIND_ES = { demand:'Demanda', offer:'Oferta' };
+    const brechasSheet = [
+      ['Tag','Categoría','# Demanda','# Oferta','Estado'],
+      ...brechasRows
+        .sort((a,b)=> (a.brecha===b.brecha?0:a.brecha==='demanda_sin_oferta'?-1:1))
+        .map(r => [r.label, r.category || '', r.demand, r.offer, BRECHA_ES[r.brecha] || r.brecha]),
+      [],
+      ['Detalle de empresas por tag'],
+      ['Tag','Tipo','Empresa','Delegado','Email'],
+      ...brechasDetail.map(r => [r.tag_label, KIND_ES[r.kind] || r.kind, r.company, r.delegate_name || '', r.delegate_email || '']),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brechasSheet), 'Brechas');
+
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    const safeName = String(evRow.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0,10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-rn_${safeName}_${stamp}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda/export.xlsx:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// E-RN-10 Block 4b · Export PDF del Reporte productor (con gráficos)
+// GET /api/events/:id/analytics/postrueda/export.pdf
+router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    await assertEventOwner(pool, eventId, req.user.id).catch(e => {
+      if (req.user.role === 'admin') return null; throw e;
+    });
+
+    const evRow = (await pool.query(
+      `SELECT id, name, starts_at, ends_at, timezone, venue_name, venue_address, organizer_legal_name
+         FROM events.events WHERE id = $1`, [eventId]
+    )).rows[0];
+    if (!evRow) return res.status(404).json({ error: 'Evento no encontrado' });
+
+    const tz = evRow.timezone || 'America/Bogota';
+    const fmtDT = (d) => { if (!d) return ''; try { return new Date(d).toLocaleString('es-CO', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); } catch(_) { return ''; } };
+    const fmtD = (d) => { if (!d) return ''; try { return new Date(d).toLocaleDateString('es-CO', { timeZone: tz, year:'numeric', month:'long', day:'numeric' }); } catch(_) { return ''; } };
+
+    // ───── Data queries ─────
+    const pipelineAgg = (await pool.query(
+      `SELECT o.result, COUNT(*) AS n FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+        WHERE m.event_id = $1 GROUP BY o.result ORDER BY o.result`, [eventId]
+    )).rows;
+    const pipelineTotal = pipelineAgg.reduce((s, r) => s + Number(r.n), 0);
+
+    const agendaByRound = (await pool.query(
+      `SELECT rr.round_number, rr.label, COUNT(m.id) AS scheduled,
+              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+         FROM events.rn_rounds rr
+         LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
+        WHERE rr.event_id = $1 GROUP BY rr.id, rr.round_number, rr.label
+        ORDER BY rr.round_number`, [eventId]
+    )).rows;
+
+    const anchors = (await pool.query(
+      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+              COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(*) AS total_outcomes
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
+         JOIN events.attendees a ON a.id = r.attendee_id
+        WHERE m.event_id = $1 GROUP BY r.id, r.custom_fields, a.organization, a.name
+        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
+        ORDER BY positives DESC, total_outcomes DESC LIMIT 10`, [eventId]
+    )).rows;
+
+    const compromisos = (await pool.query(
+      `SELECT rr.round_number,
+              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
+              o.side, o.result, o.next_step, o.owner_side, o.due_at
+         FROM events.rn_meeting_outcomes o
+         JOIN events.rn_meetings m ON m.id = o.meeting_id
+         JOIN events.rn_rounds rr ON rr.id = m.round_id
+         JOIN events.registrations ra ON ra.id = m.company_a_id
+         JOIN events.registrations rb ON rb.id = m.company_b_id
+         JOIN events.attendees aa ON aa.id = ra.attendee_id
+         JOIN events.attendees ab ON ab.id = rb.attendee_id
+        WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
+        ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC LIMIT 40`, [eventId]
+    )).rows;
+
+    const heatmap = (await pool.query(
+      `SELECT t.label AS table_label, t.display_order, rr.round_number,
+              COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+              COUNT(m.id) AS total
+         FROM events.rn_meetings m
+         JOIN events.rn_tables  t  ON t.id  = m.table_id
+         JOIN events.rn_rounds  rr ON rr.id = m.round_id
+         LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
+        WHERE m.event_id = $1
+        GROUP BY t.id, t.label, t.display_order, rr.round_number
+        ORDER BY t.display_order, rr.round_number`, [eventId]
+    )).rows;
+
+    const brechasDetail = (await pool.query(
+      `SELECT t.label AS tag_label, rt.kind,
+              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+              d.full_name AS delegate_name, d.email AS delegate_email
+         FROM events.rn_tags t
+         JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
+         JOIN events.registrations r ON r.id = rt.registration_id
+         JOIN events.attendees a ON a.id = r.attendee_id
+         LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
+        WHERE r.event_id = $1
+        ORDER BY t.label, rt.kind, company`, [eventId]
+    )).rows;
+    const tagAgg = new Map();
+    for (const row of brechasDetail) {
+      if (!tagAgg.has(row.tag_label)) tagAgg.set(row.tag_label, { label: row.tag_label, demand: 0, offer: 0, companies: { demand: [], offer: [] } });
+      const t = tagAgg.get(row.tag_label);
+      t[row.kind]++;
+      t.companies[row.kind].push({ company: row.company, delegate: row.delegate_name, email: row.delegate_email });
+    }
+    const brechas = [...tagAgg.values()].map(t => ({
+      ...t,
+      brecha: t.demand > 0 && t.offer === 0 ? 'demanda_sin_oferta'
+            : t.offer > 0 && t.demand === 0 ? 'oferta_sin_demanda' : 'ok',
+    })).filter(t => t.brecha !== 'ok');
+
+    // KPIs globales
+    const kpis = (await pool.query(
+      `SELECT
+         (SELECT COUNT(DISTINCT r.id) FROM events.registrations r
+            WHERE r.event_id=$1
+              AND (EXISTS (SELECT 1 FROM events.rn_delegates d WHERE d.registration_id=r.id)
+                OR EXISTS (SELECT 1 FROM events.rn_meetings m WHERE m.event_id=$1 AND (m.company_a_id=r.id OR m.company_b_id=r.id)))
+         ) AS empresas,
+         (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1) AS reuniones,
+         (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1 AND status IN ('completed','active')) AS reuniones_efectivas,
+         (SELECT COUNT(DISTINCT d.id) FROM events.rn_delegates d JOIN events.registrations r ON r.id=d.registration_id WHERE r.event_id=$1) AS delegados`,
+      [eventId]
+    )).rows[0] || {};
+
+    const RESULT_ES = { match:'Match', conditional:'Condicional', needs_info:'Necesita info', no_match:'Sin encaje', no_show:'Ausente' };
+    const RESULT_COLOR = { match:'#16a34a', conditional:'#f59e0b', needs_info:'#3b82f6', no_match:'#64748b', no_show:'#dc2626' };
+    const NEXT_STEP_ES = { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'Ninguno' };
+    const OWNER_ES = { A:'Empresa A', B:'Empresa B', both:'Ambas' };
+    const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda' };
+
+    // ───── PDF init ─────
+    const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
+    const safeName = String(evRow.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0,10);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="reporte-rn_${safeName}_${stamp}.pdf"`);
+    doc.pipe(res);
+
+    const PW = doc.page.width;
+    const PH = doc.page.height;
+    const M = 40;
+
+    // ───── Helpers ─────
+    const ensureSpace = (needed) => { if (doc.y + needed > PH - 50) doc.addPage(); };
+    const pageHeader = () => {
+      doc.save();
+      doc.rect(0, 0, PW, 56).fill('#0f172a');
+      doc.fillColor('#FFD400').fontSize(16).font('Helvetica-Bold').text('SONORO', M, 18);
+      doc.fillColor('#cbd5e1').fontSize(9).font('Helvetica').text('Reporte Rueda de Negocios', M, 38);
+      doc.fillColor('#cbd5e1').fontSize(8).text(fmtDT(new Date()), M, 38, { width: PW - 2*M, align: 'right' });
+      doc.restore();
+      doc.y = 72;
+    };
+    const sectionTitle = (title, sub) => {
+      ensureSpace(50);
+      doc.moveDown(0.3);
+      doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text(title, M, doc.y);
+      if (sub) doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(sub, M, doc.y);
+      doc.moveTo(M, doc.y + 4).lineTo(PW - M, doc.y + 4).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      doc.y += 10;
+      doc.fillColor('#0f172a').font('Helvetica').fontSize(10);
+    };
+    const kpiTile = (x, y, w, h, label, value, color) => {
+      doc.save();
+      doc.roundedRect(x, y, w, h, 6).fillAndStroke(color || '#f1f5f9', '#e2e8f0');
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica').text(label.toUpperCase(), x + 10, y + 10, { width: w - 20 });
+      doc.fillColor('#0f172a').fontSize(20).font('Helvetica-Bold').text(String(value), x + 10, y + 24, { width: w - 20 });
+      doc.restore();
+    };
+
+    // Donut chart (pipeline)
+    const drawDonut = (cx, cy, r, inner, segments, total) => {
+      doc.save();
+      if (!total) {
+        doc.circle(cx, cy, r).fillAndStroke('#f1f5f9', '#e2e8f0');
+        doc.circle(cx, cy, inner).fill('#ffffff');
+        doc.restore();
+        return;
+      }
+      let a0 = -Math.PI / 2;
+      segments.forEach(s => {
+        if (s.value <= 0) return;
+        const a1 = a0 + (s.value / total) * Math.PI * 2;
+        const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+        const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+        const large = (a1 - a0) > Math.PI ? 1 : 0;
+        doc.path(`M ${cx},${cy} L ${x0},${y0} A ${r},${r} 0 ${large},1 ${x1},${y1} Z`).fill(s.color);
+        a0 = a1;
+      });
+      doc.circle(cx, cy, inner).fill('#ffffff');
+      doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text(String(total), cx - inner, cy - 10, { width: inner*2, align:'center', lineBreak:false });
+      doc.fillColor('#64748b').fontSize(7).font('Helvetica').text('resultados', cx - inner, cy + 6, { width: inner*2, align:'center', lineBreak:false });
+      doc.restore();
+    };
+
+    // Vertical grouped bars (agenda per round)
+    const drawGroupedBars = (x, y, w, h, data, seriesA, seriesB, colorA, colorB) => {
+      if (!data.length) return;
+      doc.save();
+      const maxV = Math.max(1, ...data.flatMap(d => [d[seriesA], d[seriesB]]));
+      const groupW = w / data.length;
+      const barW = Math.min(16, (groupW - 10) / 2);
+      // axis
+      doc.strokeColor('#cbd5e1').lineWidth(0.5);
+      doc.moveTo(x, y + h).lineTo(x + w, y + h).stroke();
+      // bars
+      data.forEach((d, i) => {
+        const gx = x + i * groupW + (groupW - barW*2 - 4) / 2;
+        const aH = (d[seriesA] / maxV) * (h - 20);
+        const bH = (d[seriesB] / maxV) * (h - 20);
+        doc.rect(gx, y + h - aH, barW, aH).fill(colorA);
+        doc.rect(gx + barW + 4, y + h - bH, barW, bH).fill(colorB);
+        doc.fillColor('#334155').fontSize(7).font('Helvetica').text(`R${d.round_number}`, gx - 2, y + h + 2, { width: barW*2 + 8, align:'center', lineBreak:false });
+        doc.fillColor('#0f172a').fontSize(7).font('Helvetica-Bold').text(String(d[seriesA]), gx - 2, y + h - aH - 10, { width: barW + 4, align:'center', lineBreak:false });
+        doc.fillColor('#0f172a').fontSize(7).font('Helvetica-Bold').text(String(d[seriesB]), gx + barW + 2, y + h - bH - 10, { width: barW + 4, align:'center', lineBreak:false });
+      });
+      doc.restore();
+    };
+
+    // Heatmap grid
+    const drawHeatmap = (x, y, cells) => {
+      if (!cells.length) return 0;
+      const tables = [...new Set(cells.map(c => c.table_label))];
+      const rounds = [...new Set(cells.map(c => Number(c.round_number)))].sort((a,b)=>a-b);
+      const cellW = Math.min(42, (PW - 2*M - 70) / Math.max(1, rounds.length));
+      const cellH = 22;
+      doc.save();
+      // headers
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold');
+      rounds.forEach((r, i) => doc.text(`R${r}`, x + 70 + i*cellW, y, { width: cellW, align:'center', lineBreak:false }));
+      tables.forEach((tl, ri) => {
+        const ty = y + 14 + ri*cellH;
+        doc.fillColor('#334155').fontSize(8).font('Helvetica').text(tl, x, ty + 6, { width: 66, lineBreak:false, ellipsis:true });
+        rounds.forEach((r, ci) => {
+          const cell = cells.find(c => c.table_label === tl && Number(c.round_number) === r);
+          const pos = cell ? Number(cell.positives) : 0;
+          const total = cell ? Number(cell.total) : 0;
+          const ratio = total ? pos/total : 0;
+          const bg = total === 0 ? '#f8fafc' : `rgb(${Math.round(240 - ratio*180)},${Math.round(253 - ratio*120)},${Math.round(244 - ratio*160)})`;
+          doc.rect(x + 70 + ci*cellW, ty, cellW - 2, cellH - 2).fill(ratio > 0 ? '#16a34a' : '#e2e8f0');
+          doc.fillOpacity(1);
+          doc.fillColor(ratio > 0.4 ? '#fff' : '#0f172a').fontSize(8).font('Helvetica-Bold').text(total ? `${pos}/${total}` : '—', x + 70 + ci*cellW, ty + 6, { width: cellW - 2, align:'center', lineBreak:false });
+        });
+      });
+      doc.restore();
+      return 14 + tables.length * cellH + 10;
+    };
+
+    // Helper: iniciar una página de sección (cada bloque empieza en página propia)
+    const startSection = (title, sub) => {
+      if (doc.y > 80) doc.addPage(); else doc.y = 72;
+      pageHeader();
+      doc.fillColor('#0f172a').fontSize(16).font('Helvetica-Bold').text(title, M, doc.y, { width: PW - 2*M });
+      if (sub) { doc.fillColor('#64748b').fontSize(10).font('Helvetica').text(sub, M, doc.y, { width: PW - 2*M }); }
+      doc.moveTo(M, doc.y + 6).lineTo(PW - M, doc.y + 6).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      doc.y += 14;
+      doc.fillColor('#0f172a').font('Helvetica').fontSize(10);
+    };
+    const emptyNote = (msg) => { doc.fillColor('#94a3b8').fontSize(10).font('Helvetica-Oblique').text(msg, M, doc.y, { width: PW - 2*M }); doc.y += 18; };
+    const legendRow = (items, y) => {
+      let x = M;
+      items.forEach(it => {
+        doc.rect(x, y + 3, 10, 10).fill(it.color);
+        doc.fillColor('#334155').fontSize(9).font('Helvetica').text(it.label, x + 14, y + 2, { lineBreak:false });
+        x += 14 + doc.widthOfString(it.label) + 16;
+      });
+    };
+
+    // ═══ PÁGINA 1 · Portada + KPIs ═══
+    pageHeader();
+    doc.fillColor('#0f172a').fontSize(24).font('Helvetica-Bold').text(evRow.name || '', M, doc.y, { width: PW - 2*M });
+    doc.moveDown(0.3);
+    doc.fillColor('#475569').fontSize(10).font('Helvetica');
+    const venueLine = [evRow.venue_name, evRow.venue_address].filter(Boolean).join(' · ');
+    if (venueLine) doc.text(venueLine, M, doc.y, { width: PW - 2*M });
+    doc.text(`${fmtD(evRow.starts_at)} → ${fmtD(evRow.ends_at)}  ·  Zona horaria: ${tz}`, M, doc.y, { width: PW - 2*M });
+    if (evRow.organizer_legal_name) doc.fillColor('#64748b').text(`Organiza: ${evRow.organizer_legal_name}`, M, doc.y);
+    doc.moveDown(1.5);
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('Indicadores clave', M, doc.y);
+    doc.y += 18;
+    const kpiY = doc.y;
+    const kpiW = (PW - 2*M - 24) / 4;
+    kpiTile(M + 0*(kpiW+8), kpiY, kpiW, 60, 'Empresas', kpis.empresas || 0);
+    kpiTile(M + 1*(kpiW+8), kpiY, kpiW, 60, 'Delegados', kpis.delegados || 0);
+    kpiTile(M + 2*(kpiW+8), kpiY, kpiW, 60, 'Reuniones', kpis.reuniones || 0);
+    kpiTile(M + 3*(kpiW+8), kpiY, kpiW, 60, 'Efectivas', kpis.reuniones_efectivas || 0);
+    doc.y = kpiY + 70;
+    const tasaEfect = kpis.reuniones ? ((Number(kpis.reuniones_efectivas) / Number(kpis.reuniones)) * 100).toFixed(1) : '0';
+    const tasaMatch = pipelineTotal ? ((pipelineAgg.filter(r=>['match','conditional'].includes(r.result)).reduce((s,r)=>s+Number(r.n),0) / pipelineTotal) * 100).toFixed(1) : '0';
+    doc.fillColor('#475569').fontSize(10).font('Helvetica').text(`Tasa de reuniones efectivas: `, M, doc.y, { continued:true }).font('Helvetica-Bold').fillColor('#0f172a').text(`${tasaEfect}%`);
+    doc.fillColor('#475569').fontSize(10).font('Helvetica').text(`Tasa de encaje (match + condicional): `, M, doc.y, { continued:true }).font('Helvetica-Bold').fillColor('#0f172a').text(`${tasaMatch}%`);
+
+    // ═══ PÁGINA 2 · Pipeline ═══
+    startSection('Pipeline de resultados', `${pipelineTotal} resultados registrados`);
+    if (!pipelineTotal) emptyNote('Sin resultados registrados aún.');
+    else {
+      const segs = pipelineAgg.map(r => ({ value: Number(r.n), color: RESULT_COLOR[r.result] || '#64748b', label: RESULT_ES[r.result] || r.result }));
+      const chartY = doc.y + 10;
+      const donutR = 90, donutCX = M + donutR + 20, donutCY = chartY + donutR;
+      drawDonut(donutCX, donutCY, donutR, donutR - 32, segs, pipelineTotal);
+      const legX = donutCX + donutR + 30;
+      segs.forEach((s, i) => {
+        const ly = chartY + 10 + i * 22;
+        doc.rect(legX, ly + 3, 12, 12).fill(s.color);
+        const pct = ((s.value/pipelineTotal)*100).toFixed(1);
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(s.label, legX + 20, ly + 1, { lineBreak:false });
+        doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`${s.value}  ·  ${pct}%`, legX + 20, ly + 12, { lineBreak:false });
+      });
+      doc.y = chartY + donutR * 2 + 20;
+    }
+
+    // ═══ PÁGINA 3 · Agenda ═══
+    startSection('Agenda por ronda', 'Programadas vs. efectivas');
+    if (!agendaByRound.length) emptyNote('Sin rondas configuradas.');
+    else {
+      const data = agendaByRound.map(r => ({ round_number: r.round_number, scheduled: Number(r.scheduled), effective: Number(r.effective) }));
+      const chartH = 180;
+      drawGroupedBars(M, doc.y + 10, PW - 2*M, chartH, data, 'scheduled', 'effective', '#3b82f6', '#16a34a');
+      doc.y += chartH + 24;
+      legendRow([{color:'#3b82f6', label:'Programadas'}, {color:'#16a34a', label:'Efectivas'}], doc.y);
+      doc.y += 20;
+    }
+
+    // ═══ PÁGINA 4 · Heatmap ═══
+    startSection('Mapa de calor Mesa × Ronda', 'Positivos (match + condicional) sobre total de reuniones');
+    if (!heatmap.length) emptyNote('Sin datos de agenda.');
+    else { doc.y += 10; doc.y += drawHeatmap(M, doc.y, heatmap); }
+
+    // ═══ PÁGINA 5 · Delegados ancla ═══
+    startSection('Delegados ancla', 'Top 10 por resultados positivos');
+    if (!anchors.length) emptyNote('Aún no hay delegados con resultados positivos.');
+    else {
+      const maxP = Math.max(1, ...anchors.map(a => Number(a.positives)));
+      const rowH = 24;
+      const nameW = 220;
+      const barAreaW = PW - 2*M - nameW - 80;
+      anchors.forEach((a, i) => {
+        const y = doc.y;
+        doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`${i+1}.`, M, y + 7, { width: 18, lineBreak:false });
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(a.company, M + 18, y + 7, { width: nameW - 18, lineBreak:false, ellipsis:true });
+        const barW = (Number(a.positives) / maxP) * barAreaW;
+        doc.rect(M + nameW, y + 6, Math.max(2, barW), 12).fill('#16a34a');
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(`${a.positives} / ${a.total_outcomes}`, M + nameW + barAreaW + 8, y + 7, { lineBreak:false });
+        doc.y = y + rowH;
+      });
+    }
+
+    // ═══ PÁGINA 6 · Compromisos (resumen con donuts) ═══
+    startSection('Compromisos abiertos', `${compromisos.length} acciones pendientes`);
+    if (!compromisos.length) emptyNote('No hay compromisos abiertos.');
+    else {
+      // Agregaciones
+      const byStep = new Map(), byOwner = new Map();
+      const stepColors = ['#2563eb','#16a34a','#f59e0b','#dc2626','#8b5cf6','#0ea5e9','#f97316'];
+      const ownerColors = { A:'#3b82f6', B:'#f59e0b', both:'#16a34a' };
+      compromisos.forEach(r => {
+        byStep.set(r.next_step, (byStep.get(r.next_step) || 0) + 1);
+        byOwner.set(r.owner_side || '—', (byOwner.get(r.owner_side || '—') || 0) + 1);
+      });
+      const stepSegs = [...byStep.entries()].map(([k,v], i) => ({ value:v, color:stepColors[i % stepColors.length], label: NEXT_STEP_ES[k] || k }));
+      const ownerSegs = [...byOwner.entries()].map(([k,v]) => ({ value:v, color: ownerColors[k] || '#64748b', label: OWNER_ES[k] || k }));
+      const total = compromisos.length;
+
+      const chartY = doc.y + 6;
+      // Donut 1: próximos pasos
+      const r1 = 60, c1x = M + r1 + 10, c1y = chartY + r1;
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('Por próximo paso', M, chartY - 12, { width: r1*2 + 20, align:'center' });
+      drawDonut(c1x, c1y, r1, r1 - 22, stepSegs, total);
+      let ly = chartY;
+      const leg1X = c1x + r1 + 16;
+      stepSegs.forEach(s => {
+        doc.rect(leg1X, ly + 3, 10, 10).fill(s.color);
+        const pct = ((s.value/total)*100).toFixed(0);
+        doc.fillColor('#334155').fontSize(8).font('Helvetica').text(`${s.label}: ${s.value} (${pct}%)`, leg1X + 14, ly + 2, { lineBreak:false, width: (PW/2) - leg1X - 10 });
+        ly += 14;
+      });
+
+      // Donut 2: responsables
+      const r2 = 60, c2x = M + (PW - 2*M)/2 + r2 + 10, c2y = chartY + r2;
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('Por responsable', M + (PW - 2*M)/2, chartY - 12, { width: r2*2 + 20, align:'center' });
+      drawDonut(c2x, c2y, r2, r2 - 22, ownerSegs, total);
+      let ly2 = chartY;
+      const leg2X = c2x + r2 + 16;
+      ownerSegs.forEach(s => {
+        doc.rect(leg2X, ly2 + 3, 10, 10).fill(s.color);
+        const pct = ((s.value/total)*100).toFixed(0);
+        doc.fillColor('#334155').fontSize(8).font('Helvetica').text(`${s.label}: ${s.value} (${pct}%)`, leg2X + 14, ly2 + 2, { lineBreak:false, width: PW - leg2X - M - 10 });
+        ly2 += 14;
+      });
+
+      doc.y = chartY + r1 * 2 + 20;
+
+      // Top 10 vencimientos próximos
+      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text('Próximos vencimientos (top 10)', M, doc.y);
+      doc.y += 14;
+      const soon = compromisos.filter(r => r.due_at).slice(0, 10);
+      if (!soon.length) {
+        doc.fillColor('#94a3b8').fontSize(9).font('Helvetica-Oblique').text('Sin fechas de vencimiento asignadas.', M, doc.y);
+        doc.y += 16;
+      } else {
+        soon.forEach(r => {
+          const line = `${fmtD(r.due_at)} · R${r.round_number} · ${r.company_a} ↔ ${r.company_b} — ${NEXT_STEP_ES[r.next_step] || r.next_step} (${OWNER_ES[r.owner_side] || '—'})`;
+          doc.fillColor('#334155').fontSize(9).font('Helvetica').text(line, M, doc.y, { width: PW - 2*M, lineBreak:false, ellipsis:true });
+          doc.y += 13;
+        });
+      }
+    }
+
+    // ═══ PÁGINA 7 · Brechas (donut + detalle) ═══
+    startSection('Brechas de catálogo', `${brechas.length} tags con desbalance oferta/demanda`);
+    if (!brechas.length) emptyNote('Sin brechas detectadas: toda demanda tiene oferta y viceversa.');
+    else {
+      const demandCount = brechas.filter(t => t.brecha === 'demanda_sin_oferta').length;
+      const offerCount = brechas.filter(t => t.brecha === 'oferta_sin_demanda').length;
+      const brSegs = [
+        { value: demandCount, color: '#dc2626', label: 'Demanda sin oferta' },
+        { value: offerCount, color: '#f59e0b', label: 'Oferta sin demanda' },
+      ].filter(s => s.value > 0);
+
+      const chartY = doc.y + 6;
+      const dR = 70, dCX = M + dR + 10, dCY = chartY + dR;
+      drawDonut(dCX, dCY, dR, dR - 26, brSegs, brechas.length);
+      const legX = dCX + dR + 24;
+      brSegs.forEach((s, i) => {
+        const ly = chartY + 20 + i * 24;
+        doc.rect(legX, ly + 3, 12, 12).fill(s.color);
+        const pct = ((s.value/brechas.length)*100).toFixed(0);
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(s.label, legX + 18, ly + 1, { lineBreak:false });
+        doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`${s.value} tags  ·  ${pct}%`, legX + 18, ly + 12, { lineBreak:false });
+      });
+      doc.y = chartY + dR * 2 + 20;
+
+      // Detalle por tag
+      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text('Detalle por tag', M, doc.y);
+      doc.y += 14;
+
+      brechas.forEach(t => {
+        const isDemand = t.brecha === 'demanda_sin_oferta';
+        const badgeColor = isDemand ? '#dc2626' : '#f59e0b';
+        const list = isDemand ? t.companies.demand : t.companies.offer;
+        const maxItems = 8;
+        const rowsNeeded = 32 + Math.min(list.length, maxItems) * 12;
+        ensureSpace(rowsNeeded);
+        // Badge + nombre tag + estado (sin continued:true para evitar overflow loops)
+        const headY = doc.y;
+        doc.save(); doc.roundedRect(M, headY + 2, 4, 14, 2).fill(badgeColor); doc.restore();
+        doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(t.label, M + 12, headY + 1, { width: 240, lineBreak:false });
+        doc.fillColor(badgeColor).fontSize(9).font('Helvetica-Bold').text(BRECHA_ES[t.brecha], M + 260, headY + 2, { width: 160, lineBreak:false });
+        doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`D:${t.demand} / O:${t.offer}`, PW - M - 80, headY + 2, { width: 80, align:'right', lineBreak:false });
+        doc.y = headY + 16;
+        // Subtítulo
+        const subLabel = isDemand ? 'Empresas que lo necesitan:' : 'Empresas que lo ofrecen:';
+        doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(subLabel, M + 12, doc.y, { width: PW - 2*M - 12, lineBreak:false });
+        doc.y += 11;
+        list.slice(0, maxItems).forEach(c => {
+          const line = `• ${c.company}${c.delegate ? ' — ' + c.delegate : ''}${c.email ? ' <' + c.email + '>' : ''}`;
+          doc.fillColor('#334155').fontSize(8).font('Helvetica').text(line, M + 18, doc.y, { width: PW - 2*M - 18, lineBreak:false, ellipsis:true });
+          doc.y += 11;
+        });
+        if (list.length > maxItems) {
+          doc.fillColor('#94a3b8').fontSize(8).font('Helvetica-Oblique').text(`… y ${list.length - maxItems} más`, M + 18, doc.y, { lineBreak:false });
+          doc.y += 11;
+        }
+        doc.y += 6;
+      });
+    }
+
+    // Footer en todas las páginas
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      doc.fontSize(8).fillColor('#94a3b8').font('Helvetica')
+        .text(`SONORO CMS · Rueda de Negocios · Página ${i+1} de ${range.count}`, M, PH - 30, { width: PW - 2*M, align:'center' });
+    }
+
+    doc.end();
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda/export.pdf:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
   }
 });
 

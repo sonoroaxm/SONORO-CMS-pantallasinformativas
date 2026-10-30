@@ -3558,8 +3558,8 @@
                   <label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px;" data-i18n="rn.edit.status">Status</label>
                   <select id="ev-rn-edit-status" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;">
                     <option value="pending" data-i18n="rn.status.pending">Pendiente</option>
-                    <option value="approved" data-i18n="rn.status.approved">Aprobada</option>
                     <option value="confirmed" data-i18n="rn.status.confirmed">Confirmada</option>
+                    <option value="no_show" data-i18n="rn.status.no_show">No se presentó</option>
                     <option value="cancelled" data-i18n="rn.status.cancelled">Cancelada</option>
                   </select>
                 </div>
@@ -4318,6 +4318,7 @@
               <div style="font-size:12px;color:var(--text-muted);margin-top:6px;font-weight:600;" id="ev-rn-sub"></div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" id="ev-rn-publish-btn" onclick="evRnTogglePublish()" style="display:none;"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-check-circle"/></svg> <span id="ev-rn-publish-btn-label" data-i18n="rn.hdr.publish">Publicar</span></button>
               <button class="btn btn-outline btn-sm" onclick="evRnCopyPublicLink()" data-i18n-attr="title:rn.hdr.link_title" title="Copiar link público"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-link"/></svg> <span data-i18n="rn.hdr.link">Link</span></button>
               <button class="btn btn-outline btn-sm" id="ev-rn-link-parent-btn" onclick="evRnOpenParentPicker()"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-up-right"/></svg> <span data-i18n="rn.hdr.link_parent">Vincular a evento</span></button>
               <button class="btn btn-outline btn-sm" onclick="evShowView('list')"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-arrow-left"/></svg> <span data-i18n="rn.hdr.back">Mis Eventos</span></button>
@@ -4960,6 +4961,189 @@
               </div>
             </div>
           </div>
+          <style id="rep-v3-style">
+            /* Scope: solo panel reporte productor v3 */
+            #ev-rn-panel-reporte .rep-section{margin-bottom:28px}
+            #ev-rn-panel-reporte .rep-sec-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid var(--border);transition:background .18s ease;flex-wrap:wrap}
+            #ev-rn-panel-reporte .rep-sec-header-main{display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:0;padding:4px 0}
+            #ev-rn-panel-reporte .rep-sec-header-main:hover{opacity:.85}
+            #ev-rn-panel-reporte .rep-sec-header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+            #ev-rn-panel-reporte .rep-sec-header-right select,
+            #ev-rn-panel-reporte .rep-sec-header-right input[type="search"]{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px}
+            #ev-rn-panel-reporte .rep-kicker{font-size:10px;font-weight:800;letter-spacing:2px;color:#FF1B8D;text-transform:uppercase}
+            #ev-rn-panel-reporte .rep-sec-title{margin:0;font-size:15px;font-weight:800;letter-spacing:-.2px;color:var(--text)}
+            #ev-rn-panel-reporte .rep-sec-chev{color:var(--text-dim);font-size:18px;font-weight:900;line-height:1;transition:transform .22s ease, color .22s ease;margin-left:4px;user-select:none}
+            #ev-rn-panel-reporte .rep-section.collapsed .rep-sec-chev{transform:rotate(90deg);color:#FF1B8D}
+            #ev-rn-panel-reporte .rep-sec-body{max-height:6000px;overflow:hidden;transition:max-height .3s ease, opacity .2s ease, margin .2s ease;opacity:1}
+            #ev-rn-panel-reporte .rep-section.collapsed .rep-sec-body{max-height:0;opacity:0;margin:0;padding:0}
+            #ev-rn-panel-reporte .rep-section.collapsed .rep-sec-header{margin-bottom:0;border-bottom-color:transparent}
+
+            /* Sección 1 — Donuts */
+            #ev-rn-panel-reporte .donut-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+            #ev-rn-panel-reporte .donut-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;cursor:pointer;transition:transform .18s ease, border-color .18s ease}
+            #ev-rn-panel-reporte .donut-card:hover{transform:translateY(-2px);border-color:var(--text-dim)}
+            #ev-rn-panel-reporte .donut-card:hover .rep-tt{opacity:1;transform:translateX(-50%) translateY(-4px)}
+            #ev-rn-panel-reporte .donut-wrap{position:relative;width:110px;height:110px}
+            #ev-rn-panel-reporte .donut-wrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+            #ev-rn-panel-reporte .donut-wrap .track{stroke:rgba(128,128,128,.18);fill:none;stroke-width:12}
+            #ev-rn-panel-reporte .donut-wrap .arc{fill:none;stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset .8s ease}
+            #ev-rn-panel-reporte .donut-card.ok .arc{stroke:#22c55e}
+            #ev-rn-panel-reporte .donut-card.cond .arc{stroke:#3b82f6}
+            #ev-rn-panel-reporte .donut-card.info .arc{stroke:#FF8C00}
+            #ev-rn-panel-reporte .donut-card.no .arc{stroke:#ef4444}
+            #ev-rn-panel-reporte .donut-card.ns .arc{stroke:#9ca3af}
+            #ev-rn-panel-reporte .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+            #ev-rn-panel-reporte .donut-center .n{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1;color:var(--text)}
+            #ev-rn-panel-reporte .donut-center .p{font-size:11px;font-weight:700;color:var(--text-muted);margin-top:2px}
+            #ev-rn-panel-reporte .donut-card .lbl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;text-align:center;color:var(--text-muted)}
+            #ev-rn-panel-reporte .donut-card.ok .lbl{color:#22c55e}
+            #ev-rn-panel-reporte .donut-card.cond .lbl{color:#3b82f6}
+            #ev-rn-panel-reporte .donut-card.info .lbl{color:#FF8C00}
+            #ev-rn-panel-reporte .donut-card.no .lbl{color:#ef4444}
+            #ev-rn-panel-reporte .donut-card.ns .lbl{color:#9ca3af}
+            #ev-rn-panel-reporte .rep-tt{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11.5px;color:var(--text);white-space:nowrap;opacity:0;pointer-events:none;transition:all .18s ease;z-index:10;box-shadow:0 10px 30px rgba(0,0,0,.35);min-width:220px}
+            #ev-rn-panel-reporte .rep-tt b{display:block;color:var(--text-muted);font-size:10px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px;font-weight:800}
+            #ev-rn-panel-reporte .rep-tt ul{margin:0;padding:0;list-style:none}
+            #ev-rn-panel-reporte .rep-tt li{padding:3px 0;display:flex;justify-content:space-between;gap:12px}
+            #ev-rn-panel-reporte .rep-tt li small{color:var(--text-muted);font-size:10.5px}
+
+            /* Sección 2 — Agenda */
+            #ev-rn-panel-reporte .round-util{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+            #ev-rn-panel-reporte .round-util h4{margin:0 0 4px;font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+            #ev-rn-panel-reporte .round-util .sub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
+            #ev-rn-panel-reporte .round-util .overall{display:flex;align-items:baseline;gap:10px;margin-bottom:18px}
+            #ev-rn-panel-reporte .round-util .overall b{font-size:32px;font-weight:900;letter-spacing:-1px;color:#22c55e}
+            #ev-rn-panel-reporte .round-util .overall span{font-size:12px;color:var(--text-muted);font-weight:600}
+            #ev-rn-panel-reporte .round-list{display:grid;grid-template-columns:1fr;gap:9px}
+            #ev-rn-panel-reporte .round-row{display:grid;grid-template-columns:80px 1fr 110px;gap:14px;align-items:center;font-size:12px}
+            #ev-rn-panel-reporte .round-row .lb{font-weight:800;color:var(--text)}
+            #ev-rn-panel-reporte .round-row .mini{position:relative;height:8px;background:var(--surface2);border-radius:999px;overflow:hidden}
+            #ev-rn-panel-reporte .round-row .mini span{display:block;height:100%;border-radius:999px}
+            #ev-rn-panel-reporte .round-row .pct{text-align:right;font-weight:800;color:var(--text);font-size:12px}
+            #ev-rn-panel-reporte .round-row .pct small{color:var(--text-muted);font-weight:600;margin-left:4px}
+
+            /* Sección 3 — Delegados */
+            #ev-rn-panel-reporte .delegate-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+            #ev-rn-panel-reporte .deleg-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+            #ev-rn-panel-reporte .deleg-card h4{margin:0 0 2px;font-size:12px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+            #ev-rn-panel-reporte .deleg-card .sub{font-size:11.5px;color:var(--text-muted);margin-bottom:12px}
+            #ev-rn-panel-reporte .deleg-row{display:grid;grid-template-columns:28px 1fr 60px;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--border)}
+            #ev-rn-panel-reporte .deleg-row:first-of-type{border-top:0}
+            #ev-rn-panel-reporte .deleg-row .rk{font-size:14px;font-weight:900;color:#FF1B8D;text-align:center}
+            #ev-rn-panel-reporte .deleg-row .nm{font-size:12px;font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .deleg-row .nm small{display:block;color:var(--text-muted);font-weight:600;font-size:10.5px;margin-top:2px}
+            #ev-rn-panel-reporte .deleg-row .ct{font-size:14px;font-weight:900;color:var(--text);text-align:right}
+            #ev-rn-panel-reporte .deleg-row .ct small{font-size:10.5px;font-weight:700;color:var(--text-muted);display:block;margin-top:2px}
+            #ev-rn-panel-reporte .deleg-card.cola .rk{color:#ef4444}
+            #ev-rn-panel-reporte .deleg-card.cola .ct{color:#ef4444}
+
+            /* Sección 4 — Compromisos */
+            #ev-rn-panel-reporte .two-col{display:grid;grid-template-columns:1fr 320px;gap:18px}
+            #ev-rn-panel-reporte .commit-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+            #ev-rn-panel-reporte .commit-table .th{display:grid;grid-template-columns:1fr 1fr 110px 90px 90px;gap:12px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.9px}
+            #ev-rn-panel-reporte .commit-row{display:grid;grid-template-columns:1fr 1fr 110px 90px 90px;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px}
+            #ev-rn-panel-reporte .commit-row:last-child{border-bottom:0}
+            #ev-rn-panel-reporte .commit-row .pair{font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .commit-row .pair small{display:block;color:var(--text-muted);font-weight:600;font-size:10.5px;margin-top:2px}
+            #ev-rn-panel-reporte .commit-row .step{color:var(--text);font-weight:600}
+            #ev-rn-panel-reporte .commit-row .owner{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px}
+            #ev-rn-panel-reporte .commit-row .due{font-size:11.5px;font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .commit-row .st{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;letter-spacing:.6px;text-transform:uppercase}
+            #ev-rn-panel-reporte .st.ontrack{background:rgba(34,197,94,.14);color:#22c55e}
+            #ev-rn-panel-reporte .st.risk{background:rgba(245,158,11,.14);color:#FF8C00}
+            #ev-rn-panel-reporte .st.late{background:rgba(239,68,68,.14);color:#ef4444}
+            #ev-rn-panel-reporte .st.done{background:rgba(59,130,246,.14);color:#3b82f6}
+            #ev-rn-panel-reporte .st .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+            #ev-rn-panel-reporte .commit-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:12px}
+            #ev-rn-panel-reporte .sidebar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+            #ev-rn-panel-reporte .sidebar h4{margin:0 0 12px;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)}
+            #ev-rn-panel-reporte .reminder-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--border);gap:12px}
+            #ev-rn-panel-reporte .reminder-row:first-of-type{border-top:0;padding-top:0}
+            #ev-rn-panel-reporte .reminder-row .rt{font-size:12px;font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .reminder-row .rt small{display:block;font-size:10.5px;color:var(--text-muted);font-weight:600;margin-top:2px}
+            #ev-rn-panel-reporte .reminder-row .rc{font-size:17px;font-weight:900;color:#FF1B8D;letter-spacing:-.4px}
+            #ev-rn-panel-reporte .kpi-7d{background:linear-gradient(135deg,rgba(34,197,94,.14),rgba(59,130,246,.14));border:1px solid #22c55e;border-radius:10px;padding:14px;margin-top:14px;text-align:center}
+            #ev-rn-panel-reporte .kpi-7d .lb{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#22c55e;margin-bottom:6px}
+            #ev-rn-panel-reporte .kpi-7d .vl{font-size:26px;font-weight:900;letter-spacing:-1px;color:var(--text);line-height:1}
+            #ev-rn-panel-reporte .kpi-7d .ds{font-size:11px;color:var(--text-muted);margin-top:5px;font-weight:600}
+
+            /* Sección 5 — Heatmap */
+            #ev-rn-panel-reporte .heatmap-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;overflow-x:auto}
+            #ev-rn-panel-reporte .heatmap-legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:11px;font-weight:700;color:var(--text-muted)}
+            #ev-rn-panel-reporte .heatmap-legend .lg{display:flex;align-items:center;gap:6px}
+            #ev-rn-panel-reporte .heatmap-legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--border)}
+            #ev-rn-panel-reporte .heatmap-legend .sw.ok{background:#22c55e}
+            #ev-rn-panel-reporte .heatmap-legend .sw.cond{background:#3b82f6}
+            #ev-rn-panel-reporte .heatmap-legend .sw.info{background:#FF8C00}
+            #ev-rn-panel-reporte .heatmap-legend .sw.no{background:#ef4444}
+            #ev-rn-panel-reporte .heatmap-legend .sw.ns{background:#9ca3af}
+            #ev-rn-panel-reporte .heatmap-legend .sw.empty{background:transparent;border:1px dashed var(--border)}
+            #ev-rn-panel-reporte .heatmap{display:grid;gap:4px;min-width:720px}
+            #ev-rn-panel-reporte .hm-head{font-size:10.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;text-align:center;padding:6px 0}
+            #ev-rn-panel-reporte .hm-head.col{border-bottom:1px solid var(--border)}
+            #ev-rn-panel-reporte .hm-row-lb{font-size:11px;font-weight:800;color:var(--text);display:flex;align-items:center;padding-left:6px;letter-spacing:.3px}
+            #ev-rn-panel-reporte .hm-cell{aspect-ratio:1/1;border-radius:6px;position:relative;cursor:pointer;transition:transform .15s ease, outline .15s ease}
+            #ev-rn-panel-reporte .hm-cell:hover{transform:scale(1.08);outline:2px solid var(--text);z-index:2}
+            #ev-rn-panel-reporte .hm-cell.ok{background:#22c55e}
+            #ev-rn-panel-reporte .hm-cell.cond{background:#3b82f6}
+            #ev-rn-panel-reporte .hm-cell.info{background:#FF8C00}
+            #ev-rn-panel-reporte .hm-cell.no{background:#ef4444;opacity:.85}
+            #ev-rn-panel-reporte .hm-cell.ns{background:#9ca3af}
+            #ev-rn-panel-reporte .hm-cell.empty{background:transparent;border:1px dashed var(--border)}
+            #ev-rn-panel-reporte .hm-cell[data-tt]:hover::after{content:attr(data-tt);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;font-weight:600;padding:8px 10px;border-radius:6px;white-space:pre;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:10;line-height:1.5;min-width:140px;text-align:left}
+
+            /* Sección 6 — Brechas */
+            #ev-rn-panel-reporte .gap-tabs{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-bottom:12px}
+            #ev-rn-panel-reporte .gap-tab{background:transparent;border:0;color:var(--text-muted);font-family:inherit;font-size:11.5px;font-weight:800;letter-spacing:.5px;padding:7px 14px;border-radius:6px;cursor:pointer;text-transform:uppercase}
+            #ev-rn-panel-reporte .gap-tab.active{background:rgba(255,27,141,.12);color:#FF1B8D}
+            #ev-rn-panel-reporte .gap-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+            #ev-rn-panel-reporte .gap-legend{display:flex;gap:16px;font-size:11px;font-weight:700;color:var(--text-muted);padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+            #ev-rn-panel-reporte .gap-legend .lg{display:flex;align-items:center;gap:6px}
+            #ev-rn-panel-reporte .gap-legend .sw{width:12px;height:12px;border-radius:3px}
+            #ev-rn-panel-reporte .gap-legend .sw.d{background:#FF1B8D}
+            #ev-rn-panel-reporte .gap-legend .sw.s{background:#22c55e;opacity:.8}
+            #ev-rn-panel-reporte .gap-row{display:grid;grid-template-columns:220px 1fr 90px 90px 24px;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;cursor:pointer;transition:background .15s ease}
+            #ev-rn-panel-reporte .gap-row:hover{background:var(--surface2)}
+            #ev-rn-panel-reporte .gap-row:last-of-type{border-bottom:0}
+            #ev-rn-panel-reporte .gap-row.open{background:var(--surface2)}
+            #ev-rn-panel-reporte .gap-row .tag{font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .gap-row .tag small{display:block;color:var(--text-muted);font-weight:600;font-size:10.5px;margin-top:2px}
+            #ev-rn-panel-reporte .gap-bar{position:relative;height:10px;background:var(--surface2);border-radius:999px;overflow:hidden}
+            #ev-rn-panel-reporte .gap-bar .dem{position:absolute;top:0;left:0;height:100%;background:#FF1B8D;border-radius:999px}
+            #ev-rn-panel-reporte .gap-bar .sup{position:absolute;top:0;left:0;height:100%;background:#22c55e;opacity:.8;border-radius:999px}
+            #ev-rn-panel-reporte .gap-row .dn{font-weight:800;color:var(--text);text-align:right}
+            #ev-rn-panel-reporte .gap-row .dn small{display:block;color:var(--text-muted);font-weight:600;font-size:10.5px;margin-top:1px}
+            #ev-rn-panel-reporte .gap-row .sv{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-align:right;color:var(--text-muted);text-transform:uppercase}
+            #ev-rn-panel-reporte .gap-row .sv.critical{color:#ef4444}
+            #ev-rn-panel-reporte .gap-row .sv.watch{color:#FF8C00}
+            #ev-rn-panel-reporte .gap-row .sv.ok{color:#22c55e}
+            #ev-rn-panel-reporte .gap-row .chev{color:var(--text-dim);font-size:14px;font-weight:900;transition:transform .18s ease;text-align:center}
+            #ev-rn-panel-reporte .gap-row.open .chev{transform:rotate(90deg);color:#FF1B8D}
+            #ev-rn-panel-reporte .gap-detail{padding:14px 16px;background:var(--surface2);border-bottom:1px solid var(--border)}
+            #ev-rn-panel-reporte .gap-detail-loading{color:var(--text-muted);font-size:12px;padding:8px 0}
+            #ev-rn-panel-reporte .gap-detail-empty{color:var(--text-muted);font-size:12px;font-style:italic}
+            #ev-rn-panel-reporte .gap-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+            @media (max-width:720px){#ev-rn-panel-reporte .gap-detail-grid{grid-template-columns:1fr}}
+            #ev-rn-panel-reporte .gap-detail-col{}
+            #ev-rn-panel-reporte .gap-detail-title{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+            #ev-rn-panel-reporte .gap-detail-cnt{background:var(--surface);color:var(--text);padding:1px 7px;border-radius:10px;font-size:10.5px;font-weight:800}
+            #ev-rn-panel-reporte .gap-detail-row{display:grid;grid-template-columns:1fr 1.3fr;gap:10px;padding:7px 0;border-top:1px dashed var(--border);font-size:12px}
+            #ev-rn-panel-reporte .gap-detail-row:first-of-type{border-top:0}
+            #ev-rn-panel-reporte .gap-detail-co{font-weight:700;color:var(--text)}
+            #ev-rn-panel-reporte .gap-detail-dl{color:var(--text-muted)}
+            #ev-rn-panel-reporte .gap-detail-dl a{color:#FF1B8D;text-decoration:none;font-weight:600;display:block;margin-top:2px}
+            #ev-rn-panel-reporte .gap-detail-dl a:hover{text-decoration:underline}
+            #ev-rn-panel-reporte .rep-empty{padding:20px;text-align:center;color:var(--text-muted);font-size:12px;background:var(--surface);border:1px dashed var(--border);border-radius:10px}
+
+            @media (max-width:960px){
+              #ev-rn-panel-reporte .donut-grid{grid-template-columns:repeat(2,1fr)}
+              #ev-rn-panel-reporte .delegate-grid{grid-template-columns:1fr}
+              #ev-rn-panel-reporte .two-col{grid-template-columns:1fr}
+              #ev-rn-panel-reporte .commit-table .th{display:none}
+              #ev-rn-panel-reporte .commit-row{grid-template-columns:1fr;gap:4px}
+              #ev-rn-panel-reporte .gap-row{grid-template-columns:1fr;gap:6px}
+            }
+          </style>
           <div class="ev-rn-panel hidden" id="ev-rn-panel-reporte">
             <!-- Header -->
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
@@ -4969,6 +5153,8 @@
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn btn-outline btn-sm" onclick="evRnLoadReport()" data-i18n="rn.agenda.meetings_refresh">Refrescar</button>
+                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('xlsx')" title="Descargar XLSX multi-hoja">Descargar XLSX</button>
+                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('pdf')" title="Descargar reporte en PDF">Descargar PDF</button>
                 <button class="btn btn-grad btn-sm" id="ev-rn-report-send-btn" onclick="evRnSendReport(false)" data-i18n="rn.rep.send">Enviar reporte por email</button>
               </div>
             </div>
@@ -4979,46 +5165,80 @@
             <div id="ev-rn-report-banner-fx" class="hidden" data-i18n="rn.rep.banner_fx" style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(255,27,141,0.08);border:1px solid rgba(255,27,141,0.3);color:#FF1B8D;font-size:12px;font-weight:600;">
               Varias monedas detectadas · v1 asume COP, totales son aproximados.
             </div>
-            <!-- KPIs -->
-            <div class="ev-rn-kpis" style="margin-bottom:14px;">
-              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label" data-i18n="rn.rep.kpi_total">Meetings totales</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-total">—</div></div>
-              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label" data-i18n="rn.rep.kpi_ebv">Con EBV</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-ebv">—</div><div id="ev-rn-rep-k-cov" style="font-size:10px;color:var(--text-muted);margin-top:2px;">—</div></div>
-              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label" data-i18n="rn.rep.kpi_avg">EBV promedio / meeting</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-avg">—</div></div>
-              <div class="ev-rn-kpi"><div class="ev-rn-kpi-label" data-i18n="rn.rep.kpi_sum">EBV total estimado</div><div class="ev-rn-kpi-value" id="ev-rn-rep-k-sum">—</div></div>
+            <!-- Reporte productor v3 — 6 secciones colapsables -->
+            <div class="rep-section" data-sec="pipeline">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 1</span>
+                  <h3 class="rep-sec-title">Pipeline postrueda</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right"></div>
+              </div>
+              <div class="rep-sec-body" id="rep-pipeline-body"></div>
             </div>
-            <!-- EBV detalle -->
-            <div class="card" style="margin-bottom:14px;"><div class="card-body" style="padding:16px;">
-              <div data-i18n="rn.rep.dist" style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Distribución EBV</div>
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;font-size:12px;">
-                <div><div data-i18n="rn.rep.median" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mediana</div><div id="ev-rn-rep-median" style="font-weight:700;">—</div></div>
-                <div><div data-i18n="rn.rep.min" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Mínimo</div><div id="ev-rn-rep-min" style="font-weight:700;">—</div></div>
-                <div><div data-i18n="rn.rep.max" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Máximo</div><div id="ev-rn-rep-max" style="font-weight:700;">—</div></div>
-                <div><div data-i18n="rn.rep.bilat" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Bilateral</div><div id="ev-rn-rep-bilat" style="font-weight:700;">—</div></div>
-                <div><div data-i18n="rn.rep.unilat" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Unilateral</div><div id="ev-rn-rep-unilat" style="font-weight:700;">—</div></div>
-                <div><div data-i18n="rn.rep.empty" style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Sin EBV</div><div id="ev-rn-rep-empty" style="font-weight:700;">—</div></div>
+
+            <div class="rep-section" data-sec="agenda">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 2</span>
+                  <h3 class="rep-sec-title">Aprovechamiento de agenda</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right"></div>
               </div>
-              <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;" id="ev-rn-rep-horizon-pills"></div>
-            </div></div>
-            <!-- Top meetings -->
-            <div class="card"><div class="card-body" style="padding:16px;">
-              <div data-i18n="rn.rep.top" style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px;">Top meetings por valor esperado</div>
-              <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:12px;">
-                  <thead>
-                    <tr style="border-bottom:1px solid var(--border);">
-                      <th data-i18n="rn.rep.col_n" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">#</th>
-                      <th data-i18n="rn.rep.col_a" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa A</th>
-                      <th data-i18n="rn.rep.col_b" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Empresa B</th>
-                      <th data-i18n="rn.rep.col_round_table" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Ronda · Mesa</th>
-                      <th data-i18n="rn.rep.col_type" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Tipo</th>
-                      <th data-i18n="rn.rep.col_horizon" style="text-align:left;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Horizonte</th>
-                      <th data-i18n="rn.rep.col_value" style="text-align:right;padding:8px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody id="ev-rn-rep-tbody"><tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);" data-i18n="rn.rep.empty_table">Sin datos — carga el reporte</td></tr></tbody>
-                </table>
+              <div class="rep-sec-body" id="rep-agenda-body"></div>
+            </div>
+
+            <div class="rep-section" data-sec="delegates">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 3</span>
+                  <h3 class="rep-sec-title">Delegados ancla y cola larga</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right"></div>
               </div>
-            </div></div>
+              <div class="rep-sec-body" id="rep-delegates-body"></div>
+            </div>
+
+            <div class="rep-section" data-sec="compromisos">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 4</span>
+                  <h3 class="rep-sec-title">Compromisos activos</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right"></div>
+              </div>
+              <div class="rep-sec-body" id="rep-compromisos-body"></div>
+            </div>
+
+            <div class="rep-section" data-sec="heatmap">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 5</span>
+                  <h3 class="rep-sec-title">Heatmap mesa × ronda</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right"></div>
+              </div>
+              <div class="rep-sec-body" id="rep-heatmap-body"></div>
+            </div>
+
+            <div class="rep-section" data-sec="brechas">
+              <div class="rep-sec-header">
+                <div class="rep-sec-header-main">
+                  <span class="rep-kicker">Sección 6</span>
+                  <h3 class="rep-sec-title">Brechas por tag</h3>
+                  <span class="rep-sec-chev">›</span>
+                </div>
+                <div class="rep-sec-header-right">
+                  <input type="search" id="rep-brechas-search" placeholder="Buscar tag…" onclick="event.stopPropagation()">
+                </div>
+              </div>
+              <div class="rep-sec-body" id="rep-brechas-body"></div>
+            </div>
           </div>
         </div><!-- /ev-rueda-detail-view -->
 
@@ -10960,6 +11180,36 @@ async function evOpenDetail(eventId) {
 
 // ── E-RN-7b-1: Rueda de Negocios · panel productor ───────────────
 let evRnCurrentEvent = null;
+let evRnParentSessions = [];
+
+async function evRnLoadParentSessions() {
+  evRnParentSessions = [];
+  try {
+    if (!evRnCurrentEvent || !evRnCurrentEvent.parent_event_id) return;
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.parent_event_id}/sessions`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+    if (!r.ok) return;
+    const all = await r.json();
+    evRnParentSessions = (all || []).filter(s => s.linked_rueda_id !== evRnCurrentEvent.id);
+  } catch(_) {}
+}
+
+function evRnDetectSiblingCollision(startIso, totalMin) {
+  if (!evRnParentSessions.length || !startIso) return [];
+  const s0 = new Date(startIso).getTime();
+  const e0 = s0 + totalMin * 60000;
+  const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+  const out = [];
+  for (const s of evRnParentSessions) {
+    const ss = new Date(s.starts_at).getTime();
+    const se = new Date(s.ends_at).getTime();
+    if (s0 < se && ss < e0) {
+      const t1 = new Date(ss).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',timeZone:tz});
+      const t2 = new Date(se).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',timeZone:tz});
+      out.push({ name: s.name, start: t1, end: t2, type: s.session_type });
+    }
+  }
+  return out;
+}
 
 function evOpenRueda(ev) {
   evRnCurrentEvent = ev;
@@ -10978,6 +11228,7 @@ function evOpenRueda(ev) {
   evRnLoadConfig();
   evRnLoadRounds();
   evRnLoadZones(); evRnLoadTables(); evRnLoadPlanningStats();
+  evRnLoadParentSessions();
   evRnTagsLoad();
   evRnSubscribeSocket(ev.id);
 }
@@ -11004,7 +11255,41 @@ function evRnRenderHeader(ev, start, end, mm) {
   };
   const s = statusMap[ev.status] || statusMap.draft;
   pill.textContent = s.label; pill.style.background = s.bg; pill.style.color = s.fg;
+  const pubBtn = document.getElementById('ev-rn-publish-btn');
+  const pubLbl = document.getElementById('ev-rn-publish-btn-label');
+  if (pubBtn && pubLbl) {
+    if (ev.status === 'draft') {
+      pubBtn.style.display = ''; pubBtn.style.borderColor = ''; pubBtn.style.color = '';
+      pubLbl.textContent = evRnT('rn.hdr.publish','Publicar');
+    } else if (ev.status === 'published' || ev.status === 'live') {
+      pubBtn.style.display = ''; pubBtn.style.borderColor = '#ef4444'; pubBtn.style.color = '#ef4444';
+      pubLbl.textContent = evRnT('rn.hdr.unpublish','Despublicar');
+    } else {
+      pubBtn.style.display = 'none';
+    }
+  }
   if (typeof evRnRefreshLinkBtn === 'function') evRnRefreshLinkBtn();
+}
+async function evRnTogglePublish(){
+  if (!evRnCurrentEvent) return;
+  const cur = evRnCurrentEvent.status;
+  const next = (cur === 'published' || cur === 'live') ? 'draft' : 'published';
+  const confirmMsg = next === 'published'
+    ? evRnT('rn.hdr.publish_confirm','¿Publicar la rueda? El link público quedará activo y los asistentes podrán inscribirse.')
+    : evRnT('rn.hdr.unpublish_confirm','¿Despublicar la rueda? El link público dejará de aceptar inscripciones nuevas.');
+  if (!confirm(confirmMsg)) return;
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evRnCurrentEvent.id}`, {
+      method:'PATCH',
+      headers:{ 'Authorization':`Bearer ${authToken}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ status: next })
+    });
+    if (!r.ok) { showToast(evRnT('rn.hdr.publish_err','No se pudo cambiar el estado'), 'error'); return; }
+    const updated = await r.json();
+    evRnCurrentEvent.status = updated.status || next;
+    evRnRenderHeader(evRnCurrentEvent);
+    showToast(next === 'published' ? evRnT('rn.hdr.publish_ok','Rueda publicada') : evRnT('rn.hdr.unpublish_ok','Rueda despublicada'), 'success');
+  } catch(_) { showToast(evRnT('rn.hdr.publish_err','No se pudo cambiar el estado'), 'error'); }
 }
 // Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
 document.addEventListener('sonoro:localechange', function(){
@@ -11185,6 +11470,21 @@ async function evRnPlanRounds() {
   const breakMin = parseInt(document.getElementById('ev-rn-plan-breakmin').value, 10) || 10;
   const mm = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
   if (!starts) { showStatus('Inicio requerido', 'error'); return; }
+  // Guard: overflow Rueda window + collision con sesiones hermanas
+  try {
+    const mMin2 = mm.meeting_duration_minutes || 20;
+    const totMin2 = total * mMin2 + breakCount * breakMin;
+    const st2 = new Date(starts);
+    const endPlan2 = new Date(st2.getTime() + totMin2 * 60000);
+    const warnings = [];
+    if (evRnCurrentEvent && evRnCurrentEvent.ends_at) {
+      const re = new Date(evRnCurrentEvent.ends_at);
+      if (endPlan2 > re) warnings.push(`La agenda termina ${Math.round((endPlan2-re)/60000)} min después del fin de la Rueda.`);
+    }
+    const conflicts = evRnDetectSiblingCollision(st2.toISOString(), totMin2);
+    if (conflicts.length) warnings.push(`Se solapa con: ${conflicts.map(c=>`${c.name} (${c.start}-${c.end})`).join(', ')}.`);
+    if (warnings.length && !confirm(`Hay avisos:\n\n- ${warnings.join('\n- ')}\n\n¿Generar las rondas igualmente?`)) return;
+  } catch(_) {}
   try {
     const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/plan`, {
       method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
@@ -11232,6 +11532,15 @@ async function evRnLoadPlanningStats() {
     set('ev-rn-cap-req', s.accepted_requests);
     set('ev-rn-cap-rondas', s.suggested_rondas || '—');
     set('ev-rn-cap-mesas', s.suggested_mesas);
+    try {
+      const planInp = document.getElementById('ev-rn-plan-starts');
+      if (planInp && !planInp.value && evRnCurrentEvent && evRnCurrentEvent.starts_at) {
+        const tz = evRnCurrentEvent.timezone || 'UTC';
+        const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).formatToParts(new Date(evRnCurrentEvent.starts_at));
+        const o = {}; for (const p of parts) o[p.type] = p.value;
+        planInp.value = `${o.year}-${o.month}-${o.day}T${o.hour==='24'?'00':o.hour}:${o.minute}`;
+      }
+    } catch(_) {}
     const slots = (s.total_slots || 0);
     const need = s.accepted_requests || 0;
     const slotsEl = document.getElementById('ev-rn-cap-slots');
@@ -11266,7 +11575,29 @@ function evRnPlanPreview() {
     } catch(_){}
   }
   const tpl = evRnT('rn.agenda.plan_preview','{total} rondas × {meeting}min + {bc} breaks × {bm}min = {dur}');
-  prev.textContent = tpl.replace('{total}', total).replace('{meeting}', meetingMin).replace('{bc}', breakCount).replace('{bm}', breakMin).replace('{dur}', dur) + endStr;
+  let warn = '';
+  try {
+    if (starts && evRnCurrentEvent && evRnCurrentEvent.ends_at) {
+      const planEnd = new Date(new Date(starts).getTime() + totalMin * 60000);
+      const ruedaEnd = new Date(evRnCurrentEvent.ends_at);
+      const ruedaStart = new Date(evRnCurrentEvent.starts_at);
+      const over = Math.round((planEnd - ruedaEnd) / 60000);
+      const before = Math.round((ruedaStart - new Date(starts)) / 60000);
+      if (over > 0) warn = ` · ⚠ se pasa ${over} min del fin de la Rueda (${ruedaEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})})`;
+      else if (before > 0) warn = ` · ⚠ empieza ${before} min antes del inicio de la Rueda`;
+    }
+  } catch(_) {}
+  let collisions = '';
+  try {
+    if (starts) {
+      const conflicts = evRnDetectSiblingCollision(new Date(starts).toISOString(), totalMin);
+      if (conflicts.length) {
+        collisions = `<div style="color:#ef4444;margin-top:4px;font-weight:600;">⚠ Colisión con ${conflicts.length} sesión(es) del evento padre:</div>` +
+          conflicts.map(c => `<div style="color:#ef4444;margin-left:14px;font-size:11px;">· ${c.name} (${c.type}) ${c.start}–${c.end}</div>`).join('');
+      }
+    }
+  } catch(_) {}
+  prev.innerHTML = (tpl.replace('{total}', total).replace('{meeting}', meetingMin).replace('{bc}', breakCount).replace('{bm}', breakMin).replace('{dur}', dur) + endStr) + (warn ? `<div style="color:#ef4444;margin-top:4px;font-weight:600;">${warn}</div>` : '') + collisions;
   prev.style.display = 'block';
 }
 
@@ -11317,13 +11648,43 @@ async function evRnAutoOpen() {
     }
     evRnAutoStats = s;
     if (startsInput && !startsInput.value) {
-      const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); d.setSeconds(0, 0);
-      startsInput.value = d.toISOString().slice(0,16);
+      const tz = (evRnCurrentEvent && evRnCurrentEvent.timezone) || 'UTC';
+      const iso = evRnCurrentEvent && evRnCurrentEvent.starts_at;
+      let v = '';
+      if (iso) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, hour12:false, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }).formatToParts(new Date(iso));
+          const o = {}; for (const p of parts) o[p.type] = p.value;
+          v = `${o.year}-${o.month}-${o.day}T${o.hour==='24'?'00':o.hour}:${o.minute}`;
+        } catch(_) {}
+      }
+      if (!v) { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); d.setSeconds(0, 0); v = d.toISOString().slice(0,16); }
+      startsInput.value = v;
     }
     const mesasHave = Number(s.configured_tables) || 0;
     const faltan = Math.max(0, mesasNeed - mesasHave);
     summary.innerHTML = evRnT('rn.agenda.cap_auto_summary','Se crearán <b>{m}</b> mesas nuevas, <b>{r}</b> rondas y las reuniones correspondientes.')
       .replace('{m}', faltan).replace('{r}', rondas);
+    try {
+      const mm = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
+      const mMin = mm.meeting_duration_minutes || 20;
+      const bk = parseInt(document.getElementById('ev-rn-auto-breaks').value, 10) || 0;
+      const totMin = rondas * mMin + bk * 10;
+      const st = new Date(startsInput.value);
+      const endPlan = new Date(st.getTime() + totMin * 60000);
+      let extra = `<div style="margin-top:6px;color:var(--text-muted);">Duración cita: <b>${mMin} min</b> · total ${Math.floor(totMin/60)}h ${totMin%60}min · fin ~${endPlan.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>`;
+      if (evRnCurrentEvent && evRnCurrentEvent.ends_at) {
+        const re = new Date(evRnCurrentEvent.ends_at);
+        const over = Math.round((endPlan - re) / 60000);
+        if (over > 0) extra += `<div style="margin-top:4px;color:#ef4444;font-weight:600;">⚠ se pasa ${over} min del fin de la Rueda (${re.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}). Reduce "Duración cita" en Configuración o acorta solicitudes.</div>`;
+      }
+      const conflicts = evRnDetectSiblingCollision(st.toISOString(), totMin);
+      if (conflicts.length) {
+        extra += `<div style="margin-top:4px;color:#ef4444;font-weight:600;">⚠ Colisión con ${conflicts.length} sesión(es) del evento padre:</div>` +
+          conflicts.map(c => `<div style="color:#ef4444;margin-left:14px;font-size:11px;">· ${c.name} (${c.type}) ${c.start}–${c.end}</div>`).join('');
+      }
+      summary.innerHTML += extra;
+    } catch(_) {}
     form.style.display = 'block';
   } catch(_) { showStatus(evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); }
 }
@@ -11344,12 +11705,28 @@ async function evRnAutoRun() {
   const starts = document.getElementById('ev-rn-auto-starts').value;
   const breakCount = parseInt(document.getElementById('ev-rn-auto-breaks').value, 10) || 0;
   if (!starts) { showStatus(evRnT('rn.agenda.cap_auto_need_starts','Falta la hora de inicio'), 'error'); return; }
+  // Guard: overflow Rueda window + collision con sesiones hermanas
+  try {
+    const mmg = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking) || {};
+    const mMin = mmg.meeting_duration_minutes || 20;
+    const totMin = rondas * mMin + breakCount * 10;
+    const st = new Date(starts);
+    const endPlan = new Date(st.getTime() + totMin * 60000);
+    const warnings = [];
+    if (evRnCurrentEvent && evRnCurrentEvent.ends_at) {
+      const re = new Date(evRnCurrentEvent.ends_at);
+      if (endPlan > re) warnings.push(`La agenda termina ${Math.round((endPlan-re)/60000)} min después del fin de la Rueda.`);
+    }
+    const conflicts = evRnDetectSiblingCollision(st.toISOString(), totMin);
+    if (conflicts.length) warnings.push(`Se solapa con: ${conflicts.map(c=>`${c.name} (${c.start}-${c.end})`).join(', ')}.`);
+    if (warnings.length && !confirm(`Hay avisos:\n\n- ${warnings.join('\n- ')}\n\n¿Crear la agenda igualmente?`)) return;
+  } catch(_) {}
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
   try {
     if (faltan > 0) await evRnCreateTablesBatch(faltan);
     const planRes = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/rounds/plan`, {
       method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
-      body: JSON.stringify({ starts_at: new Date(starts).toISOString(), total_rounds: rondas, break_count: breakCount, break_minutes: 10 })
+      body: JSON.stringify({ starts_at: new Date(starts).toISOString(), total_rounds: rondas, meeting_minutes: ((evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.matchmaking && evRnCurrentEvent.config.matchmaking.meeting_duration_minutes) || 20), break_count: breakCount, break_minutes: 10 })
     });
     if (!planRes.ok) { const d = await planRes.json().catch(()=>({})); showStatus(d.error || evRnT('rn.agenda.cap_auto_err','No se pudo generar la agenda'), 'error'); return; }
     const solverRes = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/solver/run`, {
@@ -12103,21 +12480,420 @@ function evRnFmtDateTz(iso) {
 async function evRnLoadReport() {
   if (!evCurrentEventId) return;
   try {
-    const r = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/report`, {
-      headers:{ 'Authorization':`Bearer ${authToken}` }
-    });
-    evRnReportCache = r.ok ? await r.json() : null;
+    const [ov, pr] = await Promise.all([
+      fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/report`, { headers:{ 'Authorization':`Bearer ${authToken}` } }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda`, { headers:{ 'Authorization':`Bearer ${authToken}` } }).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]);
+    evRnReportCache = { overview: ov, postrueda: pr };
     evRnReportRender();
   } catch(_) { evRnReportCache = null; evRnReportRender(); }
 }
-function evRnReportRender() {
-  const d = evRnReportCache;
-  const statusEl = document.getElementById('ev-rn-report-status');
-  if (!d) {
-    if (statusEl) statusEl.textContent = evRnT('rn.empty.report_err','No se pudo cargar el reporte');
+
+// Helpers colapsables + renderers reporte productor v3
+function evRnRepRestoreCollapsed(){
+  try{
+    const st = JSON.parse(localStorage.getItem('rn.rep.sec.v3')||'{}');
+    document.querySelectorAll('#ev-rn-panel-reporte .rep-section').forEach(sec=>{
+      const k = sec.getAttribute('data-sec');
+      if (st[k]) sec.classList.add('collapsed');
+    });
+  }catch(_){}
+}
+function evRnRepToggle(key){
+  const sec = document.querySelector(`#ev-rn-panel-reporte .rep-section[data-sec="${key}"]`);
+  if(!sec) return;
+  sec.classList.toggle('collapsed');
+  try{
+    const st = JSON.parse(localStorage.getItem('rn.rep.sec.v3')||'{}');
+    st[key] = sec.classList.contains('collapsed');
+    localStorage.setItem('rn.rep.sec.v3', JSON.stringify(st));
+  }catch(_){}
+}
+function evRnRepWireHeaders(){
+  document.querySelectorAll('#ev-rn-panel-reporte .rep-section').forEach(sec=>{
+    const main = sec.querySelector('.rep-sec-header-main');
+    if (!main || main.dataset.wired) return;
+    main.dataset.wired = '1';
+    main.addEventListener('click', (e)=>{
+      if (e.target.closest('select,input,button,option,label')) return;
+      const k = sec.getAttribute('data-sec');
+      evRnRepToggle(k);
+    });
+  });
+}
+
+function renderRepPipeline(pipeline){
+  const host = document.getElementById('rep-pipeline-body');
+  if (!host) return;
+  const by = (pipeline && pipeline.by_result) || {};
+  const topDict = (pipeline && pipeline.top) || {};
+  const defs = [
+    { key:'match',       cls:'ok',   lbl:'Match',       ttTitle:'Top 3 compromisos próximos', ttKey:'match' },
+    { key:'conditional', cls:'cond', lbl:'Condicional', ttTitle:'Top 3 pendientes de validar', ttKey:'conditional' },
+    { key:'needs_info',  cls:'info', lbl:'Falta info',  ttTitle:'Top 3 pendientes datos',      ttKey:'needs_info' },
+    { key:'no_match',    cls:'no',   lbl:'Sin encaje',  ttTitle:'Razón principal reportada',   ttKey:'no_match_reasons' },
+    { key:'no_show',     cls:'ns',   lbl:'No asistió',  ttTitle:'Concentración de ausencias',  ttKey:'no_show_rounds' }
+  ];
+  const R = 42, C = 2 * Math.PI * R;
+  const anyData = defs.some(d => (by[d.key] && by[d.key].n));
+  if (!anyData){
+    host.innerHTML = `<div class="rep-empty">Sin citas con outcome capturado todavía</div>`;
     return;
   }
-  // Estado envío: la info live viene del evento. Lo tomamos de evRnCurrentEvent.config si está, si no "No enviado".
+  const cards = defs.map(d=>{
+    const slot = by[d.key] || { n:0, pct:0 };
+    const n = Number(slot.n||0);
+    const pct = Number(slot.pct||0);
+    const pctLabel = (pct <= 1 ? pct*100 : pct).toFixed(1).replace('.',',') + ' %';
+    const offset = C - (pct <= 1 ? pct : pct/100) * C;
+    const topList = Array.isArray(topDict[d.ttKey]) ? topDict[d.ttKey].slice(0,3) : [];
+    let ttInner = '';
+    if (topList.length){
+      ttInner = `<b>${d.ttTitle}</b><ul>` + topList.map(it=>{
+        if (d.ttKey === 'no_match_reasons') return `<li>${evRnEscape(it.dim||'—')} <small>${it.n||0}</small></li>`;
+        if (d.ttKey === 'no_show_rounds') return `<li>Ronda ${it.round||'—'} <small>${it.n||0}</small></li>`;
+        const pair = [it.company_a, it.company_b].filter(Boolean).join(' · ');
+        const step = it.next_step ? `<small>${evRnEscape(it.next_step)}</small>` : '';
+        return `<li>${evRnEscape(pair||'—')} ${step}</li>`;
+      }).join('') + `</ul>`;
+    } else {
+      ttInner = `<b>${d.ttTitle}</b><ul><li>Sin datos<small>—</small></li></ul>`;
+    }
+    return `<div class="donut-card ${d.cls}">
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle class="track" cx="50" cy="50" r="${R}"/>
+          <circle class="arc" cx="50" cy="50" r="${R}" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"/>
+        </svg>
+        <div class="donut-center"><div class="n">${n}</div><div class="p">${pctLabel}</div></div>
+      </div>
+      <div class="lbl">${d.lbl}</div>
+      <div class="rep-tt">${ttInner}</div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `<div class="donut-grid">${cards}</div>`;
+}
+
+function renderRepAgenda(agenda){
+  const host = document.getElementById('rep-agenda-body');
+  if (!host) return;
+  if (!agenda || !agenda.overall){
+    host.innerHTML = `<div class="rep-empty">Sin datos de agenda disponibles</div>`;
+    return;
+  }
+  const sch = Number(agenda.overall.scheduled||0);
+  const eff = Number(agenda.overall.effective||0);
+  const pct = sch ? (eff/sch*100) : 0;
+  const rounds = Array.isArray(agenda.by_round) ? agenda.by_round : [];
+  const rowsHtml = rounds.map(r=>{
+    const rs = Number(r.scheduled||0);
+    const re = Number(r.effective||0);
+    const rp = rs ? Math.round(re/rs*100) : 0;
+    const color = rp >= 85 ? '#22c55e' : (rp >= 70 ? '#FF8C00' : '#ef4444');
+    return `<div class="round-row">
+      <div class="lb">Ronda ${r.round||'—'}</div>
+      <div class="mini"><span style="width:${rp}%;background:${color}"></span></div>
+      <div class="pct">${rp}%<small>${re}/${rs}</small></div>
+    </div>`;
+  }).join('');
+  host.innerHTML = `<div class="round-util">
+    <h4>Citas efectivas sobre programadas</h4>
+    <div class="sub">Mide ausentismo real (no_show + cancelación última hora). Lectura por ronda detecta fatiga o mala programación horaria.</div>
+    <div class="overall"><b>${pct.toFixed(1).replace('.',',')} %</b><span>${eff} citas efectivas de ${sch} programadas</span></div>
+    <div class="round-list">${rowsHtml || '<div class="rep-empty">Sin desglose por ronda</div>'}</div>
+  </div>`;
+}
+
+function renderRepDelegates(delegates){
+  const host = document.getElementById('rep-delegates-body');
+  if (!host) return;
+  const anchors = (delegates && Array.isArray(delegates.anchors)) ? delegates.anchors.slice(0,5) : [];
+  const longtail = (delegates && Array.isArray(delegates.longtail)) ? delegates.longtail.slice(0,10) : [];
+  if (!anchors.length && !longtail.length){
+    host.innerHTML = `<div class="rep-empty">Sin información de delegados todavía</div>`;
+    return;
+  }
+  const anchorsHtml = anchors.length ? anchors.map((d,i)=>`
+    <div class="deleg-row">
+      <div class="rk">${i+1}</div>
+      <div class="nm">${evRnEscape(d.company||d.name||'—')}<small>${evRnEscape(d.name||'')}</small></div>
+      <div class="ct">${d.positives||0}<small>matches</small></div>
+    </div>`).join('') : '<div class="rep-empty" style="margin:8px 0;">Sin delegados ancla</div>';
+  const longtailHtml = longtail.length ? longtail.map(d=>`
+    <div class="deleg-row">
+      <div class="rk">·</div>
+      <div class="nm">${evRnEscape(d.company||d.name||'—')}<small>${evRnEscape(d.name||'')}${d.outcomes?` · ${d.outcomes} citas`:''}</small></div>
+      <div class="ct">0<small>matches</small></div>
+    </div>`).join('') : '<div class="rep-empty" style="margin:8px 0;">Sin cola larga</div>';
+  host.innerHTML = `<div class="delegate-grid">
+    <div class="deleg-card">
+      <h4>Top 5 — Ancla</h4>
+      <div class="sub">Más matches cerrados. Perfiles a repetir en próxima edición.</div>
+      ${anchorsHtml}
+    </div>
+    <div class="deleg-card cola">
+      <h4>Cola larga — 0 matches</h4>
+      <div class="sub">Delegados con ≥1 cita y ningún match. Candidatos a invitación mejor matcheada o revisión de perfil.</div>
+      ${longtailHtml}
+    </div>
+  </div>`;
+}
+
+function renderRepCompromisos(compromisos){
+  const host = document.getElementById('rep-compromisos-body');
+  if (!host) return;
+  const list = Array.isArray(compromisos) ? compromisos : [];
+  const now = Date.now();
+  let onTrack = 0, risk = 0, late = 0, done = 0;
+  const rowsHtml = list.slice(0,20).map(c=>{
+    const due = c.due_at ? new Date(c.due_at).getTime() : null;
+    let stCls = 'ontrack', stLbl = 'En curso';
+    if (c.status === 'done' || c.result === 'match' && c.closed){ stCls = 'done'; stLbl = 'Cumplido'; }
+    else if (due && due < now){ stCls = 'late'; stLbl = 'Vencido'; }
+    else if (due && (due - now) < 72*3600*1000){ stCls = 'risk'; stLbl = 'Riesgo'; }
+    if (stCls==='ontrack') onTrack++; else if (stCls==='risk') risk++; else if (stCls==='late') late++; else if (stCls==='done') done++;
+    const dueLabel = c.due_at ? evRnFmtDateTz(c.due_at).split(',')[0] : '—';
+    const ownerLbl = c.owner_side === 'A' ? 'Yo' : (c.owner_side === 'B' ? 'Contraparte' : 'Ambos');
+    const pair = [c.company_a, c.company_b].filter(Boolean).join(' · ');
+    const sub = `R${c.round_number||'—'}${c.table_label?` · ${evRnEscape(c.table_label)}`:''}`;
+    return `<div class="commit-row">
+      <div class="pair">${evRnEscape(pair||'—')}<small>${sub}</small></div>
+      <div class="step">${evRnEscape(c.next_step||'—')}</div>
+      <div class="owner">${ownerLbl}</div>
+      <div class="due">${dueLabel}</div>
+      <div><span class="st ${stCls}"><span class="dot"></span>${stLbl}</span></div>
+    </div>`;
+  }).join('');
+  // Agg bilateral confirmación: por meeting_id, conta sides
+  const byMeeting = {};
+  list.forEach(c=>{
+    const k = c.meeting_id;
+    if (!k) return;
+    byMeeting[k] = byMeeting[k] || { sides:new Set(), results:new Set() };
+    if (c.side) byMeeting[k].sides.add(c.side);
+    if (c.result) byMeeting[k].results.add(c.result);
+  });
+  let dualOk = 0, oneSide = 0, discord = 0;
+  Object.values(byMeeting).forEach(m=>{
+    if (m.sides.size >= 2){
+      if (m.results.size <= 1) dualOk++;
+      else discord++;
+    } else if (m.sides.size === 1) oneSide++;
+  });
+  // Cumplimiento 7d
+  const total7d = list.length;
+  const done7d = done;
+  const pct7d = total7d ? Math.round(done7d/total7d*100) : 0;
+  const tableInner = rowsHtml || `<div class="commit-empty">Sin compromisos registrados</div>`;
+  host.innerHTML = `<div class="two-col">
+    <div class="commit-table">
+      <div class="th">
+        <div class="cell">Pareja</div>
+        <div class="cell">Próximo paso</div>
+        <div class="cell">Responsable</div>
+        <div class="cell">Fecha</div>
+        <div class="cell">Estado</div>
+      </div>
+      ${tableInner}
+    </div>
+    <div class="sidebar">
+      <h4>Confirmación bilateral</h4>
+      <div class="reminder-row"><div class="rt">Doble-confirmados<small>Ambos lados cerraron ficha</small></div><div class="rc" style="color:#22c55e">${dualOk}</div></div>
+      <div class="reminder-row"><div class="rt">Un lado solo<small>Pendiente contraparte</small></div><div class="rc" style="color:#FF8C00">${oneSide}</div></div>
+      <div class="reminder-row"><div class="rt">Discordantes<small>Resultados que no coinciden</small></div><div class="rc" style="color:#ef4444">${discord}</div></div>
+      <h4 style="margin-top:18px">Recordatorios programados</h4>
+      <div class="reminder-row"><div class="rt">Nudge 48h<small>Pendientes de recordar</small></div><div class="rc">${risk}</div></div>
+      <div class="reminder-row"><div class="rt">Nudge 7d<small>Status pipeline semana 1</small></div><div class="rc">${onTrack}</div></div>
+      <div class="kpi-7d">
+        <div class="lb">Cumplimiento compromisos 7d</div>
+        <div class="vl">${pct7d} %</div>
+        <div class="ds">${done7d} de ${total7d} compromisos marcados como cumplidos</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRepHeatmap(heatmap){
+  const host = document.getElementById('rep-heatmap-body');
+  if (!host) return;
+  const cells = Array.isArray(heatmap) ? heatmap : [];
+  if (!cells.length){
+    host.innerHTML = `<div class="rep-empty">Sin datos de heatmap mesa × ronda</div>`;
+    return;
+  }
+  // Build map mesa -> ronda -> {positives,total}
+  const tables = {};
+  let maxRound = 0;
+  cells.forEach(c=>{
+    const t = c.table_label || `Mesa ${c.display_order||'?'}`;
+    const r = Number(c.round_number||0);
+    if (r > maxRound) maxRound = r;
+    tables[t] = tables[t] || { order: c.display_order || 999, rounds: {} };
+    tables[t].rounds[r] = { positives: Number(c.positives||0), total: Number(c.total||0) };
+  });
+  const tableNames = Object.keys(tables).sort((a,b)=> tables[a].order - tables[b].order);
+  const roundCount = Math.max(maxRound, 1);
+  // Build grid
+  const gridCols = `80px repeat(${roundCount}, minmax(44px,1fr))`;
+  let html = '';
+  html += `<div></div>`;
+  for (let r=1; r<=roundCount; r++){
+    html += `<div class="hm-head col">R${r}</div>`;
+  }
+  tableNames.forEach(tn=>{
+    html += `<div class="hm-row-lb">${evRnEscape(tn)}</div>`;
+    for (let r=1; r<=roundCount; r++){
+      const cell = tables[tn].rounds[r];
+      if (!cell || !cell.total){
+        html += `<div class="hm-cell empty"></div>`;
+      } else {
+        const ratio = cell.positives / cell.total;
+        let cls = 'no';
+        if (ratio >= 0.75) cls = 'ok';
+        else if (ratio >= 0.5) cls = 'cond';
+        else if (ratio >= 0.25) cls = 'info';
+        else if (ratio === 0 && cell.total > 0) cls = 'ns';
+        const tt = `${tn} · R${r}\\nMatches: ${cell.positives}/${cell.total}`;
+        html += `<div class="hm-cell ${cls}" data-tt="${tt}"></div>`;
+      }
+    }
+  });
+  host.innerHTML = `<div class="heatmap-wrap">
+    <div class="heatmap-legend">
+      <div class="lg"><div class="sw ok"></div> Match (≥75%)</div>
+      <div class="lg"><div class="sw cond"></div> Mixto (50-74%)</div>
+      <div class="lg"><div class="sw info"></div> Débil (25-49%)</div>
+      <div class="lg"><div class="sw no"></div> Sin encaje (&lt;25%)</div>
+      <div class="lg"><div class="sw ns"></div> Cero matches</div>
+      <div class="lg"><div class="sw empty"></div> Mesa libre</div>
+    </div>
+    <div class="heatmap" style="grid-template-columns:${gridCols}">${html}</div>
+  </div>`;
+}
+
+function renderRepBrechas(brechas){
+  const host = document.getElementById('rep-brechas-body');
+  if (!host) return;
+  const state = evRnRepBrechasState;
+  const dataA = (brechas && Array.isArray(brechas.demand_without_offer)) ? brechas.demand_without_offer : [];
+  const dataB = (brechas && Array.isArray(brechas.offer_without_demand)) ? brechas.offer_without_demand : [];
+  const activeList = state.tab === 'offer' ? dataB : dataA;
+  if (!dataA.length && !dataB.length){
+    host.innerHTML = `<div class="rep-empty">Sin brechas detectadas por tag</div>`;
+    return;
+  }
+  const q = (state.query||'').trim().toLowerCase();
+  const filtered = q ? activeList.filter(it => (it.label||'').toLowerCase().includes(q) || (it.category||'').toLowerCase().includes(q)) : activeList;
+  const maxDem = Math.max(1, ...activeList.map(it => Number(it.n_demand||0)));
+  const rowsHtml = filtered.map(it=>{
+    const nd = Number(it.n_demand||0);
+    const no = Number(it.n_offer||0);
+    const demW = Math.round((nd / maxDem) * 100);
+    const supW = Math.round((no / maxDem) * 100);
+    const matchRate = nd ? (no/nd) : 0;
+    let svCls = 'ok', svLbl = 'Oferta suficiente';
+    if (state.tab === 'demand'){
+      if (matchRate < 0.25){ svCls = 'critical'; svLbl = 'Crítica'; }
+      else if (matchRate < 0.6){ svCls = 'watch'; svLbl = 'A vigilar'; }
+    } else {
+      if (no > nd * 3){ svCls = 'critical'; svLbl = 'Sobre-oferta'; }
+      else if (no > nd * 1.5){ svCls = 'watch'; svLbl = 'A vigilar'; }
+    }
+    const left = state.tab === 'offer' ? `${no} / ${nd}` : `${nd} / ${no}`;
+    const leftSub = state.tab === 'offer' ? 'oferta / demanda' : 'demanda / match';
+    const open = state.openTagId === it.id;
+    return `<div class="gap-row ${open?'open':''}" data-tag-id="${evRnEscape(it.id||'')}" onclick="evRnRepBrechasToggle('${evRnEscape(it.id||'')}')">
+      <div class="tag">${evRnEscape(it.label||'—')}<small>cat: ${evRnEscape(it.category||'—')}</small></div>
+      <div class="gap-bar"><div class="dem" style="width:${demW}%"></div><div class="sup" style="width:${supW}%"></div></div>
+      <div class="dn">${left}<small>${leftSub}</small></div>
+      <div class="sv ${svCls}">${svLbl}</div>
+      <div class="chev">›</div>
+    </div>${open ? `<div class="gap-detail" id="gap-detail-${evRnEscape(it.id||'')}"><div class="gap-detail-loading">Cargando empresas…</div></div>` : ''}`;
+  }).join('');
+  host.innerHTML = `
+    <div class="gap-tabs">
+      <button class="gap-tab ${state.tab==='demand'?'active':''}" onclick="evRnRepBrechasSetTab('demand')">Demanda sin oferta</button>
+      <button class="gap-tab ${state.tab==='offer'?'active':''}" onclick="evRnRepBrechasSetTab('offer')">Oferta sin demanda</button>
+    </div>
+    <div class="gap-table">
+      <div class="gap-legend">
+        <div class="lg"><div class="sw d"></div> Demanda registrada</div>
+        <div class="lg"><div class="sw s"></div> Oferta con match efectivo</div>
+      </div>
+      ${rowsHtml || '<div class="commit-empty">Sin tags que coincidan con la búsqueda</div>'}
+    </div>`;
+  // Wire search input (fuera de header no colapsa — está en header-right)
+  const searchEl = document.getElementById('rep-brechas-search');
+  if (searchEl && !searchEl.dataset.wired){
+    searchEl.dataset.wired = '1';
+    searchEl.addEventListener('input', (e)=>{
+      evRnRepBrechasState.query = e.target.value || '';
+      renderRepBrechas(evRnReportCache && evRnReportCache.postrueda && evRnReportCache.postrueda.brechas);
+    });
+  }
+}
+var evRnRepBrechasState = { tab:'demand', query:'', openTagId:null, cache:{} };
+function evRnRepBrechasSetTab(tab){
+  evRnRepBrechasState.tab = tab;
+  evRnRepBrechasState.openTagId = null;
+  renderRepBrechas(evRnReportCache && evRnReportCache.postrueda && evRnReportCache.postrueda.brechas);
+}
+async function evRnRepBrechasToggle(tagId){
+  if (!tagId) return;
+  const st = evRnRepBrechasState;
+  if (st.openTagId === tagId){ st.openTagId = null; }
+  else { st.openTagId = tagId; }
+  renderRepBrechas(evRnReportCache && evRnReportCache.postrueda && evRnReportCache.postrueda.brechas);
+  if (st.openTagId !== tagId) return;
+  const host = document.getElementById('gap-detail-'+tagId);
+  if (!host) return;
+  try {
+    let data = st.cache[tagId];
+    if (!data){
+      const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda/tag/${tagId}`, { headers:{ 'Authorization':`Bearer ${authToken}` } });
+      if (!r.ok) throw new Error('http '+r.status);
+      data = await r.json();
+      st.cache[tagId] = data;
+    }
+    const renderList = (arr, title) => {
+      if (!arr || !arr.length) return `<div class="gap-detail-col"><div class="gap-detail-title">${title} <span class="gap-detail-cnt">0</span></div><div class="gap-detail-empty">—</div></div>`;
+      const items = arr.map(x => `
+        <div class="gap-detail-row">
+          <div class="gap-detail-co">${evRnEscape(x.company_name||'—')}</div>
+          <div class="gap-detail-dl">
+            <div>${evRnEscape(x.delegate_name||'—')}</div>
+            <a href="mailto:${evRnEscape(x.delegate_email||'')}">${evRnEscape(x.delegate_email||'—')}</a>
+          </div>
+        </div>`).join('');
+      return `<div class="gap-detail-col"><div class="gap-detail-title">${title} <span class="gap-detail-cnt">${arr.length}</span></div>${items}</div>`;
+    };
+    host.innerHTML = `
+      <div class="gap-detail-grid">
+        ${renderList(data.demand, 'Demandan')}
+        ${renderList(data.offer,  'Ofrecen')}
+      </div>`;
+  } catch(e){
+    host.innerHTML = `<div class="gap-detail-empty">No se pudo cargar el detalle</div>`;
+  }
+}
+
+function evRnReportRender() {
+  const cache = evRnReportCache || {};
+  const ov = cache.overview;
+  const pr = cache.postrueda;
+  const statusEl = document.getElementById('ev-rn-report-status');
+  if (!ov && !pr){
+    if (statusEl) statusEl.textContent = evRnT('rn.empty.report_err','No se pudo cargar el reporte');
+    // Limpiar bodies
+    ['pipeline','agenda','delegates','compromisos','heatmap','brechas'].forEach(k=>{
+      const el = document.getElementById('rep-'+k+'-body');
+      if (el) el.innerHTML = `<div class="rep-empty">Sin datos disponibles</div>`;
+    });
+    evRnRepWireHeaders();
+    evRnRepRestoreCollapsed();
+    return;
+  }
+  // Estado envío (preservado desde v2)
   const sentAt = evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_at;
   const sentCount = (evRnCurrentEvent && evRnCurrentEvent.config && evRnCurrentEvent.config.rn_report_sent_count) || 0;
   if (statusEl) {
@@ -12125,57 +12901,39 @@ function evRnReportRender() {
       ? `Enviado · ${evRnFmtDateTz(sentAt)} · ${sentCount} envío${sentCount===1?'':'s'}`
       : 'No enviado todavía';
   }
-  // Banners
-  document.getElementById('ev-rn-report-banner-ref').classList.toggle('hidden', !d.ebv || !d.ebv.referential);
-  document.getElementById('ev-rn-report-banner-fx').classList.toggle('hidden', !d.ebv || !d.ebv.mixed_currencies);
-  // KPIs
-  const m = d.meetings || {};
-  const e = d.ebv || {};
-  const cov = (e.coverage || 0) * 100;
-  document.getElementById('ev-rn-rep-k-total').textContent = m.total ?? '—';
-  document.getElementById('ev-rn-rep-k-ebv').textContent   = m.with_ebv ?? '—';
-  document.getElementById('ev-rn-rep-k-cov').textContent   = `${cov.toFixed(0)}${evRnT('rn.rep.cov_suffix','% cobertura')}`;
-  document.getElementById('ev-rn-rep-k-avg').textContent   = evRnFmtCop(e.avg_per_meeting);
-  document.getElementById('ev-rn-rep-k-sum').textContent   = evRnFmtCop(e.total_estimated);
-  // Detalle
-  document.getElementById('ev-rn-rep-median').textContent  = evRnFmtCop(e.median_per_meeting);
-  document.getElementById('ev-rn-rep-min').textContent     = evRnFmtCop(e.min);
-  document.getElementById('ev-rn-rep-max').textContent     = evRnFmtCop(e.max);
-  document.getElementById('ev-rn-rep-bilat').textContent   = m.bilateral ?? '—';
-  document.getElementById('ev-rn-rep-unilat').textContent  = m.unilateral ?? '—';
-  document.getElementById('ev-rn-rep-empty').textContent   = m.empty ?? '—';
-  // Horizon pills
-  const hb = (e.horizon_breakdown) || {};
-  const hLabels = { short:'Corto plazo', long:'Largo plazo', mixed:'Mixto', unknown:'Sin horizonte' };
-  const hColors = { short:'#22c55e', long:'#FF1B8D', mixed:'#FF8C00', unknown:'#9ca3af' };
-  const pillsEl = document.getElementById('ev-rn-rep-horizon-pills');
-  pillsEl.innerHTML = Object.keys(hLabels).map(k => {
-    const n = hb[k] || 0;
-    const c = hColors[k];
-    return `<span style="padding:3px 10px;border-radius:999px;background:${c}1a;color:${c};font-size:11px;font-weight:700;">${hLabels[k]} · ${n}</span>`;
-  }).join('');
-  // Top table
-  const tb = document.getElementById('ev-rn-rep-tbody');
-  const top = Array.isArray(d.top) ? d.top : [];
-  if (!top.length) {
-    tb.innerHTML = `<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.meetings_ebv','Sin meetings con EBV capturado')}</td></tr>`;
-  } else {
-    tb.innerHTML = top.map((t, i) => {
-      const fillColor = t.fill_type === 'bilateral' ? '#22c55e' : '#FF8C00';
-      const fillLabel = t.fill_type === 'bilateral' ? 'Bilateral' : 'Unilateral';
-      const horLabel = hLabels[t.horizon] || '—';
-      const horColor = hColors[t.horizon] || '#9ca3af';
-      return `<tr style="border-bottom:1px solid var(--border);">
-        <td style="padding:8px;color:var(--text-muted);font-weight:700;">${i+1}</td>
-        <td style="padding:8px;">${evRnEscape(t.company_a||'—')}</td>
-        <td style="padding:8px;">${evRnEscape(t.company_b||'—')}</td>
-        <td style="padding:8px;color:var(--text-muted);">R${t.round ?? '—'} · ${evRnEscape(t.table_label||'—')}</td>
-        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${fillColor}22;color:${fillColor};font-size:10px;font-weight:700;">${fillLabel}</span></td>
-        <td style="padding:8px;"><span style="padding:1px 7px;border-radius:999px;background:${horColor}22;color:${horColor};font-size:10px;font-weight:700;">${horLabel}</span></td>
-        <td style="padding:8px;text-align:right;font-weight:700;">${evRnFmtCop(t.value)}</td>
-      </tr>`;
-    }).join('');
-  }
+  // Banners siguen alimentándose desde ov.ebv
+  const bannerRef = document.getElementById('ev-rn-report-banner-ref');
+  const bannerFx  = document.getElementById('ev-rn-report-banner-fx');
+  if (bannerRef) bannerRef.classList.toggle('hidden', !(ov && ov.ebv && ov.ebv.referential));
+  if (bannerFx)  bannerFx.classList.toggle('hidden',  !(ov && ov.ebv && ov.ebv.mixed_currencies));
+  // Dispatcher 6 renderers
+  const p = pr || {};
+  renderRepPipeline(p.pipeline);
+  renderRepAgenda(p.agenda);
+  renderRepDelegates(p.delegates);
+  renderRepCompromisos(p.compromisos);
+  renderRepHeatmap(p.heatmap);
+  renderRepBrechas(p.brechas);
+  evRnRepWireHeaders();
+  evRnRepRestoreCollapsed();
+}
+async function evRnExportReport(fmt){
+  if (!evCurrentEventId) return;
+  const ext = (fmt||'xlsx').toLowerCase();
+  try {
+    const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda/export.${ext}`, {
+      headers:{ 'Authorization':`Bearer ${authToken}` }
+    });
+    if (!r.ok) { showToast('No se pudo exportar el reporte', 'error'); return; }
+    const blob = await r.blob();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const m = cd.match(/filename="?([^"]+)"?/);
+    const fname = m ? m[1] : `reporte-rn.${ext}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+  } catch(_) { showToast('No se pudo exportar el reporte', 'error'); }
 }
 async function evRnSendReport(force) {
   if (!evCurrentEventId) return;
@@ -13610,7 +14368,7 @@ async function evLoadSessions(eventId) {
           ${shareBlock}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
-          ${isRueda ? '' : `<button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>`}
+          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;" onclick="evEditSession('${s.id}')">${t('ev.sess_edit')}</button>
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;color:#ef4444;border-color:rgba(239,68,68,.3);" onclick="evDeleteSession('${s.id}')">×</button>
         </div>
       </div>`;
@@ -13708,6 +14466,18 @@ async function evSaveSession() {
     });
     const data = await res.json();
     if (data.id) {
+      // Si la sesión está vinculada a una Rueda, propagar times al evento Rueda (fuente de verdad)
+      try {
+        const srcSess = evSessionsList.find(x => x.id === editId);
+        const ruedaId = srcSess && srcSess.linked_rueda_id;
+        if (editId && ruedaId && data.starts_at && data.ends_at) {
+          await fetch(`${API_URL}/api/events/${ruedaId}`, {
+            method:'PATCH',
+            headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authToken}` },
+            body: JSON.stringify({ starts_at: data.starts_at, ends_at: data.ends_at })
+          });
+        }
+      } catch(_) {}
       showStatus(evI18n(editId ? 'ev.toast_sess_updated' : 'ev.toast_sess_added'), 'success');
       evCloseAddSession();
       evLoadSessions(evCurrentEventId);
@@ -13786,7 +14556,15 @@ async function evSaveRueda() {
   const linkPane = !document.getElementById('ev-rueda-pane-link').classList.contains('hidden');
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k,d)=>d||k;
   try {
-    let ruedaId, ruedaName, startsAt, endsAt;
+    let ruedaId, ruedaName, startsAt, endsAt, sessionStartsLocal, sessionEndsLocal;
+    const _toNaiveLocal = (iso, tz) => {
+      // '2026-10-30T15:15:00Z' + 'America/Bogota' → '2026-10-30T10:15:00' (naive, en TZ del evento)
+      const d = new Date(iso);
+      const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
+      const p = Object.fromEntries(fmt.formatToParts(d).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+      return `${p.year}-${p.month}-${p.day}T${p.hour==='24'?'00':p.hour}:${p.minute}:${p.second}`;
+    };
+    const _parentTz = (evCurrentEvent && evCurrentEvent.timezone) || 'America/Bogota';
     if (linkPane) {
       ruedaId = document.getElementById('ev-rueda-link-select').value;
       if (!ruedaId) { showStatus(t('ev.sess_rueda_err_pick','Selecciona una Rueda'), 'error'); return; }
@@ -13794,6 +14572,8 @@ async function evSaveRueda() {
       const res = await fetch(`${API_URL}/api/events/${ruedaId}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
       const r = await res.json();
       ruedaName = r.name; startsAt = r.starts_at; endsAt = r.ends_at;
+      sessionStartsLocal = _toNaiveLocal(startsAt, _parentTz);
+      sessionEndsLocal   = _toNaiveLocal(endsAt,   _parentTz);
     } else {
       const name = document.getElementById('ev-rueda-new-name').value.trim();
       const startLocal = document.getElementById('ev-rueda-new-start').value;
@@ -13821,16 +14601,18 @@ async function evSaveRueda() {
       const dataE = await resE.json();
       if (!dataE.id) { showStatus(dataE.error || t('ev.sess_rueda_err_create','Error al crear Rueda'), 'error'); return; }
       ruedaId = dataE.id; ruedaName = name; startsAt = payload.starts_at; endsAt = payload.ends_at;
+      sessionStartsLocal = startLocal;
+      sessionEndsLocal   = endLocal;
     }
-    // Crear sesión del evento padre vinculada
+    // Crear sesión del evento padre vinculada — manda naive local (backend aplica AT TIME ZONE del evento padre)
     const resS = await fetch(`${API_URL}/api/events/${evCurrentEventId}/sessions`, {
       method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${authToken}`},
       body: JSON.stringify({
         name: ruedaName,
         session_type: 'rueda',
         linked_rueda_id: ruedaId,
-        starts_at: startsAt,
-        ends_at: endsAt,
+        starts_at: sessionStartsLocal,
+        ends_at: sessionEndsLocal,
         visibility: 'public'
       })
     });
