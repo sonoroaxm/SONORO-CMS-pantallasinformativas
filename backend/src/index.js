@@ -11884,6 +11884,14 @@ console.log('📼 HEVC auto-worker iniciado (cada 5 min)');
 // LICENSES-V1 cron (§6.5): expire + notify + auto-cancel
 licensingCron.start(pool);
 
+// E-RN-10 Block 7 — Rueda de Negocios comms worker (EOD digest + 4 recordatorios)
+try {
+  const rnCommsWorker = require('./services/rn-comms-worker');
+  rnCommsWorker.start(pool);
+} catch (err) {
+  console.error('[rn-comms] startup error:', err.message);
+}
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 CMS Backend v2.1 escuchando en puerto ${PORT}`);
   console.log(`✅ Autenticación JWT HABILITADA`);

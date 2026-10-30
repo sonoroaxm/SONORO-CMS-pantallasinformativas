@@ -74,6 +74,7 @@ TRACKED=(
   "backend/src/routes/events-rn.js"
   "backend/src/routes/events-rn-public.js"
   "backend/src/services/matchmaking-tags.js"
+  "backend/src/services/rn-comms-worker.js"
 )
 
 # ── Colores ───────────────────────────────────────────────────────────────────

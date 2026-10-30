@@ -2347,4 +2347,270 @@ async function sendRnProducerSummaryEmail({ to, producerName, eventName, metrics
   console.log(`✅ RN producer-summary enviado a ${to} [${L}]`);
 }
 
-module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, verifyConnection };
+// ── RN COMMS BLOCK 7 — EOD DIGEST + 4 RECORDATORIOS ─────────────────────────
+function _rnDateLabel(dayKey, L) {
+  try {
+    const [y, m, d] = dayKey.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    const localeMap = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' };
+    return dt.toLocaleDateString(localeMap[L] || 'es-CO', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+    });
+  } catch { return dayKey; }
+}
+
+function _rnDueLabel(dueAt, L) {
+  if (!dueAt) return '—';
+  const localeMap = { es: 'es-CO', en: 'en-US', pt: 'pt-BR' };
+  return new Date(dueAt).toLocaleDateString(localeMap[L] || 'es-CO', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+}
+
+async function sendRnEodDigestEmail({ to, delegateName, companyName, eventName, dayLabel, metrics, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const dateStr = _rnDateLabel(dayLabel, L);
+  const T = {
+    es: {
+      subject: `Resumen del día — ${eventName}`,
+      h1: `Tu resumen del día`,
+      intro: `Hola <strong>${delegateName}</strong>, este es el consolidado de la jornada en ${eventName}:`,
+      kReuniones: 'Reuniones del día', kOutcomes: 'Resultados registrados',
+      kPendientes: 'Pendientes de registrar', kCompromisos: 'Compromisos abiertos',
+      cta: 'Abrir mi agenda',
+      foot: 'Si tienes pendientes de registrar, puedes hacerlo desde la pestaña Reuniones en tu agenda. Toma menos de un minuto por cada una.',
+    },
+    en: {
+      subject: `Daily recap — ${eventName}`,
+      h1: `Your daily recap`,
+      intro: `Hi <strong>${delegateName}</strong>, here is the consolidated recap of the day at ${eventName}:`,
+      kReuniones: 'Meetings today', kOutcomes: 'Outcomes recorded',
+      kPendientes: 'Pending to record', kCompromisos: 'Open commitments',
+      cta: 'Open my agenda',
+      foot: 'If you have outcomes pending to record, you can do it from the Meetings tab in your agenda. It takes under a minute each.',
+    },
+    pt: {
+      subject: `Resumo do dia — ${eventName}`,
+      h1: `Seu resumo do dia`,
+      intro: `Olá <strong>${delegateName}</strong>, este é o consolidado do dia em ${eventName}:`,
+      kReuniones: 'Reuniões do dia', kOutcomes: 'Resultados registrados',
+      kPendientes: 'Pendentes de registrar', kCompromisos: 'Compromissos abertos',
+      cta: 'Abrir minha agenda',
+      foot: 'Se há pendentes de registrar, você pode fazê-lo pela aba Reuniões em sua agenda. Leva menos de um minuto cada.',
+    },
+  };
+  const t = T[L];
+  const m = metrics || {};
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
+    <p style="margin:0 0 4px;font-size:13px;color:#999;line-height:1.4;text-transform:capitalize;">${dateStr}</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">${companyName ? `<strong style="color:#0f0f0f;">${companyName}</strong> &mdash; ` : ''}${t.intro}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border:1px solid #eee;border-radius:8px;">
+      <tr>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;">${t.kReuniones}</td>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:18px;color:#0f0f0f;font-weight:700;text-align:right;">${m.reuniones || 0}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;">${t.kOutcomes}</td>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:18px;color:#16a34a;font-weight:700;text-align:right;">${m.outcomes || 0}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:13px;color:#666;">${t.kPendientes}</td>
+        <td style="padding:14px 18px;border-bottom:1px solid #f0f0f0;font-size:18px;color:${(m.pendientes_outcome||0) > 0 ? '#d97706' : '#0f0f0f'};font-weight:700;text-align:right;">${m.pendientes_outcome || 0}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 18px;font-size:13px;color:#666;">${t.kCompromisos}</td>
+        <td style="padding:14px 18px;font-size:18px;color:#0f0f0f;font-weight:700;text-align:right;">${m.compromisos_abiertos || 0}</td>
+      </tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td align="center">
+      <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">${t.foot}</p>
+  `, { tagline: 'Rueda de Negocios', locale: L });
+  await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
+  console.log(`✅ RN eod-digest enviado a ${to} [${L}]`);
+}
+
+async function sendRnNudge48hEmail({ to, delegateName, counterpartName, eventName, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const T = {
+    es: {
+      subject: `¿Cómo te fue con ${counterpartName}?`,
+      h1: `Registra el resultado de tu reunión`,
+      intro: `Hola <strong>${delegateName}</strong>, hace 48 horas tuviste una reunión con <strong>${counterpartName}</strong> en ${eventName} y todavía no has registrado cómo te fue.`,
+      p2: `Tomar un minuto para registrarlo te permite ver tus propios resultados del evento al cierre, y le ayuda al productor a entender el impacto real de la rueda.`,
+      cta: 'Registrar resultado',
+      foot: 'Si prefieres no registrar nada para esta reunión, puedes ignorar este correo. No volveremos a insistir.',
+    },
+    en: {
+      subject: `How did it go with ${counterpartName}?`,
+      h1: `Record your meeting outcome`,
+      intro: `Hi <strong>${delegateName}</strong>, 48 hours ago you met <strong>${counterpartName}</strong> at ${eventName} and you haven't recorded how it went.`,
+      p2: `Taking a minute to record it lets you see your own event results at closing, and helps the organizer understand the real impact of the matchmaking.`,
+      cta: 'Record outcome',
+      foot: `If you'd rather not record anything for this meeting, you can ignore this email. We won't insist again.`,
+    },
+    pt: {
+      subject: `Como foi com ${counterpartName}?`,
+      h1: `Registre o resultado da sua reunião`,
+      intro: `Olá <strong>${delegateName}</strong>, há 48 horas você teve uma reunião com <strong>${counterpartName}</strong> em ${eventName} e ainda não registrou como foi.`,
+      p2: `Dedicar um minuto a registrar permite que você veja seus próprios resultados no fechamento do evento, e ajuda o produtor a entender o impacto real da rodada.`,
+      cta: 'Registrar resultado',
+      foot: 'Se preferir não registrar nada para esta reunião, pode ignorar este email. Não insistiremos de novo.',
+    },
+  };
+  const t = T[L];
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#666;line-height:1.6;">${t.intro}</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">${t.p2}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td align="center">
+      <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
+  `, { tagline: 'Rueda de Negocios', locale: L });
+  await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
+  console.log(`✅ RN nudge-48h enviado a ${to} [${L}]`);
+}
+
+async function sendRnNudge7dEmail({ to, delegateName, counterpartName, nextStep, eventName, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const stepLabels = {
+    es: { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'—' },
+    en: { quote:'Quote', sample:'Sample', catalog:'Catalog', tech_spec:'Spec sheet', intro:'Intro', second_meeting:'Second meeting', pilot:'Pilot', none:'—' },
+    pt: { quote:'Cotação', sample:'Amostra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Apresentação', second_meeting:'Segunda reunião', pilot:'Piloto', none:'—' },
+  };
+  const stepText = (stepLabels[L] && stepLabels[L][nextStep]) || nextStep;
+  const T = {
+    es: {
+      subject: `Tu compromiso con ${counterpartName} sigue abierto`,
+      h1: `Un recordatorio sobre tu compromiso`,
+      intro: `Hola <strong>${delegateName}</strong>, hace una semana acordaste <strong>${stepText}</strong> con <strong>${counterpartName}</strong> en ${eventName}, y aún no has marcado ese compromiso como cerrado.`,
+      p2: `Si ya lo cerraste, puedes marcarlo desde tu agenda. Si todavía está en proceso, no pasa nada &mdash; solo queríamos que lo tengas presente.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Este es el único recordatorio semanal. No te enviaremos más sobre este compromiso específico.',
+    },
+    en: {
+      subject: `Your commitment with ${counterpartName} is still open`,
+      h1: `A reminder about your commitment`,
+      intro: `Hi <strong>${delegateName}</strong>, a week ago you agreed on <strong>${stepText}</strong> with <strong>${counterpartName}</strong> at ${eventName}, and you haven't marked it as closed yet.`,
+      p2: `If you've already closed it, you can mark it from your agenda. If it's still in progress, no worries &mdash; we just wanted to keep it on your radar.`,
+      cta: 'Open my agenda',
+      foot: `This is the only weekly reminder. We won't send more about this specific commitment.`,
+    },
+    pt: {
+      subject: `Seu compromisso com ${counterpartName} continua aberto`,
+      h1: `Um lembrete sobre seu compromisso`,
+      intro: `Olá <strong>${delegateName}</strong>, há uma semana você combinou <strong>${stepText}</strong> com <strong>${counterpartName}</strong> em ${eventName}, e ainda não marcou esse compromisso como fechado.`,
+      p2: `Se já fechou, pode marcar pela sua agenda. Se ainda está em andamento, tudo bem &mdash; só queríamos que você tivesse no radar.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Este é o único lembrete semanal. Não enviaremos mais sobre este compromisso específico.',
+    },
+  };
+  const t = T[L];
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#666;line-height:1.6;">${t.intro}</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">${t.p2}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td align="center">
+      <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
+  `, { tagline: 'Rueda de Negocios', locale: L });
+  await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
+  console.log(`✅ RN nudge-7d enviado a ${to} [${L}]`);
+}
+
+async function sendRnDuePre24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const dueStr = _rnDueLabel(dueAt, L);
+  const T = {
+    es: {
+      subject: `Mañana vence tu compromiso con ${counterpartName}`,
+      h1: `Tu compromiso vence mañana`,
+      intro: `Hola <strong>${delegateName}</strong>, tu compromiso con <strong>${counterpartName}</strong> de ${eventName} vence <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `Si ya lo entregaste, márcalo como cerrado desde tu agenda. Si necesitas más tiempo, también puedes ajustar la fecha ahí mismo.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Recibirás un segundo aviso si la fecha pasa sin que marques el compromiso como cerrado.',
+    },
+    en: {
+      subject: `Your commitment with ${counterpartName} is due tomorrow`,
+      h1: `Your commitment is due tomorrow`,
+      intro: `Hi <strong>${delegateName}</strong>, your commitment with <strong>${counterpartName}</strong> from ${eventName} is due <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `If you already delivered, mark it as closed from your agenda. If you need more time, you can also adjust the date there.`,
+      cta: 'Open my agenda',
+      foot: `You'll get a second reminder if the date passes without the commitment being marked as closed.`,
+    },
+    pt: {
+      subject: `Amanhã vence seu compromisso com ${counterpartName}`,
+      h1: `Seu compromisso vence amanhã`,
+      intro: `Olá <strong>${delegateName}</strong>, seu compromisso com <strong>${counterpartName}</strong> de ${eventName} vence <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `Se já entregou, marque como fechado pela sua agenda. Se precisa de mais tempo, também pode ajustar a data por ali.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Você receberá um segundo aviso se a data passar sem o compromisso ser marcado como fechado.',
+    },
+  };
+  const t = T[L];
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#666;line-height:1.6;">${t.intro}</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">${t.p2}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td align="center">
+      <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
+  `, { tagline: 'Rueda de Negocios', locale: L });
+  await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
+  console.log(`✅ RN due-pre-24h enviado a ${to} [${L}]`);
+}
+
+async function sendRnDueOverdue24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale }) {
+  if (!to || !agendaUrl) return;
+  const L = rnPickLocale(locale);
+  const dueStr = _rnDueLabel(dueAt, L);
+  const T = {
+    es: {
+      subject: `Venció tu compromiso con ${counterpartName}`,
+      h1: `Tu compromiso venció ayer`,
+      intro: `Hola <strong>${delegateName}</strong>, tu compromiso con <strong>${counterpartName}</strong> de ${eventName} tenía fecha <strong style="color:#dc2626;">${dueStr}</strong> y aún no está cerrado.`,
+      p2: `Si ya lo entregaste, marcarlo como cerrado toma 10 segundos. Si todavía está en proceso, ajusta la fecha para que quede alineado con la realidad.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Este es el último recordatorio automático sobre este compromiso.',
+    },
+    en: {
+      subject: `Your commitment with ${counterpartName} is overdue`,
+      h1: `Your commitment was due yesterday`,
+      intro: `Hi <strong>${delegateName}</strong>, your commitment with <strong>${counterpartName}</strong> from ${eventName} was due <strong style="color:#dc2626;">${dueStr}</strong> and is still open.`,
+      p2: `If you already delivered, marking it as closed takes 10 seconds. If it's still in progress, adjust the date so it reflects reality.`,
+      cta: 'Open my agenda',
+      foot: 'This is the last automatic reminder on this commitment.',
+    },
+    pt: {
+      subject: `Venceu seu compromisso com ${counterpartName}`,
+      h1: `Seu compromisso venceu ontem`,
+      intro: `Olá <strong>${delegateName}</strong>, seu compromisso com <strong>${counterpartName}</strong> de ${eventName} tinha data <strong style="color:#dc2626;">${dueStr}</strong> e ainda não está fechado.`,
+      p2: `Se já entregou, marcar como fechado leva 10 segundos. Se ainda está em andamento, ajuste a data para refletir a realidade.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Este é o último lembrete automático sobre este compromisso.',
+    },
+  };
+  const t = T[L];
+  const html = baseTemplate(`
+    <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#666;line-height:1.6;">${t.intro}</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#666;line-height:1.6;">${t.p2}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td align="center">
+      <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
+  `, { tagline: 'Rueda de Negocios', locale: L });
+  await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
+  console.log(`✅ RN due-overdue-24h enviado a ${to} [${L}]`);
+}
+
+module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, sendRnEodDigestEmail, sendRnNudge48hEmail, sendRnNudge7dEmail, sendRnDuePre24hEmail, sendRnDueOverdue24hEmail, verifyConnection };
