@@ -800,6 +800,7 @@ router.get('/directory/:eventSlug', rnReadLimiter, async (req, res) => {
     // Cast tautológico fuerza inferencia de tipos uuid[] para $2/$3 cuando no se referencian abajo (view='all').
     const countRes = await pool.query(
       `SELECT COUNT(*)::int AS c FROM events.registrations r
+         JOIN events.attendees a ON a.id = r.attendee_id
          WHERE ${where} AND ($2::uuid[] IS NOT NULL) AND ($3::uuid[] IS NOT NULL)`,
       params
     );
