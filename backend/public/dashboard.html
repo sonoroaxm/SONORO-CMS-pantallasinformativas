@@ -592,6 +592,27 @@
     .ev-rn-kpi .v { font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--text); line-height:1; font-variant-numeric:tabular-nums; }
     .ev-rn-kpi .sub { margin-top:6px; font-size:11.5px; font-weight:600; color:var(--text-muted); min-height:14px; }
 
+    /* E-EMP-1 Task 1 — Rueda de Empleo emerald override (scoped a .rueda-empleo) */
+    .rueda-empleo .ev-rn-subtab.on { background:linear-gradient(135deg,#10b981 0%,#0d9488 100%) !important; box-shadow:0 2px 10px rgba(16,185,129,0.35) !important; }
+    .rueda-empleo .ev-rn-bulk-btn--primary { background:linear-gradient(135deg,#10b981 0%,#14b8a6 100%) !important; }
+    .rueda-empleo .ev-rn-bulk-btn--primary:hover { background:linear-gradient(135deg,#14cf96 0%,#26c6b0 100%) !important; }
+    .rueda-empleo .ev-rn-cfg-inp:focus { border-color:#10b981 !important; }
+    .rueda-empleo .ev-rn-radiogrid input:checked + span { border-color:#10b981 !important; background:rgba(16,185,129,0.07) !important; }
+    .rueda-empleo .ev-rn-chip input:checked + span { border-color:#10b981 !important; background:rgba(16,185,129,0.09) !important; color:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-comms .rn-c-kicker,
+    .rueda-empleo #ev-rn-panel-comms .rn-c-card.collapsed .rn-c-chev,
+    .rueda-empleo #ev-rn-panel-reporte .rep-kicker,
+    .rueda-empleo #ev-rn-panel-reporte .rep-section.collapsed .rep-sec-chev,
+    .rueda-empleo #ev-rn-panel-reporte .deleg-row .rk,
+    .rueda-empleo #ev-rn-panel-reporte .reminder-row .rc { color:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-comms .rn-c-num { background:linear-gradient(135deg,#10b981 0%,#14b8a6 100%) !important; -webkit-background-clip:text !important; background-clip:text !important; }
+    .rueda-empleo #ev-rn-panel-comms .rn-c-tgl.on { background:#10b981 !important; border-color:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-reporte .gap-tab.active { background:rgba(16,185,129,.12) !important; color:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-reporte .gap-legend .sw.d,
+    .rueda-empleo #ev-rn-panel-reporte .gap-bar .dem { background:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-reporte .gap-row.open .chev { color:#10b981 !important; }
+    .rueda-empleo #ev-rn-panel-reporte .gap-detail-dl a { color:#10b981 !important; }
+
     .ev-rn-subtabs { display:flex; gap:6px; padding:6px; margin-bottom:18px; overflow-x:auto; background:var(--surface2); border:1px solid var(--border); border-radius:12px; }
     .ev-rn-subtab { display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid transparent; border-radius:9px; color:var(--text-muted); font-family:inherit; font-size:13px; font-weight:700; padding:9px 16px; cursor:pointer; letter-spacing:.3px; white-space:nowrap; transition:background .15s ease, color .15s ease, box-shadow .15s ease; }
     .ev-rn-subtab:hover { color:var(--text); background:var(--surface3); }
@@ -771,6 +792,14 @@
       color: #fff !important;
       border: 0 !important;
     }
+    /* E-EMP-1: override emerald en scope rueda-empleo */
+    #ev-rueda-detail-view.rueda-empleo .btn,
+    #ev-rueda-detail-view.rueda-empleo button.btn,
+    #ev-rueda-detail-view.rueda-empleo a.btn,
+    #ev-rueda-detail-view.rueda-empleo .ev-rn-bulk-btn,
+    .rueda-empleo .ev-rn-bulk-btn--primary {
+      background: linear-gradient(135deg,#10b981 0%,#0d9488 100%) !important;
+    }
     #ev-rueda-detail-view .btn:hover,
     #ev-rueda-detail-view button.btn:hover,
     #ev-rueda-detail-view a.btn:hover,
@@ -790,6 +819,11 @@
       color: #fff !important;
       border-color: transparent !important;
       box-shadow: 0 2px 10px rgba(255,27,141,0.35) !important;
+    }
+    /* E-EMP-1: override emerald con misma especificidad que #ev-rueda-detail-view */
+    #ev-rueda-detail-view.rueda-empleo .ev-rn-subtab.on {
+      background: linear-gradient(135deg,#10b981 0%,#0d9488 100%) !important;
+      box-shadow: 0 2px 10px rgba(16,185,129,0.35) !important;
     }
 
     .btn-outline {
@@ -10479,8 +10513,11 @@ function evRenderList() {
     const start = new Date(ev.starts_at).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const end   = new Date(ev.ends_at).toLocaleDateString('es-CO',   { day:'numeric', month:'short', year:'numeric', timeZone: tz });
     const statusColor = ev.status === 'active' ? '#00e676' : ev.status === 'draft' ? '#f59e0b' : '#888';
-    const isRN = ev.config && ev.config.event_type === 'matchmaking';
-    const pill = isRN
+    const isRueda = ev.config && ev.config.event_type === 'matchmaking';
+    const isRE = isRueda && ev.rueda_type === 'empleo';
+    const pill = isRE
+      ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,#10b981 0%,#0d9488 100%);color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.pill_re','Rueda de Empleo')}</span>`
+      : isRueda
       ? ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,#FF1B8D 0%,#B52CE0 100%);color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.new_type_rn','Rueda de Negocios')}</span>`
       : ` <span style="font-size:10px;padding:2px 8px;border-radius:999px;background:linear-gradient(135deg,var(--magenta) 0%,var(--orange) 55%,var(--yellow) 100%);color:#fff;font-weight:700;margin-left:6px;vertical-align:middle;">${t('ev.pill_event','Evento')}</span>`;
     const bg = isChild ? 'background:var(--surface2);' : '';
@@ -11391,6 +11428,48 @@ function evRnDetectSiblingCollision(startIso, totalMin) {
   return out;
 }
 
+// ── E-EMP-1 Task 1: retint emerald para Rueda de Empleo ──────────
+// Aditivo: sustituye inline magenta por emerald en el contenedor de rueda
+// cuando ev.rueda_type === 'empleo'. Un MutationObserver captura DOM dinámico.
+const _EMP_TINT_MAP = [
+  [/#FF1B8D/gi, '#10b981'],
+  [/#B52CE0/gi, '#0d9488'],
+  [/#FF8C00/gi, '#14b8a6'],
+  [/#a855f7/gi, '#10b981'],
+  [/#ec4899/gi, '#14b8a6'],
+  [/255\s*,\s*27\s*,\s*141/g, '16,185,129'],
+  [/168\s*,\s*85\s*,\s*247/g, '16,185,129'],
+  [/236\s*,\s*72\s*,\s*153/g, '20,184,166'],
+  [/181\s*,\s*44\s*,\s*224/g, '13,148,136'],
+];
+function _empRetintEl(el) {
+  const s = el.getAttribute && el.getAttribute('style');
+  if (!s) return;
+  let out = s;
+  for (const [re, rep] of _EMP_TINT_MAP) out = out.replace(re, rep);
+  if (out !== s) el.setAttribute('style', out);
+}
+function evRetintEmerald(root) {
+  if (!root) return;
+  _empRetintEl(root);
+  root.querySelectorAll('[style]').forEach(_empRetintEl);
+}
+let _empObserver = null;
+function evStartEmeraldObserver(root) {
+  if (_empObserver) { _empObserver.disconnect(); _empObserver = null; }
+  if (!root) return;
+  _empObserver = new MutationObserver(muts => {
+    for (const m of muts) {
+      m.addedNodes.forEach(n => { if (n.nodeType === 1) evRetintEmerald(n); });
+      if (m.type === 'attributes' && m.target.nodeType === 1) _empRetintEl(m.target);
+    }
+  });
+  _empObserver.observe(root, { childList:true, subtree:true, attributes:true, attributeFilter:['style'] });
+}
+function evStopEmeraldObserver() {
+  if (_empObserver) { _empObserver.disconnect(); _empObserver = null; }
+}
+
 function evOpenRueda(ev) {
   evRnCurrentEvent = ev;
   const tz = ev.timezone || 'UTC';
@@ -11403,6 +11482,15 @@ function evOpenRueda(ev) {
   document.getElementById('ev-rn-meetings-tbody').innerHTML = `<tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text-muted);">${evRnT('rn.empty.loading','Cargando…')}</td></tr>`;
   evRnSwitchPanelTab('setup');
   evShowView('rueda');
+  const _rnRoot = document.getElementById('ev-rueda-detail-view');
+  if (ev.rueda_type === 'empleo') {
+    if (_rnRoot) _rnRoot.classList.add('rueda-empleo');
+    evRetintEmerald(_rnRoot);
+    evStartEmeraldObserver(_rnRoot);
+  } else {
+    if (_rnRoot) _rnRoot.classList.remove('rueda-empleo');
+    evStopEmeraldObserver();
+  }
   evRnLoadStats();
   evRnLoadMeetings();
   evRnLoadConfig();

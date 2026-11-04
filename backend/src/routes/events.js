@@ -90,7 +90,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const q = `SELECT e.id, e.name, e.slug, e.status, e.starts_at, e.ends_at, e.timezone,
                       e.venue_name, e.cover_image_url, e.created_at,
-                      e.config, e.parent_event_id,
+                      e.config, e.parent_event_id, e.rueda_type,
                       COUNT(r.id) FILTER (WHERE r.status != 'cancelled') AS registration_count
                FROM events.events e
                LEFT JOIN events.registrations r ON r.event_id = e.id
