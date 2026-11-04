@@ -12608,7 +12608,12 @@ async function evRnTagsLoad() {
   try {
     const r = await fetch(`${API_URL}/api/rn/tags`, { headers:{ 'Authorization':`Bearer ${authToken}` }});
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    evRnTagsCache = await r.json();
+    const _allTags = await r.json();
+    // E-EMP-1 Task 2: filtrar por dimensión según tipo de rueda
+    const _rt = evRnCurrentEvent && evRnCurrentEvent.rueda_type;
+    evRnTagsCache = (_rt === 'empleo')
+      ? _allTags.filter(t => t.dimension === 'soft')
+      : _allTags.filter(t => t.dimension !== 'soft');
     document.getElementById('ev-rn-tags-count').textContent = evRnTagsCache.length;
     const nSub = document.getElementById('ev-rn-subtab-n-tags');
     if (nSub) nSub.textContent = evRnTagsCache.length;
