@@ -380,19 +380,21 @@ router.get('/:id', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   const pool = global.pool;
   const { name, starts_at, ends_at, timezone = 'America/Bogota',
-          venue_name, venue_address, cover_image_url, config = {} } = req.body;
+          venue_name, venue_address, cover_image_url, config = {},
+          rueda_type } = req.body;
   if (!name?.trim() || !starts_at || !ends_at) {
     return res.status(400).json({ error: 'name, starts_at y ends_at son requeridos' });
   }
+  const ruedaTypeSafe = (rueda_type === 'empleo' || rueda_type === 'negocios') ? rueda_type : 'negocios';
   const slug = buildSlug(name);
   try {
     const event = await withTransaction(pool, async (client) => {
       const ins = await client.query(
         `INSERT INTO events.events
-           (user_id, name, slug, starts_at, ends_at, timezone, venue_name, venue_address, cover_image_url, config)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+           (user_id, name, slug, starts_at, ends_at, timezone, venue_name, venue_address, cover_image_url, config, rueda_type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
         [req.user.id, name.trim(), slug, starts_at, ends_at, timezone,
-         venue_name || null, venue_address || null, cover_image_url || null, JSON.stringify(config)]
+         venue_name || null, venue_address || null, cover_image_url || null, JSON.stringify(config), ruedaTypeSafe]
       );
       // Autoprovision owner staff_catalog (idempotente vía partial unique is_owner)
       await client.query(

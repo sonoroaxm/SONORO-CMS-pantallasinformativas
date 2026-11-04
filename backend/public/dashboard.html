@@ -3571,23 +3571,27 @@
             </div>
           </div>
 
-          <!-- MODAL: Type picker (Evento / Rueda de Negocios) -->
+          <!-- MODAL: Type picker (Evento / Rueda de Negocios / Rueda de Empleo) -->
           <div id="ev-type-picker-modal" class="modal" onclick="if(event.target.id==='ev-type-picker-modal') evClosePickerModal()">
-            <div class="modal-content" style="max-width:620px;">
+            <div class="modal-content" style="max-width:820px;">
               <div class="modal-header">
                 <h3 data-i18n="ev.picker_title">¿Qué tipo de evento vas a crear?</h3>
                 <button class="modal-close" onclick="evClosePickerModal()">&times;</button>
               </div>
               <div class="modal-body" style="display:grid;gap:16px;">
                 <div style="font-size:12.5px;color:var(--text-muted);" data-i18n="ev.picker_sub">Ambos se gestionan desde el mismo tab. Puedes vincular una rueda a un evento después.</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
                   <div id="ev-picker-card-std" class="ev-picker-card" onclick="evPickerSelect('standard')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
                     <h4 style="font-size:13.5px;font-weight:800;margin:0;" data-i18n="ev.picker_std_title">Evento</h4>
                     <p style="font-size:11.5px;color:var(--text-muted);font-weight:500;line-height:1.5;margin:0;" data-i18n="ev.picker_std_desc">Congreso, convención, feria o seminario. Agenda de sesiones, check-in, certificados, libreto de producción.</p>
                   </div>
-                  <div id="ev-picker-card-rn" class="ev-picker-card" onclick="evPickerSelect('matchmaking')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
+                  <div id="ev-picker-card-rn" class="ev-picker-card" onclick="evPickerSelect('rn')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
                     <h4 style="font-size:13.5px;font-weight:800;margin:0;" data-i18n="ev.picker_rn_title">Rueda de Negocios</h4>
                     <p style="font-size:11.5px;color:var(--text-muted);font-weight:500;line-height:1.5;margin:0;" data-i18n="ev.picker_rn_desc">Reuniones B2B programadas entre empresas inscritas. Mesas, rondas con timer, matching por tags, callboards en vivo.</p>
+                  </div>
+                  <div id="ev-picker-card-re" class="ev-picker-card" onclick="evPickerSelect('re')" style="border:2px solid var(--border);border-radius:9px;padding:16px;cursor:pointer;background:var(--surface2);display:flex;flex-direction:column;gap:8px;transition:border-color .15s;">
+                    <h4 style="font-size:13.5px;font-weight:800;margin:0;" data-i18n="ev.picker_re_title">Rueda de Empleo</h4>
+                    <p style="font-size:11.5px;color:var(--text-muted);font-weight:500;line-height:1.5;margin:0;" data-i18n="ev.picker_re_desc">Reuniones empleador-candidato por perfil. Mesas, rondas con timer, matching por área y perfil, callboards en vivo.</p>
                   </div>
                 </div>
               </div>
@@ -3600,6 +3604,7 @@
           <style>
             .ev-picker-card:hover{ border-color:var(--text-muted) !important; }
             .ev-picker-card.selected{ border-color:#FF1B8D !important; background:rgba(255,27,141,.08) !important; }
+            #ev-picker-card-re.selected{ border-color:#10b981 !important; background:rgba(16,185,129,.08) !important; }
           </style>
 
           <div id="ev-role-picker-modal" class="modal" onclick="if(event.target.id==='ev-role-picker-modal') evRolePickerResolve(null)">
@@ -10396,7 +10401,9 @@ function evShowView(view) {
   if (rn) rn.classList.toggle('hidden', view !== 'rueda');
 }
 
-// Type picker modal (#1 — Evento vs Rueda de Negocios)
+// Type picker modal (#1 — Evento / Rueda de Negocios / Rueda de Empleo)
+// _evPickerType: 'standard' | 'rn' | 're'
+// 'rn' y 're' comparten event_type='matchmaking'; difieren por rueda_type ('negocios' | 'empleo').
 let _evPickerType = 'standard';
 (function(){ document.addEventListener('DOMContentLoaded', function(){
   ['ev-type-picker-modal','ev-rn-parent-modal','ev-rn-edit-reg-modal'].forEach(id => {
@@ -10406,10 +10413,9 @@ let _evPickerType = 'standard';
 }); })();
 function evOpenTypePicker() {
   _evPickerType = 'standard';
-  const cs = document.getElementById('ev-picker-card-std');
-  const cr = document.getElementById('ev-picker-card-rn');
-  if (cs) cs.classList.add('selected');
-  if (cr) cr.classList.remove('selected');
+  document.getElementById('ev-picker-card-std')?.classList.add('selected');
+  document.getElementById('ev-picker-card-rn')?.classList.remove('selected');
+  document.getElementById('ev-picker-card-re')?.classList.remove('selected');
   document.getElementById('ev-type-picker-modal')?.classList.add('active');
 }
 function evClosePickerModal() {
@@ -10418,14 +10424,16 @@ function evClosePickerModal() {
 function evPickerSelect(type) {
   _evPickerType = type;
   document.getElementById('ev-picker-card-std')?.classList.toggle('selected', type === 'standard');
-  document.getElementById('ev-picker-card-rn')?.classList.toggle('selected', type === 'matchmaking');
+  document.getElementById('ev-picker-card-rn')?.classList.toggle('selected', type === 'rn');
+  document.getElementById('ev-picker-card-re')?.classList.toggle('selected', type === 're');
 }
 function evPickerConfirm() {
-  const isRN = _evPickerType === 'matchmaking';
+  const isRueda = (_evPickerType === 'rn' || _evPickerType === 're');
   const rStd = document.getElementById('ev-new-type-std');
   const rMm  = document.getElementById('ev-new-type-mm');
-  if (rStd) rStd.checked = !isRN;
-  if (rMm)  rMm.checked  = isRN;
+  if (rStd) rStd.checked = !isRueda;
+  if (rMm)  rMm.checked  = isRueda;
+  window._evPickerRuedaType = (_evPickerType === 're') ? 'empleo' : (_evPickerType === 'rn' ? 'negocios' : null);
   evClosePickerModal();
   evShowView('new');
   evNewToggleType();
@@ -11317,7 +11325,7 @@ async function evSaveNew() {
     const res = await fetch(`${API_URL}/api/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
-      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue, config })
+      body: JSON.stringify({ name, starts_at: start, ends_at: end, timezone: tz, max_capacity: capacity || null, description: desc, venue_name: venue, config, rueda_type: window._evPickerRuedaType || undefined })
     });
     const data = await res.json();
     if (data.id) {
