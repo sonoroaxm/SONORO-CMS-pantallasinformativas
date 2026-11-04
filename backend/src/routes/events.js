@@ -8,6 +8,7 @@ const router  = express.Router();
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
+const { seedEmpleoSoftSkills } = require('../services/empleo-soft-skills-seed');
 const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail } = require('../services/email');
 const calendarRouter = require('./events-calendar');
 const { syncEventToCalendars, deleteEventFromCalendars } = calendarRouter;
@@ -404,6 +405,16 @@ router.post('/', auth, async (req, res) => {
          ON CONFLICT (user_id) WHERE is_owner = true DO NOTHING`,
         [req.user.id]
       );
+      // E-EMP-1 Task 2: seed on-demand 17 blandas curadas SONORO para tenant
+      if (ruedaTypeSafe === 'empleo') {
+        try {
+          const seeded = await seedEmpleoSoftSkills(client, req.user.id);
+          if (seeded > 0) console.log(`🌱 E-EMP seed blandas: user=${req.user.id} nuevas=${seeded}`);
+        } catch (e) {
+          console.error('⚠️ seedEmpleoSoftSkills:', e.message);
+          throw e;
+        }
+      }
       return ins.rows[0];
     });
     global.io?.to(`user_${req.user.id}`).emit('event.created', {
