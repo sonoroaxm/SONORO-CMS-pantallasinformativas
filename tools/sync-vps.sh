@@ -71,6 +71,7 @@ TRACKED=(
   "backend/public/rueda-mi-agenda.html"
   "backend/public/rueda-live.html"
   "backend/public/rueda-live-mobile.html"
+  "backend/public/rueda-cita-outcome-re.html"
   "backend/src/routes/events-rn.js"
   "backend/src/routes/events-rn-public.js"
   "backend/src/services/matchmaking-tags.js"

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#faf6ef">
+<title>Ficha post-cita · Rueda de Empleo · SONORO CMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root, [data-theme="light"]{
+    --brand-1:#14b8a6; --brand-2:#10b981; --brand-3:#a855f7;
+    --amber:#d97706; --amber-soft:rgba(245,158,11,.08);
+    --bg:#f3f4f7; --surface:#ffffff; --surface-2:#f8f9fc;
+    --ink:#0f172a; --ink-2:#334155; --mute:#64748b; --mute-2:#94a3b8;
+    --line:rgba(15,23,42,.08); --line-2:rgba(15,23,42,.04);
+    --ok:#059669; --ok-soft:rgba(5,150,105,.08);
+    --warn:#d97706; --warn-soft:rgba(217,119,6,.1);
+    --danger:#dc2626; --danger-soft:rgba(220,38,38,.08);
+    --sagrado:#10b981; --sagrado-soft:rgba(236,72,153,.08);
+    --radius:16px; --radius-sm:10px;
+    --shadow:0 2px 8px rgba(17,24,39,.06), 0 1px 2px rgba(17,24,39,.04);
+    --maxw:520px;
+    --font:'Montserrat', system-ui, sans-serif;
+    --gradient:linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+  }
+  [data-theme="dark"]{
+    --bg:#0f0f0f; --surface:#161616; --surface-2:#1e1e1e;
+    --ink:#f0f0f0; --ink-2:#d4d4d4; --mute:#9ca3af; --mute-2:#6b7280;
+    --line:rgba(255,255,255,.1); --line-2:rgba(255,255,255,.05);
+    --ok-soft:rgba(5,150,105,.18);
+    --warn-soft:rgba(217,119,6,.18);
+    --danger-soft:rgba(220,38,38,.18);
+    --sagrado-soft:rgba(236,72,153,.18);
+    --amber-soft:rgba(245,158,11,.18);
+    --shadow:0 2px 8px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.2);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:20px 16px 100px}
+
+  .topbar{max-width:var(--maxw);margin:0 auto;display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:12px 16px 0}
+  .tb-btn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;color:var(--mute);cursor:pointer;font-family:inherit;letter-spacing:.4px;display:inline-flex;align-items:center;gap:6px;line-height:1}
+  .tb-btn.on{color:var(--brand-2);border-color:var(--brand-2)}
+  .tb-btn svg{display:block}
+  .tb-group{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .tb-group .tb-btn{border:0;background:transparent;padding:4px 8px}
+  .tb-group .tb-btn.on{background:var(--sagrado-soft)}
+  .flag{width:16px;height:12px;border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .hero .kicker{font-size:10px;font-weight:800;letter-spacing:1.6px;color:var(--brand-2);text-transform:uppercase;margin-bottom:6px}
+  .hero h1{margin:0 0 2px;font-size:19px;font-weight:800;letter-spacing:-.3px}
+  .hero .meta{color:var(--mute);font-size:12.5px;font-weight:600}
+  .hero .ctxrow{display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2);font-size:11.5px}
+  .hero .ctxrow .b{flex:1}
+  .hero .ctxrow .b .k{color:var(--mute);font-weight:700;text-transform:uppercase;font-size:9.5px;letter-spacing:.8px;margin-bottom:3px}
+  .hero .ctxrow .b .v{color:var(--ink);font-weight:700}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .card h2{margin:0 0 4px;font-size:14px;font-weight:800;letter-spacing:.2px;text-transform:uppercase;color:var(--ink)}
+  .card .sub{font-size:12px;color:var(--mute);margin-bottom:14px;line-height:1.5}
+
+  .pills{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pill{position:relative;border:1.5px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;transition:all .15s}
+  .pill input{position:absolute;opacity:0;pointer-events:none}
+  .pill .pl{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:2px}
+  .pill .pd{font-size:11px;color:var(--mute);font-weight:600;line-height:1.35}
+  .pill:hover{border-color:var(--brand-2)}
+  .pill.on{border-color:var(--brand-2);background:var(--sagrado-soft)}
+  .pill.on .pl{color:var(--brand-2)}
+  .pill[data-k="contratacion_directa"].on{border-color:var(--ok);background:var(--ok-soft)}
+  .pill[data-k="contratacion_directa"].on .pl{color:var(--ok)}
+  .pill[data-k="no_interes"].on, .pill[data-k="no_match"].on{border-color:var(--danger);background:var(--danger-soft)}
+  .pill[data-k="no_interes"].on .pl, .pill[data-k="no_match"].on .pl{color:var(--danger)}
+  .pill[data-k="no_show"].on{border-color:var(--mute);background:var(--line-2)}
+  .pill[data-k="no_show"].on .pl{color:var(--ink-2)}
+  .pills .pill:last-child{grid-column:1 / -1}
+
+  .field{margin-top:14px}
+  .field .lbl{font-size:11px;font-weight:800;color:var(--ink-2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px}
+  .field select, .field input[type="datetime-local"]{width:100%;background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;font-size:13px;color:var(--ink);font-family:inherit;font-weight:600}
+  .field select:focus, .field input:focus{outline:0;border-color:var(--brand-2)}
+
+  .owner-row{display:flex;gap:6px;margin-top:4px}
+  .owner-row label{flex:1;background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-2)}
+  .owner-row label input{display:none}
+  .owner-row label.on{border-color:var(--brand-2);background:var(--sagrado-soft);color:var(--brand-2)}
+
+  .vis-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--line-2)}
+  .vis-row:first-of-type{border-top:0;padding-top:4px}
+  .vis-row .vis-lbl{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .vis-row .vis-lbl small{display:block;font-size:10.5px;color:var(--mute);font-weight:600;margin-top:2px}
+  .switch{position:relative;width:42px;height:24px;background:var(--line);border-radius:999px;cursor:pointer;transition:all .2s;flex-shrink:0}
+  .switch.on{background:var(--brand-2)}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on::after{left:20px}
+
+  .fb-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+  .fb-head .chev{font-size:11px;color:var(--mute);font-weight:800;letter-spacing:1px;transition:transform .2s}
+  .fb-body{display:none;margin-top:14px}
+  .card.fb.open .fb-body{display:block}
+  .card.fb.open .chev{transform:rotate(180deg)}
+  .dim-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line-2)}
+  .dim-row:first-of-type{border-top:0}
+  .dim-row .dn{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .dim-row .dn small{display:block;font-size:10.5px;color:var(--mute);font-weight:600;margin-top:1px}
+  .dim-opts{display:flex;gap:4px}
+  .dim-opt{padding:5px 9px;border-radius:7px;border:1.5px solid var(--line);font-size:10.5px;font-weight:800;color:var(--mute);cursor:pointer;letter-spacing:.3px;background:var(--surface)}
+  .dim-opt.on{background:var(--brand-2);border-color:var(--brand-2);color:#fff}
+  .dim-opt.good.on{background:var(--ok);border-color:var(--ok)}
+  .dim-opt.poor.on{background:var(--danger);border-color:var(--danger)}
+  .dim-opt.partial.on{background:var(--warn);border-color:var(--warn)}
+  .dim-opt.na.on{background:var(--mute);border-color:var(--mute)}
+  .fb-note{background:var(--amber-soft);border-left:3px solid var(--amber);padding:10px 12px;border-radius:0 8px 8px 0;font-size:11.5px;color:var(--ink-2);font-weight:600;line-height:1.5;margin-top:12px}
+  .fb-note strong{color:var(--amber)}
+
+  .foot-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 16px;box-shadow:0 -2px 10px rgba(17,24,39,.05);z-index:50}
+  .foot-bar-inner{max-width:var(--maxw);margin:0 auto;display:flex;gap:8px}
+  .btn{flex:1;padding:12px 16px;border-radius:10px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;border:0}
+  .btn-primary{background:var(--gradient);color:#fff}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+  .btn-secondary{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);flex:0 0 110px}
+
+  .foot{text-align:center;margin-top:24px;font-size:10.5px;color:var(--mute-2);letter-spacing:.4px}
+
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:700;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.2);opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  .toast.err{background:var(--danger)}
+  .toast.ok{background:var(--ok)}
+
+  .loading{text-align:center;padding:60px 20px;color:var(--mute);font-size:13px;font-weight:600}
+  .error-state{text-align:center;padding:60px 20px;color:var(--danger);font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-group" id="lang-grp">
+    <button class="tb-btn on" data-lang="es" title="Español">
+      <span class="flag"><svg viewBox="0 0 3 2" width="16" height="12"><rect width="3" height="2" fill="#c60b1e"/><rect y=".5" width="3" height="1" fill="#ffc400"/></svg></span>ES
+    </button>
+    <button class="tb-btn" data-lang="en" title="English">
+      <span class="flag"><svg viewBox="0 0 60 30" width="16" height="12"><rect width="60" height="30" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M30,0 V30 M0,15 H60" stroke="#fff" stroke-width="10"/><path d="M30,0 V30 M0,15 H60" stroke="#c8102e" stroke-width="6"/></svg></span>EN
+    </button>
+    <button class="tb-btn" data-lang="pt" title="Português">
+      <span class="flag"><svg viewBox="0 0 20 14" width="16" height="12"><rect width="20" height="14" fill="#009b3a"/><path d="M10 2 L18 7 L10 12 L2 7 Z" fill="#fedf00"/><circle cx="10" cy="7" r="2.4" fill="#002776"/></svg></span>PT
+    </button>
+  </div>
+  <button class="tb-btn" id="theme-btn" onclick="toggleTheme()" title="Tema">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    <span id="theme-lbl">Claro</span>
+  </button>
+</div>
+
+<div id="app-loading" class="loading">Cargando ficha…</div>
+<div id="app-error" class="error-state" style="display:none"></div>
+
+<div class="wrap" id="app" style="display:none">
+
+  <div class="hero">
+    <div class="kicker" id="hero-kicker">Reunión cerrada · registrar resultado</div>
+    <h1 id="hero-name">—</h1>
+    <div class="meta" id="hero-meta">—</div>
+    <div class="ctxrow">
+      <div class="b"><div class="k">Fecha</div><div class="v" id="hero-fecha">—</div></div>
+      <div class="b"><div class="k">Duración</div><div class="v" id="hero-dur">—</div></div>
+      <div class="b"><div class="k">Match</div><div class="v" id="hero-match" style="color:var(--brand-2)">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Resultado</h2>
+    <div class="sub">¿Cómo terminó la conversación? Elige una opción.</div>
+    <div class="pills" id="pills-result">
+      <label class="pill" data-k="contratacion_directa"><input type="radio" name="r" value="contratacion_directa">
+        <div class="pl">Contratación directa</div>
+        <div class="pd">Hay oferta clara, se avanza a contrato.</div>
+      </label>
+      <label class="pill" data-k="entrevista_siguiente_fase"><input type="radio" name="r" value="entrevista_siguiente_fase">
+        <div class="pl">Entrevista siguiente fase</div>
+        <div class="pd">Pasa a entrevista técnica o con jefe.</div>
+      </label>
+      <label class="pill" data-k="continuar_negocio"><input type="radio" name="r" value="continuar_negocio">
+        <div class="pl">Continuar proceso</div>
+        <div class="pd">Hay interés, se mantiene la conversación.</div>
+      </label>
+      <label class="pill" data-k="info_adicional"><input type="radio" name="r" value="info_adicional">
+        <div class="pl">Falta info</div>
+        <div class="pd">Pendiente docs, pruebas o referencias.</div>
+      </label>
+      <label class="pill" data-k="banco_talento"><input type="radio" name="r" value="banco_talento">
+        <div class="pl">Banco de talento</div>
+        <div class="pd">No encaja ahora, se guarda para futuro.</div>
+      </label>
+      <label class="pill" data-k="no_interes"><input type="radio" name="r" value="no_interes">
+        <div class="pl">Sin encaje</div>
+        <div class="pd">No hay fit, se descarta.</div>
+      </label>
+      <label class="pill" data-k="no_show"><input type="radio" name="r" value="no_show">
+        <div class="pl">No asistió</div>
+        <div class="pd">La contraparte no se presentó.</div>
+      </label>
+    </div>
+  </div>
+
+  <div class="card close-note" id="close-note" style="display:none;background:var(--surface-2);border-style:dashed">
+    <div style="font-size:12.5px;color:var(--ink-2);font-weight:700;line-height:1.55">
+      <span id="close-note-txt">La cita queda cerrada sin próximo paso ni feedback. Toca <strong>Guardar</strong> para registrar.</span>
+    </div>
+  </div>
+
+  <div class="card follow-up" id="card-next">
+    <h2>Próximo paso</h2>
+    <div class="sub">Define el compromiso concreto, quién lo asume y cuándo.</div>
+
+    <div class="field">
+      <div class="lbl">Acción</div>
+      <select id="next-step">
+        <option value="continuar_negocio">Continuar conversación</option>
+        <option value="entrevista_siguiente_fase">Entrevista siguiente fase</option>
+        <option value="contratacion_directa">Contratación directa</option>
+        <option value="info_adicional">Enviar información adicional</option>
+        <option value="banco_talento">Agregar a banco de talento</option>
+        <option value="none">Sin acción</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <div class="lbl">Responsable</div>
+      <div class="owner-row" id="owner-row">
+        <label class="on" data-o="A"><input type="radio" name="owner" checked>Yo</label>
+        <label data-o="B"><input type="radio" name="owner">Contraparte</label>
+        <label data-o="both"><input type="radio" name="owner">Ambos</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="lbl">Fecha compromiso</div>
+      <input type="datetime-local" id="due-at">
+    </div>
+  </div>
+
+  <div class="card follow-up" id="card-vis">
+    <h2>Visibilidad</h2>
+    <div class="sub">¿Compartimos resultado y próximo paso con la contraparte?</div>
+    <div class="vis-row">
+      <div class="vis-lbl">Compartir con <span class="cp-name" id="cp-name-1">contraparte</span><small>Ve resultado, próximo paso y fecha. No ve feedback privado.</small></div>
+      <div class="switch" id="sw-share" onclick="this.classList.toggle('on')"></div>
+    </div>
+  </div>
+
+  <div class="card fb follow-up" id="card-fb" style="display:none">
+    <div class="fb-head" onclick="document.getElementById('card-fb').classList.toggle('open')">
+      <div>
+        <h2 style="margin-bottom:2px">Feedback candidato <span style="font-size:10px;font-weight:800;color:var(--brand-2);text-transform:none;letter-spacing:.4px;margin-left:4px">privado</span></h2>
+        <div class="sub" style="margin:0">4 dimensiones · solo tú y el productor lo ven.</div>
+      </div>
+      <div class="chev">ABRIR</div>
+    </div>
+    <div class="fb-body">
+      <div class="dim-row" data-dim="fit">
+        <div class="dn">Encaje técnico<small>¿El stack / experiencia encaja con la vacante?</small></div>
+        <div class="dim-opts">
+          <div class="dim-opt good" data-v="good">Bueno</div>
+          <div class="dim-opt partial" data-v="partial">Parcial</div>
+          <div class="dim-opt poor" data-v="poor">Pobre</div>
+          <div class="dim-opt na" data-v="na">N/A</div>
+        </div>
+      </div>
+      <div class="dim-row" data-dim="docs">
+        <div class="dn">Documentación<small>¿Llegó con CV, portafolio, referencias?</small></div>
+        <div class="dim-opts">
+          <div class="dim-opt good" data-v="good">Completa</div>
+          <div class="dim-opt partial" data-v="partial">Parcial</div>
+          <div class="dim-opt poor" data-v="poor">Incompleta</div>
+          <div class="dim-opt na" data-v="na">N/A</div>
+        </div>
+      </div>
+      <div class="dim-row" data-dim="price">
+        <div class="dn">Expectativa salarial<small>¿El rango esperado encaja con la vacante?</small></div>
+        <div class="dim-opts">
+          <div class="dim-opt good" data-v="good">Realista</div>
+          <div class="dim-opt partial" data-v="partial">Parcial</div>
+          <div class="dim-opt poor" data-v="poor">Fuera de rango</div>
+          <div class="dim-opt na" data-v="na">N/A</div>
+        </div>
+      </div>
+      <div class="dim-row" data-dim="timing">
+        <div class="dn">Disponibilidad<small>¿Puede empezar en el plazo? Modalidad OK?</small></div>
+        <div class="dim-opts">
+          <div class="dim-opt good" data-v="good">Inmediata</div>
+          <div class="dim-opt partial" data-v="partial">Con aviso</div>
+          <div class="dim-opt poor" data-v="poor">Larga</div>
+          <div class="dim-opt na" data-v="na">N/A</div>
+        </div>
+      </div>
+      <div class="fb-note">
+        <strong>Privado.</strong> Este feedback NO se comparte con <span class="cp-name" id="cp-name-2">la contraparte</span>. Alimenta el reporte agregado del productor para calibrar el matcher y detectar brechas de la demanda.
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">Rueda de Empleo · SONORO CMS · Ficha post-cita v1</div>
+</div>
+
+<div class="foot-bar" id="foot-bar" style="display:none">
+  <div class="foot-bar-inner">
+    <button class="btn btn-secondary" onclick="history.back()">Después</button>
+    <button class="btn btn-primary" id="btn-save" onclick="saveOutcome()">Guardar resultado</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const TOKEN     = qs.get('token');
+  const MEETING_ID = qs.get('meeting');
+  const API = '/api/rn/public';
+
+  const state = {
+    meeting: null,
+    result: null,
+    nextStep: 'continuar_negocio',
+    owner: 'A',
+    dueAt: '',
+    share: false,
+    isRecruiter: false,
+    feedback: { fit:null, docs:null, price:null, timing:null },
+  };
+
+  function toast(msg, kind){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + (kind||'');
+    setTimeout(()=>el.classList.remove('show'), 2600);
+  }
+
+  function toggleTheme(){
+    const h = document.documentElement;
+    const cur = h.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    const nx = cur === 'dark' ? 'light' : 'dark';
+    h.setAttribute('data-theme', nx);
+    document.getElementById('theme-lbl').textContent = nx === 'dark' ? 'Oscuro' : 'Claro';
+  }
+
+  document.querySelectorAll('#lang-grp .tb-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('#lang-grp .tb-btn').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+
+  function setResult(k){
+    state.result = k;
+    document.querySelectorAll('#pills-result .pill').forEach(x => {
+      x.classList.toggle('on', x.getAttribute('data-k') === k);
+    });
+    const close = (k === 'no_interes' || k === 'no_match' || k === 'no_show');
+    document.querySelectorAll('.follow-up').forEach(el => el.style.display = close ? 'none' : '');
+    if (close && state.isRecruiter) {
+      document.getElementById('card-fb').style.display = 'none';
+    } else if (state.isRecruiter) {
+      document.getElementById('card-fb').style.display = '';
+    }
+    const note = document.getElementById('close-note');
+    const nTxt = document.getElementById('close-note-txt');
+    if (note) note.style.display = close ? 'block' : 'none';
+    if (nTxt) nTxt.innerHTML = k === 'no_show'
+      ? 'La contraparte no asistió. La cita se cierra sin próximo paso ni feedback. Toca <strong>Guardar</strong> para registrar.'
+      : 'Sin encaje. La cita se cierra sin próximo paso ni feedback. Toca <strong>Guardar</strong> para registrar.';
+    if (close) {
+      state.nextStep = 'none';
+      const sel = document.getElementById('next-step');
+      if (sel) sel.value = 'none';
+    }
+  }
+
+  document.querySelectorAll('#pills-result .pill').forEach(p => {
+    p.addEventListener('click', () => setResult(p.getAttribute('data-k')));
+  });
+
+  document.getElementById('next-step').addEventListener('change', e => state.nextStep = e.target.value);
+  document.getElementById('due-at').addEventListener('change', e => state.dueAt = e.target.value);
+
+  document.querySelectorAll('#owner-row label').forEach(l => {
+    l.addEventListener('click', () => {
+      document.querySelectorAll('#owner-row label').forEach(x => x.classList.remove('on'));
+      l.classList.add('on');
+      state.owner = l.getAttribute('data-o');
+    });
+  });
+
+  document.getElementById('sw-share').addEventListener('click', e => {
+    state.share = e.currentTarget.classList.contains('on');
+  });
+
+  document.querySelectorAll('.dim-row').forEach(row => {
+    const dim = row.getAttribute('data-dim');
+    row.querySelectorAll('.dim-opt').forEach(o => {
+      o.addEventListener('click', () => {
+        row.querySelectorAll('.dim-opt').forEach(x => x.classList.remove('on'));
+        o.classList.add('on');
+        state.feedback[dim] = o.getAttribute('data-v');
+      });
+    });
+  });
+
+  function fmtDateTime(iso, tz){
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('es-CO', { timeZone: tz || 'America/Bogota', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:false });
+    } catch(_){ return '—'; }
+  }
+  function durMin(s, e){
+    if (!s || !e) return '—';
+    const d = Math.round((new Date(e) - new Date(s)) / 60000);
+    return (d >= 0 ? d : '—') + ' min';
+  }
+
+  async function init(){
+    if (!TOKEN || !MEETING_ID) {
+      showError('Enlace inválido. Falta token o meeting.');
+      return;
+    }
+    try {
+      const rMtg = await fetch(`${API}/meetings?token=${encodeURIComponent(TOKEN)}`);
+      if (!rMtg.ok) throw new Error('No se pudo cargar la agenda');
+      const jMtg = await rMtg.json();
+      const m = (jMtg.meetings || []).find(x => x.id === MEETING_ID);
+      if (!m) throw new Error('Reunión no encontrada en tu agenda');
+      state.meeting = m;
+      const tz = jMtg.event?.timezone || 'America/Bogota';
+
+      document.getElementById('hero-name').textContent = m.other_company || 'Contraparte';
+      const rondaLbl = m.round_label || `Ronda ${m.round_number}`;
+      document.getElementById('hero-meta').textContent = `${m.table_label || 'Mesa'} · ${rondaLbl}`;
+      document.getElementById('hero-fecha').textContent = fmtDateTime(m.round_starts_at, tz);
+      document.getElementById('hero-dur').textContent = durMin(m.started_at, m.ended_at);
+      document.getElementById('hero-match').textContent = m.tag_overlap_score != null ? Number(m.tag_overlap_score).toFixed(2) : '—';
+      document.querySelectorAll('.cp-name').forEach(el => el.textContent = m.other_company || 'contraparte');
+
+      state.isRecruiter = (m.my_side === 'b');
+      document.getElementById('card-fb').style.display = state.isRecruiter ? '' : 'none';
+
+      const rOut = await fetch(`${API}/meetings/${MEETING_ID}/outcome?token=${encodeURIComponent(TOKEN)}`);
+      if (rOut.ok) {
+        const jOut = await rOut.json();
+        if (jOut.mine) {
+          setResult(jOut.mine.result);
+          state.nextStep = jOut.mine.next_step;
+          state.owner = jOut.mine.owner_side || 'A';
+          state.dueAt = jOut.mine.due_at ? new Date(jOut.mine.due_at).toISOString().slice(0,16) : '';
+          state.share = !!jOut.mine.share_with_counterpart;
+          document.getElementById('next-step').value = state.nextStep;
+          document.getElementById('due-at').value = state.dueAt;
+          document.getElementById('sw-share').classList.toggle('on', state.share);
+          document.querySelectorAll('#owner-row label').forEach(l => {
+            l.classList.toggle('on', l.getAttribute('data-o') === state.owner);
+          });
+        }
+      }
+
+      if (state.isRecruiter) {
+        const rFb = await fetch(`${API}/meetings/${MEETING_ID}/feedback?token=${encodeURIComponent(TOKEN)}`);
+        if (rFb.ok) {
+          const jFb = await rFb.json();
+          if (jFb.mine) {
+            ['fit','docs','price','timing'].forEach(dim => {
+              const v = jFb.mine['dim_' + dim];
+              if (v) {
+                state.feedback[dim] = v;
+                const row = document.querySelector(`.dim-row[data-dim="${dim}"]`);
+                if (row) {
+                  row.querySelectorAll('.dim-opt').forEach(x => x.classList.toggle('on', x.getAttribute('data-v') === v));
+                }
+              }
+            });
+          }
+        }
+      }
+
+      document.getElementById('app-loading').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('foot-bar').style.display = 'block';
+    } catch (err) {
+      showError(err.message || 'Error cargando la ficha');
+    }
+  }
+
+  function showError(msg){
+    document.getElementById('app-loading').style.display = 'none';
+    const el = document.getElementById('app-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  async function saveOutcome(){
+    if (!state.result) { toast('Elige un resultado', 'err'); return; }
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+      const body = {
+        result: state.result,
+        next_step: state.nextStep || 'none',
+        owner_side: state.owner,
+        due_at: state.dueAt ? new Date(state.dueAt).toISOString() : null,
+        share_with_counterpart: state.share,
+        share_with_producer: true,
+      };
+      const r = await fetch(`${API}/meetings/${MEETING_ID}/outcome?token=${encodeURIComponent(TOKEN)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(()=>({}));
+        throw new Error(j.error || 'No se pudo guardar');
+      }
+
+      if (state.isRecruiter && state.result !== 'no_interes' && state.result !== 'no_match' && state.result !== 'no_show') {
+        const fbBody = {
+          dim_fit: state.feedback.fit,
+          dim_docs: state.feedback.docs,
+          dim_price: state.feedback.price,
+          dim_timing: state.feedback.timing,
+          visibility: 'producer_only',
+        };
+        const hasAny = Object.values(state.feedback).some(v => v != null);
+        if (hasAny) {
+          const rFb = await fetch(`${API}/meetings/${MEETING_ID}/feedback?token=${encodeURIComponent(TOKEN)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fbBody),
+          });
+          if (!rFb.ok) {
+            const j = await rFb.json().catch(()=>({}));
+            toast('Resultado guardado · feedback: ' + (j.error || 'error'), 'err');
+            btn.disabled = false;
+            btn.textContent = 'Guardar resultado';
+            return;
+          }
+        }
+      }
+      toast('Resultado guardado', 'ok');
+      setTimeout(()=>{ btn.disabled = false; btn.textContent = 'Guardar resultado'; }, 600);
+    } catch (err) {
+      toast(err.message || 'Error al guardar', 'err');
+      btn.disabled = false;
+      btn.textContent = 'Guardar resultado';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

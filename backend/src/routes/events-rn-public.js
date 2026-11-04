@@ -1508,8 +1508,20 @@ router.get('/report', rnReadLimiter, async (req, res) => {
 // Idempotencia: UNIQUE(meeting_id, side) permite upsert via ON CONFLICT.
 // ──────────────────────────────────────────────────────────────────────────────
 
-const RESULT_VALUES    = ['match','conditional','needs_info','no_match','no_show'];
-const NEXT_STEP_VALUES = ['quote','sample','catalog','tech_spec','intro','second_meeting','pilot','none'];
+const RESULT_VALUES    = [
+  // RN
+  'match','conditional','needs_info','no_match','no_show',
+  // RE (E-EMP-1)
+  'continuar_negocio','info_adicional','no_interes',
+  'contratacion_directa','entrevista_siguiente_fase','banco_talento'
+];
+const NEXT_STEP_VALUES = [
+  // RN
+  'quote','sample','catalog','tech_spec','intro','second_meeting','pilot','none',
+  // RE (E-EMP-1)
+  'continuar_negocio','entrevista_siguiente_fase','contratacion_directa',
+  'info_adicional','banco_talento'
+];
 const OWNER_VALUES     = ['A','B','both'];
 const DIM_VALUES       = ['good','partial','poor','na'];
 const VIS_VALUES       = ['counterpart','producer_only','both'];
