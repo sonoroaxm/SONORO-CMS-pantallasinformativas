@@ -1318,26 +1318,115 @@ const BULK_TEMPLATE_I18N = {
   },
 };
 
-function buildRegistrationsTemplateBuffer(locale) {
-  const loc = BULK_TEMPLATE_I18N[locale] ? locale : 'es';
-  const t = BULK_TEMPLATE_I18N[loc];
+// Template RE (Rueda de Empleo) — ofertantes/candidatos
+const BULK_TEMPLATE_RE_I18N = {
+  es: {
+    sheet: 'ofertantes',
+    headers: ['nombre','email','telefono','ciudad','cargo_buscado','habilidades','salario_min','salario_target','banco_talento'],
+    rows: [
+      ['María Pérez','maria@correo.co','+57 300 1112233','Bogotá','Analista de datos','Excel avanzado, Python, SQL / bases de datos','2500000','3500000','si'],
+      ['Juan López','juan@correo.co','+57 310 4455667','Medellín','Diseñador UI','Figma / diseño UI, Adobe Illustrator, Comunicación efectiva','2800000','4000000','si'],
+      ['Luisa Ruiz','luisa@correo.co','','Cali','Atención al cliente','Atención al cliente, Inglés B1-B2','1500000','','no'],
+    ],
+  },
+  en: {
+    sheet: 'candidates',
+    headers: ['name','email','phone','city','desired_role','skills','salary_min','salary_target','talent_pool'],
+    rows: [
+      ['Maria Perez','maria@mail.co','+57 300 1112233','Bogota','Data analyst','Advanced Excel, Python, SQL / databases','2500000','3500000','yes'],
+      ['Juan Lopez','juan@mail.co','+57 310 4455667','Medellin','UI designer','Figma / UI design, Adobe Illustrator, Effective communication','2800000','4000000','yes'],
+      ['Luisa Ruiz','luisa@mail.co','','Cali','Customer service','Customer service, English B1-B2','1500000','','no'],
+    ],
+  },
+  pt: {
+    sheet: 'candidatos',
+    headers: ['nome','email','telefone','cidade','cargo_desejado','habilidades','salario_min','salario_alvo','banco_talentos'],
+    rows: [
+      ['Maria Pérez','maria@correio.co','+57 300 1112233','Bogotá','Analista de dados','Excel avançado, Python, SQL / bancos de dados','2500000','3500000','sim'],
+      ['Juan López','juan@correio.co','+57 310 4455667','Medellín','Designer UI','Figma / design UI, Adobe Illustrator, Comunicação efetiva','2800000','4000000','sim'],
+      ['Luisa Ruiz','luisa@correio.co','','Cali','Atendimento ao cliente','Atendimento ao cliente, Inglês B1-B2','1500000','','não'],
+    ],
+  },
+};
+
+function buildRegistrationsTemplateBuffer(locale, ruedaType) {
+  const bank = ruedaType === 'empleo' ? BULK_TEMPLATE_RE_I18N : BULK_TEMPLATE_I18N;
+  const loc = bank[locale] ? locale : 'es';
+  const t = bank[loc];
   const data = [t.headers, ...t.rows];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:22},{wch:22},{wch:28},{wch:18},{wch:14},{wch:40},{wch:40}];
+  ws['!cols'] = ruedaType === 'empleo'
+    ? [{wch:22},{wch:28},{wch:18},{wch:16},{wch:22},{wch:48},{wch:14},{wch:14},{wch:14}]
+    : [{wch:22},{wch:22},{wch:28},{wch:18},{wch:14},{wch:40},{wch:40}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, t.sheet);
   return XLSX.write(wb, { type:'buffer', bookType:'xlsx' });
 }
 
 router.get('/events/:eventId/registrations/bulk-template.xlsx', auth, async (req, res) => {
+  const pool = global.pool;
   try {
+    await assertRnEventOwned(pool, req.params.eventId, req.user.id);
+    const ev = await pool.query(
+      `SELECT rueda_type FROM events.events WHERE id = $1`, [req.params.eventId]
+    );
+    const ruedaType = ev.rows[0]?.rueda_type || 'negocios';
     const loc = String(req.query.locale||'es').slice(0,2).toLowerCase();
-    const buf = buildRegistrationsTemplateBuffer(loc);
+    const buf = buildRegistrationsTemplateBuffer(loc, ruedaType);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="sonoro-rn-inscripciones-template.xlsx"');
+    const fname = ruedaType === 'empleo'
+      ? 'sonoro-re-ofertantes-template.xlsx'
+      : 'sonoro-rn-inscripciones-template.xlsx';
+    res.setHeader('Content-Disposition', `attachment; filename="${fname}"`);
     res.send(buf);
   } catch (err) { handleError(res, err, 'GET registrations/bulk-template'); }
 });
+
+function parseRegsBufferRE(buffer) {
+  const wb = XLSX.read(buffer, { type:'buffer' });
+  const name = wb.SheetNames[0];
+  if (!name) throw Object.assign(new Error('Archivo sin hojas'), { httpStatus: 400 });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:'' });
+  if (rows.length === 0) return [];
+  const header = rows[0].map(h => String(h||'').trim().toLowerCase());
+  const idx = (names) => {
+    for (const n of names) { const i = header.indexOf(n); if (i >= 0) return i; }
+    return -1;
+  };
+  const cName   = idx(['nombre','nome','name']);
+  const cEmail  = idx(['email','correo','e-mail']);
+  const cPhone  = idx(['telefono','teléfono','telefone','phone','celular']);
+  const cCity   = idx(['ciudad','cidade','city']);
+  const cRole   = idx(['cargo_buscado','cargo_desejado','desired_role']);
+  const cSkills = idx(['habilidades','skills']);
+  const cSmin   = idx(['salario_min','salary_min']);
+  const cStgt   = idx(['salario_target','salario_alvo','salary_target']);
+  const cBanco  = idx(['banco_talento','banco_talentos','talent_pool']);
+  if (cName < 0 || cEmail < 0) {
+    throw Object.assign(new Error('Columnas obligatorias: nombre, email'), { httpStatus: 400 });
+  }
+  const splitTags = (s) => String(s||'').split(/[|,;]+/).map(x => x.trim()).filter(Boolean);
+  const parseNum = (v) => {
+    const n = parseInt(String(v||'').replace(/[^\d]/g,''), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const parseBool = (v) => {
+    const s = String(v||'').trim().toLowerCase();
+    return ['1','true','sí','si','yes','sim','y','s'].includes(s);
+  };
+  return rows.slice(1).map((r, i) => ({
+    rowNumber: i + 2,
+    name:  String(r[cName]||'').trim(),
+    email: String(r[cEmail]||'').trim().toLowerCase(),
+    phone: cPhone >= 0 ? String(r[cPhone]||'').trim() : '',
+    city:  cCity  >= 0 ? String(r[cCity] ||'').trim() : '',
+    desired_role: cRole >= 0 ? String(r[cRole]||'').trim() : '',
+    skills: cSkills >= 0 ? splitTags(r[cSkills]) : [],
+    salary_min:    cSmin >= 0 ? parseNum(r[cSmin]) : null,
+    salary_target: cStgt >= 0 ? parseNum(r[cStgt]) : null,
+    banco_opt_in:  cBanco >= 0 ? parseBool(r[cBanco]) : false,
+  }));
+}
 
 function parseRegsBuffer(buffer) {
   const wb = XLSX.read(buffer, { type:'buffer' });
@@ -1389,11 +1478,175 @@ router.post('/events/:eventId/registrations/bulk', auth, async (req, res) => {
     const userId  = req.user.id;
 
     const ev = await pool.query(
-      `SELECT id, user_id, config FROM events.events WHERE id = $1 AND user_id = $2`,
+      `SELECT id, user_id, config, rueda_type FROM events.events WHERE id = $1 AND user_id = $2`,
       [eventId, userId]
     );
     if (ev.rowCount === 0) return res.status(404).json({ error: 'Evento no encontrado' });
     const defaultLocale = (ev.rows[0].config && ev.rows[0].config.default_locale) || 'es';
+    const ruedaType = ev.rows[0].rueda_type || 'negocios';
+
+    // ─── RE (Rueda de Empleo) — ofertantes/candidatos ───
+    if (ruedaType === 'empleo') {
+      const consentBulk = String(req.body.consent_bulk_authorized || '').toLowerCase();
+      const consentOK = consentBulk === '1' || consentBulk === 'true';
+      if (!consentOK && !dryRun) {
+        return res.status(400).json({
+          error: 'Debes confirmar que tienes consentimiento Ley 1581 firmado off-platform para cada candidato del archivo (consent_bulk_authorized)',
+        });
+      }
+      const ENC_KEY = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+      if (!ENC_KEY && !dryRun) {
+        return res.status(500).json({ error: 'Encryption key no configurada' });
+      }
+
+      let parsedRE;
+      try { parsedRE = parseRegsBufferRE(fileBuffer); }
+      catch (e) { return res.status(e.httpStatus || 400).json({ error: e.message }); }
+
+      // Catálogo tags del tenant (filtrado para RE: soft + hard tech)
+      const tagRowsRE = (await pool.query(
+        `SELECT id, slug, label, category, dimension FROM events.rn_tags
+         WHERE user_id = $1 AND (dimension = 'soft' OR (dimension='hard' AND category IN ('tech_sonoro','tech_custom')))`,
+        [userId]
+      )).rows;
+      const tagBySlugRE = new Map();
+      const tagByLabelRE = new Map();
+      tagRowsRE.forEach(t => {
+        tagBySlugRE.set(t.slug, t);
+        tagByLabelRE.set(String(t.label).toLowerCase(), t);
+      });
+
+      const slugifyRE = (lbl) => String(lbl).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+      const createUnknownRE = ['1','true'].includes(String(req.body.create_unknown_tags||'').toLowerCase());
+
+      if (createUnknownRE && !dryRun) {
+        const seen = new Set();
+        for (const r of parsedRE) {
+          for (const lbl of (r.skills||[])) {
+            const slug = slugifyRE(lbl);
+            if (!slug || seen.has(slug) || tagBySlugRE.has(slug) || tagByLabelRE.has(String(lbl).toLowerCase())) continue;
+            seen.add(slug);
+            await pool.query(
+              `INSERT INTO events.rn_tags (user_id, slug, label, category, dimension)
+               VALUES ($1,$2,$3,'tech_custom','hard') ON CONFLICT (user_id, slug) DO NOTHING`,
+              [userId, slug, String(lbl).trim().slice(0,100)]
+            );
+          }
+        }
+        const fresh = (await pool.query(
+          `SELECT id, slug, label, category, dimension FROM events.rn_tags
+           WHERE user_id = $1 AND (dimension='soft' OR (dimension='hard' AND category IN ('tech_sonoro','tech_custom')))`,
+          [userId]
+        )).rows;
+        tagBySlugRE.clear(); tagByLabelRE.clear();
+        fresh.forEach(t => { tagBySlugRE.set(t.slug, t); tagByLabelRE.set(String(t.label).toLowerCase(), t); });
+      }
+
+      const emailRegexRE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const seenEmailsRE = new Set();
+      const resolvedRE = [];
+      const errorsRE = [];
+      const unknownSkills = new Set();
+
+      for (const r of parsedRE) {
+        if (!r.name || !r.email) { errorsRE.push({ row: r.rowNumber, reason: 'nombre/email requeridos' }); continue; }
+        if (!emailRegexRE.test(r.email)) { errorsRE.push({ row: r.rowNumber, reason: `email inválido: ${r.email}` }); continue; }
+        if (seenEmailsRE.has(r.email)) { errorsRE.push({ row: r.rowNumber, reason: `email duplicado en archivo: ${r.email}` }); continue; }
+        seenEmailsRE.add(r.email);
+        const skillIds = [];
+        const unknown  = [];
+        for (const lbl of r.skills) {
+          const slug = slugifyRE(lbl);
+          const t = tagBySlugRE.get(slug) || tagByLabelRE.get(String(lbl).toLowerCase());
+          if (t) skillIds.push(t.id); else { unknown.push(lbl); unknownSkills.add(lbl); }
+        }
+        resolvedRE.push({ ...r, skill_tag_ids: skillIds, unknown_skills: unknown });
+      }
+
+      if (dryRun) {
+        return res.json({
+          ok: true, dry_run: true, mode: 're',
+          total_rows: parsedRE.length,
+          valid: resolvedRE.length,
+          errors: errorsRE,
+          unknown_tags: Array.from(unknownSkills),
+        });
+      }
+
+      const insertedRE = [];
+      const skippedRE  = [];
+      await withTransaction(pool, async (client) => {
+        for (const r of resolvedRE) {
+          try {
+            const attRes = await client.query(
+              `INSERT INTO events.attendees (user_id, email, name, phone, locale)
+               VALUES ($1,$2,$3,$4,$5)
+               ON CONFLICT (user_id, email) DO UPDATE SET
+                 name = EXCLUDED.name,
+                 phone = COALESCE(EXCLUDED.phone, events.attendees.phone),
+                 updated_at = NOW()
+               RETURNING id`,
+              [userId, r.email, r.name, r.phone || null, defaultLocale]
+            );
+            const attendeeId = attRes.rows[0].id;
+
+            const customFields = {
+              city: r.city || null,
+              desired_role: r.desired_role || null,
+              rn_visibility: 'public',
+              bulk_consent_confirmed: true,
+              bulk_consent_at: new Date().toISOString(),
+            };
+            const salaryJson = (r.salary_min || r.salary_target)
+              ? JSON.stringify({ min: r.salary_min, target: r.salary_target, currency: 'COP' })
+              : null;
+
+            const regRes = await client.query(
+              `INSERT INTO events.registrations
+                 (event_id, attendee_id, user_id, ticket_type, party_type, origin,
+                  custom_fields, accepted_terms, status,
+                  banco_talento_opt_in, salary_expectation_encrypted,
+                  consent_datos_at, consent_datos_ip, consent_datos_ua)
+               VALUES ($1,$2,$3,'candidato','ofertante','import',
+                       $4,TRUE,'pending',
+                       $5,
+                       CASE WHEN $6::text IS NOT NULL THEN pgp_sym_encrypt($6::text, $7) ELSE NULL END,
+                       NOW(), $8, $9)
+               ON CONFLICT (event_id, attendee_id) DO NOTHING
+               RETURNING id`,
+              [eventId, attendeeId, userId, JSON.stringify(customFields),
+               !!r.banco_opt_in,
+               salaryJson, ENC_KEY,
+               req.ip || null, 'bulk-import']
+            );
+            if (!regRes.rows[0]) { skippedRE.push({ row: r.rowNumber, reason: 'ya inscrito' }); continue; }
+            const regId = regRes.rows[0].id;
+
+            for (const tagId of r.skill_tag_ids) {
+              await client.query(
+                `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+                 VALUES ($1,$2,'offer') ON CONFLICT DO NOTHING`,
+                [regId, tagId]
+              );
+            }
+            insertedRE.push({ row: r.rowNumber, registration_id: regId, name: r.name, email: r.email });
+          } catch (e) {
+            skippedRE.push({ row: r.rowNumber, reason: e.message || 'error insert' });
+          }
+        }
+        return true;
+      });
+
+      return res.json({
+        ok: true, dry_run: false, mode: 're',
+        total_rows: parsedRE.length,
+        inserted: insertedRE.length,
+        inserted_rows: insertedRE,
+        skipped: errorsRE.concat(skippedRE),
+        unknown_tags: Array.from(unknownSkills),
+      });
+    }
+    // ─── RN (Rueda de Negocios) — original ───
 
     let parsed;
     try { parsed = parseRegsBuffer(fileBuffer); }

@@ -4720,6 +4720,13 @@
                   <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;" data-i18n="rn.dir.bulk_unknown_label">Tags no reconocidos en catálogo:</div>
                   <div id="ev-rn-dir-bulk-m-unknown-list" style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow:auto;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;"></div>
                 </div>
+                <!-- Consentimiento bulk RE (solo visible para Rueda de Empleo) -->
+                <div id="ev-rn-dir-bulk-consent-re" style="display:none;padding:12px;border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.08);border-radius:8px;">
+                  <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;font-size:12.5px;line-height:1.5;">
+                    <input type="checkbox" id="ev-rn-dir-bulk-consent-chk" onchange="evRnDirBulkConsentChanged()" style="margin-top:2px;flex-shrink:0;">
+                    <span data-i18n="re.dir.bulk_consent">Confirmo que tengo el consentimiento de tratamiento de datos (Ley 1581) firmado por cada candidato de este archivo. SONORO no almacena los consentimientos físicos — soy responsable como productor del evento.</span>
+                  </label>
+                </div>
               </div>
               <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
                 <button class="btn btn-outline" onclick="evRnDirBulkCloseModal('cancel')" data-i18n="common.cancel">Cancelar</button>
@@ -13647,10 +13654,24 @@ async function evRnBulkTemplate() {
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'sonoro-rn-inscripciones-template.xlsx';
+    const isRE = (evRnCurrentEvent && evRnCurrentEvent.rueda_type === 'empleo');
+    a.href = url; a.download = isRE ? 'sonoro-re-ofertantes-template.xlsx' : 'sonoro-rn-inscripciones-template.xlsx';
     document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
   } catch(_) { showToast(evRnT('rn.dir.bulk_err','No se pudo descargar'), 'error'); }
+}
+
+// RE bulk: habilita botón de importación según checkbox de consentimiento
+function evRnDirBulkConsentChanged() {
+  const isRE = (evRnCurrentEvent && evRnCurrentEvent.rueda_type === 'empleo');
+  if (!isRE) return;
+  const ok = document.getElementById('ev-rn-dir-bulk-consent-chk')?.checked;
+  const btnCreate = document.getElementById('ev-rn-dir-bulk-btn-create');
+  const btnIgnore = document.getElementById('ev-rn-dir-bulk-btn-ignore');
+  if (btnCreate) btnCreate.disabled = !ok;
+  if (btnIgnore) btnIgnore.disabled = !ok;
+  if (btnCreate) btnCreate.style.opacity = ok ? '1' : '0.5';
+  if (btnIgnore) btnIgnore.style.opacity = ok ? '1' : '0.5';
 }
 
 // Modal preview bulk directorio — capa (a) tags unknown
@@ -13681,6 +13702,13 @@ function evRnDirBulkOpenModal({ total, valid, errors, unknownTags }) {
     btnCreate.style.display = 'none';
     btnIgnore.textContent = evRnT('rn.dir.bulk_import_go','Importar');
   }
+  // Consentimiento obligatorio para RE (Rueda de Empleo)
+  const isRE = (evRnCurrentEvent && evRnCurrentEvent.rueda_type === 'empleo');
+  const consentBox = document.getElementById('ev-rn-dir-bulk-consent-re');
+  const consentChk = document.getElementById('ev-rn-dir-bulk-consent-chk');
+  if (consentBox) consentBox.style.display = isRE ? '' : 'none';
+  if (consentChk) consentChk.checked = false;
+  if (isRE) evRnDirBulkConsentChanged();
   document.getElementById('ev-rn-dir-bulk-modal').classList.add('active');
   return new Promise(resolve => { evRnDirBulkResolver = resolve; });
 }
@@ -13714,6 +13742,8 @@ async function evRnBulkImport(input) {
     const fd2 = new FormData();
     fd2.append('file', file);
     if (createUnknown) fd2.append('create_unknown_tags', '1');
+    const isRE = (evRnCurrentEvent && evRnCurrentEvent.rueda_type === 'empleo');
+    if (isRE) fd2.append('consent_bulk_authorized', '1');
     const r2 = await fetch(`${API_URL}/api/rn/events/${evCurrentEventId}/registrations/bulk`, {
       method:'POST', headers:{ 'Authorization': `Bearer ${authToken}` }, body: fd2
     });
