@@ -55,7 +55,8 @@
   .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--accent)}
   .field .nota{font-size:11px;color:var(--text-dim);margin-top:2px}
 
-  .upload{border:1.5px dashed var(--border-2);border-radius:12px;padding:22px 18px;text-align:center;cursor:pointer;transition:all .18s ease;background:var(--surface2);position:relative}
+  .upload{border:1.5px dashed var(--border-2);border-radius:12px;padding:22px 18px;text-align:center;cursor:pointer;transition:all .18s ease;background:var(--surface2);position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;box-sizing:border-box;min-height:120px}
+  .upload .ic{flex:0 0 auto}
   .upload:hover{border-color:var(--accent);background:var(--accent-soft)}
   .upload .ic{width:38px;height:38px;border-radius:50%;background:var(--surface3);display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;color:var(--accent)}
   .upload .t{font-size:13.5px;font-weight:800;margin-bottom:3px}

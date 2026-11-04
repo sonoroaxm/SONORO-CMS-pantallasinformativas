@@ -286,6 +286,10 @@ router.get('/:slug/tags-catalog', eventPublicReadLimiter, async (req, res) => {
     let where = `user_id = $1`;
     const params = [ev.user_id];
     if (dim === 'hard' || dim === 'soft') { where += ` AND dimension = $2`; params.push(dim); }
+    // En Rueda de Empleo, hard = habilidades técnicas curadas/custom (no sectores RN)
+    if (ev.rueda_type === 'empleo') {
+      where += ` AND (dimension <> 'hard' OR category IN ('tech_sonoro','tech_custom'))`;
+    }
     const { rows } = await pool.query(
       `SELECT id, slug, label, category, dimension
        FROM events.rn_tags WHERE ${where}

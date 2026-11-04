@@ -9,6 +9,7 @@ const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
 const { withTransaction } = require('../db/withTransaction');
 const { seedEmpleoSoftSkills } = require('../services/empleo-soft-skills-seed');
+const { seedEmpleoHardSkills } = require('../services/empleo-hard-skills-seed');
 const { sendEventRegistrationEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail } = require('../services/email');
 const calendarRouter = require('./events-calendar');
 const { syncEventToCalendars, deleteEventFromCalendars } = calendarRouter;
@@ -410,8 +411,10 @@ router.post('/', auth, async (req, res) => {
         try {
           const seeded = await seedEmpleoSoftSkills(client, req.user.id);
           if (seeded > 0) console.log(`🌱 E-EMP seed blandas: user=${req.user.id} nuevas=${seeded}`);
+          const seededH = await seedEmpleoHardSkills(client, req.user.id);
+          if (seededH > 0) console.log(`🌱 E-EMP seed técnicas: user=${req.user.id} nuevas=${seededH}`);
         } catch (e) {
-          console.error('⚠️ seedEmpleoSoftSkills:', e.message);
+          console.error('⚠️ seedEmpleoSkills:', e.message);
           throw e;
         }
       }
