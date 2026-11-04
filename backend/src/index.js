@@ -9036,6 +9036,10 @@ app.get('/evento/:slug', async (req, res) => {
 app.get('/evento/:slug/mi-registro/:qr', async (req, res) => {
   await renderEventoWithOG(req, res, req.params.slug);
 });
+// E-EMP-1 Task 3: landing candidato Rueda de Empleo
+app.get('/empleo/:slug/candidato', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'empleo-candidato.html'));
+});
 
 // Render evento.html con OG tags dinámicos (Open Graph + Twitter cards)
 async function renderEventoWithOG(req, res, slug) {
