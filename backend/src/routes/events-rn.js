@@ -335,7 +335,7 @@ router.get('/events/:eventId/stats/planning', auth, async (req, res) => {
     const regs = await pool.query(
       `SELECT COUNT(*)::int AS c
          FROM events.registrations
-        WHERE event_id = $1 AND ticket_type = 'rueda' AND status IN ('approved','confirmed')`,
+        WHERE event_id = $1 AND ticket_type IN ('rueda','candidato','empresa') AND status IN ('approved','confirmed')`,
       [eventId]
     );
     const totalReq = await pool.query(
@@ -1241,7 +1241,7 @@ router.get('/events/:eventId/registrations', auth, async (req, res) => {
            FROM events.rn_meeting_requests
           WHERE event_id = $1 GROUP BY from_registration_id
        ) reqs_out ON reqs_out.rid = r.id
-       WHERE r.event_id = $1 AND r.ticket_type = 'rueda'
+       WHERE r.event_id = $1 AND r.ticket_type IN ('rueda','candidato','empresa')
        ORDER BY r.created_at ASC`,
       [req.params.eventId]
     );
@@ -1274,7 +1274,7 @@ router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => 
     params.push(req.params.regId, req.params.eventId);
     const r = await pool.query(
       `UPDATE events.registrations SET ${sets.join(', ')}, updated_at = NOW()
-         WHERE id = $${params.length-1} AND event_id = $${params.length} AND ticket_type = 'rueda'
+         WHERE id = $${params.length-1} AND event_id = $${params.length} AND ticket_type IN ('rueda','candidato','empresa')
          RETURNING id`,
       params
     );
@@ -1563,7 +1563,7 @@ router.delete('/events/:eventId/registrations/:regId', auth, async (req, res) =>
     const { eventId, regId } = req.params;
     const result = await withTransaction(pool, async (client) => {
       const chk = await client.query(
-        `SELECT id FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda'`,
+        `SELECT id FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type IN ('rueda','candidato','empresa')`,
         [regId, eventId]
       );
       if (!chk.rows[0]) { const e = new Error('Inscrito no encontrado'); e.httpStatus = 404; throw e; }
@@ -1580,7 +1580,7 @@ router.delete('/events/:eventId/registrations/:regId', auth, async (req, res) =>
       await client.query(`DELETE FROM events.rn_meeting_requests WHERE event_id = $1 AND (from_registration_id = $2 OR to_registration_id = $2)`, [eventId, regId]);
       // Las tablas con CASCADE (rn_registration_tags/anchors/zones/blocklist/delegates/checkins/sessions/certificates/action_tokens) caen solas
       const del = await client.query(
-        `DELETE FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type = 'rueda' RETURNING id`,
+        `DELETE FROM events.registrations WHERE id = $1 AND event_id = $2 AND ticket_type IN ('rueda','candidato','empresa') RETURNING id`,
         [regId, eventId]
       );
       return del.rows[0];
