@@ -4761,8 +4761,8 @@
               <div id="ev-rn-dir-bulk-bar" style="display:none;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;flex-wrap:wrap;">
                 <span id="ev-rn-dir-bulk-count" style="font-size:12.5px;font-weight:700;">0 <span data-i18n="rn.dir.bulk_selected">seleccionados</span></span>
                 <div style="flex:1;"></div>
-                <button class="btn btn-grad btn-sm" style="padding:5px 12px;font-size:11.5px;" onclick="evRnDirBulkAction('approve')" data-i18n="rn.dir.bulk_confirm">Confirmar seleccionados</button>
-                <button class="btn btn-outline btn-sm" style="padding:5px 12px;font-size:11.5px;color:#ef4444;border-color:#ef4444;" onclick="evRnDirBulkAction('delete')" data-i18n="rn.dir.bulk_delete">Eliminar seleccionados</button>
+                <button class="btn btn-grad btn-sm" style="padding:5px 12px;font-size:11.5px;" onclick="evRnDirBulkAction('approve')" data-i18n="rn.dir.bulk_action_confirm">Confirmar seleccionados</button>
+                <button class="btn btn-outline btn-sm" style="padding:5px 12px;font-size:11.5px;color:#ef4444;border-color:#ef4444;" onclick="evRnDirBulkAction('delete')" data-i18n="rn.dir.bulk_action_delete">Eliminar seleccionados</button>
                 <button class="btn btn-outline btn-sm" style="padding:5px 12px;font-size:11.5px;" onclick="evRnDirClearSelection()" data-i18n="common.cancel">Cancelar</button>
               </div>
               <div style="overflow-x:auto;">
@@ -13808,8 +13808,12 @@ async function evRnBulkImport(input) {
     if (!r2.ok) { showToast(j2.error || evRnT('rn.dir.bulk_err','Error importando'), 'error'); return; }
 
     let done = `${evRnT('rn.dir.bulk_inserted','Insertadas')}: ${j2.inserted}`;
-    if ((j2.skipped||[]).length) done += ` · ${evRnT('rn.dir.bulk_skipped','omitidas')}: ${j2.skipped.length}`;
-    showToast(done, 'success');
+    if ((j2.skipped||[]).length) {
+      done += ` · ${evRnT('rn.dir.bulk_skipped','omitidas')}: ${j2.skipped.length}`;
+      const firstReason = (j2.skipped[0] && j2.skipped[0].reason) ? ` (${j2.skipped[0].reason})` : '';
+      done += firstReason;
+    }
+    showToast(done, (j2.inserted > 0 ? 'success' : 'error'));
     evRnLoadDirectory(); evRnLoadStats();
   } catch(_) { showToast(evRnT('rn.dir.bulk_err','Error importando'), 'error'); }
 }

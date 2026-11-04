@@ -1294,7 +1294,7 @@ router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => 
         const info = await pool.query(
           `SELECT r.id, r.qr_token, r.ticket_type, a.name, a.email,
                   e.id AS event_id, e.name AS event_name, e.slug AS event_slug,
-                  e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.city, e.config
+                  e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.config
              FROM events.registrations r
              JOIN events.attendees a ON a.id = r.attendee_id
              JOIN events.events e ON e.id = r.event_id
@@ -1305,7 +1305,7 @@ router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => 
           const row = info.rows[0];
           const ev = { id: row.event_id, name: row.event_name, slug: row.event_slug,
                        start_date: row.start_date, end_date: row.end_date, timezone: row.timezone,
-                       venue_name: row.venue_name, city: row.city, config: row.config || {} };
+                       venue_name: row.venue_name, city: null, config: row.config || {} };
           const emailConfig = { from_name: ev.config?.email_from_name || null, reply_to: ev.config?.email_reply_to || null };
           const { sendEventRegistrationEmail } = require('../services/email.js');
           sendEventRegistrationEmail(
@@ -1767,12 +1767,12 @@ router.post('/events/:eventId/registrations/bulk', auth, async (req, res) => {
                  (event_id, attendee_id, user_id, ticket_type, party_type, origin,
                   custom_fields, accepted_terms, status,
                   banco_talento_opt_in, salary_expectation_encrypted,
-                  consent_datos_at, consent_datos_ip, consent_datos_ua)
+                  consent_accepted, consent_accepted_at, consent_ip, consent_user_agent)
                VALUES ($1,$2,$3,'candidato','ofertante','import',
                        $4,TRUE,'pending',
                        $5,
                        CASE WHEN $6::text IS NOT NULL THEN pgp_sym_encrypt($6::text, $7) ELSE NULL END,
-                       NOW(), $8, $9)
+                       TRUE, NOW(), $8, $9)
                ON CONFLICT (event_id, attendee_id) DO NOTHING
                RETURNING id`,
               [eventId, attendeeId, userId, JSON.stringify(customFields),
@@ -2047,7 +2047,7 @@ router.post('/events/:eventId/registrations/bulk-action', auth, async (req, res)
           const info = await pool.query(
             `SELECT r.id, r.qr_token, r.ticket_type, a.name, a.email,
                     e.id AS event_id, e.name AS event_name, e.slug AS event_slug,
-                    e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.city, e.config
+                    e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.config
                FROM events.registrations r
                JOIN events.attendees a ON a.id = r.attendee_id
                JOIN events.events e ON e.id = r.event_id
@@ -2057,7 +2057,7 @@ router.post('/events/:eventId/registrations/bulk-action', auth, async (req, res)
           for (const row of info.rows) {
             const ev = { id: row.event_id, name: row.event_name, slug: row.event_slug,
                          start_date: row.start_date, end_date: row.end_date, timezone: row.timezone,
-                         venue_name: row.venue_name, city: row.city, config: row.config || {} };
+                         venue_name: row.venue_name, city: null, config: row.config || {} };
             const emailConfig = { from_name: ev.config?.email_from_name || null, reply_to: ev.config?.email_reply_to || null };
             emailService.sendEventRegistrationEmail(
               { name: row.name, email: row.email }, ev,
