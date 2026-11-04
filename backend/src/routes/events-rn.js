@@ -1294,7 +1294,7 @@ router.patch('/events/:eventId/registrations/:regId', auth, async (req, res) => 
         const info = await pool.query(
           `SELECT r.id, r.qr_token, r.ticket_type, a.name, a.email,
                   e.id AS event_id, e.name AS event_name, e.slug AS event_slug,
-                  e.start_date, e.end_date, e.timezone, e.venue_name, e.city, e.config
+                  e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.city, e.config
              FROM events.registrations r
              JOIN events.attendees a ON a.id = r.attendee_id
              JOIN events.events e ON e.id = r.event_id
@@ -2047,7 +2047,7 @@ router.post('/events/:eventId/registrations/bulk-action', auth, async (req, res)
           const info = await pool.query(
             `SELECT r.id, r.qr_token, r.ticket_type, a.name, a.email,
                     e.id AS event_id, e.name AS event_name, e.slug AS event_slug,
-                    e.start_date, e.end_date, e.timezone, e.venue_name, e.city, e.config
+                    e.starts_at AS start_date, e.ends_at AS end_date, e.timezone, e.venue_name, e.city, e.config
                FROM events.registrations r
                JOIN events.attendees a ON a.id = r.attendee_id
                JOIN events.events e ON e.id = r.event_id
