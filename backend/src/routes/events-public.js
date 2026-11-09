@@ -286,12 +286,12 @@ router.get('/:slug/tags-catalog', eventPublicReadLimiter, async (req, res) => {
     let where = `user_id = $1`;
     const params = [ev.user_id];
     if (dim === 'hard' || dim === 'soft') { where += ` AND dimension = $2`; params.push(dim); }
-    // En Rueda de Empleo, hard = habilidades técnicas curadas/custom (no sectores RN)
-    if (ev.rueda_type === 'empleo') {
-      where += ` AND (dimension <> 'hard' OR category IN ('tech_sonoro','tech_custom'))`;
-    }
+    // E-EMP-1 — filtro canónico por scope (alineado con /api/rn/public/:slug/tags)
+    const scopeFilter = ev.rueda_type === 'empleo' ? ['empleo','both'] : ['negocios','both'];
+    where += ` AND scope = ANY($${params.length + 1}::text[])`;
+    params.push(scopeFilter);
     const { rows } = await pool.query(
-      `SELECT id, slug, label, category, dimension
+      `SELECT id, slug, label, category, dimension, scope
        FROM events.rn_tags WHERE ${where}
        ORDER BY dimension DESC, label ASC`,
       params
@@ -411,6 +411,15 @@ router.post('/:slug/register-candidato', eventRegistrationLimiter, async (req, r
         return { registration: existing.rows[0], isNew: false };
       }
       const reg = regRes.rows[0];
+
+      // Delegate primario (el candidato es su propio delegate, agenda_token para mi-agenda)
+      await client.query(
+        `INSERT INTO events.rn_delegates
+           (registration_id, full_name, email, phone, is_primary, can_manage_team, locale)
+         VALUES ($1, $2, $3, $4, TRUE, FALSE, $5)
+         ON CONFLICT DO NOTHING`,
+        [reg.id, name.trim(), cleanEmail, phone.trim(), locale]
+      );
 
       // Tags marcadas (kind='offer': el candidato ofrece sus habilidades)
       if (parsedTagIds.length > 0) {

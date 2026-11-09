@@ -68,6 +68,7 @@ TRACKED=(
   "backend/src/jobs/eventsLicenseCron.js"
   "backend/public/legal/privacidad-events.html"
   "backend/public/rueda-registro.html"
+  "backend/public/empleo-empresa.html"
   "backend/public/rueda-mi-agenda.html"
   "backend/public/rueda-live.html"
   "backend/public/rueda-live-mobile.html"

@@ -127,7 +127,7 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
 
   try {
     const { rows: evRows } = await pool.query(
-      `SELECT id, name, slug, user_id, timezone, config, status, default_locale
+      `SELECT id, name, slug, user_id, timezone, config, status, default_locale, rueda_type
          FROM events.events
         WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.eventSlug]
@@ -213,17 +213,19 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
         ? consent_policy_version : '1.0';
 
       // Insert registration (una empresa × evento)
+      // E-EMP-1: si rueda_type='empleo' marca party_type='empresa'; RN queda NULL (cero regresión)
+      const partyType = event.rueda_type === 'empleo' ? 'empresa' : null;
       const regRes = await client.query(
         `INSERT INTO events.registrations
            (event_id, attendee_id, user_id, ticket_type, origin, custom_fields, accepted_terms, status,
             consent_accepted, consent_accepted_at, consent_ip, consent_user_agent,
-            consent_text_hash, consent_policy_version)
+            consent_text_hash, consent_policy_version, party_type)
          VALUES ($1,$2,$3,'rueda','web_form',$4,TRUE,'confirmed',
-                 TRUE, NOW(), $5, $6, $7, $8)
+                 TRUE, NOW(), $5, $6, $7, $8, $9)
          ON CONFLICT (event_id, attendee_id) DO NOTHING
          RETURNING id, qr_token`,
         [event.id, attendee_id, event.user_id, JSON.stringify(customFields),
-         consentIp, consentUa, consentHash, consentVersion]
+         consentIp, consentUa, consentHash, consentVersion, partyType]
       );
       if (!regRes.rows[0]) {
         const e = new Error('Esta empresa ya está inscrita en la rueda');
@@ -277,6 +279,8 @@ router.post('/:eventSlug/register', rnRegisterLimiter, async (req, res) => {
       user_id: event.user_id, event_id: event.id,
       registration_id: result.registration.id,
       company_name: companyName,
+      party_type: event.rueda_type === 'empleo' ? 'empresa' : null,
+      rueda_type: event.rueda_type || 'negocios',
     });
 
     console.log(`[rn-public] register event=${event.slug} company="${companyName}" delegate=${cleanEmail}`);
@@ -604,7 +608,7 @@ router.get('/:eventSlug', rnReadLimiter, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, slug, status, timezone, starts_at, ends_at, venue_name, venue_address,
-              config,
+              config, rueda_type,
               organizer_legal_name, organizer_country,
               privacy_policy_source, privacy_policy_url, privacy_policy_version
          FROM events.events
@@ -634,6 +638,7 @@ router.get('/:eventSlug', rnReadLimiter, async (req, res, next) => {
         languages: cfg.languages || ['es'],
         max_capacity: cfg.max_capacity || null,
         registration_open: cfg.registration_open !== false,
+        rueda_type: ev.rueda_type || 'negocios',
         matchmaking: { visibility: vis, matching_mode },
       },
       organizer: {
@@ -654,7 +659,7 @@ router.get('/:eventSlug/tags', rnReadLimiter, async (req, res, next) => {
   const pool = global.pool;
   try {
     const { rows: evRows } = await pool.query(
-      `SELECT user_id, config FROM events.events
+      `SELECT user_id, config, rueda_type FROM events.events
         WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.eventSlug]
     );
@@ -664,13 +669,15 @@ router.get('/:eventSlug/tags', rnReadLimiter, async (req, res, next) => {
     const matchingMode = (cfg.matchmaking && cfg.matchmaking.matching_mode) || cfg.matching_mode || 'tags';
     if (matchingMode === 'manual_only') return res.json({ matching_mode: 'manual_only', tags: [] });
 
+    // E-EMP-1: filtrar catálogo por scope según rueda_type
+    const scopeFilter = ev.rueda_type === 'empleo' ? ['empleo','both'] : ['negocios','both'];
     const { rows } = await pool.query(
-      `SELECT id, slug, label, category FROM events.rn_tags
-        WHERE user_id = $1
-        ORDER BY category NULLS LAST, label`,
-      [ev.user_id]
+      `SELECT id, slug, label, category, dimension, scope FROM events.rn_tags
+        WHERE user_id = $1 AND scope = ANY($2::text[])
+        ORDER BY dimension, category NULLS LAST, label`,
+      [ev.user_id, scopeFilter]
     );
-    res.json({ matching_mode: matchingMode, tags: rows });
+    res.json({ matching_mode: matchingMode, rueda_type: ev.rueda_type || 'negocios', tags: rows });
   } catch (err) { handleError(res, err, 'GET tags'); }
 });
 

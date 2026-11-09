@@ -9113,6 +9113,10 @@ app.get('/rueda/callboard/:slug', (req, res) => {
 app.get('/rueda/:slug/register', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
 });
+// E-EMP-1 — landing pública registro empresa Rueda de Empleo
+app.get('/rueda-empleo/:slug/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'empleo-empresa.html'));
+});
 // S211t B.1 — mi agenda (delegado por token)
 app.get('/rueda/mi-agenda/:token', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-mi-agenda.html'));

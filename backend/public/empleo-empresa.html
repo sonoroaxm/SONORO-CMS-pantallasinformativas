@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Registro Empresa — Rueda de Empleo · SONORO</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root, [data-theme="dark"]{
+    --emerald:#10b981; --cyan:#06b6d4; --teal:#14b8a6;
+    --grad:linear-gradient(135deg, var(--emerald) 0%, var(--teal) 55%, var(--cyan) 100%);
+    --accent:var(--emerald); --accent-2:var(--cyan);
+    --accent-soft:rgba(16,185,129,.14); --cyan-soft:rgba(6,182,212,.14);
+    --bg:#0f0f0f; --surface:#161616; --surface2:#1e1e1e; --surface3:#272727;
+    --border:#2e2e2e; --border-2:#3a3a3a;
+    --text:#f0f0f0; --text-muted:#888; --text-dim:#666;
+    --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --info:#38bdf8;
+  }
+  [data-theme="light"]{
+    --bg:#ffffff; --surface:#ffffff; --surface2:#f7f8f9; --surface3:#eef0f2;
+    --border:#e5e7eb; --border-2:#d1d5db;
+    --text:#0f1a16; --text-muted:#4b5563; --text-dim:#9ca3af;
+    --accent-soft:rgba(16,185,129,.10); --cyan-soft:rgba(6,182,212,.10);
+  }
+  .flag{width:16px;height:11px;display:inline-block;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.1);vertical-align:middle}
+  .flag-co{background:linear-gradient(to bottom,#FCD116 0 50%,#003893 50% 75%,#CE1126 75% 100%)}
+  .flag-us{background:linear-gradient(to bottom,#B22234 0 7.7%,#fff 7.7% 15.4%,#B22234 15.4% 23.1%,#fff 23.1% 30.8%,#B22234 30.8% 38.5%,#fff 38.5% 46.2%,#B22234 46.2% 53.9%,#fff 53.9% 61.6%,#B22234 61.6% 69.3%,#fff 69.3% 77%,#B22234 77% 84.7%,#fff 84.7% 92.4%,#B22234 92.4% 100%);position:relative}
+  .flag-us::before{content:"";position:absolute;top:0;left:0;width:42%;height:54%;background:#3C3B6E}
+  .flag-br{background:#009C3B;position:relative}
+  .flag-br::before{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:70%;height:40%;background:#FFDF00}
+  .flag-br::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:28%;height:40%;background:#002776;border-radius:50%}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Montserrat',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+  .topbar{max-width:1120px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:14px 24px 0;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--grad)}
+  .tb-group{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .tb-btn{background:transparent;border:0;border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800;color:var(--text-muted);cursor:pointer;font-family:inherit}
+  .tb-btn.on{background:var(--accent-soft);color:var(--accent)}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:14px 24px 80px}
+  .kicker{font-size:10px;font-weight:800;letter-spacing:2.2px;color:var(--accent);text-transform:uppercase;margin-bottom:6px}
+  h1{margin:0 0 6px;font-size:26px;font-weight:800;letter-spacing:-.4px}
+  .lede{color:var(--text-muted);margin:0 0 20px;max-width:720px}
+  .ev-meta{color:var(--text-muted);font-size:13px;margin:0 0 20px}
+  .ev-meta span{margin-right:12px}
+
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:18px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+  .card h2{margin:0 0 12px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)}
+
+  label{display:block;font-size:12px;color:var(--text-muted);margin:10px 0 4px;font-weight:600}
+  input[type=text],input[type=email],input[type=url],input[type=tel]{
+    width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;color:var(--text);font:inherit;font-size:14px;font-family:inherit
+  }
+  input:focus{outline:none;border-color:var(--accent)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:520px){.row2{grid-template-columns:1fr}}
+
+  .main{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:14px}
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface2)}
+  .tab{flex:1;padding:14px 18px;cursor:pointer;font-size:13px;font-weight:800;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:.3px;border-bottom:3px solid transparent;transition:all .18s ease}
+  .tab:hover{color:var(--text)}
+  .tab.on{color:var(--text);border-bottom-color:var(--accent);background:var(--surface)}
+  .tab .tag{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;letter-spacing:.5px;text-transform:uppercase}
+  .tab[data-dim="hard"] .tag{background:var(--accent-soft);color:var(--accent)}
+  .tab[data-dim="soft"] .tag{background:var(--cyan-soft);color:var(--cyan)}
+  .tab .ct{color:var(--text-muted);font-weight:700}
+  .tab[data-dim="soft"].on{border-bottom-color:var(--cyan)}
+
+  .toolbar{display:flex;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:center}
+  .search{flex:1;position:relative}
+  .search input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px 10px 38px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
+  .search input:focus{border-color:var(--accent)}
+  .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-dim)}
+
+  .pane{padding:18px;display:none;max-height:420px;overflow-y:auto}
+  .pane.on{display:block}
+  .group{margin-bottom:22px}
+  .group:last-child{margin-bottom:0}
+  .group-head{font-size:10.5px;font-weight:800;color:var(--text-muted);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:7px 13px 7px 11px;font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .14s ease;user-select:none}
+  .chip:hover{border-color:var(--border-2);background:var(--surface3)}
+  .chip .plus{width:16px;height:16px;border-radius:50%;background:var(--surface3);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;line-height:1;color:var(--text-muted)}
+  .chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:800}
+  .chip.on .plus{background:var(--accent);color:#fff}
+  .pane[data-dim="soft"] .chip.on{background:var(--cyan-soft);border-color:var(--cyan);color:var(--cyan)}
+  .pane[data-dim="soft"] .chip.on .plus{background:var(--cyan)}
+
+  .side{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;position:sticky;top:16px;align-self:start}
+  .side h3{margin:0 0 2px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)}
+  .side .sub{font-size:11px;color:var(--text-dim);margin-bottom:14px}
+  .counter{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .counter .box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+  .counter .box b{display:block;font-size:22px;font-weight:900;letter-spacing:-.5px}
+  .counter .box small{font-size:9.5px;font-weight:800;color:var(--text-muted);letter-spacing:.7px;text-transform:uppercase}
+  .counter .box.hard b{color:var(--emerald)}
+  .counter .box.soft b{color:var(--cyan)}
+  .picked{display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto}
+  .picked .row{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--surface2);border:1px solid transparent}
+  .picked .row b{font-weight:700}
+  .picked .row .d{font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 6px;border-radius:4px;text-transform:uppercase;margin-right:6px}
+  .picked .row .d.hard{background:var(--accent-soft);color:var(--emerald)}
+  .picked .row .d.soft{background:var(--cyan-soft);color:var(--cyan)}
+  .picked .row .x{background:transparent;border:0;color:var(--text-dim);cursor:pointer;font-size:16px;line-height:1;padding:0 4px}
+  .picked .row .x:hover{color:var(--danger)}
+  .picked .empty{color:var(--text-dim);font-size:11.5px;text-align:center;padding:22px 10px;border:1px dashed var(--border);border-radius:10px}
+
+  .consent{display:flex;gap:10px;align-items:flex-start;padding:14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)}
+  .consent input{margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--emerald)}
+  .consent label{margin:0;color:var(--text);font-size:13px;font-weight:400}
+  .consent a{color:var(--accent);text-decoration:underline}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--grad);color:#fff;border:0;padding:12px 20px;border-radius:10px;font-weight:800;cursor:pointer;font-size:14px;width:100%;font-family:inherit;letter-spacing:.3px;margin-top:14px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .alert{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;display:none}
+  .alert.err{background:rgba(239,68,68,.15);border:1px solid var(--danger);color:#fecaca;display:block}
+  .alert.ok{background:rgba(34,197,94,.15);border:1px solid var(--ok);color:#bbf7d0;display:block}
+  [data-theme="light"] .alert.err{color:#991B1B}
+  [data-theme="light"] .alert.ok{color:#166534}
+
+  .hp{position:absolute;left:-9999px;top:-9999px}
+  .footer{text-align:center;color:var(--text-muted);font-size:11px;margin-top:20px}
+  .success-view{text-align:center;padding:30px 20px}
+  .success-view .big{color:var(--ok);margin-bottom:12px}
+  .success-view p{color:var(--text-muted);margin:6px 0}
+  .success-view a{color:var(--accent);word-break:break-all}
+
+  @media(max-width:900px){
+    .layout{grid-template-columns:1fr}
+    .side{position:static}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span>SONORO · <span>Rueda de Empleo</span></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div class="tb-group" id="langGroup">
+      <button class="tb-btn on" data-lang="es" onclick="setLang('es',event)" title="Español"><span class="flag flag-co"></span></button>
+      <button class="tb-btn" data-lang="en" onclick="setLang('en',event)" title="English"><span class="flag flag-us"></span></button>
+      <button class="tb-btn" data-lang="pt" onclick="setLang('pt',event)" title="Português"><span class="flag flag-br"></span></button>
+    </div>
+    <div class="tb-group" id="themeGroup">
+      <button class="tb-btn" onclick="setTheme('light',event)" data-i18n="theme.light">Claro</button>
+      <button class="tb-btn on" onclick="setTheme('dark',event)" data-i18n="theme.dark">Oscuro</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="card" style="text-align:center;color:var(--text-muted)">
+    <span data-i18n="loading">Cargando rueda...</span>
+  </div>
+
+  <div id="notfound" class="card" style="display:none;text-align:center">
+    <h1 data-i18n="nf.h1">Rueda no disponible</h1>
+    <p class="ev-meta" data-i18n="nf.p">Esta rueda no existe, no corresponde a una Rueda de Empleo, o la inscripción está cerrada.</p>
+  </div>
+
+  <div id="formWrap" style="display:none">
+    <div class="kicker" data-i18n="kicker">Registro de empresa · Rueda de Empleo</div>
+    <h1 id="evName">—</h1>
+    <div class="ev-meta">
+      <span id="evWhen"></span>
+      <span id="evWhere"></span>
+    </div>
+    <p class="lede" data-i18n="lede">Registra tu empresa y marca las habilidades que necesitas. Los ofertantes que las declaren aparecerán como mejores candidatos para tus reuniones.</p>
+
+    <div class="alert" id="alertBox"></div>
+
+    <div class="card">
+      <h2 data-i18n="card.company">Empresa</h2>
+      <label data-i18n="lbl.company">Razón social *</label>
+      <input type="text" id="f_company" maxlength="200" required>
+      <div class="row2">
+        <div>
+          <label data-i18n="lbl.website">Sitio web</label>
+          <input type="url" id="f_website" placeholder="https://" maxlength="300">
+        </div>
+        <div>
+          <label data-i18n="lbl.pitch">Descripción breve</label>
+          <input type="text" id="f_pitch" maxlength="200">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="card.delegate">Delegado principal</h2>
+      <div class="row2">
+        <div>
+          <label data-i18n="lbl.name">Nombre completo *</label>
+          <input type="text" id="f_name" maxlength="200" required>
+        </div>
+        <div>
+          <label data-i18n="lbl.role">Cargo</label>
+          <input type="text" id="f_role" maxlength="100">
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label data-i18n="lbl.email">Correo *</label>
+          <input type="email" id="f_email" maxlength="200" required>
+        </div>
+        <div>
+          <label data-i18n="lbl.phone">Teléfono</label>
+          <input type="tel" id="f_phone" maxlength="40">
+        </div>
+      </div>
+    </div>
+
+    <div id="tagsCard" style="display:none">
+      <div class="layout">
+        <div class="main">
+          <div class="tabs">
+            <div class="tab on" data-dim="hard" onclick="switchTab('hard',event)">
+              <span class="tag" data-i18n="tag.hard">Hard</span>
+              <span data-i18n="tab.technical">Técnicas</span>
+              <span class="ct">(<span id="ctHard">0</span>)</span>
+            </div>
+            <div class="tab" data-dim="soft" onclick="switchTab('soft',event)">
+              <span class="tag" data-i18n="tag.soft">Soft</span>
+              <span data-i18n="tab.behavioral">Comportamentales</span>
+              <span class="ct">(<span id="ctSoft">0</span>)</span>
+            </div>
+          </div>
+          <div class="toolbar">
+            <div class="search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="searchBox" data-i18n-ph="search.ph" placeholder="Buscar habilidad…" oninput="filterChips(this.value)">
+            </div>
+          </div>
+          <div class="pane on" data-dim="hard" id="paneHard"></div>
+          <div class="pane" data-dim="soft" id="paneSoft"></div>
+        </div>
+
+        <aside class="side">
+          <h3 data-i18n="side.h3">Habilidades que necesitas</h3>
+          <p class="sub" data-i18n="side.sub">Los candidatos con estas skills tendrán prioridad en el matching.</p>
+          <div class="counter">
+            <div class="box hard"><b id="numHard">0</b><small data-i18n="tag.hard">Hard</small></div>
+            <div class="box soft"><b id="numSoft">0</b><small data-i18n="tag.soft">Soft</small></div>
+          </div>
+          <div class="picked" id="pickedList">
+            <div class="empty" data-i18n="side.empty">Aún no has añadido habilidades.</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="consent">
+        <input type="checkbox" id="f_consent">
+        <label for="f_consent" id="consentText">
+          <span data-i18n="consent.1">Autorizo el tratamiento de mis datos personales por</span>
+          <strong id="orgName">el organizador</strong>
+          <span data-i18n="consent.2">como Responsable, y por SONORO AV SAS como Encargado, conforme a la</span>
+          <a id="privLink" target="_blank" rel="noopener" data-i18n="consent.link">Política de privacidad Events</a>.
+        </label>
+      </div>
+      <input type="text" class="hp" id="f_hp" autocomplete="off" tabindex="-1">
+      <button class="btn" id="btnSubmit" onclick="submitForm()">
+        <span data-i18n="btn.submit">Inscribir empresa</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="successWrap" style="display:none">
+    <div class="card success-view">
+      <div class="big"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <h1 data-i18n="ok.h1">¡Inscripción confirmada!</h1>
+      <p data-i18n="ok.p">Enviamos a tu correo el link de tu agenda personal.</p>
+      <p><a id="agendaLink" href="#"></a></p>
+    </div>
+  </div>
+
+  <div class="footer">Impulsado por <a href="https://sonoro.com.co" target="_blank" style="color:inherit;text-decoration:none;">SONORO AV SAS</a></div>
+</div>
+
+<script>
+const slug = location.pathname.split('/')[2];
+let ev = null, availableTags = [];
+const picked = { hard:[], soft:[] };
+let currentLang = 'es';
+
+const I18N = {
+  es:{
+    'theme.light':'Claro','theme.dark':'Oscuro',
+    'loading':'Cargando rueda...',
+    'nf.h1':'Rueda no disponible',
+    'nf.p':'Esta rueda no existe, no corresponde a una Rueda de Empleo, o la inscripción está cerrada.',
+    'kicker':'Registro de empresa · Rueda de Empleo',
+    'lede':'Registra tu empresa y marca las habilidades que necesitas. Los ofertantes que las declaren aparecerán como mejores candidatos para tus reuniones.',
+    'card.company':'Empresa','card.delegate':'Delegado principal',
+    'lbl.company':'Razón social *','lbl.website':'Sitio web','lbl.pitch':'Descripción breve',
+    'lbl.name':'Nombre completo *','lbl.role':'Cargo','lbl.email':'Correo *','lbl.phone':'Teléfono',
+    'tag.hard':'Hard','tag.soft':'Soft','tab.technical':'Técnicas','tab.behavioral':'Comportamentales',
+    'search.ph':'Buscar habilidad…',
+    'side.h3':'Habilidades que necesitas','side.sub':'Los candidatos con estas skills tendrán prioridad en el matching.',
+    'side.empty':'Aún no has añadido habilidades.',
+    'consent.1':'Autorizo el tratamiento de mis datos personales por',
+    'consent.2':'como Responsable, y por SONORO AV SAS como Encargado, conforme a la',
+    'consent.link':'Política de privacidad Events',
+    'btn.submit':'Inscribir empresa',
+    'ok.h1':'¡Inscripción confirmada!','ok.p':'Enviamos a tu correo el link de tu agenda personal.',
+    'err.required':'Completa los campos requeridos',
+    'err.consent':'Debes aceptar la política de privacidad',
+    'err.tags':'Marca al menos una habilidad (hard o soft)',
+    'submitting':'Enviando...'
+  },
+  en:{
+    'theme.light':'Light','theme.dark':'Dark',
+    'loading':'Loading...',
+    'nf.h1':'Not available',
+    'nf.p':'This event does not exist, is not a Job Rueda, or registration is closed.',
+    'kicker':'Company registration · Job Rueda',
+    'lede':'Register your company and mark the skills you need. Candidates who declare them will be prioritized for your meetings.',
+    'card.company':'Company','card.delegate':'Primary delegate',
+    'lbl.company':'Company name *','lbl.website':'Website','lbl.pitch':'Brief description',
+    'lbl.name':'Full name *','lbl.role':'Job title','lbl.email':'Email *','lbl.phone':'Phone',
+    'tag.hard':'Hard','tag.soft':'Soft','tab.technical':'Technical','tab.behavioral':'Behavioral',
+    'search.ph':'Search skill…',
+    'side.h3':'Skills you need','side.sub':'Candidates with these skills will be prioritized in matching.',
+    'side.empty':'No skills added yet.',
+    'consent.1':'I authorize the processing of my personal data by',
+    'consent.2':'as Controller, and SONORO AV SAS as Processor, pursuant to the',
+    'consent.link':'Events privacy policy',
+    'btn.submit':'Register company',
+    'ok.h1':'Registration confirmed!','ok.p':'We sent your personal agenda link to your email.',
+    'err.required':'Fill required fields',
+    'err.consent':'You must accept the privacy policy',
+    'err.tags':'Mark at least one skill (hard or soft)',
+    'submitting':'Submitting...'
+  },
+  pt:{
+    'theme.light':'Claro','theme.dark':'Escuro',
+    'loading':'Carregando...',
+    'nf.h1':'Indisponível',
+    'nf.p':'Este evento não existe, não é uma Roda de Emprego, ou a inscrição está encerrada.',
+    'kicker':'Registro da empresa · Roda de Emprego',
+    'lede':'Registre sua empresa e marque as habilidades que precisa. Candidatos que as declararem terão prioridade em suas reuniões.',
+    'card.company':'Empresa','card.delegate':'Delegado principal',
+    'lbl.company':'Razão social *','lbl.website':'Site','lbl.pitch':'Descrição breve',
+    'lbl.name':'Nome completo *','lbl.role':'Cargo','lbl.email':'E-mail *','lbl.phone':'Telefone',
+    'tag.hard':'Hard','tag.soft':'Soft','tab.technical':'Técnicas','tab.behavioral':'Comportamentais',
+    'search.ph':'Buscar habilidade…',
+    'side.h3':'Habilidades que você precisa','side.sub':'Candidatos com estas skills terão prioridade.',
+    'side.empty':'Nenhuma habilidade adicionada.',
+    'consent.1':'Autorizo o tratamento dos meus dados pessoais por',
+    'consent.2':'como Responsável, e pela SONORO AV SAS como Operador, nos termos da',
+    'consent.link':'Política de privacidade Events',
+    'btn.submit':'Inscrever empresa',
+    'ok.h1':'Inscrição confirmada!','ok.p':'Enviamos para o seu e-mail o link da sua agenda.',
+    'err.required':'Preencha os campos obrigatórios',
+    'err.consent':'Você deve aceitar a política',
+    'err.tags':'Marque ao menos uma habilidade (hard ou soft)',
+    'submitting':'Enviando...'
+  }
+};
+
+function tr(k){ return (I18N[currentLang] && I18N[currentLang][k]) || k; }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function setTheme(t,e){
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelectorAll('#themeGroup .tb-btn').forEach(b=>b.classList.remove('on'));
+  e.currentTarget.classList.add('on');
+  try{ localStorage.setItem('sonoro-theme', t); }catch(_){}
+}
+try{ const t = localStorage.getItem('sonoro-theme'); if(t) document.documentElement.setAttribute('data-theme', t); }catch(_){}
+
+function setLang(l,e){
+  currentLang = l;
+  document.documentElement.lang = l === 'pt' ? 'pt-BR' : l;
+  document.querySelectorAll('#langGroup .tb-btn').forEach(b=>b.classList.remove('on'));
+  e.currentTarget.classList.add('on');
+  applyLang();
+  if (ev) renderEventMeta();
+  renderPicked();
+}
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k = el.getAttribute('data-i18n');
+    if (I18N[currentLang][k] !== undefined) el.innerHTML = I18N[currentLang][k];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{
+    const k = el.getAttribute('data-i18n-ph');
+    if (I18N[currentLang][k] !== undefined) el.placeholder = I18N[currentLang][k];
+  });
+}
+
+function switchTab(d,e){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  e.currentTarget.classList.add('on');
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pane'+d.charAt(0).toUpperCase()+d.slice(1)).classList.add('on');
+}
+
+function renderEventMeta(){
+  document.getElementById('evName').textContent = ev.name;
+  const d1 = new Date(ev.starts_at), d2 = new Date(ev.ends_at);
+  const loc = currentLang === 'pt' ? 'pt-BR' : currentLang === 'en' ? 'en-US' : 'es-CO';
+  const fmt = {year:'numeric',month:'short',day:'numeric'};
+  document.getElementById('evWhen').textContent = d1.toLocaleDateString(loc, fmt) +
+    (d1.toDateString() !== d2.toDateString() ? ' — ' + d2.toLocaleDateString(loc, fmt) : '');
+  document.getElementById('evWhere').textContent = ev.venue_name || '';
+}
+
+async function load(){
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug));
+    if (!r.ok){ showNotFound(); return; }
+    const data = await r.json();
+    ev = data.event;
+    if (!ev.registration_open){ showNotFound(); return; }
+    if (ev.rueda_type !== 'empleo'){ showNotFound(); return; }
+    document.getElementById('loading').style.display='none';
+    document.getElementById('formWrap').style.display='block';
+    renderEventMeta();
+    if (data.organizer && data.organizer.legal_name) document.getElementById('orgName').textContent = data.organizer.legal_name;
+    if (data.privacy && data.privacy.url) document.getElementById('privLink').href = data.privacy.url;
+    window.__policyVersion = (data.privacy && data.privacy.version) || '1.0';
+    if (ev.matchmaking && ev.matchmaking.matching_mode !== 'manual_only') await loadTags();
+  } catch(e){ showNotFound(); }
+}
+function showNotFound(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('notfound').style.display='block';
+}
+
+async function loadTags(){
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug) + '/tags');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data.tags || !data.tags.length) return;
+    availableTags = data.tags;
+    document.getElementById('tagsCard').style.display='block';
+    renderTagPanes();
+  } catch(e){}
+}
+
+function renderTagPanes(){
+  const groups = { hard:{}, soft:{} };
+  availableTags.forEach(t=>{
+    const dim = (t.dimension === 'soft') ? 'soft' : 'hard';
+    const cat = t.category || '—';
+    if (!groups[dim][cat]) groups[dim][cat] = [];
+    groups[dim][cat].push(t);
+  });
+  ['hard','soft'].forEach(dim=>{
+    const pane = document.getElementById('pane'+dim.charAt(0).toUpperCase()+dim.slice(1));
+    let html = '';
+    Object.keys(groups[dim]).sort().forEach(cat=>{
+      const list = groups[dim][cat];
+      html += '<div class="group"><div class="group-head"><span>'+esc(cat)+'</span><small>'+list.length+'</small></div><div class="chips">';
+      list.forEach(t=>{
+        html += '<div class="chip" data-id="'+t.id+'" data-dim="'+dim+'" onclick="toggleChip(this)"><span class="plus">+</span>'+esc(t.label)+'</div>';
+      });
+      html += '</div></div>';
+    });
+    pane.innerHTML = html || '<p style="color:var(--text-dim);font-size:12px;text-align:center;padding:20px">—</p>';
+  });
+}
+
+function toggleChip(el){
+  const id = el.dataset.id, dim = el.dataset.dim;
+  const i = picked[dim].findIndex(x=>x.id===id);
+  if (i>=0){
+    picked[dim].splice(i,1);
+    el.classList.remove('on');
+    el.querySelector('.plus').textContent = '+';
+  } else {
+    const t = availableTags.find(x=>x.id===id);
+    picked[dim].push({id, label:t.label});
+    el.classList.add('on');
+    el.querySelector('.plus').textContent = '−';
+  }
+  renderPicked();
+}
+function removePick(dim, id){
+  picked[dim] = picked[dim].filter(x=>x.id!==id);
+  const chip = document.querySelector('.chip[data-id="'+id+'"]');
+  if (chip){ chip.classList.remove('on'); chip.querySelector('.plus').textContent='+'; }
+  renderPicked();
+}
+function renderPicked(){
+  document.getElementById('numHard').textContent = picked.hard.length;
+  document.getElementById('numSoft').textContent = picked.soft.length;
+  document.getElementById('ctHard').textContent = picked.hard.length;
+  document.getElementById('ctSoft').textContent = picked.soft.length;
+  const total = picked.hard.length + picked.soft.length;
+  const list = document.getElementById('pickedList');
+  if (total === 0){ list.innerHTML = '<div class="empty">'+tr('side.empty')+'</div>'; return; }
+  let h = '';
+  picked.hard.forEach(p=> h += '<div class="row"><div><span class="d hard">H</span><b>'+esc(p.label)+'</b></div><button class="x" onclick="removePick(\'hard\',\''+p.id+'\')">×</button></div>');
+  picked.soft.forEach(p=> h += '<div class="row"><div><span class="d soft">S</span><b>'+esc(p.label)+'</b></div><button class="x" onclick="removePick(\'soft\',\''+p.id+'\')">×</button></div>');
+  list.innerHTML = h;
+}
+
+function filterChips(q){
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.pane.on .chip').forEach(c=>{
+    const match = !q || c.textContent.toLowerCase().includes(q);
+    c.style.display = match ? '' : 'none';
+  });
+}
+
+function alertBox(msg, type){
+  const el = document.getElementById('alertBox');
+  el.className = 'alert ' + type;
+  el.textContent = msg;
+  if (type==='ok') setTimeout(()=>{ el.className='alert'; }, 4000);
+}
+
+async function submitForm(){
+  const company = document.getElementById('f_company').value.trim();
+  const name    = document.getElementById('f_name').value.trim();
+  const email   = document.getElementById('f_email').value.trim();
+  const consent = document.getElementById('f_consent').checked;
+  if (!company || !name || !email){ alertBox(tr('err.required'), 'err'); return; }
+  if (!consent){ alertBox(tr('err.consent'), 'err'); return; }
+
+  const demandIds = [...picked.hard.map(p=>p.id), ...picked.soft.map(p=>p.id)];
+  const tagsCard = document.getElementById('tagsCard');
+  if (tagsCard.style.display !== 'none' && demandIds.length === 0){
+    alertBox(tr('err.tags'), 'err'); return;
+  }
+
+  const txt = document.getElementById('consentText').innerText.replace(/\s+/g,' ').trim();
+
+  const payload = {
+    company_name: company,
+    pitch:   document.getElementById('f_pitch').value.trim() || null,
+    website: document.getElementById('f_website').value.trim() || null,
+    delegate: {
+      full_name:  name,
+      email:      email,
+      phone:      document.getElementById('f_phone').value.trim() || null,
+      role_title: document.getElementById('f_role').value.trim() || null,
+    },
+    tags: { offer: [], demand: demandIds },
+    accepted_terms: true,
+    consent_text: txt,
+    consent_policy_version: window.__policyVersion || '1.0',
+    hp_field: document.getElementById('f_hp').value,
+    locale: currentLang,
+  };
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true; btn.querySelector('span').textContent = tr('submitting');
+  try {
+    const r = await fetch('/api/rn/public/' + encodeURIComponent(slug) + '/register', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!r.ok){
+      alertBox(data.error || 'Error', 'err');
+      btn.disabled = false; btn.querySelector('span').textContent = tr('btn.submit');
+      return;
+    }
+    document.getElementById('formWrap').style.display='none';
+    document.getElementById('successWrap').style.display='block';
+    const a = document.getElementById('agendaLink');
+    a.href = data.agenda_url; a.textContent = data.agenda_url;
+  } catch(e){
+    alertBox('Network error', 'err');
+    btn.disabled = false; btn.querySelector('span').textContent = tr('btn.submit');
+  }
+}
+
+applyLang();
+load();
+</script>
+</body>
+</html>

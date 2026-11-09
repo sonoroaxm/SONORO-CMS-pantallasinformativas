@@ -310,6 +310,20 @@
   </div>
 </div>
 
+<div class="wrap" id="saved-view" style="display:none">
+  <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 22px;text-align:center;margin-top:18px">
+    <div style="width:64px;height:64px;border-radius:50%;background:var(--ok-soft);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    </div>
+    <h2 style="margin:0 0 6px;font-size:20px;font-weight:800;color:var(--ink)">Ficha guardada</h2>
+    <p style="margin:0 0 20px;color:var(--mute);font-size:14px">Tu resultado quedó registrado. Puedes cerrar esta pestaña o volver a editar la ficha.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="reopenEdit()">Volver a editar</button>
+      <button class="btn btn-primary" onclick="window.close()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -543,13 +557,23 @@
           }
         }
       }
-      toast('Resultado guardado', 'ok');
-      setTimeout(()=>{ btn.disabled = false; btn.textContent = 'Guardar resultado'; }, 600);
+      btn.disabled = false; btn.textContent = 'Guardar resultado';
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('foot-bar').style.display = 'none';
+      document.getElementById('saved-view').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       toast(err.message || 'Error al guardar', 'err');
       btn.disabled = false;
       btn.textContent = 'Guardar resultado';
     }
+  }
+
+  function reopenEdit(){
+    document.getElementById('saved-view').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('foot-bar').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   init();

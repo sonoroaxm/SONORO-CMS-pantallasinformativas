@@ -22,18 +22,19 @@
 // ──────────────────────────────────────────────────────────────────────────────
 async function loadInputs(client, eventId) {
   const ev = await client.query(
-    `SELECT id, config, timezone FROM events.events WHERE id = $1`, [eventId]
+    `SELECT id, config, timezone, rueda_type FROM events.events WHERE id = $1`, [eventId]
   );
   if (ev.rowCount === 0) {
     const e = new Error('Evento no encontrado'); e.httpStatus = 404; throw e;
   }
   const cfg = ev.rows[0].config || {};
   const mm  = cfg.matchmaking || {};
+  const ruedaType = ev.rows[0].rueda_type || 'negocios';
 
   const regs = (await client.query(
     `SELECT r.id, r.custom_fields->>'company_name' AS company_name
        FROM events.registrations r
-      WHERE r.event_id = $1 AND r.ticket_type = 'rueda' AND r.status != 'cancelled'`,
+      WHERE r.event_id = $1 AND r.ticket_type IN ('rueda','candidato','empresa') AND r.status != 'cancelled'`,
     [eventId]
   )).rows;
 
@@ -106,7 +107,7 @@ async function loadInputs(client, eventId) {
   )).rows;
 
   return {
-    cfg, mm, regs, tables, rounds, tagsByReg, anchors, blocklist, requests,
+    cfg, mm, ruedaType, regs, tables, rounds, tagsByReg, anchors, blocklist, requests,
     threshold: (typeof mm.default_tag_overlap_threshold === 'number')
       ? mm.default_tag_overlap_threshold : 1,
     matchingMode: mm.matching_mode || 'tags',
@@ -287,7 +288,11 @@ function validateSetup(input) {
   const errors = [];
   if (input.rounds.length === 0) errors.push('No hay rondas definidas (POST /rounds/plan)');
   if (input.tables.length === 0) errors.push('No hay mesas activas');
-  if (input.regs.length < 2) errors.push('Se requieren al menos 2 empresas inscritas');
+  if (input.regs.length < 2) {
+    errors.push(input.ruedaType === 'empleo'
+      ? 'Se requieren al menos 2 participantes inscritos (empresas y/o ofertantes)'
+      : 'Se requieren al menos 2 empresas inscritas');
+  }
   return errors;
 }
 
