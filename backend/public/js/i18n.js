@@ -382,6 +382,30 @@
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Ronda · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
           empty_table:'Sin datos — carga el reporte',
           cov_suffix:'% cobertura', sending:'Enviando…'
+        },
+        comms: {
+          kicker:'E-RN-10 · Expediente post-cita', title:'Comunicaciones post-cita',
+          intro:'Controla los recordatorios que el sistema envía a los asistentes después de cada cita. El resumen del día se envía siempre; los cuatro recordatorios son opcionales y arrancan apagados. Todos respetan la decisión del asistente de recibir o no estos correos.',
+          paused_h:'Recordatorios en pausa', paused_body:'Mientras esté activa la pausa, el resumen del día se sigue enviando pero los cuatro recordatorios opcionales no. Útil durante incidentes o pausas de la rueda.',
+          always_on:'Siempre activo',
+          eod_title:'Resumen del día', eod_desc:'Se envía automáticamente al cierre de cada jornada del evento con las citas que quedaron sin registro de resultado. No se puede desactivar.', eod_note:'Un solo correo por asistente y por día. Respeta la decisión del asistente.',
+          nudges_head:'Recordatorios opcionales · apagados por defecto',
+          key:'Clave interna',
+          n48: { title:'Recordatorio a las 48 horas · registro de resultado pendiente', desc:'Si al asistente le quedan citas sin registro de resultado 48 horas después del cierre, le llega un correo con el enlace al listado. No se le re-envía el formulario completo.', meta1:'Se envía: 48 h después del cierre', meta2:'Un correo por cita y por asistente' },
+          n7d: { title:'Recordatorio a los 7 días · resumen semanal de compromisos', desc:'Resumen de los compromisos activos del asistente con el estado de cada uno (cumplido, próximo, vencido) y enlace al listado completo.', meta1:'Se envía: 7 días después del cierre', meta2:'Un correo por asistente y por semana' },
+          pre: { title:'Aviso 24 horas antes de vencer un compromiso', desc:'Se envía por cada compromiso con fecha de vencimiento próxima. Correo al responsable del compromiso.', meta1:'Se envía: 24 h antes del vencimiento', meta2:'Un correo por compromiso' },
+          over: { title:'Aviso 24 horas después del vencimiento', desc:'Recordatorio de cortesía al responsable del compromiso, con copia al productor del evento. Solo se envía si el compromiso sigue sin marcarse como cumplido.', meta1:'Se envía: 24 h después del vencimiento', meta2:'Con copia al productor' },
+          legal_h:'Respeta la decisión del asistente.', legal_body:'Si alguien pidió no recibir correos de seguimiento al registrarse en el evento, el sistema no le envía ningún recordatorio — sin importar cómo esté esta configuración.',
+          side: {
+            prog:'En cola', prog_sub:'Recordatorios por salir', off:'apagado',
+            r48:'A las 48 horas', r7d:'A los 7 días', rpre:'24 h antes de vencer', rover:'24 h después de vencer',
+            sent:'Enviados hoy', sent_sub:'Resumen del día + recordatorios activos',
+            eod:'Resumen del día', ntot:'Recordatorios', bounces:'Correos no entregados',
+            actions:'Acciones', actions_sub:'Historial y pausa de emergencia',
+            btn_log:'Ver historial de envíos', btn_pause:'Pausar todos los recordatorios'
+          },
+          log: { title:'Historial de envíos · Comunicaciones post-cita', loading:'Cargando…', col_when:'Momento', col_type:'Tipo', col_del:'Asistente', col_status:'Estado' },
+          err:'No se pudo guardar'
         }
       }
     },
@@ -740,6 +764,30 @@
           col_n:'#', col_a:'Company A', col_b:'Company B', col_round_table:'Round · Table', col_type:'Type', col_horizon:'Horizon', col_value:'Value',
           empty_table:'No data — load the report',
           cov_suffix:'% coverage', sending:'Sending…'
+        },
+        comms: {
+          kicker:'E-RN-10 · Post-meeting dossier', title:'Post-meeting communications',
+          intro:'Control the reminders the system sends attendees after each meeting. The end-of-day summary is always sent; the four reminders are optional and start off. All of them respect each attendee’s opt-in decision.',
+          paused_h:'Reminders paused', paused_body:'While paused, the end-of-day summary still goes out but the four optional reminders do not. Useful during incidents or pauses of the round.',
+          always_on:'Always on',
+          eod_title:'End-of-day summary', eod_desc:'Automatically sent at the close of each event day with the meetings left without an outcome recorded. Cannot be disabled.', eod_note:'One email per attendee per day. Honors the attendee’s decision.',
+          nudges_head:'Optional reminders · off by default',
+          key:'Internal key',
+          n48: { title:'48-hour reminder · outcome still pending', desc:'If the attendee still has meetings without an outcome recorded 48 hours after close, they get an email linking to the list. The full form is not re-sent.', meta1:'Sent: 48 h after close', meta2:'One email per meeting per attendee' },
+          n7d: { title:'7-day reminder · weekly commitments digest', desc:'Digest of the attendee’s active commitments with the status of each (done, upcoming, overdue) and a link to the full list.', meta1:'Sent: 7 days after close', meta2:'One email per attendee per week' },
+          pre: { title:'24-hour pre-due notice', desc:'Sent for each commitment with a due date approaching. Email to the commitment owner.', meta1:'Sent: 24 h before due', meta2:'One email per commitment' },
+          over: { title:'24-hour overdue notice', desc:'Courtesy reminder to the commitment owner, cc’ing the event producer. Only sent if the commitment is still not marked as done.', meta1:'Sent: 24 h after due', meta2:'CC to producer' },
+          legal_h:'Honors the attendee’s decision.', legal_body:'If someone asked not to receive follow-up emails when registering for the event, the system sends them no reminders — regardless of how this is configured.',
+          side: {
+            prog:'Queued', prog_sub:'Reminders scheduled to go out', off:'off',
+            r48:'At 48 hours', r7d:'At 7 days', rpre:'24 h before due', rover:'24 h after due',
+            sent:'Sent today', sent_sub:'End-of-day summary + active reminders',
+            eod:'End-of-day summary', ntot:'Reminders', bounces:'Undelivered emails',
+            actions:'Actions', actions_sub:'History and emergency pause',
+            btn_log:'View send history', btn_pause:'Pause all reminders'
+          },
+          log: { title:'Send history · Post-meeting communications', loading:'Loading…', col_when:'When', col_type:'Type', col_del:'Attendee', col_status:'Status' },
+          err:'Could not save'
         }
       }
     },
@@ -1098,6 +1146,30 @@
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Rodada · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
           empty_table:'Sem dados — carregue o relatório',
           cov_suffix:'% cobertura', sending:'Enviando…'
+        },
+        comms: {
+          kicker:'E-RN-10 · Dossiê pós-reunião', title:'Comunicações pós-reunião',
+          intro:'Controle os lembretes que o sistema envia aos participantes após cada reunião. O resumo do dia é sempre enviado; os quatro lembretes são opcionais e começam desligados. Todos respeitam a decisão do participante de receber ou não esses e-mails.',
+          paused_h:'Lembretes em pausa', paused_body:'Enquanto a pausa estiver ativa, o resumo do dia continua sendo enviado, mas os quatro lembretes opcionais não. Útil durante incidentes ou pausas da rodada.',
+          always_on:'Sempre ativo',
+          eod_title:'Resumo do dia', eod_desc:'Enviado automaticamente ao encerramento de cada jornada do evento com as reuniões que ficaram sem registro de resultado. Não pode ser desativado.', eod_note:'Um e-mail por participante por dia. Respeita a decisão do participante.',
+          nudges_head:'Lembretes opcionais · desligados por padrão',
+          key:'Chave interna',
+          n48: { title:'Lembrete de 48 horas · registro de resultado pendente', desc:'Se o participante ainda tiver reuniões sem registro de resultado 48 horas após o encerramento, recebe um e-mail com o link para a lista. O formulário completo não é reenviado.', meta1:'Enviado: 48 h após o encerramento', meta2:'Um e-mail por reunião por participante' },
+          n7d: { title:'Lembrete de 7 dias · resumo semanal de compromissos', desc:'Resumo dos compromissos ativos do participante com o status de cada um (cumprido, próximo, vencido) e link para a lista completa.', meta1:'Enviado: 7 dias após o encerramento', meta2:'Um e-mail por participante por semana' },
+          pre: { title:'Aviso 24 horas antes do vencimento', desc:'Enviado para cada compromisso com data de vencimento próxima. E-mail ao responsável pelo compromisso.', meta1:'Enviado: 24 h antes do vencimento', meta2:'Um e-mail por compromisso' },
+          over: { title:'Aviso 24 horas após o vencimento', desc:'Lembrete de cortesia ao responsável pelo compromisso, com cópia ao produtor do evento. Só é enviado se o compromisso continuar sem marcação como cumprido.', meta1:'Enviado: 24 h após o vencimento', meta2:'Com cópia ao produtor' },
+          legal_h:'Respeita a decisão do participante.', legal_body:'Se alguém pediu para não receber e-mails de acompanhamento ao se registrar no evento, o sistema não envia nenhum lembrete — independentemente de como esta configuração estiver.',
+          side: {
+            prog:'Na fila', prog_sub:'Lembretes a enviar', off:'desligado',
+            r48:'Em 48 horas', r7d:'Em 7 dias', rpre:'24 h antes do vencimento', rover:'24 h após o vencimento',
+            sent:'Enviados hoje', sent_sub:'Resumo do dia + lembretes ativos',
+            eod:'Resumo do dia', ntot:'Lembretes', bounces:'E-mails não entregues',
+            actions:'Ações', actions_sub:'Histórico e pausa de emergência',
+            btn_log:'Ver histórico de envios', btn_pause:'Pausar todos os lembretes'
+          },
+          log: { title:'Histórico de envios · Comunicações pós-reunião', loading:'Carregando…', col_when:'Momento', col_type:'Tipo', col_del:'Participante', col_status:'Status' },
+          err:'Não foi possível salvar'
         }
       }
     }
