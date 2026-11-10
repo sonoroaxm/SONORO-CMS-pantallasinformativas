@@ -5394,30 +5394,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     // o cuando text() con width auto-pagina. Inspeccionamos el stream de contenido:
     // una página solo con pageHeader() mide < 650 bytes; con header + título ~900 bytes;
     // con contenido real >> 1200 bytes. Umbral conservador: 1100 bytes.
-    try {
-      const pb = doc._pageBuffer;
-      const kids = doc._root && doc._root.data && doc._root.data.Pages && doc._root.data.Pages.data && doc._root.data.Pages.data.Kids;
-      if (Array.isArray(pb) && Array.isArray(kids)) {
-        while (pb.length > 1) {
-          const page = pb[pb.length - 1];
-          const contents = page && page.ref && page.ref.data && page.ref.data.Contents;
-          const chunks = contents && (contents.chunks || contents.data);
-          let bytes = 0;
-          if (Array.isArray(chunks)) {
-            for (const c of chunks) bytes += (c && c.length) ? c.length : 0;
-          } else if (chunks && typeof chunks.length === 'number') {
-            bytes = chunks.length;
-          }
-          if (bytes < 1100) {
-            pb.pop();
-            kids.pop();
-            doc._root.data.Pages.data.Count = pb.length;
-          } else {
-            break;
-          }
-        }
-      }
-    } catch (_) { /* trim best-effort — nunca falla el export */ }
+    // Trim de páginas en blanco deshabilitado — rompía PDFKit stream (no emitía 'end').
 
     // Footer en todas las páginas (después del trim para numerar bien)
     const range = doc.bufferedPageRange();
