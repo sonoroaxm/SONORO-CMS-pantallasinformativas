@@ -75,6 +75,22 @@ const LUA_SCRIPT     = process.platform === 'win32'
 const DISPLAY_ENV    = 'DISPLAY=:0 XAUTHORITY=/home/sonoro/.Xauthority';
 const HOTPLUG_FILE   = '/home/sonoro/.sonoro-hotplug';
 
+// ── PLAYER VERSION (§14bis.4 observabilidad fleet-wide) ──────
+// Se emite en cada sysinfo para detectar RPi stale fleet-wide sin SSH.
+const PLAYER_VERSION = (() => {
+  try {
+    const pkg = require(path.join(__dirname, 'package.json'));
+    return pkg.version || null;
+  } catch { return null; }
+})();
+const INSTALLED_FROM = (() => {
+  try {
+    const raw = fs.readFileSync('/home/sonoro/.installed-from', 'utf8');
+    const m = raw.match(/^commit=([a-f0-9]+)/m);
+    return m ? m[1].substring(0, 12) : null;
+  } catch { return null; }
+})();
+
 // ── OVERLAYFS PERSISTENCE (B2) ───────────────────────────────
 // Cuando OverlayFS está activo, /home/sonoro/media/ vive en tmpfs (se borra al apagar).
 // Para persistir media entre reboots, copiamos al lower layer real del SD:
@@ -1245,6 +1261,8 @@ function connectSocket() {
       temp_celsius: temp,
       platform: IS_WINDOWS ? 'windows' : 'linux',
       node_version: process.version,
+      player_version: PLAYER_VERSION,
+      installed_from: INSTALLED_FROM,
       uptime_s: Math.floor((Date.now() - currentState.started_at) / 1000),
       os_uptime_s: Math.floor(os.uptime()),
       timestamp: new Date().toISOString(),
@@ -1275,6 +1293,8 @@ function connectSocket() {
       temp_celsius: temp,
       platform: IS_WINDOWS ? 'windows' : 'linux',
       node_version: process.version,
+      player_version: PLAYER_VERSION,
+      installed_from: INSTALLED_FROM,
       uptime_s: Math.floor((Date.now() - currentState.started_at) / 1000),
       os_uptime_s: Math.floor(os.uptime()),
       timestamp: new Date().toISOString(),

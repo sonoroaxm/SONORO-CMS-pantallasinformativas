@@ -9736,7 +9736,14 @@ io.on('connection', (socket) => {
     if (socket.role !== 'device') return;
     if (!info?.device_id || info.temp_celsius == null) return;
     try {
-      await pool.query('UPDATE devices SET cpu_temp = $1, last_seen = NOW() WHERE device_id = $2', [info.temp_celsius, info.device_id]);
+      await pool.query(
+        `UPDATE devices
+            SET cpu_temp = $1,
+                last_seen = NOW(),
+                player_version = COALESCE($3, player_version)
+          WHERE device_id = $2`,
+        [info.temp_celsius, info.device_id, info.player_version || null]
+      );
     } catch(e) { console.warn('sysinfo persist error:', e.message); }
   });
 

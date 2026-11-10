@@ -1,5 +1,5 @@
 [Unit]
-Description=SONORO Player RPi5 (ffmpeg vout_drm + concat demuxer, gap 0)
+Description=SONORO Player RPi5 (ffmpeg vout_drm secuencial, S178 — HW decode HEVC)
 Documentation=file:///home/sonoro/sonoro-player/README.txt
 After=network-online.target sonoro-sync-rpi5.service
 Wants=network-online.target

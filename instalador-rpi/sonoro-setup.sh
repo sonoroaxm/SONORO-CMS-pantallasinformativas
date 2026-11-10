@@ -618,7 +618,34 @@ else
   log "RPi4 — OverlayFS gestionado por ALISTAMIENTO-RPI.md (no tocar)"
 fi
 
-step "9/9 Instalacion completada"
+step "9/9 Verificacion post-install (§14bis CORE-INVENTORY)"
+# Marker .installed-from: trazabilidad commit de origen (§14bis.3)
+INSTALLER_COMMIT=$(cd "$SCRIPT_DIR" && git rev-parse HEAD 2>/dev/null || echo "unknown")
+INSTALLER_BRANCH=$(cd "$SCRIPT_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+cat > /home/${SONORO_USER}/.installed-from <<EOF
+branch=${INSTALLER_BRANCH}
+commit=${INSTALLER_COMMIT}
+installer_version=v5.4
+installed_at=$(date -Iseconds)
+device_id=${DEVICE_ID}
+model=${SONORO_MODEL}
+EOF
+chown ${SONORO_USER}:${SONORO_USER} /home/${SONORO_USER}/.installed-from
+log "Marker .installed-from escrito (branch=${INSTALLER_BRANCH} commit=${INSTALLER_COMMIT:0:8})"
+
+# Gate verify-install.sh — bloquea si falla
+if [ -x "${SCRIPT_DIR}/verify-install.sh" ]; then
+  if bash "${SCRIPT_DIR}/verify-install.sh"; then
+    log "verify-install.sh OK — device productivo"
+  else
+    err "verify-install.sh FALLO — device NO productivo. Revisar y remediar antes de despachar."
+    exit 1
+  fi
+else
+  warn "verify-install.sh no encontrado en ${SCRIPT_DIR} — gate §14bis no ejecutado"
+fi
+
+step "Instalacion completada"
 TUNNEL_PUBKEY=$(cat "${TUNNEL_KEY}.pub" 2>/dev/null || echo "")
 # Hotspot ID: quitar prefijo modelo (rpi4-|rpi5-) para que el sufijo sea el mismo
 # independiente del hardware, y matchee marcaje físico del dispositivo.

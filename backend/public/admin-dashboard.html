@@ -4066,7 +4066,7 @@ function renderRpis(devices) {
             <span class="rpi-info-label">Ventilador</span>
             <span class="rpi-info-val" style="color:var(--muted)">—</span>
           </div>` : ''}
-          ${isWin && d.player_version ? `
+          ${d.player_version ? `
           <div class="rpi-info-row">
             <span class="rpi-info-label">Versión player</span>
             <span class="rpi-info-val">${d.player_version}</span>

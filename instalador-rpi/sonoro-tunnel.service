@@ -1,6 +1,6 @@
 [Unit]
 Description=SONORO SSH Tunnel (reverse forward to VPS)
-After=network-online.target sonoro-player.service
+After=network-online.target sonoro-player-rpi5.service
 Wants=network-online.target
 
 [Service]
