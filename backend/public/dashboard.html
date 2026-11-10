@@ -11476,6 +11476,7 @@ document.addEventListener('sonoro:localechange', function(){
     if (typeof evRnLiveRender === 'function' && typeof evRnLiveCache !== 'undefined' && evRnLiveCache) evRnLiveRender();
     if (typeof evRnDirRender === 'function') evRnDirRender();
     if (typeof evRnReportRender === 'function' && typeof evRnReportCache !== 'undefined' && evRnReportCache) evRnReportRender();
+    if (typeof evRnRenderStats === 'function' && evRnStatsCache) evRnRenderStats();
     if (typeof evRnTagsLoad === 'function') evRnTagsLoad();
     if (typeof evRnLoadRounds === 'function') evRnLoadRounds();
     if (typeof evRnLoadTables === 'function') evRnLoadTables();
@@ -13368,11 +13369,15 @@ async function evRnLoadStats() {
   }
 }
 
+let evRnStatsCache = null;
 function evRnRenderStats(s) {
+  if (s) evRnStatsCache = s;
+  s = s || evRnStatsCache || {};
   const regs = s.registrations || {};
   const mix  = s.role_mix || {};
   const reqs = s.requests || {};
   const slots = s.slots || {};
+  const t = (k)=> (window.SonoroI18n && window.SonoroI18n.t) ? window.SonoroI18n.t(k) : k;
 
   // Donut 1: completeness
   const cPct = regs.completeness_pct || 0;
@@ -13424,13 +13429,13 @@ function evRnRenderStats(s) {
 
   // KPIs
   document.getElementById('ev-rn-kpi-regs').textContent = regs.total ?? '—';
-  document.getElementById('ev-rn-kpi-regs-sub').textContent = regs.total ? `${regs.incompletas||0} con intereses incompletos` : ' ';
+  document.getElementById('ev-rn-kpi-regs-sub').textContent = regs.total ? t('rn.kpi.regs_sub_tpl').replace('{n}', regs.incompletas||0) : ' ';
   document.getElementById('ev-rn-kpi-complete').innerHTML = `${regs.completas ?? '—'} <span style="font-size:14px;color:var(--text-muted);font-weight:700">/ ${regs.total ?? '—'}</span>`;
-  document.getElementById('ev-rn-kpi-complete-sub').textContent = regs.total ? `${regs.completeness_pct}% listas para emparejar` : ' ';
+  document.getElementById('ev-rn-kpi-complete-sub').textContent = regs.total ? t('rn.kpi.complete_sub_tpl').replace('{pct}', regs.completeness_pct) : ' ';
   document.getElementById('ev-rn-kpi-requests').textContent = reqs.total ?? '—';
-  document.getElementById('ev-rn-kpi-requests-sub').textContent = reqs.total ? `${reqs.accepted||0} aceptadas · ${reqs.pending||0} pendientes` : ' ';
+  document.getElementById('ev-rn-kpi-requests-sub').textContent = reqs.total ? t('rn.kpi.requests_sub_tpl').replace('{acc}', reqs.accepted||0).replace('{pend}', reqs.pending||0) : ' ';
   document.getElementById('ev-rn-kpi-util').textContent = (slots.utilization_pct ?? 0) + '%';
-  document.getElementById('ev-rn-kpi-util-sub').textContent = slots.available ? `${slots.meetings_total||0} reuniones · ${slots.rounds_total||0} rondas` : ' ';
+  document.getElementById('ev-rn-kpi-util-sub').textContent = slots.available ? t('rn.kpi.util_sub_tpl').replace('{m}', slots.meetings_total||0).replace('{r}', slots.rounds_total||0) : ' ';
 
   // Sub-tab counters
   const nd = document.getElementById('ev-rn-subtab-n-dir'); if (nd) nd.textContent = regs.total ?? '—';
