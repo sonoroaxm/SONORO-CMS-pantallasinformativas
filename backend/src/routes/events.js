@@ -1292,6 +1292,74 @@ router.delete('/:id/registrations/:regId', auth, async (req, res) => {
 });
 
 // ── EXPORTAR REGISTROS CSV ────────────────────────────────────────────────────
+// S217g C.1 — i18n registrations export (CSV + PDF)
+const REG_EXPORT_LABELS = {
+  es: {
+    locale_date: 'es-CO',
+    report_title: 'Reporte de Registros',
+    col_name: 'nombre', col_email: 'email', col_phone: 'telefono', col_id: 'cedula',
+    col_org: 'organizacion', col_job: 'cargo', col_ticket: 'tipo_entrada',
+    col_status: 'estado', col_origin: 'origen', col_sessions: 'sesiones_inscritas',
+    col_checkins: 'check_ins', col_registered: 'registrado_en',
+    pdf_col_name: 'Nombre', pdf_col_email: 'Email', pdf_col_phone: 'Teléfono',
+    pdf_col_ticket: 'Tipo', pdf_col_status: 'Estado', pdf_col_sessions: 'Sesiones',
+    status_confirmed: 'Confirmado', status_cancelled: 'Cancelado', status_pending: 'Pendiente',
+    file_prefix: 'registros',
+    kpi_registered: 'INSCRITOS', kpi_confirmed: 'CONFIRMADOS', kpi_checkins: 'CHECK-INS', kpi_pending: 'PENDIENTES',
+    of_slots: n => `de ${n} cupos`, no_limit: 'sin límite',
+    of_registered: n => `de ${n} inscritos`, to_confirm: 'por confirmar',
+    section_attendance: 'Asistencia por sesión', general_entry: 'Entrada general',
+    unnamed: 'Sin nombre', of_attendees: (a, b) => `${a} de ${b} asistentes`,
+    checkin_mark: 'Check-in ✓', no_records: 'Sin registros.',
+    no_venue: 'Sin sede', status_label: 'Estado', generated: 'Generado',
+    page_of: (i, n) => `SONORO CMS · Registros · Pág ${i} de ${n}`,
+  },
+  en: {
+    locale_date: 'en-US',
+    report_title: 'Registrations Report',
+    col_name: 'name', col_email: 'email', col_phone: 'phone', col_id: 'id_number',
+    col_org: 'organization', col_job: 'job_title', col_ticket: 'ticket_type',
+    col_status: 'status', col_origin: 'origin', col_sessions: 'sessions',
+    col_checkins: 'check_ins', col_registered: 'registered_at',
+    pdf_col_name: 'Name', pdf_col_email: 'Email', pdf_col_phone: 'Phone',
+    pdf_col_ticket: 'Type', pdf_col_status: 'Status', pdf_col_sessions: 'Sessions',
+    status_confirmed: 'Confirmed', status_cancelled: 'Cancelled', status_pending: 'Pending',
+    file_prefix: 'registrations',
+    kpi_registered: 'REGISTERED', kpi_confirmed: 'CONFIRMED', kpi_checkins: 'CHECK-INS', kpi_pending: 'PENDING',
+    of_slots: n => `of ${n} slots`, no_limit: 'no limit',
+    of_registered: n => `of ${n} registered`, to_confirm: 'to confirm',
+    section_attendance: 'Attendance by session', general_entry: 'General admission',
+    unnamed: 'Unnamed', of_attendees: (a, b) => `${a} of ${b} attendees`,
+    checkin_mark: 'Check-in ✓', no_records: 'No records.',
+    no_venue: 'No venue', status_label: 'Status', generated: 'Generated',
+    page_of: (i, n) => `SONORO CMS · Registrations · Page ${i} of ${n}`,
+  },
+  pt: {
+    locale_date: 'pt-BR',
+    report_title: 'Relatório de Inscrições',
+    col_name: 'nome', col_email: 'email', col_phone: 'telefone', col_id: 'documento',
+    col_org: 'organizacao', col_job: 'cargo', col_ticket: 'tipo_ingresso',
+    col_status: 'status', col_origin: 'origem', col_sessions: 'sessoes',
+    col_checkins: 'check_ins', col_registered: 'inscrito_em',
+    pdf_col_name: 'Nome', pdf_col_email: 'Email', pdf_col_phone: 'Telefone',
+    pdf_col_ticket: 'Tipo', pdf_col_status: 'Status', pdf_col_sessions: 'Sessões',
+    status_confirmed: 'Confirmado', status_cancelled: 'Cancelado', status_pending: 'Pendente',
+    file_prefix: 'inscricoes',
+    kpi_registered: 'INSCRITOS', kpi_confirmed: 'CONFIRMADOS', kpi_checkins: 'CHECK-INS', kpi_pending: 'PENDENTES',
+    of_slots: n => `de ${n} vagas`, no_limit: 'sem limite',
+    of_registered: n => `de ${n} inscritos`, to_confirm: 'a confirmar',
+    section_attendance: 'Presença por sessão', general_entry: 'Entrada geral',
+    unnamed: 'Sem nome', of_attendees: (a, b) => `${a} de ${b} participantes`,
+    checkin_mark: 'Check-in ✓', no_records: 'Sem registros.',
+    no_venue: 'Sem local', status_label: 'Status', generated: 'Gerado',
+    page_of: (i, n) => `SONORO CMS · Inscrições · Pág ${i} de ${n}`,
+  },
+};
+function regExportLocale(req) {
+  const l = String(req.query.lang || req.query.locale || 'es').slice(0,2).toLowerCase();
+  return REG_EXPORT_LABELS[l] ? l : 'es';
+}
+
 router.get('/:id/registrations/export/csv', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
@@ -1332,14 +1400,16 @@ router.get('/:id/registrations/export/csv', auth, async (req, res) => {
       qParams
     );
 
+    const loc = regExportLocale(req);
+    const L = REG_EXPORT_LABELS[loc];
     const escCSV = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const statusLbl = s => s === 'confirmed' ? 'Confirmado' : s === 'cancelled' ? 'Cancelado' : 'Pendiente';
+    const statusLbl = s => s === 'confirmed' ? L.status_confirmed : s === 'cancelled' ? L.status_cancelled : L.status_pending;
 
     // Collect all custom_field keys across rows
     const cfKeys = [...new Set(rows.flatMap(r => Object.keys(r.custom_fields || {})))];
     const headers = [
-      'nombre', 'email', 'telefono', 'cedula', 'organizacion', 'cargo',
-      'tipo_entrada', 'estado', 'origen', 'sesiones_inscritas', 'check_ins', 'registrado_en',
+      L.col_name, L.col_email, L.col_phone, L.col_id, L.col_org, L.col_job,
+      L.col_ticket, L.col_status, L.col_origin, L.col_sessions, L.col_checkins, L.col_registered,
       ...cfKeys
     ];
 
@@ -1351,12 +1421,12 @@ router.get('/:id/registrations/export/csv', auth, async (req, res) => {
         escCSV(r.organization), escCSV(r.job_title), escCSV(r.ticket_type),
         escCSV(statusLbl(r.status)), escCSV(r.origin),
         escCSV(r.sessions), escCSV(r.checkins),
-        escCSV(r.registered_at ? new Date(r.registered_at).toLocaleString('es-CO', { timeZone: tz, hour12: true }) : ''),
+        escCSV(r.registered_at ? new Date(r.registered_at).toLocaleString(L.locale_date, { timeZone: tz, hour12: true }) : ''),
         ...cfKeys.map(k => escCSV(cf[k]))
       ].join(',') + '\r\n';
     }
 
-    const filename = `registros_${evName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+    const filename = `${L.file_prefix}_${evName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('﻿' + csv); // BOM para Excel
@@ -1443,8 +1513,12 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
     const sessions = sessionsRes.rows;
     const regs     = regsRes.rows;
 
+    // S217g C.1 — i18n
+    const loc = regExportLocale(req);
+    const L = REG_EXPORT_LABELS[loc];
+
     // ── PDF setup ─────────────────────────────────────────────────────────────
-    const filename = `registros_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    const filename = `${L.file_prefix}_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
@@ -1462,22 +1536,22 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
     const LIGHT  = '#f3f4f6';
     const WHITE  = '#ffffff';
 
-    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-CO',
+    const fmtDate = (d) => d ? new Date(d).toLocaleDateString(L.locale_date,
       { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const statusLbl = s => s === 'confirmed' ? 'Confirmado' : s === 'cancelled' ? 'Cancelado' : 'Pendiente';
+    const statusLbl = s => s === 'confirmed' ? L.status_confirmed : s === 'cancelled' ? L.status_cancelled : L.status_pending;
 
     // ── HEADER ────────────────────────────────────────────────────────────────
     doc.rect(0, 0, PAGE_W, 78).fill('#18181b');
     doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(18).text('SONORO', M, 18);
-    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text('Reporte de Registros', M, 40);
+    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text(L.report_title, M, 40);
     doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13).text(ev.name, M, 56, { width: W - 80 });
 
     let y = 90;
     const dateRange = `${fmtDate(ev.starts_at)}${ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at) : ''}`;
-    const genAt = new Date().toLocaleString('es-CO', { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    const genAt = new Date().toLocaleString(L.locale_date, { timeZone: tz, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
     doc.fillColor(GRAY).font('Helvetica').fontSize(9)
-       .text(`${dateRange}   ·   ${ev.venue_name || 'Sin sede'}   ·   Estado: ${statusLbl(ev.status)}`, M, y);
-    doc.fillColor(GRAY).fontSize(8).text(`Generado: ${genAt}`, M, y + 12);
+       .text(`${dateRange}   ·   ${ev.venue_name || L.no_venue}   ·   ${L.status_label}: ${statusLbl(ev.status)}`, M, y);
+    doc.fillColor(GRAY).fontSize(8).text(`${L.generated}: ${genAt}`, M, y + 12);
     y += 30;
 
     // ── DONUTS ────────────────────────────────────────────────────────────────
@@ -1491,23 +1565,23 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
       {
         pct: maxCap ? Math.min(100, Math.round((stats.total / maxCap) * 100)) : null,
         color: AMBER, big: stats.total,
-        line1: maxCap ? `de ${maxCap} cupos` : 'sin límite', line2: 'INSCRITOS'
+        line1: maxCap ? L.of_slots(maxCap) : L.no_limit, line2: L.kpi_registered
       },
       {
         pct: stats.total ? Math.round((stats.confirmed / stats.total) * 100) : 0,
         color: GREEN, big: stats.confirmed,
-        line1: `de ${stats.total} inscritos`, line2: 'CONFIRMADOS'
+        line1: L.of_registered(stats.total), line2: L.kpi_confirmed
       },
       {
         pct: stats.total ? Math.round((stats.checked_in / stats.total) * 100) : 0,
         color: BLUE, big: stats.checked_in,
-        line1: `de ${stats.total} inscritos`, line2: 'CHECK-INS'
+        line1: L.of_registered(stats.total), line2: L.kpi_checkins
       },
     ];
     if (stats.pending > 0) {
       donutData.push({
         pct: null, color: AMBER, big: stats.pending,
-        line1: 'por confirmar', line2: 'PENDIENTES'
+        line1: L.to_confirm, line2: L.kpi_pending
       });
     }
 
@@ -1566,11 +1640,11 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
     // Include "Entrada general" if there are check-ins without session
     const pillRows = [...sessions];
     if (generalCI > 0) {
-      pillRows.unshift({ name: 'Entrada general', reg_count: stats.total, ci_count: generalCI, capacity: null });
+      pillRows.unshift({ name: L.general_entry, reg_count: stats.total, ci_count: generalCI, capacity: null });
     }
 
     if (pillRows.length > 0) {
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text('Asistencia por sesión', M, y);
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(L.section_attendance, M, y);
       y += 14;
 
       const PILLS_PER_ROW = 2;
@@ -1597,7 +1671,7 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
 
         // Session name
         doc.fillColor(DARK).font('Helvetica-Bold').fontSize(8)
-           .text(s.name || 'Sin nombre', px + 10, py + 9, { width: PILL_W - 80, lineBreak: false, ellipsis: true });
+           .text(s.name || L.unnamed, px + 10, py + 9, { width: PILL_W - 80, lineBreak: false, ellipsis: true });
 
         // % badge top-right
         doc.fillColor(BLUE).font('Helvetica-Bold').fontSize(10)
@@ -1612,7 +1686,7 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
 
         // Count label
         doc.fillColor(GRAY).font('Helvetica').fontSize(7)
-           .text(`${s.ci_count} de ${denom} asistentes`, px + 10, py + 37, { width: PILL_W - 20, lineBreak: false });
+           .text(L.of_attendees(s.ci_count, denom), px + 10, py + 37, { width: PILL_W - 20, lineBreak: false });
       });
 
       const totalPillRows = Math.ceil(pillRows.length / PILLS_PER_ROW);
@@ -1625,12 +1699,12 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
 
     // ── TABLE ─────────────────────────────────────────────────────────────────
     const cols = [
-      { label: 'Nombre',   w: 110 },
-      { label: 'Email',    w: 120 },
-      { label: 'Teléfono', w: 68  },
-      { label: 'Tipo',     w: 55  },
-      { label: 'Estado',   w: 58  },
-      { label: 'Sesiones', w: 88  },
+      { label: L.pdf_col_name,     w: 110 },
+      { label: L.pdf_col_email,    w: 120 },
+      { label: L.pdf_col_phone,    w: 68  },
+      { label: L.pdf_col_ticket,   w: 55  },
+      { label: L.pdf_col_status,   w: 58  },
+      { label: L.pdf_col_sessions, w: 88  },
     ];
 
     doc.rect(M, y, W, 18).fill('#18181b');
@@ -1654,7 +1728,7 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
         r.phone || '—',
         r.ticket_type || '—',
         statusLbl(r.status),
-        r.sessions || (r.checkins ? 'Check-in ✓' : '—'),
+        r.sessions || (r.checkins ? L.checkin_mark : '—'),
       ];
       doc.font('Helvetica').fontSize(7.5);
       cols.forEach((col, ci) => {
@@ -1666,7 +1740,7 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
     });
 
     if (!regs.length) {
-      doc.fillColor(GRAY).font('Helvetica').fontSize(9).text('Sin registros.', M, y + 8);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(L.no_records, M, y + 8);
       y += 24;
     }
 
@@ -1675,7 +1749,7 @@ router.get('/:id/registrations/export/pdf', auth, async (req, res) => {
     for (let p = 0; p < pages.count; p++) {
       doc.switchToPage(p);
       doc.fillColor(GRAY).font('Helvetica').fontSize(7)
-         .text(`SONORO CMS · ${ev.name} · Registros · Pág ${p + 1} de ${pages.count}`, M, 828, { width: W, align: 'center' });
+         .text(L.page_of(p + 1, pages.count).replace('·', `· ${ev.name} ·`), M, 828, { width: W, align: 'center' });
     }
 
     doc.end();
@@ -4020,7 +4094,8 @@ const ANALYTICS_EXPORT_LABELS = {
         monthly:'Eventos por mês', col_month:'Mês', col_count:'Eventos', generated:'Gerado' },
 };
 function analyticsExportLocale(req) {
-  const l = String(req.query.locale || 'es').slice(0,2).toLowerCase();
+  // S217g C.1 — acepta ?lang= (nuevo estándar) o ?locale= (legacy)
+  const l = String(req.query.lang || req.query.locale || 'es').slice(0,2).toLowerCase();
   return ANALYTICS_EXPORT_LABELS[l] ? l : 'es';
 }
 function fmtDateShort(d) {
