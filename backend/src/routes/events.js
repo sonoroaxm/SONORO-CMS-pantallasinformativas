@@ -4437,6 +4437,330 @@ router.get('/:id/analytics/postrueda/tag/:tagId', auth, requireAnalyticsAccess, 
   }
 });
 
+// E-RN-10 Block 5 Phase 2 · i18n labels del Reporte productor (XLSX/PDF/CSV/JSON)
+const RN_POSTRUEDA_LABELS = {
+  es: {
+    report_title: 'Reporte Rueda de Negocios',
+    footer: 'SONORO CMS · Rueda de Negocios',
+    page_of: (i, n) => `Página ${i} de ${n}`,
+    kpis: 'Indicadores clave',
+    kpi_companies: 'Empresas', kpi_delegates: 'Delegados', kpi_meetings: 'Reuniones', kpi_effective: 'Efectivas',
+    rate_effective: 'Tasa de reuniones efectivas',
+    rate_match: 'Tasa de encaje (match + condicional)',
+    anonymized_banner: 'Reporte anonimizado — los nombres de empresa aparecen como iniciales.',
+    note_label: 'NOTA DEL PRODUCTOR',
+    section_summary: 'Resumen', section_pipeline: 'Pipeline', section_agenda: 'Agenda',
+    section_delegates: 'Delegados', section_commitments: 'Compromisos', section_heatmap: 'Heatmap', section_gaps: 'Brechas',
+    pipeline_title: 'Pipeline de resultados',
+    pipeline_sub: (n) => `${n} resultados registrados`,
+    pipeline_empty: 'Sin resultados registrados aún.',
+    agenda_title: 'Agenda por ronda', agenda_sub: 'Programadas vs. efectivas',
+    agenda_empty: 'Sin rondas configuradas.',
+    agenda_by_round: 'Agenda por ronda', agenda_by_table: 'Agenda por mesa',
+    heatmap_title: 'Mapa de calor Mesa × Ronda',
+    heatmap_sub: 'Positivos (match + condicional) sobre total de reuniones',
+    heatmap_empty: 'Sin datos de agenda.',
+    delegates_title: 'Delegados ancla', delegates_sub: 'Top 10 por resultados positivos',
+    delegates_empty: 'Aún no hay delegados con resultados positivos.',
+    anchors_title: 'Delegados ancla (más resultados positivos)',
+    longtail_title: 'Cola larga (cero resultados positivos)',
+    commitments_title: 'Compromisos abiertos',
+    commitments_sub: (n) => `${n} acciones pendientes`,
+    commitments_empty: 'No hay compromisos abiertos.',
+    by_next_step: 'Por próximo paso', by_owner: 'Por responsable',
+    upcoming_due: 'Próximos vencimientos (top 10)',
+    no_due_dates: 'Sin fechas de vencimiento asignadas.',
+    gaps_title: 'Brechas de catálogo',
+    gaps_sub: (n) => `${n} tags con desbalance oferta/demanda`,
+    gaps_empty: 'Sin brechas detectadas: toda demanda tiene oferta y viceversa.',
+    gaps_detail: 'Detalle por tag',
+    companies_need: 'Empresas que lo necesitan:',
+    companies_offer: 'Empresas que lo ofrecen:',
+    and_n_more: (n) => `… y ${n} más`,
+    col_event: 'Evento', col_event_id: 'ID del evento', col_tz: 'Zona horaria', col_start: 'Inicio',
+    col_end: 'Fin', col_generated: 'Generado', col_mode: 'Modo', mode_anonymized: 'Anonimizado (nombres reemplazados por iniciales)',
+    col_note: 'Nota del productor', col_total_outcomes: 'Total de resultados registrados',
+    col_result: 'Resultado', col_count: 'Cantidad', col_pct: '% del total',
+    col_round: 'Ronda', col_round_label: 'Etiqueta', col_scheduled: 'Programadas', col_effective: 'Efectivas',
+    col_table: 'Mesa', col_order: 'Orden',
+    col_company: 'Empresa', col_positives: 'Positivos (match + condicional)', col_no_match: 'Sin encaje', col_total_results: 'Total de resultados',
+    col_company_a: 'Empresa A', col_company_b: 'Empresa B', col_side: 'Lado',
+    col_next_step: 'Próximo paso', col_owner: 'Responsable', col_due: 'Fecha límite',
+    col_positives_total: 'Positivos (match+condicional)', col_total_meetings: 'Total reuniones',
+    col_tag: 'Tag', col_category: 'Categoría', col_demand_count: '# Demanda', col_offer_count: '# Oferta', col_state: 'Estado',
+    col_kind: 'Tipo', col_delegate: 'Delegado', col_email: 'Email',
+    col_details_by_tag: 'Detalle de empresas por tag',
+    organizer: 'Organiza',
+    result: { match:'Match (acuerdo)', conditional:'Condicional', needs_info:'Necesita más información', no_match:'Sin encaje', no_show:'Ausente' },
+    result_short: { match:'Match', conditional:'Condicional', needs_info:'Necesita info', no_match:'Sin encaje', no_show:'Ausente' },
+    next_step: { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'Ninguno' },
+    owner: { A:'Empresa A', B:'Empresa B', both:'Ambas' },
+    brecha: { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda', ok:'Oferta y demanda' },
+    kind: { demand:'Demanda', offer:'Oferta' },
+    results_short: 'resultados',
+    file_prefix: 'reporte-rn',
+    locale_date: 'es-CO',
+  },
+  en: {
+    report_title: 'Business Matchmaking Report',
+    footer: 'SONORO CMS · Business Matchmaking',
+    page_of: (i, n) => `Page ${i} of ${n}`,
+    kpis: 'Key indicators',
+    kpi_companies: 'Companies', kpi_delegates: 'Delegates', kpi_meetings: 'Meetings', kpi_effective: 'Effective',
+    rate_effective: 'Effective meeting rate',
+    rate_match: 'Match rate (match + conditional)',
+    anonymized_banner: 'Anonymized report — company names shown as initials.',
+    note_label: 'PRODUCER NOTE',
+    section_summary: 'Summary', section_pipeline: 'Pipeline', section_agenda: 'Agenda',
+    section_delegates: 'Delegates', section_commitments: 'Commitments', section_heatmap: 'Heatmap', section_gaps: 'Gaps',
+    pipeline_title: 'Outcome pipeline',
+    pipeline_sub: (n) => `${n} outcomes recorded`,
+    pipeline_empty: 'No outcomes recorded yet.',
+    agenda_title: 'Agenda by round', agenda_sub: 'Scheduled vs. effective',
+    agenda_empty: 'No rounds configured.',
+    agenda_by_round: 'Agenda by round', agenda_by_table: 'Agenda by table',
+    heatmap_title: 'Table × Round heatmap',
+    heatmap_sub: 'Positive outcomes (match + conditional) over total meetings',
+    heatmap_empty: 'No agenda data.',
+    delegates_title: 'Anchor delegates', delegates_sub: 'Top 10 by positive outcomes',
+    delegates_empty: 'No delegates with positive outcomes yet.',
+    anchors_title: 'Anchor delegates (most positive outcomes)',
+    longtail_title: 'Long tail (zero positive outcomes)',
+    commitments_title: 'Open commitments',
+    commitments_sub: (n) => `${n} pending actions`,
+    commitments_empty: 'No open commitments.',
+    by_next_step: 'By next step', by_owner: 'By owner',
+    upcoming_due: 'Upcoming due dates (top 10)',
+    no_due_dates: 'No due dates assigned.',
+    gaps_title: 'Catalog gaps',
+    gaps_sub: (n) => `${n} tags with supply/demand imbalance`,
+    gaps_empty: 'No gaps detected: all demand has supply and vice versa.',
+    gaps_detail: 'Detail by tag',
+    companies_need: 'Companies that need it:',
+    companies_offer: 'Companies that offer it:',
+    and_n_more: (n) => `… and ${n} more`,
+    col_event: 'Event', col_event_id: 'Event ID', col_tz: 'Timezone', col_start: 'Start',
+    col_end: 'End', col_generated: 'Generated', col_mode: 'Mode', mode_anonymized: 'Anonymized (names replaced with initials)',
+    col_note: 'Producer note', col_total_outcomes: 'Total outcomes recorded',
+    col_result: 'Result', col_count: 'Count', col_pct: '% of total',
+    col_round: 'Round', col_round_label: 'Label', col_scheduled: 'Scheduled', col_effective: 'Effective',
+    col_table: 'Table', col_order: 'Order',
+    col_company: 'Company', col_positives: 'Positive (match + conditional)', col_no_match: 'No match', col_total_results: 'Total outcomes',
+    col_company_a: 'Company A', col_company_b: 'Company B', col_side: 'Side',
+    col_next_step: 'Next step', col_owner: 'Owner', col_due: 'Due date',
+    col_positives_total: 'Positive (match+conditional)', col_total_meetings: 'Total meetings',
+    col_tag: 'Tag', col_category: 'Category', col_demand_count: '# Demand', col_offer_count: '# Supply', col_state: 'Status',
+    col_kind: 'Kind', col_delegate: 'Delegate', col_email: 'Email',
+    col_details_by_tag: 'Companies detail by tag',
+    organizer: 'Organizer',
+    result: { match:'Match (agreement)', conditional:'Conditional', needs_info:'Needs more information', no_match:'No match', no_show:'No-show' },
+    result_short: { match:'Match', conditional:'Conditional', needs_info:'Needs info', no_match:'No match', no_show:'No-show' },
+    next_step: { quote:'Quote', sample:'Sample', catalog:'Catalog', tech_spec:'Tech spec', intro:'Intro', second_meeting:'Second meeting', pilot:'Pilot', none:'None' },
+    owner: { A:'Company A', B:'Company B', both:'Both' },
+    brecha: { demanda_sin_oferta:'Demand without supply', oferta_sin_demanda:'Supply without demand', ok:'Supply and demand' },
+    kind: { demand:'Demand', offer:'Supply' },
+    results_short: 'outcomes',
+    file_prefix: 'bm-report',
+    locale_date: 'en-US',
+  },
+  pt: {
+    report_title: 'Relatório Rodada de Negócios',
+    footer: 'SONORO CMS · Rodada de Negócios',
+    page_of: (i, n) => `Página ${i} de ${n}`,
+    kpis: 'Indicadores-chave',
+    kpi_companies: 'Empresas', kpi_delegates: 'Delegados', kpi_meetings: 'Reuniões', kpi_effective: 'Efetivas',
+    rate_effective: 'Taxa de reuniões efetivas',
+    rate_match: 'Taxa de encaixe (match + condicional)',
+    anonymized_banner: 'Relatório anonimizado — nomes das empresas exibidos como iniciais.',
+    note_label: 'NOTA DO PRODUTOR',
+    section_summary: 'Resumo', section_pipeline: 'Pipeline', section_agenda: 'Agenda',
+    section_delegates: 'Delegados', section_commitments: 'Compromissos', section_heatmap: 'Heatmap', section_gaps: 'Lacunas',
+    pipeline_title: 'Pipeline de resultados',
+    pipeline_sub: (n) => `${n} resultados registrados`,
+    pipeline_empty: 'Ainda não há resultados registrados.',
+    agenda_title: 'Agenda por rodada', agenda_sub: 'Programadas vs. efetivas',
+    agenda_empty: 'Sem rodadas configuradas.',
+    agenda_by_round: 'Agenda por rodada', agenda_by_table: 'Agenda por mesa',
+    heatmap_title: 'Mapa de calor Mesa × Rodada',
+    heatmap_sub: 'Positivos (match + condicional) sobre total de reuniões',
+    heatmap_empty: 'Sem dados de agenda.',
+    delegates_title: 'Delegados âncora', delegates_sub: 'Top 10 por resultados positivos',
+    delegates_empty: 'Ainda não há delegados com resultados positivos.',
+    anchors_title: 'Delegados âncora (mais resultados positivos)',
+    longtail_title: 'Cauda longa (zero resultados positivos)',
+    commitments_title: 'Compromissos abertos',
+    commitments_sub: (n) => `${n} ações pendentes`,
+    commitments_empty: 'Nenhum compromisso aberto.',
+    by_next_step: 'Por próximo passo', by_owner: 'Por responsável',
+    upcoming_due: 'Próximos vencimentos (top 10)',
+    no_due_dates: 'Sem datas de vencimento atribuídas.',
+    gaps_title: 'Lacunas do catálogo',
+    gaps_sub: (n) => `${n} tags com desequilíbrio oferta/demanda`,
+    gaps_empty: 'Sem lacunas detectadas: toda demanda tem oferta e vice-versa.',
+    gaps_detail: 'Detalhe por tag',
+    companies_need: 'Empresas que precisam:',
+    companies_offer: 'Empresas que oferecem:',
+    and_n_more: (n) => `… e mais ${n}`,
+    col_event: 'Evento', col_event_id: 'ID do evento', col_tz: 'Fuso horário', col_start: 'Início',
+    col_end: 'Fim', col_generated: 'Gerado', col_mode: 'Modo', mode_anonymized: 'Anonimizado (nomes substituídos por iniciais)',
+    col_note: 'Nota do produtor', col_total_outcomes: 'Total de resultados registrados',
+    col_result: 'Resultado', col_count: 'Quantidade', col_pct: '% do total',
+    col_round: 'Rodada', col_round_label: 'Etiqueta', col_scheduled: 'Programadas', col_effective: 'Efetivas',
+    col_table: 'Mesa', col_order: 'Ordem',
+    col_company: 'Empresa', col_positives: 'Positivos (match + condicional)', col_no_match: 'Sem encaixe', col_total_results: 'Total de resultados',
+    col_company_a: 'Empresa A', col_company_b: 'Empresa B', col_side: 'Lado',
+    col_next_step: 'Próximo passo', col_owner: 'Responsável', col_due: 'Data limite',
+    col_positives_total: 'Positivos (match+condicional)', col_total_meetings: 'Total de reuniões',
+    col_tag: 'Tag', col_category: 'Categoria', col_demand_count: '# Demanda', col_offer_count: '# Oferta', col_state: 'Status',
+    col_kind: 'Tipo', col_delegate: 'Delegado', col_email: 'Email',
+    col_details_by_tag: 'Detalhe de empresas por tag',
+    organizer: 'Organiza',
+    result: { match:'Match (acordo)', conditional:'Condicional', needs_info:'Precisa mais informações', no_match:'Sem encaixe', no_show:'Ausente' },
+    result_short: { match:'Match', conditional:'Condicional', needs_info:'Precisa info', no_match:'Sem encaixe', no_show:'Ausente' },
+    next_step: { quote:'Cotação', sample:'Amostra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Apresentação', second_meeting:'Segunda reunião', pilot:'Piloto', none:'Nenhum' },
+    owner: { A:'Empresa A', B:'Empresa B', both:'Ambas' },
+    brecha: { demanda_sin_oferta:'Demanda sem oferta', oferta_sin_demanda:'Oferta sem demanda', ok:'Oferta e demanda' },
+    kind: { demand:'Demanda', offer:'Oferta' },
+    results_short: 'resultados',
+    file_prefix: 'relatorio-rn',
+    locale_date: 'pt-BR',
+  },
+};
+function rnPostruedaLocale(req) {
+  const q = String(req.query.lang || req.query.locale || 'es').slice(0,2).toLowerCase();
+  return RN_POSTRUEDA_LABELS[q] ? q : 'es';
+}
+
+// E-RN-10 Block 5 Phase 2 · Shared helper: gather postrueda dataset
+// Devuelve el bundle completo. XLSX/PDF/CSV/JSON lo consumen; cada formato aplica su propia presentación.
+async function _fetchPostruedaData(pool, eventId, { anchorsLimit = 20, longtailLimit = 20, compromisosLimit = null } = {}) {
+  const evRow = (await pool.query(
+    `SELECT id, name, starts_at, ends_at, timezone, venue_name, venue_address, organizer_legal_name
+       FROM events.events WHERE id = $1`, [eventId]
+  )).rows[0];
+  if (!evRow) { const e = new Error('Evento no encontrado'); e.httpStatus = 404; throw e; }
+
+  const pipelineAgg = (await pool.query(
+    `SELECT o.result, COUNT(*) AS n FROM events.rn_meeting_outcomes o
+       JOIN events.rn_meetings m ON m.id = o.meeting_id
+      WHERE m.event_id = $1 GROUP BY o.result ORDER BY o.result`, [eventId]
+  )).rows;
+  const pipelineTotal = pipelineAgg.reduce((s, r) => s + Number(r.n), 0);
+
+  const agendaByRound = (await pool.query(
+    `SELECT rr.round_number, rr.label, COUNT(m.id) AS scheduled,
+            COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+       FROM events.rn_rounds rr
+       LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
+      WHERE rr.event_id = $1 GROUP BY rr.id, rr.round_number, rr.label
+      ORDER BY rr.round_number`, [eventId]
+  )).rows;
+  const agendaByTable = (await pool.query(
+    `SELECT t.label, t.display_order, COUNT(m.id) AS scheduled,
+            COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
+       FROM events.rn_tables t
+       LEFT JOIN events.rn_meetings m ON m.table_id = t.id
+      WHERE t.event_id = $1 AND t.active = TRUE
+      GROUP BY t.id, t.label, t.display_order ORDER BY t.display_order, t.label`, [eventId]
+  )).rows;
+
+  const anchors = (await pool.query(
+    `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+            COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+            COUNT(*) AS total_outcomes
+       FROM events.rn_meeting_outcomes o
+       JOIN events.rn_meetings m ON m.id = o.meeting_id
+       JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
+       JOIN events.attendees a ON a.id = r.attendee_id
+      WHERE m.event_id = $1 GROUP BY r.id, r.custom_fields, a.organization, a.name
+      HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
+      ORDER BY positives DESC, total_outcomes DESC LIMIT ${Number(anchorsLimit)||20}`, [eventId]
+  )).rows;
+  const longtail = (await pool.query(
+    `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+            COUNT(*) FILTER (WHERE o.result = 'no_match') AS negatives,
+            COUNT(*) AS total_outcomes
+       FROM events.rn_meeting_outcomes o
+       JOIN events.rn_meetings m ON m.id = o.meeting_id
+       JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
+       JOIN events.attendees a ON a.id = r.attendee_id
+      WHERE m.event_id = $1 GROUP BY r.id, r.custom_fields, a.organization, a.name
+      HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) = 0
+      ORDER BY total_outcomes DESC LIMIT ${Number(longtailLimit)||20}`, [eventId]
+  )).rows;
+
+  const compromisos = (await pool.query(
+    `SELECT rr.round_number,
+            COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
+            COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
+            o.side, o.result, o.next_step, o.owner_side, o.due_at
+       FROM events.rn_meeting_outcomes o
+       JOIN events.rn_meetings m ON m.id = o.meeting_id
+       JOIN events.rn_rounds rr ON rr.id = m.round_id
+       JOIN events.registrations ra ON ra.id = m.company_a_id
+       JOIN events.registrations rb ON rb.id = m.company_b_id
+       JOIN events.attendees aa ON aa.id = ra.attendee_id
+       JOIN events.attendees ab ON ab.id = rb.attendee_id
+      WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
+      ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC
+      ${compromisosLimit ? 'LIMIT ' + Number(compromisosLimit) : ''}`, [eventId]
+  )).rows;
+
+  const heatmap = (await pool.query(
+    `SELECT t.label AS table_label, t.display_order, rr.round_number,
+            COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
+            COUNT(m.id) AS total
+       FROM events.rn_meetings m
+       JOIN events.rn_tables  t  ON t.id  = m.table_id
+       JOIN events.rn_rounds  rr ON rr.id = m.round_id
+       LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
+      WHERE m.event_id = $1
+      GROUP BY t.id, t.label, t.display_order, rr.round_number
+      ORDER BY t.display_order, rr.round_number`, [eventId]
+  )).rows;
+
+  const brechasDetail = (await pool.query(
+    `SELECT t.label AS tag_label, t.category AS tag_category, rt.kind,
+            COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
+            d.full_name AS delegate_name, d.email AS delegate_email
+       FROM events.rn_tags t
+       JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
+       JOIN events.registrations r ON r.id = rt.registration_id
+       JOIN events.attendees a ON a.id = r.attendee_id
+       LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
+      WHERE r.event_id = $1
+      ORDER BY t.label, rt.kind, company`, [eventId]
+  )).rows;
+  const tagAgg = new Map();
+  for (const row of brechasDetail) {
+    const k = row.tag_label + '||' + (row.tag_category || '');
+    if (!tagAgg.has(k)) tagAgg.set(k, { label: row.tag_label, category: row.tag_category, demand: 0, offer: 0, companies: { demand: [], offer: [] } });
+    const t = tagAgg.get(k);
+    t[row.kind]++;
+    t.companies[row.kind].push({ company: row.company, delegate: row.delegate_name, email: row.delegate_email });
+  }
+  const brechasRows = [...tagAgg.values()].map(t => ({
+    ...t,
+    brecha: t.demand > 0 && t.offer === 0 ? 'demanda_sin_oferta'
+          : t.offer > 0 && t.demand === 0 ? 'oferta_sin_demanda' : 'ok',
+  }));
+
+  const kpis = (await pool.query(
+    `SELECT
+       (SELECT COUNT(DISTINCT r.id) FROM events.registrations r
+          WHERE r.event_id=$1
+            AND (EXISTS (SELECT 1 FROM events.rn_delegates d WHERE d.registration_id=r.id)
+              OR EXISTS (SELECT 1 FROM events.rn_meetings m WHERE m.event_id=$1 AND (m.company_a_id=r.id OR m.company_b_id=r.id)))
+       ) AS empresas,
+       (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1) AS reuniones,
+       (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1 AND status IN ('completed','active')) AS reuniones_efectivas,
+       (SELECT COUNT(DISTINCT d.id) FROM events.rn_delegates d JOIN events.registrations r ON r.id=d.registration_id WHERE r.event_id=$1) AS delegados`,
+    [eventId]
+  )).rows[0] || {};
+
+  return { event: evRow, pipelineAgg, pipelineTotal, agendaByRound, agendaByTable, anchors, longtail, compromisos, heatmap, brechasDetail, brechasRows, kpis };
+}
+
 // E-RN-10 Block 4b · Export XLSX multi-hoja del Reporte productor
 // GET /api/events/:id/analytics/postrueda/export.xlsx
 router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess, async (req, res) => {
@@ -4459,147 +4783,18 @@ router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess,
       return ini + '***';
     };
 
-    const evRow = (await pool.query(
-      `SELECT id, name, starts_at, ends_at, timezone FROM events.events WHERE id = $1`, [eventId]
-    )).rows[0];
-    if (!evRow) { return res.status(404).json({ error: 'Evento no encontrado' }); }
+    const loc = rnPostruedaLocale(req);
+    const L = RN_POSTRUEDA_LABELS[loc];
+    const data = await _fetchPostruedaData(pool, eventId, { anchorsLimit: 20, longtailLimit: 20 });
+    const evRow = data.event;
+    const { pipelineAgg, pipelineTotal, agendaByRound, agendaByTable, anchors, longtail, compromisos, heatmap, brechasDetail, brechasRows } = data;
 
-    // Pipeline
-    const pipelineAgg = (await pool.query(
-      `SELECT o.result, COUNT(*) AS n
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-        WHERE m.event_id = $1 GROUP BY o.result ORDER BY o.result`,
-      [eventId]
-    )).rows;
-    const pipelineTotal = pipelineAgg.reduce((s, r) => s + Number(r.n), 0);
-
-    // Agenda
-    const agendaByRound = (await pool.query(
-      `SELECT rr.round_number, rr.label,
-              COUNT(m.id) AS scheduled,
-              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
-         FROM events.rn_rounds rr
-         LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
-        WHERE rr.event_id = $1
-        GROUP BY rr.id, rr.round_number, rr.label
-        ORDER BY rr.round_number`,
-      [eventId]
-    )).rows;
-    const agendaByTable = (await pool.query(
-      `SELECT t.label, t.display_order,
-              COUNT(m.id) AS scheduled,
-              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
-         FROM events.rn_tables t
-         LEFT JOIN events.rn_meetings m ON m.table_id = t.id
-        WHERE t.event_id = $1 AND t.active = TRUE
-        GROUP BY t.id, t.label, t.display_order
-        ORDER BY t.display_order, t.label`,
-      [eventId]
-    )).rows;
-
-    // Delegados
-    const anchors = (await pool.query(
-      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
-              COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
-              COUNT(*) AS total_outcomes
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
-         JOIN events.attendees a ON a.id = r.attendee_id
-        WHERE m.event_id = $1
-        GROUP BY r.id, r.custom_fields, a.organization, a.name
-        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
-        ORDER BY positives DESC, total_outcomes DESC
-        LIMIT 20`,
-      [eventId]
-    )).rows;
-    const longtail = (await pool.query(
-      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
-              COUNT(*) FILTER (WHERE o.result = 'no_match') AS negatives,
-              COUNT(*) AS total_outcomes
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
-         JOIN events.attendees a ON a.id = r.attendee_id
-        WHERE m.event_id = $1
-        GROUP BY r.id, r.custom_fields, a.organization, a.name
-        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) = 0
-        ORDER BY total_outcomes DESC
-        LIMIT 20`,
-      [eventId]
-    )).rows;
-
-    // Compromisos (todos abiertos)
-    const compromisos = (await pool.query(
-      `SELECT rr.round_number,
-              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
-              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
-              o.side, o.result, o.next_step, o.owner_side, o.due_at
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-         JOIN events.rn_rounds rr ON rr.id = m.round_id
-         JOIN events.registrations ra ON ra.id = m.company_a_id
-         JOIN events.registrations rb ON rb.id = m.company_b_id
-         JOIN events.attendees aa ON aa.id = ra.attendee_id
-         JOIN events.attendees ab ON ab.id = rb.attendee_id
-        WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
-        ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC`,
-      [eventId]
-    )).rows;
-
-    // Heatmap
-    const heatmap = (await pool.query(
-      `SELECT t.label AS table_label, rr.round_number,
-              COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
-              COUNT(m.id) AS total
-         FROM events.rn_meetings m
-         JOIN events.rn_tables  t  ON t.id  = m.table_id
-         JOIN events.rn_rounds  rr ON rr.id = m.round_id
-         LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
-        WHERE m.event_id = $1
-        GROUP BY t.id, t.label, t.display_order, rr.round_number
-        ORDER BY t.display_order, rr.round_number`,
-      [eventId]
-    )).rows;
-
-    // Brechas (con detalle de empresas por tag)
-    const brechasDetail = (await pool.query(
-      `SELECT t.label AS tag_label, t.category AS tag_category, rt.kind,
-              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
-              d.full_name AS delegate_name, d.email AS delegate_email
-         FROM events.rn_tags t
-         JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
-         JOIN events.registrations r ON r.id = rt.registration_id
-         JOIN events.attendees a ON a.id = r.attendee_id
-         LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
-        WHERE r.event_id = $1
-        ORDER BY t.label, rt.kind, company`,
-      [eventId]
-    )).rows;
-    const tagAgg = new Map();
-    for (const row of brechasDetail) {
-      const k = row.tag_label + '||' + (row.tag_category || '');
-      if (!tagAgg.has(k)) tagAgg.set(k, { label: row.tag_label, category: row.tag_category, demand: 0, offer: 0 });
-      tagAgg.get(k)[row.kind]++;
-    }
-    const brechasRows = [...tagAgg.values()].map(t => ({
-      ...t,
-      brecha: t.demand > 0 && t.offer === 0 ? 'demanda_sin_oferta'
-            : t.offer > 0 && t.demand === 0 ? 'oferta_sin_demanda'
-            : 'ok',
-    }));
-
-    // Diccionarios ES
-    const RESULT_ES = { match:'Match (acuerdo)', conditional:'Condicional', needs_info:'Necesita más información', no_match:'Sin encaje', no_show:'Ausente' };
-    const NEXT_STEP_ES = { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'Ninguno' };
-    const OWNER_ES = { A:'Empresa A', B:'Empresa B', both:'Ambas' };
-    const trRes  = v => RESULT_ES[v] || v || '';
-    const trStep = v => NEXT_STEP_ES[v] || v || '';
-    const trOwn  = v => v == null ? '' : (OWNER_ES[v] || v);
+    const trRes  = v => L.result[v] || v || '';
+    const trStep = v => L.next_step[v] || v || '';
+    const trOwn  = v => v == null ? '' : (L.owner[v] || v);
     const fmtDate = d => {
       if (!d) return '';
-      try { return new Date(d).toLocaleString('es-CO', { timeZone: evRow.timezone || 'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); }
+      try { return new Date(d).toLocaleString(L.locale_date, { timeZone: evRow.timezone || 'America/Bogota', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); }
       catch(_) { return new Date(d).toISOString(); }
     };
 
@@ -4607,94 +4802,92 @@ router.get('/:id/analytics/postrueda/export.xlsx', auth, requireAnalyticsAccess,
     const wb = XLSX.utils.book_new();
 
     const resumen = [
-      ['Evento', evRow.name],
-      ['ID del evento', evRow.id],
-      ['Zona horaria', evRow.timezone],
-      ['Inicio', fmtDate(evRow.starts_at)],
-      ['Fin', fmtDate(evRow.ends_at)],
-      ['Generado', fmtDate(new Date())],
-      ...(anonymize ? [['Modo', 'Anonimizado (nombres reemplazados por iniciales)']] : []),
-      ...(prodNote ? [[], ['Nota del productor', prodNote]] : []),
+      [L.col_event, evRow.name],
+      [L.col_event_id, evRow.id],
+      [L.col_tz, evRow.timezone],
+      [L.col_start, fmtDate(evRow.starts_at)],
+      [L.col_end, fmtDate(evRow.ends_at)],
+      [L.col_generated, fmtDate(new Date())],
+      ...(anonymize ? [[L.col_mode, L.mode_anonymized]] : []),
+      ...(prodNote ? [[], [L.col_note, prodNote]] : []),
       [],
-      ['Total de resultados registrados', pipelineTotal],
+      [L.col_total_outcomes, pipelineTotal],
       ...pipelineAgg.map(r => [`  · ${trRes(r.result)}`, Number(r.n), pipelineTotal ? (Number(r.n)/pipelineTotal*100).toFixed(1)+'%' : '']),
     ];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), L.section_summary);
 
     if (want('pipeline')) {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-        pipelineAgg.map(r => ({ 'Resultado': trRes(r.result), 'Cantidad': Number(r.n), '% del total': pipelineTotal ? Number((Number(r.n)/pipelineTotal*100).toFixed(2)) : 0 }))
-      ), 'Pipeline');
+        pipelineAgg.map(r => ({ [L.col_result]: trRes(r.result), [L.col_count]: Number(r.n), [L.col_pct]: pipelineTotal ? Number((Number(r.n)/pipelineTotal*100).toFixed(2)) : 0 }))
+      ), L.section_pipeline);
     }
 
     if (want('agenda')) {
       const agendaSheet = [
-        ['Agenda por ronda'],
-        ['Ronda','Etiqueta','Programadas','Efectivas'],
+        [L.agenda_by_round],
+        [L.col_round, L.col_round_label, L.col_scheduled, L.col_effective],
         ...agendaByRound.map(r => [r.round_number, r.label || '', Number(r.scheduled), Number(r.effective)]),
         [],
-        ['Agenda por mesa'],
-        ['Mesa','Orden','Programadas','Efectivas'],
+        [L.agenda_by_table],
+        [L.col_table, L.col_order, L.col_scheduled, L.col_effective],
         ...agendaByTable.map(r => [r.label, r.display_order, Number(r.scheduled), Number(r.effective)]),
       ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agendaSheet), 'Agenda');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(agendaSheet), L.section_agenda);
     }
 
     if (want('delegates')) {
       const delegSheet = [
-        ['Delegados ancla (más resultados positivos)'],
-        ['Empresa','Positivos (match + condicional)','Total de resultados'],
+        [L.anchors_title],
+        [L.col_company, L.col_positives, L.col_total_results],
         ...anchors.map(r => [anonCo(r.company), Number(r.positives), Number(r.total_outcomes)]),
         [],
-        ['Cola larga (cero resultados positivos)'],
-        ['Empresa','Sin encaje','Total de resultados'],
+        [L.longtail_title],
+        [L.col_company, L.col_no_match, L.col_total_results],
         ...longtail.map(r => [anonCo(r.company), Number(r.negatives), Number(r.total_outcomes)]),
       ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delegSheet), 'Delegados');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delegSheet), L.section_delegates);
     }
 
     if (want('commitments')) {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
         compromisos.map(r => ({
-          'Ronda': r.round_number,
-          'Empresa A': anonCo(r.company_a),
-          'Empresa B': anonCo(r.company_b),
-          'Lado': r.side === 'A' ? 'Empresa A' : 'Empresa B',
-          'Resultado': trRes(r.result),
-          'Próximo paso': trStep(r.next_step),
-          'Responsable': trOwn(r.owner_side),
-          'Fecha límite': r.due_at ? new Date(r.due_at).toLocaleDateString('es-CO', { timeZone: evRow.timezone || 'America/Bogota' }) : '',
+          [L.col_round]: r.round_number,
+          [L.col_company_a]: anonCo(r.company_a),
+          [L.col_company_b]: anonCo(r.company_b),
+          [L.col_side]: r.side === 'A' ? L.col_company_a : L.col_company_b,
+          [L.col_result]: trRes(r.result),
+          [L.col_next_step]: trStep(r.next_step),
+          [L.col_owner]: trOwn(r.owner_side),
+          [L.col_due]: r.due_at ? new Date(r.due_at).toLocaleDateString(L.locale_date, { timeZone: evRow.timezone || 'America/Bogota' }) : '',
         }))
-      ), 'Compromisos');
+      ), L.section_commitments);
     }
 
     if (want('heatmap')) {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
-        heatmap.map(r => ({ 'Mesa': r.table_label, 'Ronda': r.round_number, 'Positivos (match+condicional)': Number(r.positives), 'Total reuniones': Number(r.total) }))
-      ), 'Heatmap');
+        heatmap.map(r => ({ [L.col_table]: r.table_label, [L.col_round]: r.round_number, [L.col_positives_total]: Number(r.positives), [L.col_total_meetings]: Number(r.total) }))
+      ), L.section_heatmap);
     }
 
     if (want('gaps')) {
-      const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda', ok:'Oferta y demanda' };
-      const KIND_ES = { demand:'Demanda', offer:'Oferta' };
       const brechasSheet = [
-        ['Tag','Categoría','# Demanda','# Oferta','Estado'],
+        [L.col_tag, L.col_category, L.col_demand_count, L.col_offer_count, L.col_state],
         ...brechasRows
           .sort((a,b)=> (a.brecha===b.brecha?0:a.brecha==='demanda_sin_oferta'?-1:1))
-          .map(r => [r.label, r.category || '', r.demand, r.offer, BRECHA_ES[r.brecha] || r.brecha]),
+          .map(r => [r.label, r.category || '', r.demand, r.offer, L.brecha[r.brecha] || r.brecha]),
         [],
-        ['Detalle de empresas por tag'],
-        ['Tag','Tipo','Empresa','Delegado','Email'],
-        ...brechasDetail.map(r => [r.tag_label, KIND_ES[r.kind] || r.kind, anonCo(r.company), anonymize ? '—' : (r.delegate_name || ''), anonymize ? '—' : (r.delegate_email || '')]),
+        [L.col_details_by_tag],
+        [L.col_tag, L.col_kind, L.col_company, L.col_delegate, L.col_email],
+        ...brechasDetail.map(r => [r.tag_label, L.kind[r.kind] || r.kind, anonCo(r.company), anonymize ? '—' : (r.delegate_name || ''), anonymize ? '—' : (r.delegate_email || '')]),
       ];
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brechasSheet), 'Brechas');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(brechasSheet), L.section_gaps);
     }
 
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
     const safeName = String(evRow.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
     const stamp = new Date().toISOString().slice(0,10);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-rn_${safeName}_${stamp}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safeName}_${stamp}.xlsx"`);
     res.send(buf);
   } catch (err) {
     if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
@@ -4725,126 +4918,32 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       return ini + '***';
     };
 
-    const evRow = (await pool.query(
-      `SELECT id, name, starts_at, ends_at, timezone, venue_name, venue_address, organizer_legal_name
-         FROM events.events WHERE id = $1`, [eventId]
-    )).rows[0];
-    if (!evRow) return res.status(404).json({ error: 'Evento no encontrado' });
-
+    const loc = rnPostruedaLocale(req);
+    const L = RN_POSTRUEDA_LABELS[loc];
+    const _data = await _fetchPostruedaData(pool, eventId, { anchorsLimit: 10, longtailLimit: 20, compromisosLimit: 40 });
+    const evRow = _data.event;
     const tz = evRow.timezone || 'America/Bogota';
-    const fmtDT = (d) => { if (!d) return ''; try { return new Date(d).toLocaleString('es-CO', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); } catch(_) { return ''; } };
-    const fmtD = (d) => { if (!d) return ''; try { return new Date(d).toLocaleDateString('es-CO', { timeZone: tz, year:'numeric', month:'long', day:'numeric' }); } catch(_) { return ''; } };
+    const fmtDT = (d) => { if (!d) return ''; try { return new Date(d).toLocaleString(L.locale_date, { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:true }); } catch(_) { return ''; } };
+    const fmtD = (d) => { if (!d) return ''; try { return new Date(d).toLocaleDateString(L.locale_date, { timeZone: tz, year:'numeric', month:'long', day:'numeric' }); } catch(_) { return ''; } };
 
-    // ───── Data queries ─────
-    const pipelineAgg = (await pool.query(
-      `SELECT o.result, COUNT(*) AS n FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-        WHERE m.event_id = $1 GROUP BY o.result ORDER BY o.result`, [eventId]
-    )).rows;
-    const pipelineTotal = pipelineAgg.reduce((s, r) => s + Number(r.n), 0);
-
-    const agendaByRound = (await pool.query(
-      `SELECT rr.round_number, rr.label, COUNT(m.id) AS scheduled,
-              COUNT(m.id) FILTER (WHERE m.status IN ('completed','active')) AS effective
-         FROM events.rn_rounds rr
-         LEFT JOIN events.rn_meetings m ON m.round_id = rr.id
-        WHERE rr.event_id = $1 GROUP BY rr.id, rr.round_number, rr.label
-        ORDER BY rr.round_number`, [eventId]
-    )).rows;
-
-    const anchors = (await pool.query(
-      `SELECT COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
-              COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
-              COUNT(*) AS total_outcomes
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-         JOIN events.registrations r ON r.id = CASE WHEN o.side='A' THEN m.company_a_id ELSE m.company_b_id END
-         JOIN events.attendees a ON a.id = r.attendee_id
-        WHERE m.event_id = $1 GROUP BY r.id, r.custom_fields, a.organization, a.name
-        HAVING COUNT(*) FILTER (WHERE o.result IN ('match','conditional')) > 0
-        ORDER BY positives DESC, total_outcomes DESC LIMIT 10`, [eventId]
-    )).rows;
-
-    const compromisos = (await pool.query(
-      `SELECT rr.round_number,
-              COALESCE(ra.custom_fields->>'company_name', aa.organization, aa.name) AS company_a,
-              COALESCE(rb.custom_fields->>'company_name', ab.organization, ab.name) AS company_b,
-              o.side, o.result, o.next_step, o.owner_side, o.due_at
-         FROM events.rn_meeting_outcomes o
-         JOIN events.rn_meetings m ON m.id = o.meeting_id
-         JOIN events.rn_rounds rr ON rr.id = m.round_id
-         JOIN events.registrations ra ON ra.id = m.company_a_id
-         JOIN events.registrations rb ON rb.id = m.company_b_id
-         JOIN events.attendees aa ON aa.id = ra.attendee_id
-         JOIN events.attendees ab ON ab.id = rb.attendee_id
-        WHERE m.event_id = $1 AND o.next_step <> 'none' AND o.completed_at IS NULL
-        ORDER BY COALESCE(o.due_at, NOW() + INTERVAL '99 years') ASC LIMIT 40`, [eventId]
-    )).rows;
-
-    const heatmap = (await pool.query(
-      `SELECT t.label AS table_label, t.display_order, rr.round_number,
-              COUNT(o.*) FILTER (WHERE o.result IN ('match','conditional')) AS positives,
-              COUNT(m.id) AS total
-         FROM events.rn_meetings m
-         JOIN events.rn_tables  t  ON t.id  = m.table_id
-         JOIN events.rn_rounds  rr ON rr.id = m.round_id
-         LEFT JOIN events.rn_meeting_outcomes o ON o.meeting_id = m.id
-        WHERE m.event_id = $1
-        GROUP BY t.id, t.label, t.display_order, rr.round_number
-        ORDER BY t.display_order, rr.round_number`, [eventId]
-    )).rows;
-
-    const brechasDetail = (await pool.query(
-      `SELECT t.label AS tag_label, rt.kind,
-              COALESCE(r.custom_fields->>'company_name', a.organization, a.name) AS company,
-              d.full_name AS delegate_name, d.email AS delegate_email
-         FROM events.rn_tags t
-         JOIN events.rn_registration_tags rt ON rt.tag_id = t.id
-         JOIN events.registrations r ON r.id = rt.registration_id
-         JOIN events.attendees a ON a.id = r.attendee_id
-         LEFT JOIN events.rn_delegates d ON d.registration_id = r.id AND d.is_primary = TRUE
-        WHERE r.event_id = $1
-        ORDER BY t.label, rt.kind, company`, [eventId]
-    )).rows;
-    const tagAgg = new Map();
-    for (const row of brechasDetail) {
-      if (!tagAgg.has(row.tag_label)) tagAgg.set(row.tag_label, { label: row.tag_label, demand: 0, offer: 0, companies: { demand: [], offer: [] } });
-      const t = tagAgg.get(row.tag_label);
-      t[row.kind]++;
-      t.companies[row.kind].push({ company: row.company, delegate: row.delegate_name, email: row.delegate_email });
-    }
-    const brechas = [...tagAgg.values()].map(t => ({
-      ...t,
-      brecha: t.demand > 0 && t.offer === 0 ? 'demanda_sin_oferta'
-            : t.offer > 0 && t.demand === 0 ? 'oferta_sin_demanda' : 'ok',
-    })).filter(t => t.brecha !== 'ok');
-
-    // KPIs globales
-    const kpis = (await pool.query(
-      `SELECT
-         (SELECT COUNT(DISTINCT r.id) FROM events.registrations r
-            WHERE r.event_id=$1
-              AND (EXISTS (SELECT 1 FROM events.rn_delegates d WHERE d.registration_id=r.id)
-                OR EXISTS (SELECT 1 FROM events.rn_meetings m WHERE m.event_id=$1 AND (m.company_a_id=r.id OR m.company_b_id=r.id)))
-         ) AS empresas,
-         (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1) AS reuniones,
-         (SELECT COUNT(*) FROM events.rn_meetings WHERE event_id=$1 AND status IN ('completed','active')) AS reuniones_efectivas,
-         (SELECT COUNT(DISTINCT d.id) FROM events.rn_delegates d JOIN events.registrations r ON r.id=d.registration_id WHERE r.event_id=$1) AS delegados`,
-      [eventId]
-    )).rows[0] || {};
-
-    const RESULT_ES = { match:'Match', conditional:'Condicional', needs_info:'Necesita info', no_match:'Sin encaje', no_show:'Ausente' };
+    const pipelineAgg = _data.pipelineAgg; const pipelineTotal = _data.pipelineTotal;
+    const agendaByRound = _data.agendaByRound; const anchors = _data.anchors;
+    const compromisos = _data.compromisos; const heatmap = _data.heatmap;
+    const brechas = _data.brechasRows.filter(t => t.brecha !== 'ok');
+    const kpis = _data.kpis;
     const RESULT_COLOR = { match:'#16a34a', conditional:'#f59e0b', needs_info:'#3b82f6', no_match:'#64748b', no_show:'#dc2626' };
-    const NEXT_STEP_ES = { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'Ninguno' };
-    const OWNER_ES = { A:'Empresa A', B:'Empresa B', both:'Ambas' };
-    const BRECHA_ES = { demanda_sin_oferta:'Demanda sin oferta', oferta_sin_demanda:'Oferta sin demanda' };
+    // Aliases i18n (mantienen compatibilidad con llamados a RESULT_ES/NEXT_STEP_ES/OWNER_ES/BRECHA_ES abajo)
+    const RESULT_ES = L.result_short;
+    const NEXT_STEP_ES = L.next_step;
+    const OWNER_ES = L.owner;
+    const BRECHA_ES = L.brecha;
 
     // ───── PDF init ─────
     const doc = new PDFDocument({ margin: 40, size: 'A4', bufferPages: true });
     const safeName = String(evRow.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
     const stamp = new Date().toISOString().slice(0,10);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="reporte-rn_${safeName}_${stamp}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safeName}_${stamp}.pdf"`);
     doc.pipe(res);
 
     const PW = doc.page.width;
@@ -4857,7 +4956,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       doc.save();
       doc.rect(0, 0, PW, 56).fill('#0f172a');
       doc.fillColor('#FFD400').fontSize(16).font('Helvetica-Bold').text('SONORO', M, 18);
-      doc.fillColor('#cbd5e1').fontSize(9).font('Helvetica').text('Reporte Rueda de Negocios', M, 38);
+      doc.fillColor('#cbd5e1').fontSize(9).font('Helvetica').text(L.report_title, M, 38);
       doc.fillColor('#cbd5e1').fontSize(8).text(fmtDT(new Date()), M, 38, { width: PW - 2*M, align: 'right' });
       doc.restore();
       doc.y = 72;
@@ -4900,7 +4999,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       });
       doc.circle(cx, cy, inner).fill('#ffffff');
       doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text(String(total), cx - inner, cy - 10, { width: inner*2, align:'center', lineBreak:false });
-      doc.fillColor('#64748b').fontSize(7).font('Helvetica').text('resultados', cx - inner, cy + 6, { width: inner*2, align:'center', lineBreak:false });
+      doc.fillColor('#64748b').fontSize(7).font('Helvetica').text(L.results_short, cx - inner, cy + 6, { width: inner*2, align:'center', lineBreak:false });
       doc.restore();
     };
 
@@ -4986,31 +5085,31 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     doc.fillColor('#475569').fontSize(10).font('Helvetica');
     const venueLine = [evRow.venue_name, evRow.venue_address].filter(Boolean).join(' · ');
     if (venueLine) doc.text(venueLine, M, doc.y, { width: PW - 2*M });
-    doc.text(`${fmtD(evRow.starts_at)} → ${fmtD(evRow.ends_at)}  ·  Zona horaria: ${tz}`, M, doc.y, { width: PW - 2*M });
-    if (evRow.organizer_legal_name) doc.fillColor('#64748b').text(`Organiza: ${evRow.organizer_legal_name}`, M, doc.y);
+    doc.text(`${fmtD(evRow.starts_at)} → ${fmtD(evRow.ends_at)}  ·  ${L.col_tz}: ${tz}`, M, doc.y, { width: PW - 2*M });
+    if (evRow.organizer_legal_name) doc.fillColor('#64748b').text(`${L.organizer}: ${evRow.organizer_legal_name}`, M, doc.y);
     doc.moveDown(1.5);
-    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('Indicadores clave', M, doc.y);
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text(L.kpis, M, doc.y);
     doc.y += 18;
     const kpiY = doc.y;
     const kpiW = (PW - 2*M - 24) / 4;
-    kpiTile(M + 0*(kpiW+8), kpiY, kpiW, 60, 'Empresas', kpis.empresas || 0);
-    kpiTile(M + 1*(kpiW+8), kpiY, kpiW, 60, 'Delegados', kpis.delegados || 0);
-    kpiTile(M + 2*(kpiW+8), kpiY, kpiW, 60, 'Reuniones', kpis.reuniones || 0);
-    kpiTile(M + 3*(kpiW+8), kpiY, kpiW, 60, 'Efectivas', kpis.reuniones_efectivas || 0);
+    kpiTile(M + 0*(kpiW+8), kpiY, kpiW, 60, L.kpi_companies, kpis.empresas || 0);
+    kpiTile(M + 1*(kpiW+8), kpiY, kpiW, 60, L.kpi_delegates, kpis.delegados || 0);
+    kpiTile(M + 2*(kpiW+8), kpiY, kpiW, 60, L.kpi_meetings, kpis.reuniones || 0);
+    kpiTile(M + 3*(kpiW+8), kpiY, kpiW, 60, L.kpi_effective, kpis.reuniones_efectivas || 0);
     doc.y = kpiY + 70;
     const tasaEfect = kpis.reuniones ? ((Number(kpis.reuniones_efectivas) / Number(kpis.reuniones)) * 100).toFixed(1) : '0';
     const tasaMatch = pipelineTotal ? ((pipelineAgg.filter(r=>['match','conditional'].includes(r.result)).reduce((s,r)=>s+Number(r.n),0) / pipelineTotal) * 100).toFixed(1) : '0';
     // Evitar continued:true (cascada de páginas en blanco en PDFKit) — texto concatenado + lineBreak:false
-    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`Tasa de reuniones efectivas: ${tasaEfect}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
+    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`${L.rate_effective}: ${tasaEfect}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
     doc.y += 14;
-    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`Tasa de encaje (match + condicional): ${tasaMatch}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
+    doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(`${L.rate_match}: ${tasaMatch}%`, M, doc.y, { width: PW - 2*M, lineBreak:false });
     doc.y += 14;
 
     if (anonymize) {
       doc.y += 6;
       doc.save();
       doc.roundedRect(M, doc.y, PW - 2*M, 24, 4).fillAndStroke('#fef3c7', '#f59e0b');
-      doc.fillColor('#78350f').fontSize(9).font('Helvetica-Bold').text('Reporte anonimizado — los nombres de empresa aparecen como iniciales.', M + 10, doc.y + 8, { width: PW - 2*M - 20, lineBreak:false });
+      doc.fillColor('#78350f').fontSize(9).font('Helvetica-Bold').text(L.anonymized_banner, M + 10, doc.y + 8, { width: PW - 2*M - 20, lineBreak:false });
       doc.restore();
       doc.y += 30;
     }
@@ -5019,7 +5118,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       const noteH = Math.max(40, 16 + Math.ceil(prodNote.length / 90) * 12);
       doc.save();
       doc.roundedRect(M, doc.y, PW - 2*M, noteH, 6).fillAndStroke('#f1f5f9', '#cbd5e1');
-      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text('NOTA DEL PRODUCTOR', M + 10, doc.y + 8, { width: PW - 2*M - 20 });
+      doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold').text(L.note_label, M + 10, doc.y + 8, { width: PW - 2*M - 20 });
       doc.fillColor('#0f172a').fontSize(10).font('Helvetica').text(prodNote, M + 10, doc.y + 22, { width: PW - 2*M - 20 });
       doc.restore();
       doc.y += noteH + 10;
@@ -5027,8 +5126,8 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
 
     // ═══ PÁGINA 2 · Pipeline ═══
     if (want('pipeline')) {
-    startSection('Pipeline de resultados', `${pipelineTotal} resultados registrados`);
-    if (!pipelineTotal) emptyNote('Sin resultados registrados aún.');
+    startSection(L.pipeline_title, L.pipeline_sub(pipelineTotal));
+    if (!pipelineTotal) emptyNote(L.pipeline_empty);
     else {
       const segs = pipelineAgg.map(r => ({ value: Number(r.n), color: RESULT_COLOR[r.result] || '#64748b', label: RESULT_ES[r.result] || r.result }));
       const chartY = doc.y + 10;
@@ -5048,29 +5147,29 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
 
     // ═══ PÁGINA 3 · Agenda ═══
     if (want('agenda')) {
-    startSection('Agenda por ronda', 'Programadas vs. efectivas');
-    if (!agendaByRound.length) emptyNote('Sin rondas configuradas.');
+    startSection(L.agenda_title, L.agenda_sub);
+    if (!agendaByRound.length) emptyNote(L.agenda_empty);
     else {
       const data = agendaByRound.map(r => ({ round_number: r.round_number, scheduled: Number(r.scheduled), effective: Number(r.effective) }));
       const chartH = 180;
       drawGroupedBars(M, doc.y + 10, PW - 2*M, chartH, data, 'scheduled', 'effective', '#3b82f6', '#16a34a');
       doc.y += chartH + 24;
-      legendRow([{color:'#3b82f6', label:'Programadas'}, {color:'#16a34a', label:'Efectivas'}], doc.y);
+      legendRow([{color:'#3b82f6', label:L.col_scheduled}, {color:'#16a34a', label:L.col_effective}], doc.y);
       doc.y += 20;
     }
     } // end want('agenda')
 
     // ═══ PÁGINA 4 · Heatmap ═══
     if (want('heatmap')) {
-    startSection('Mapa de calor Mesa × Ronda', 'Positivos (match + condicional) sobre total de reuniones');
-    if (!heatmap.length) emptyNote('Sin datos de agenda.');
+    startSection(L.heatmap_title, L.heatmap_sub);
+    if (!heatmap.length) emptyNote(L.heatmap_empty);
     else { doc.y += 10; doc.y += drawHeatmap(M, doc.y, heatmap); }
     } // end want('heatmap')
 
     // ═══ PÁGINA 5 · Delegados ancla ═══
     if (want('delegates')) {
-    startSection('Delegados ancla', 'Top 10 por resultados positivos');
-    if (!anchors.length) emptyNote('Aún no hay delegados con resultados positivos.');
+    startSection(L.delegates_title, L.delegates_sub);
+    if (!anchors.length) emptyNote(L.delegates_empty);
     else {
       const maxP = Math.max(1, ...anchors.map(a => Number(a.positives)));
       const rowH = 24;
@@ -5090,8 +5189,8 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
 
     // ═══ PÁGINA 6 · Compromisos (resumen con donuts) ═══
     if (want('commitments')) {
-    startSection('Compromisos abiertos', `${compromisos.length} acciones pendientes`);
-    if (!compromisos.length) emptyNote('No hay compromisos abiertos.');
+    startSection(L.commitments_title, L.commitments_sub(compromisos.length));
+    if (!compromisos.length) emptyNote(L.commitments_empty);
     else {
       // Agregaciones
       const byStep = new Map(), byOwner = new Map();
@@ -5108,7 +5207,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       const chartY = doc.y + 6;
       // Donut 1: próximos pasos
       const r1 = 60, c1x = M + r1 + 10, c1y = chartY + r1;
-      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('Por próximo paso', M, chartY - 12, { width: r1*2 + 20, align:'center' });
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text(L.by_next_step, M, chartY - 12, { width: r1*2 + 20, align:'center' });
       drawDonut(c1x, c1y, r1, r1 - 22, stepSegs, total);
       let ly = chartY;
       const leg1X = c1x + r1 + 16;
@@ -5121,7 +5220,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
 
       // Donut 2: responsables
       const r2 = 60, c2x = M + (PW - 2*M)/2 + r2 + 10, c2y = chartY + r2;
-      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('Por responsable', M + (PW - 2*M)/2, chartY - 12, { width: r2*2 + 20, align:'center' });
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text(L.by_owner, M + (PW - 2*M)/2, chartY - 12, { width: r2*2 + 20, align:'center' });
       drawDonut(c2x, c2y, r2, r2 - 22, ownerSegs, total);
       let ly2 = chartY;
       const leg2X = c2x + r2 + 16;
@@ -5135,11 +5234,11 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       doc.y = chartY + r1 * 2 + 20;
 
       // Top 10 vencimientos próximos
-      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text('Próximos vencimientos (top 10)', M, doc.y);
+      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text(L.upcoming_due, M, doc.y);
       doc.y += 14;
       const soon = compromisos.filter(r => r.due_at).slice(0, 10);
       if (!soon.length) {
-        doc.fillColor('#94a3b8').fontSize(9).font('Helvetica-Oblique').text('Sin fechas de vencimiento asignadas.', M, doc.y);
+        doc.fillColor('#94a3b8').fontSize(9).font('Helvetica-Oblique').text(L.no_due_dates, M, doc.y);
         doc.y += 16;
       } else {
         soon.forEach(r => {
@@ -5153,14 +5252,14 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
 
     // ═══ PÁGINA 7 · Brechas (donut + detalle) ═══
     if (want('gaps')) {
-    startSection('Brechas de catálogo', `${brechas.length} tags con desbalance oferta/demanda`);
-    if (!brechas.length) emptyNote('Sin brechas detectadas: toda demanda tiene oferta y viceversa.');
+    startSection(L.gaps_title, L.gaps_sub(brechas.length));
+    if (!brechas.length) emptyNote(L.gaps_empty);
     else {
       const demandCount = brechas.filter(t => t.brecha === 'demanda_sin_oferta').length;
       const offerCount = brechas.filter(t => t.brecha === 'oferta_sin_demanda').length;
       const brSegs = [
-        { value: demandCount, color: '#dc2626', label: 'Demanda sin oferta' },
-        { value: offerCount, color: '#f59e0b', label: 'Oferta sin demanda' },
+        { value: demandCount, color: '#dc2626', label: L.brecha.demanda_sin_oferta },
+        { value: offerCount, color: '#f59e0b', label: L.brecha.oferta_sin_demanda },
       ].filter(s => s.value > 0);
 
       const chartY = doc.y + 6;
@@ -5177,7 +5276,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
       doc.y = chartY + dR * 2 + 20;
 
       // Detalle por tag
-      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text('Detalle por tag', M, doc.y);
+      doc.fillColor('#0f172a').fontSize(11).font('Helvetica-Bold').text(L.gaps_detail, M, doc.y);
       doc.y += 14;
 
       brechas.forEach(t => {
@@ -5195,7 +5294,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
         doc.fillColor('#64748b').fontSize(9).font('Helvetica').text(`D:${t.demand} / O:${t.offer}`, PW - M - 80, headY + 2, { width: 80, align:'right', lineBreak:false });
         doc.y = headY + 16;
         // Subtítulo
-        const subLabel = isDemand ? 'Empresas que lo necesitan:' : 'Empresas que lo ofrecen:';
+        const subLabel = isDemand ? L.companies_need : L.companies_offer;
         doc.fillColor('#64748b').fontSize(8).font('Helvetica-Oblique').text(subLabel, M + 12, doc.y, { width: PW - 2*M - 12, lineBreak:false });
         doc.y += 11;
         list.slice(0, maxItems).forEach(c => {
@@ -5206,7 +5305,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
           doc.y += 11;
         });
         if (list.length > maxItems) {
-          doc.fillColor('#94a3b8').fontSize(8).font('Helvetica-Oblique').text(`… y ${list.length - maxItems} más`, M + 18, doc.y, { lineBreak:false });
+          doc.fillColor('#94a3b8').fontSize(8).font('Helvetica-Oblique').text(L.and_n_more(list.length - maxItems), M + 18, doc.y, { lineBreak:false });
           doc.y += 11;
         }
         doc.y += 6;
@@ -5250,7 +5349,7 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(range.start + i);
       doc.fontSize(8).fillColor('#94a3b8').font('Helvetica')
-        .text(`SONORO CMS · Rueda de Negocios · Página ${i+1} de ${range.count}`, M, PH - 30, { width: PW - 2*M, align:'center' });
+        .text(`${L.footer} · ${L.page_of(i+1, range.count)}`, M, PH - 30, { width: PW - 2*M, align:'center' });
     }
 
     doc.end();
@@ -5258,6 +5357,206 @@ router.get('/:id/analytics/postrueda/export.pdf', auth, requireAnalyticsAccess, 
     if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
     console.error('❌ GET /analytics/postrueda/export.pdf:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// E-RN-10 Block 5 Phase 2 · Export CSV del Reporte productor (una sección por request)
+// GET /api/events/:id/analytics/postrueda/export.csv?section=pipeline|agenda|delegates|commitments|heatmap|gaps
+router.get('/:id/analytics/postrueda/export.csv', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    await assertEventOwner(pool, eventId, req.user.id).catch(e => {
+      if (req.user.role === 'admin') return null; throw e;
+    });
+
+    const loc = rnPostruedaLocale(req);
+    const L = RN_POSTRUEDA_LABELS[loc];
+    const section = String(req.query.section || 'pipeline').toLowerCase();
+    const allowed = ['pipeline','agenda-rounds','agenda-tables','delegates-anchors','delegates-longtail','commitments','heatmap','gaps','gaps-detail'];
+    if (!allowed.includes(section)) return res.status(400).json({ error: `section must be one of ${allowed.join(', ')}` });
+    const anonymize = req.query.anonymize === '1' || req.query.anonymize === 'true';
+    const anonCo = (s) => {
+      if (!anonymize || !s) return s || '';
+      const ini = String(s).split(/\s+/).map(w => (w[0]||'').toUpperCase()).join('').slice(0,3) || 'ANN';
+      return ini + '***';
+    };
+
+    const data = await _fetchPostruedaData(pool, eventId, { anchorsLimit: 100, longtailLimit: 100 });
+    const tz = data.event.timezone || 'America/Bogota';
+    const trRes = v => L.result[v] || v || '';
+    const trStep = v => L.next_step[v] || v || '';
+    const trOwn = v => v == null ? '' : (L.owner[v] || v);
+    const esc = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+
+    let header = [], rows = [];
+    if (section === 'pipeline') {
+      header = [L.col_result, L.col_count, L.col_pct];
+      const total = data.pipelineTotal;
+      rows = data.pipelineAgg.map(r => [trRes(r.result), r.n, total ? ((Number(r.n)/total*100).toFixed(2)) : '0']);
+    } else if (section === 'agenda-rounds') {
+      header = [L.col_round, L.col_round_label, L.col_scheduled, L.col_effective];
+      rows = data.agendaByRound.map(r => [r.round_number, r.label || '', r.scheduled, r.effective]);
+    } else if (section === 'agenda-tables') {
+      header = [L.col_table, L.col_order, L.col_scheduled, L.col_effective];
+      rows = data.agendaByTable.map(r => [r.label, r.display_order, r.scheduled, r.effective]);
+    } else if (section === 'delegates-anchors') {
+      header = [L.col_company, L.col_positives, L.col_total_results];
+      rows = data.anchors.map(r => [anonCo(r.company), r.positives, r.total_outcomes]);
+    } else if (section === 'delegates-longtail') {
+      header = [L.col_company, L.col_no_match, L.col_total_results];
+      rows = data.longtail.map(r => [anonCo(r.company), r.negatives, r.total_outcomes]);
+    } else if (section === 'commitments') {
+      header = [L.col_round, L.col_company_a, L.col_company_b, L.col_side, L.col_result, L.col_next_step, L.col_owner, L.col_due];
+      rows = data.compromisos.map(r => [
+        r.round_number, anonCo(r.company_a), anonCo(r.company_b),
+        r.side === 'A' ? L.col_company_a : L.col_company_b,
+        trRes(r.result), trStep(r.next_step), trOwn(r.owner_side),
+        r.due_at ? new Date(r.due_at).toLocaleDateString(L.locale_date, { timeZone: tz }) : ''
+      ]);
+    } else if (section === 'heatmap') {
+      header = [L.col_table, L.col_round, L.col_positives_total, L.col_total_meetings];
+      rows = data.heatmap.map(r => [r.table_label, r.round_number, r.positives, r.total]);
+    } else if (section === 'gaps') {
+      header = [L.col_tag, L.col_category, L.col_demand_count, L.col_offer_count, L.col_state];
+      rows = data.brechasRows
+        .sort((a,b)=> (a.brecha===b.brecha?0:a.brecha==='demanda_sin_oferta'?-1:1))
+        .map(r => [r.label, r.category || '', r.demand, r.offer, L.brecha[r.brecha] || r.brecha]);
+    } else if (section === 'gaps-detail') {
+      header = [L.col_tag, L.col_kind, L.col_company, L.col_delegate, L.col_email];
+      rows = data.brechasDetail.map(r => [
+        r.tag_label, L.kind[r.kind] || r.kind, anonCo(r.company),
+        anonymize ? '—' : (r.delegate_name || ''),
+        anonymize ? '—' : (r.delegate_email || '')
+      ]);
+    }
+
+    const csv = '﻿' + [header, ...rows].map(row => row.map(esc).join(',')).join('\r\n') + '\r\n';
+    const safeName = String(data.event.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0,10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${section}_${safeName}_${stamp}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda/export.csv:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// E-RN-10 Block 5 Phase 2 · Export JSON del Reporte productor (bundle completo)
+// GET /api/events/:id/analytics/postrueda/export.json?sections=&anonymize=&lang=
+router.get('/:id/analytics/postrueda/export.json', auth, requireAnalyticsAccess, async (req, res) => {
+  const pool = global.pool;
+  try {
+    const eventId = req.params.id;
+    await assertEventOwner(pool, eventId, req.user.id).catch(e => {
+      if (req.user.role === 'admin') return null; throw e;
+    });
+
+    const loc = rnPostruedaLocale(req);
+    const L = RN_POSTRUEDA_LABELS[loc];
+    const _rawSections = String(req.query.sections || '').split(',').map(s=>s.trim()).filter(Boolean);
+    const _wantAll = _rawSections.length === 0;
+    const want = (k) => _wantAll || _rawSections.includes(k);
+    const anonymize = req.query.anonymize === '1' || req.query.anonymize === 'true';
+    const prodNote = String(req.query.note || '').slice(0, 500);
+    const anonCo = (s) => {
+      if (!anonymize || !s) return s || '';
+      const ini = String(s).split(/\s+/).map(w => (w[0]||'').toUpperCase()).join('').slice(0,3) || 'ANN';
+      return ini + '***';
+    };
+
+    const data = await _fetchPostruedaData(pool, eventId, { anchorsLimit: 100, longtailLimit: 100 });
+    const total = data.pipelineTotal;
+
+    const out = {
+      meta: {
+        schema_version: '1.0',
+        locale: loc,
+        generated_at: new Date().toISOString(),
+        anonymized: anonymize,
+        producer_note: prodNote || null,
+        event: {
+          id: data.event.id,
+          name: data.event.name,
+          timezone: data.event.timezone,
+          starts_at: data.event.starts_at,
+          ends_at: data.event.ends_at,
+        },
+        kpis: data.kpis,
+        pipeline_total: total,
+      },
+      sections: {},
+    };
+
+    if (want('pipeline')) {
+      out.sections.pipeline = data.pipelineAgg.map(r => ({
+        result_key: r.result,
+        result_label: L.result[r.result] || r.result,
+        count: Number(r.n),
+        pct: total ? Number((Number(r.n)/total*100).toFixed(2)) : 0,
+      }));
+    }
+    if (want('agenda')) {
+      out.sections.agenda = {
+        by_round: data.agendaByRound.map(r => ({ round_number: r.round_number, label: r.label, scheduled: Number(r.scheduled), effective: Number(r.effective) })),
+        by_table: data.agendaByTable.map(r => ({ label: r.label, display_order: r.display_order, scheduled: Number(r.scheduled), effective: Number(r.effective) })),
+      };
+    }
+    if (want('delegates')) {
+      out.sections.delegates = {
+        anchors: data.anchors.map(r => ({ company: anonCo(r.company), positives: Number(r.positives), total_outcomes: Number(r.total_outcomes) })),
+        longtail: data.longtail.map(r => ({ company: anonCo(r.company), negatives: Number(r.negatives), total_outcomes: Number(r.total_outcomes) })),
+      };
+    }
+    if (want('commitments')) {
+      out.sections.commitments = data.compromisos.map(r => ({
+        round_number: r.round_number,
+        company_a: anonCo(r.company_a),
+        company_b: anonCo(r.company_b),
+        side: r.side,
+        result_key: r.result,
+        result_label: L.result[r.result] || r.result,
+        next_step_key: r.next_step,
+        next_step_label: L.next_step[r.next_step] || r.next_step,
+        owner_side: r.owner_side,
+        owner_label: r.owner_side ? (L.owner[r.owner_side] || r.owner_side) : null,
+        due_at: r.due_at,
+      }));
+    }
+    if (want('heatmap')) {
+      out.sections.heatmap = data.heatmap.map(r => ({ table_label: r.table_label, round_number: r.round_number, positives: Number(r.positives), total: Number(r.total) }));
+    }
+    if (want('gaps')) {
+      out.sections.gaps = data.brechasRows.map(t => ({
+        tag: t.label,
+        category: t.category,
+        demand: t.demand,
+        offer: t.offer,
+        state_key: t.brecha,
+        state_label: L.brecha[t.brecha] || t.brecha,
+        companies: {
+          demand: t.companies.demand.map(c => ({ company: anonCo(c.company), delegate: anonymize ? null : c.delegate, email: anonymize ? null : c.email })),
+          offer: t.companies.offer.map(c => ({ company: anonCo(c.company), delegate: anonymize ? null : c.delegate, email: anonymize ? null : c.email })),
+        },
+      }));
+    }
+
+    const safeName = String(data.event.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0,10);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safeName}_${stamp}.json"`);
+    res.send(JSON.stringify(out, null, 2));
+  } catch (err) {
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error('❌ GET /analytics/postrueda/export.json:', err);
+    res.status(500).json({ error: 'Error interno' });
   }
 });
 
