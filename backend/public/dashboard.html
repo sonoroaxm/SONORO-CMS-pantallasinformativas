@@ -11075,6 +11075,7 @@ async function invOpenModalTenant() {
 
 // ── PANEL RESUMEN (analytics agregado) ─────────────────────────
 let evpRange = 'last12m';
+let evpLastData = null;
 const EVP_RANGE_MAP = { '30d':'last30d', '90d':'last90d', '12m':'last12m', 'ytd':'ytd', 'all':'all' };
 
 function evpSetDonut(id, pct, text) {
@@ -11124,6 +11125,7 @@ async function evpLoad() {
     const d = await res.json();
     teaser.style.display = 'none';
     panel.style.display = 'block';
+    evpLastData = d;
     evpRender(d);
   } catch(e) {
     panel.style.display = 'none';
@@ -11466,6 +11468,7 @@ async function evRnTogglePublish(){
 // Re-render dynamic RN strings when locale changes (static strings handled by applyI18n).
 document.addEventListener('sonoro:localechange', function(){
   try {
+    if (typeof evpRender === 'function' && evpLastData) evpRender(evpLastData);
     if (typeof evRenderList === 'function' && Array.isArray(evListCache) && evListCache.length) evRenderList();
     var view = document.getElementById('ev-rueda-detail-view');
     if (!view || view.classList.contains('hidden')) return;

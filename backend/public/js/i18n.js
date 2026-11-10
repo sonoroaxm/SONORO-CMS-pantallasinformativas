@@ -402,9 +402,9 @@
             sent:'Enviados hoy', sent_sub:'Resumen del día + recordatorios activos',
             eod:'Resumen del día', ntot:'Recordatorios', bounces:'Correos no entregados',
             actions:'Acciones', actions_sub:'Historial y pausa de emergencia',
-            btn_log:'Ver historial de envíos', btn_pause:'Pausar todos los recordatorios'
+            btn_log:'Ver historial de envíos', btn_pause:'Pausar todos los recordatorios', btn_unpause:'Reanudar recordatorios', queue:'en cola'
           },
-          log: { title:'Historial de envíos · Comunicaciones post-cita', loading:'Cargando…', col_when:'Momento', col_type:'Tipo', col_del:'Asistente', col_status:'Estado' },
+          log: { title:'Historial de envíos · Comunicaciones post-cita', loading:'Cargando…', col_when:'Momento', col_type:'Tipo', col_del:'Asistente', col_status:'Estado', empty:'Sin registros todavía', sent:'Enviado', scheduled:'Programado', err:'Error cargando bitácora' },
           err:'No se pudo guardar'
         }
       }
@@ -784,9 +784,9 @@
             sent:'Sent today', sent_sub:'End-of-day summary + active reminders',
             eod:'End-of-day summary', ntot:'Reminders', bounces:'Undelivered emails',
             actions:'Actions', actions_sub:'History and emergency pause',
-            btn_log:'View send history', btn_pause:'Pause all reminders'
+            btn_log:'View send history', btn_pause:'Pause all reminders', btn_unpause:'Resume reminders', queue:'queued'
           },
-          log: { title:'Send history · Post-meeting communications', loading:'Loading…', col_when:'When', col_type:'Type', col_del:'Attendee', col_status:'Status' },
+          log: { title:'Send history · Post-meeting communications', loading:'Loading…', col_when:'When', col_type:'Type', col_del:'Attendee', col_status:'Status', empty:'No records yet', sent:'Sent', scheduled:'Scheduled', err:'Error loading history' },
           err:'Could not save'
         }
       }
@@ -1166,9 +1166,9 @@
             sent:'Enviados hoje', sent_sub:'Resumo do dia + lembretes ativos',
             eod:'Resumo do dia', ntot:'Lembretes', bounces:'E-mails não entregues',
             actions:'Ações', actions_sub:'Histórico e pausa de emergência',
-            btn_log:'Ver histórico de envios', btn_pause:'Pausar todos os lembretes'
+            btn_log:'Ver histórico de envios', btn_pause:'Pausar todos os lembretes', btn_unpause:'Retomar lembretes', queue:'na fila'
           },
-          log: { title:'Histórico de envios · Comunicações pós-reunião', loading:'Carregando…', col_when:'Momento', col_type:'Tipo', col_del:'Participante', col_status:'Status' },
+          log: { title:'Histórico de envios · Comunicações pós-reunião', loading:'Carregando…', col_when:'Momento', col_type:'Tipo', col_del:'Participante', col_status:'Status', empty:'Sem registros ainda', sent:'Enviado', scheduled:'Programado', err:'Erro ao carregar histórico' },
           err:'Não foi possível salvar'
         }
       }
