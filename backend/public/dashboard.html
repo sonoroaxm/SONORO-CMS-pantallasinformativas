@@ -13230,9 +13230,16 @@ async function _evRnDoExport(fmt, opts){
   if (!evCurrentEventId) return;
   const ext = (fmt||'xlsx').toLowerCase();
   const qs = new URLSearchParams();
-  if (opts && Array.isArray(opts.sections) && opts.sections.length) qs.set('sections', opts.sections.join(','));
+  // S217g Sub-fase B — auto ?lang= basado en SonoroI18n (ES/EN/PT-BR); backend normaliza a es/en/pt
+  const loc = (window.SonoroI18n && window.SonoroI18n.getLocale && window.SonoroI18n.getLocale()) || 'es';
+  qs.set('lang', loc);
+  if (ext === 'csv') {
+    if (opts && opts.section) qs.set('section', opts.section);
+  } else {
+    if (opts && Array.isArray(opts.sections) && opts.sections.length) qs.set('sections', opts.sections.join(','));
+  }
   if (opts && opts.anonymize) qs.set('anonymize', '1');
-  if (opts && opts.note) qs.set('note', opts.note);
+  if (opts && opts.note && ext !== 'csv') qs.set('note', opts.note);
   const query = qs.toString();
   try {
     const r = await fetch(`${API_URL}/api/events/${evCurrentEventId}/analytics/postrueda/export.${ext}${query ? '?' + query : ''}`, {
@@ -13265,10 +13272,12 @@ function evRnOpenExportModal(defaultFmt){
         <div class="modal-body">
           <div style="margin-bottom:14px;">
             <label style="display:block; font-weight:600; margin-bottom:6px;">Formato</label>
-            <label style="margin-right:16px;"><input type="radio" name="evRnExpFmt" value="xlsx"> XLSX (hojas)</label>
-            <label><input type="radio" name="evRnExpFmt" value="pdf"> PDF (gráficos)</label>
+            <label style="margin-right:12px;"><input type="radio" name="evRnExpFmt" value="xlsx" onchange="evRnExpUpdateUi()"> XLSX (hojas)</label>
+            <label style="margin-right:12px;"><input type="radio" name="evRnExpFmt" value="pdf" onchange="evRnExpUpdateUi()"> PDF (gráficos)</label>
+            <label style="margin-right:12px;"><input type="radio" name="evRnExpFmt" value="csv" onchange="evRnExpUpdateUi()"> CSV</label>
+            <label><input type="radio" name="evRnExpFmt" value="json" onchange="evRnExpUpdateUi()"> JSON</label>
           </div>
-          <div style="margin-bottom:14px;">
+          <div id="evRnExpSectionsBlock" style="margin-bottom:14px;">
             <label style="display:block; font-weight:600; margin-bottom:6px;">Secciones a incluir</label>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px 16px;">
               <label><input type="checkbox" class="evRnExpSec" value="pipeline" checked> Pipeline</label>
@@ -13278,6 +13287,20 @@ function evRnOpenExportModal(defaultFmt){
               <label><input type="checkbox" class="evRnExpSec" value="heatmap" checked> Mapa de calor</label>
               <label><input type="checkbox" class="evRnExpSec" value="gaps" checked> Brechas</label>
             </div>
+          </div>
+          <div id="evRnExpCsvBlock" style="margin-bottom:14px; display:none;">
+            <label for="evRnExpCsvSection" style="display:block; font-weight:600; margin-bottom:6px;">Sección (CSV exporta una por archivo)</label>
+            <select id="evRnExpCsvSection" style="width:100%; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--text);">
+              <option value="pipeline">Pipeline</option>
+              <option value="agenda-rounds">Agenda — por ronda</option>
+              <option value="agenda-tables">Agenda — por mesa</option>
+              <option value="delegates-anchors">Delegados — anchors</option>
+              <option value="delegates-longtail">Delegados — long tail</option>
+              <option value="commitments">Compromisos</option>
+              <option value="heatmap">Mapa de calor</option>
+              <option value="gaps">Brechas (resumen)</option>
+              <option value="gaps-detail">Brechas (detalle)</option>
+            </select>
           </div>
           <div style="margin-bottom:14px;">
             <label style="display:block; font-weight:600; margin-bottom:6px;">Opciones</label>
@@ -13298,7 +13321,19 @@ function evRnOpenExportModal(defaultFmt){
   }
   const radio = modal.querySelector(`input[name="evRnExpFmt"][value="${defaultFmt}"]`);
   if (radio) radio.checked = true;
+  evRnExpUpdateUi();
   modal.style.display = 'flex';
+}
+function evRnExpUpdateUi(){
+  const modal = document.getElementById('evRnExportModal');
+  if (!modal) return;
+  const fmt = (modal.querySelector('input[name="evRnExpFmt"]:checked') || {}).value || 'xlsx';
+  const secBlock = document.getElementById('evRnExpSectionsBlock');
+  const csvBlock = document.getElementById('evRnExpCsvBlock');
+  const noteBlock = document.getElementById('evRnExpNote') && document.getElementById('evRnExpNote').closest('div');
+  if (secBlock) secBlock.style.display = (fmt === 'csv') ? 'none' : 'block';
+  if (csvBlock) csvBlock.style.display = (fmt === 'csv') ? 'block' : 'none';
+  if (noteBlock) noteBlock.style.display = (fmt === 'csv') ? 'none' : 'block';
 }
 function evRnCloseExportModal(){
   const m = document.getElementById('evRnExportModal');
@@ -13308,14 +13343,21 @@ async function evRnConfirmExport(){
   const modal = document.getElementById('evRnExportModal');
   if (!modal) return;
   const fmt = (modal.querySelector('input[name="evRnExpFmt"]:checked') || {}).value || 'xlsx';
-  const sections = [...modal.querySelectorAll('.evRnExpSec:checked')].map(c => c.value);
-  if (!sections.length) { showToast('Selecciona al menos una sección', 'error'); return; }
   const anonymize = !!(modal.querySelector('#evRnExpAnon') || {}).checked;
   const note = (modal.querySelector('#evRnExpNote') || {}).value || '';
   const btn = modal.querySelector('#evRnExpBtn');
+  let payload;
+  if (fmt === 'csv') {
+    const section = (modal.querySelector('#evRnExpCsvSection') || {}).value || 'pipeline';
+    payload = { section, anonymize };
+  } else {
+    const sections = [...modal.querySelectorAll('.evRnExpSec:checked')].map(c => c.value);
+    if (!sections.length) { showToast('Selecciona al menos una sección', 'error'); return; }
+    payload = { sections, anonymize, note };
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Descargando…'; }
   try {
-    await _evRnDoExport(fmt, { sections, anonymize, note });
+    await _evRnDoExport(fmt, payload);
     evRnCloseExportModal();
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Descargar'; }
