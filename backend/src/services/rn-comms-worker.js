@@ -118,6 +118,7 @@ async function runEodDigest(pool, event) {
         metrics: met,
         agendaUrl: agendaUrl(event.slug, d.agenda_token),
         locale: d.locale || 'es',
+        ruedaType: event.rueda_type || 'negocios',
       });
       await pool.query(
         `UPDATE events.rn_comms_log SET sent_at=NOW() WHERE id=$1`,
@@ -187,6 +188,7 @@ async function runNudge48h(pool, event) {
         eventName: event.name,
         agendaUrl: agendaUrl(event.slug, row.agenda_token),
         locale: row.locale || 'es',
+        ruedaType: event.rueda_type || 'negocios',
       });
       await pool.query(`UPDATE events.rn_comms_log SET sent_at=NOW() WHERE id=$1`, [claim.rows[0].id]);
       sent++;
@@ -250,6 +252,7 @@ async function runNudge7d(pool, event) {
         eventName: event.name,
         agendaUrl: agendaUrl(event.slug, row.agenda_token),
         locale: row.locale || 'es',
+        ruedaType: event.rueda_type || 'negocios',
       });
       await pool.query(`UPDATE events.rn_comms_log SET sent_at=NOW() WHERE id=$1`, [claim.rows[0].id]);
       sent++;
@@ -327,6 +330,7 @@ async function _runDueNudge(pool, event, nudgeType, dueClause, mailer) {
         eventName: event.name,
         agendaUrl: agendaUrl(event.slug, row.agenda_token),
         locale: row.locale || 'es',
+        ruedaType: event.rueda_type || 'negocios',
       });
       await pool.query(`UPDATE events.rn_comms_log SET sent_at=NOW() WHERE id=$1`, [claim.rows[0].id]);
       sent++;
@@ -355,7 +359,7 @@ function start(pool) {
   async function tick() {
     try {
       const evQ = await pool.query(`
-        SELECT id, user_id, slug, name, timezone, config, status
+        SELECT id, user_id, slug, name, timezone, config, status, rueda_type
           FROM events.events
          WHERE status IN ('active','published','ongoing','finished')
            AND (config->>'rn_enabled')::boolean = true
