@@ -12539,8 +12539,38 @@ function evRnSwitchPanelTab(tab) {
 }
 
 // ── E-RN-10 Block 6 · Panel Comunicaciones post-cita ───────────────────────────
+const EV_RN_COMMS_EMP_OVERRIDES = {
+  'rn.comms.kicker': 'E-EMP-1 · Expediente post-cita',
+  'rn.comms.intro': 'Controla los recordatorios que el sistema envía a los asistentes después de cada entrevista. El resumen del día se envía siempre; los cuatro recordatorios son opcionales y arrancan apagados. Todos respetan la decisión del asistente de recibir o no estos correos.',
+  'rn.comms.paused_body': 'Mientras esté activa la pausa, el resumen del día se sigue enviando pero los cuatro recordatorios opcionales no. Útil durante incidentes o pausas de la rueda de empleo.',
+  'rn.comms.eod_desc': 'Se envía automáticamente al cierre de cada jornada del evento con las entrevistas que quedaron sin registro de resultado. No se puede desactivar.',
+  'rn.comms.n48.title': 'Recordatorio a las 48 horas · registro de resultado pendiente',
+  'rn.comms.n48.desc': 'Si al asistente le quedan entrevistas sin registro de resultado 48 horas después del cierre, le llega un correo con el enlace al listado. No se le re-envía el formulario completo.',
+  'rn.comms.n48.meta2': 'Un correo por entrevista y por asistente',
+  'rn.comms.n7d.title': 'Recordatorio a los 7 días · resumen semanal de siguientes pasos',
+  'rn.comms.n7d.desc': 'Resumen de los siguientes pasos activos del asistente con el estado de cada uno (cumplido, próximo, vencido) y enlace al listado completo.',
+  'rn.comms.pre.title': 'Aviso 24 horas antes de vencer un siguiente paso',
+  'rn.comms.pre.desc': 'Se envía por cada siguiente paso con fecha de vencimiento próxima. Correo al responsable.',
+  'rn.comms.pre.meta2': 'Un correo por siguiente paso',
+  'rn.comms.over.title': 'Aviso 24 horas después del vencimiento',
+  'rn.comms.over.desc': 'Recordatorio de cortesía al responsable del siguiente paso, con copia al productor del evento. Solo se envía si el siguiente paso sigue sin marcarse como cumplido.',
+};
+function evRnCommsApplyRuedaType() {
+  const isEmp = (evRnCurrentEvent?.rueda_type === 'empleo');
+  const panel = document.getElementById('ev-rn-panel-comms');
+  if (!panel) return;
+  if (!isEmp) return;
+  panel.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (Object.prototype.hasOwnProperty.call(EV_RN_COMMS_EMP_OVERRIDES, k)) {
+      el.textContent = EV_RN_COMMS_EMP_OVERRIDES[k];
+    }
+  });
+}
+
 async function evRnLoadComms() {
   if (!evRnCurrentEvent?.id) return;
+  evRnCommsApplyRuedaType();
   const cfg = (evRnCurrentEvent.config && evRnCurrentEvent.config.rn_comms) || {};
   const KEYS = ['nudge_48h','nudge_7d','due_pre_24h','due_overdue_24h'];
   KEYS.forEach(k => {
