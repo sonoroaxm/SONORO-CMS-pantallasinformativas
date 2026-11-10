@@ -9036,6 +9036,10 @@ app.get('/evento/:slug', async (req, res) => {
 app.get('/evento/:slug/mi-registro/:qr', async (req, res) => {
   await renderEventoWithOG(req, res, req.params.slug);
 });
+// E-EMP-1 Task 3: landing candidato Rueda de Empleo
+app.get('/empleo/:slug/candidato', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'empleo-candidato.html'));
+});
 
 // Render evento.html con OG tags dinámicos (Open Graph + Twitter cards)
 async function renderEventoWithOG(req, res, slug) {
@@ -9108,6 +9112,10 @@ app.get('/rueda/callboard/:slug', (req, res) => {
 // S211t B.1 — landing pública de registro empresa
 app.get('/rueda/:slug/register', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
+});
+// E-EMP-1 — landing pública registro empresa Rueda de Empleo
+app.get('/rueda-empleo/:slug/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'empleo-empresa.html'));
 });
 // S211t B.1 — mi agenda (delegado por token)
 app.get('/rueda/mi-agenda/:token', (req, res) => {

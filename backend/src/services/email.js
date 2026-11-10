@@ -2367,11 +2367,12 @@ function _rnDueLabel(dueAt, L) {
   });
 }
 
-async function sendRnEodDigestEmail({ to, delegateName, companyName, eventName, dayLabel, metrics, agendaUrl, locale }) {
+async function sendRnEodDigestEmail({ to, delegateName, companyName, eventName, dayLabel, metrics, agendaUrl, locale, ruedaType }) {
   if (!to || !agendaUrl) return;
   const L = rnPickLocale(locale);
+  const isEmp = ruedaType === 'empleo';
   const dateStr = _rnDateLabel(dayLabel, L);
-  const T = {
+  const T_RN = {
     es: {
       subject: `Resumen del día — ${eventName}`,
       h1: `Tu resumen del día`,
@@ -2400,6 +2401,36 @@ async function sendRnEodDigestEmail({ to, delegateName, companyName, eventName, 
       foot: 'Se há pendentes de registrar, você pode fazê-lo pela aba Reuniões em sua agenda. Leva menos de um minuto cada.',
     },
   };
+  const T_EMP = {
+    es: {
+      subject: `Resumen del día — ${eventName}`,
+      h1: `Tu resumen del día`,
+      intro: `Hola <strong>${delegateName}</strong>, este es el consolidado de la jornada en ${eventName}:`,
+      kReuniones: 'Entrevistas del día', kOutcomes: 'Resultados registrados',
+      kPendientes: 'Pendientes de registrar', kCompromisos: 'Siguientes pasos abiertos',
+      cta: 'Abrir mi agenda',
+      foot: 'Si tienes pendientes de registrar, puedes hacerlo desde la pestaña Entrevistas en tu agenda. Toma menos de un minuto por cada una.',
+    },
+    en: {
+      subject: `Daily recap — ${eventName}`,
+      h1: `Your daily recap`,
+      intro: `Hi <strong>${delegateName}</strong>, here is the consolidated recap of the day at ${eventName}:`,
+      kReuniones: 'Interviews today', kOutcomes: 'Outcomes recorded',
+      kPendientes: 'Pending to record', kCompromisos: 'Open next steps',
+      cta: 'Open my agenda',
+      foot: 'If you have outcomes pending to record, you can do it from the Interviews tab in your agenda. It takes under a minute each.',
+    },
+    pt: {
+      subject: `Resumo do dia — ${eventName}`,
+      h1: `Seu resumo do dia`,
+      intro: `Olá <strong>${delegateName}</strong>, este é o consolidado do dia em ${eventName}:`,
+      kReuniones: 'Entrevistas do dia', kOutcomes: 'Resultados registrados',
+      kPendientes: 'Pendentes de registrar', kCompromisos: 'Próximos passos abertos',
+      cta: 'Abrir minha agenda',
+      foot: 'Se há pendentes de registrar, você pode fazê-lo pela aba Entrevistas em sua agenda. Leva menos de um minuto cada.',
+    },
+  };
+  const T = isEmp ? T_EMP : T_RN;
   const t = T[L];
   const m = metrics || {};
   const html = baseTemplate(`
@@ -2428,15 +2459,16 @@ async function sendRnEodDigestEmail({ to, delegateName, companyName, eventName, 
       <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
     </td></tr></table>
     <p style="margin:0;font-size:13px;color:#666;line-height:1.6;">${t.foot}</p>
-  `, { tagline: 'Rueda de Negocios', locale: L });
+  `, { tagline: isEmp ? 'Rueda de Empleo' : 'Rueda de Negocios', locale: L });
   await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
-  console.log(`✅ RN eod-digest enviado a ${to} [${L}]`);
+  console.log(`✅ RN eod-digest enviado a ${to} [${L}] ${isEmp ? '[EMP]' : ''}`);
 }
 
-async function sendRnNudge48hEmail({ to, delegateName, counterpartName, eventName, agendaUrl, locale }) {
+async function sendRnNudge48hEmail({ to, delegateName, counterpartName, eventName, agendaUrl, locale, ruedaType }) {
   if (!to || !agendaUrl) return;
   const L = rnPickLocale(locale);
-  const T = {
+  const isEmp = ruedaType === 'empleo';
+  const T_RN = {
     es: {
       subject: `¿Cómo te fue con ${counterpartName}?`,
       h1: `Registra el resultado de tu reunión`,
@@ -2462,6 +2494,33 @@ async function sendRnNudge48hEmail({ to, delegateName, counterpartName, eventNam
       foot: 'Se preferir não registrar nada para esta reunião, pode ignorar este email. Não insistiremos de novo.',
     },
   };
+  const T_EMP = {
+    es: {
+      subject: `¿Cómo te fue con ${counterpartName}?`,
+      h1: `Registra el resultado de tu entrevista`,
+      intro: `Hola <strong>${delegateName}</strong>, hace 48 horas tuviste una entrevista con <strong>${counterpartName}</strong> en ${eventName} y todavía no has registrado cómo te fue.`,
+      p2: `Tomar un minuto para registrarlo te permite ver tus propios resultados del evento al cierre, y le ayuda al productor a entender el impacto real de la rueda de empleo.`,
+      cta: 'Registrar resultado',
+      foot: 'Si prefieres no registrar nada para esta entrevista, puedes ignorar este correo. No volveremos a insistir.',
+    },
+    en: {
+      subject: `How did it go with ${counterpartName}?`,
+      h1: `Record your interview outcome`,
+      intro: `Hi <strong>${delegateName}</strong>, 48 hours ago you had an interview with <strong>${counterpartName}</strong> at ${eventName} and you haven't recorded how it went.`,
+      p2: `Taking a minute to record it lets you see your own event results at closing, and helps the organizer understand the real impact of the job matchmaking.`,
+      cta: 'Record outcome',
+      foot: `If you'd rather not record anything for this interview, you can ignore this email. We won't insist again.`,
+    },
+    pt: {
+      subject: `Como foi com ${counterpartName}?`,
+      h1: `Registre o resultado da sua entrevista`,
+      intro: `Olá <strong>${delegateName}</strong>, há 48 horas você teve uma entrevista com <strong>${counterpartName}</strong> em ${eventName} e ainda não registrou como foi.`,
+      p2: `Dedicar um minuto a registrar permite que você veja seus próprios resultados no fechamento do evento, e ajuda o produtor a entender o impacto real da rodada de emprego.`,
+      cta: 'Registrar resultado',
+      foot: 'Se preferir não registrar nada para esta entrevista, pode ignorar este email. Não insistiremos de novo.',
+    },
+  };
+  const T = isEmp ? T_EMP : T_RN;
   const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
@@ -2471,21 +2530,31 @@ async function sendRnNudge48hEmail({ to, delegateName, counterpartName, eventNam
       <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
     </td></tr></table>
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
-  `, { tagline: 'Rueda de Negocios', locale: L });
+  `, { tagline: isEmp ? 'Rueda de Empleo' : 'Rueda de Negocios', locale: L });
   await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
-  console.log(`✅ RN nudge-48h enviado a ${to} [${L}]`);
+  console.log(`✅ RN nudge-48h enviado a ${to} [${L}] ${isEmp ? '[EMP]' : ''}`);
 }
 
-async function sendRnNudge7dEmail({ to, delegateName, counterpartName, nextStep, eventName, agendaUrl, locale }) {
+async function sendRnNudge7dEmail({ to, delegateName, counterpartName, nextStep, eventName, agendaUrl, locale, ruedaType }) {
   if (!to || !agendaUrl) return;
   const L = rnPickLocale(locale);
+  const isEmp = ruedaType === 'empleo';
   const stepLabels = {
-    es: { quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'—' },
-    en: { quote:'Quote', sample:'Sample', catalog:'Catalog', tech_spec:'Spec sheet', intro:'Intro', second_meeting:'Second meeting', pilot:'Pilot', none:'—' },
-    pt: { quote:'Cotação', sample:'Amostra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Apresentação', second_meeting:'Segunda reunião', pilot:'Piloto', none:'—' },
+    es: {
+      quote:'Cotización', sample:'Muestra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Presentación', second_meeting:'Segunda reunión', pilot:'Piloto', none:'—',
+      continuar_negocio:'Continuar negocio', info_adicional:'Información adicional', no_interes:'Sin interés', contratacion_directa:'Contratación directa', entrevista_siguiente_fase:'Entrevista siguiente fase', banco_talento:'Banco de talento',
+    },
+    en: {
+      quote:'Quote', sample:'Sample', catalog:'Catalog', tech_spec:'Spec sheet', intro:'Intro', second_meeting:'Second meeting', pilot:'Pilot', none:'—',
+      continuar_negocio:'Continue business', info_adicional:'Additional info', no_interes:'Not interested', contratacion_directa:'Direct hire', entrevista_siguiente_fase:'Next-stage interview', banco_talento:'Talent pool',
+    },
+    pt: {
+      quote:'Cotação', sample:'Amostra', catalog:'Catálogo', tech_spec:'Ficha técnica', intro:'Apresentação', second_meeting:'Segunda reunião', pilot:'Piloto', none:'—',
+      continuar_negocio:'Continuar negócio', info_adicional:'Informação adicional', no_interes:'Sem interesse', contratacion_directa:'Contratação direta', entrevista_siguiente_fase:'Entrevista próxima fase', banco_talento:'Banco de talentos',
+    },
   };
   const stepText = (stepLabels[L] && stepLabels[L][nextStep]) || nextStep;
-  const T = {
+  const T_RN = {
     es: {
       subject: `Tu compromiso con ${counterpartName} sigue abierto`,
       h1: `Un recordatorio sobre tu compromiso`,
@@ -2511,6 +2580,33 @@ async function sendRnNudge7dEmail({ to, delegateName, counterpartName, nextStep,
       foot: 'Este é o único lembrete semanal. Não enviaremos mais sobre este compromisso específico.',
     },
   };
+  const T_EMP = {
+    es: {
+      subject: `Tu siguiente paso con ${counterpartName} sigue abierto`,
+      h1: `Un recordatorio sobre tu siguiente paso`,
+      intro: `Hola <strong>${delegateName}</strong>, hace una semana acordaste <strong>${stepText}</strong> con <strong>${counterpartName}</strong> en ${eventName}, y aún no lo has marcado como cerrado.`,
+      p2: `Si ya lo cerraste, puedes marcarlo desde tu agenda. Si todavía está en proceso, no pasa nada &mdash; solo queríamos que lo tengas presente.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Este es el único recordatorio semanal. No te enviaremos más sobre este siguiente paso específico.',
+    },
+    en: {
+      subject: `Your next step with ${counterpartName} is still open`,
+      h1: `A reminder about your next step`,
+      intro: `Hi <strong>${delegateName}</strong>, a week ago you agreed on <strong>${stepText}</strong> with <strong>${counterpartName}</strong> at ${eventName}, and you haven't marked it as closed yet.`,
+      p2: `If you've already closed it, you can mark it from your agenda. If it's still in progress, no worries &mdash; we just wanted to keep it on your radar.`,
+      cta: 'Open my agenda',
+      foot: `This is the only weekly reminder. We won't send more about this specific next step.`,
+    },
+    pt: {
+      subject: `Seu próximo passo com ${counterpartName} continua aberto`,
+      h1: `Um lembrete sobre seu próximo passo`,
+      intro: `Olá <strong>${delegateName}</strong>, há uma semana você combinou <strong>${stepText}</strong> com <strong>${counterpartName}</strong> em ${eventName}, e ainda não marcou como fechado.`,
+      p2: `Se já fechou, pode marcar pela sua agenda. Se ainda está em andamento, tudo bem &mdash; só queríamos que você tivesse no radar.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Este é o único lembrete semanal. Não enviaremos mais sobre este próximo passo específico.',
+    },
+  };
+  const T = isEmp ? T_EMP : T_RN;
   const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
@@ -2520,16 +2616,17 @@ async function sendRnNudge7dEmail({ to, delegateName, counterpartName, nextStep,
       <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
     </td></tr></table>
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
-  `, { tagline: 'Rueda de Negocios', locale: L });
+  `, { tagline: isEmp ? 'Rueda de Empleo' : 'Rueda de Negocios', locale: L });
   await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
-  console.log(`✅ RN nudge-7d enviado a ${to} [${L}]`);
+  console.log(`✅ RN nudge-7d enviado a ${to} [${L}] ${isEmp ? '[EMP]' : ''}`);
 }
 
-async function sendRnDuePre24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale }) {
+async function sendRnDuePre24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale, ruedaType }) {
   if (!to || !agendaUrl) return;
   const L = rnPickLocale(locale);
+  const isEmp = ruedaType === 'empleo';
   const dueStr = _rnDueLabel(dueAt, L);
-  const T = {
+  const T_RN = {
     es: {
       subject: `Mañana vence tu compromiso con ${counterpartName}`,
       h1: `Tu compromiso vence mañana`,
@@ -2555,6 +2652,33 @@ async function sendRnDuePre24hEmail({ to, delegateName, counterpartName, nextSte
       foot: 'Você receberá um segundo aviso se a data passar sem o compromisso ser marcado como fechado.',
     },
   };
+  const T_EMP = {
+    es: {
+      subject: `Mañana vence tu siguiente paso con ${counterpartName}`,
+      h1: `Tu siguiente paso vence mañana`,
+      intro: `Hola <strong>${delegateName}</strong>, tu siguiente paso con <strong>${counterpartName}</strong> de ${eventName} vence <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `Si ya lo completaste, márcalo como cerrado desde tu agenda. Si necesitas más tiempo, también puedes ajustar la fecha ahí mismo.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Recibirás un segundo aviso si la fecha pasa sin que lo marques como cerrado.',
+    },
+    en: {
+      subject: `Your next step with ${counterpartName} is due tomorrow`,
+      h1: `Your next step is due tomorrow`,
+      intro: `Hi <strong>${delegateName}</strong>, your next step with <strong>${counterpartName}</strong> from ${eventName} is due <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `If you already completed it, mark it as closed from your agenda. If you need more time, you can also adjust the date there.`,
+      cta: 'Open my agenda',
+      foot: `You'll get a second reminder if the date passes without it being marked as closed.`,
+    },
+    pt: {
+      subject: `Amanhã vence seu próximo passo com ${counterpartName}`,
+      h1: `Seu próximo passo vence amanhã`,
+      intro: `Olá <strong>${delegateName}</strong>, seu próximo passo com <strong>${counterpartName}</strong> de ${eventName} vence <strong style="color:#d97706;">${dueStr}</strong>.`,
+      p2: `Se já concluiu, marque como fechado pela sua agenda. Se precisa de mais tempo, também pode ajustar a data por ali.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Você receberá um segundo aviso se a data passar sem ser marcado como fechado.',
+    },
+  };
+  const T = isEmp ? T_EMP : T_RN;
   const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
@@ -2564,16 +2688,17 @@ async function sendRnDuePre24hEmail({ to, delegateName, counterpartName, nextSte
       <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
     </td></tr></table>
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
-  `, { tagline: 'Rueda de Negocios', locale: L });
+  `, { tagline: isEmp ? 'Rueda de Empleo' : 'Rueda de Negocios', locale: L });
   await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
-  console.log(`✅ RN due-pre-24h enviado a ${to} [${L}]`);
+  console.log(`✅ RN due-pre-24h enviado a ${to} [${L}] ${isEmp ? '[EMP]' : ''}`);
 }
 
-async function sendRnDueOverdue24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale }) {
+async function sendRnDueOverdue24hEmail({ to, delegateName, counterpartName, nextStep, dueAt, eventName, agendaUrl, locale, ruedaType }) {
   if (!to || !agendaUrl) return;
   const L = rnPickLocale(locale);
+  const isEmp = ruedaType === 'empleo';
   const dueStr = _rnDueLabel(dueAt, L);
-  const T = {
+  const T_RN = {
     es: {
       subject: `Venció tu compromiso con ${counterpartName}`,
       h1: `Tu compromiso venció ayer`,
@@ -2599,6 +2724,33 @@ async function sendRnDueOverdue24hEmail({ to, delegateName, counterpartName, nex
       foot: 'Este é o último lembrete automático sobre este compromisso.',
     },
   };
+  const T_EMP = {
+    es: {
+      subject: `Venció tu siguiente paso con ${counterpartName}`,
+      h1: `Tu siguiente paso venció ayer`,
+      intro: `Hola <strong>${delegateName}</strong>, tu siguiente paso con <strong>${counterpartName}</strong> de ${eventName} tenía fecha <strong style="color:#dc2626;">${dueStr}</strong> y aún no está cerrado.`,
+      p2: `Si ya lo completaste, marcarlo como cerrado toma 10 segundos. Si todavía está en proceso, ajusta la fecha para que quede alineado con la realidad.`,
+      cta: 'Abrir mi agenda',
+      foot: 'Este es el último recordatorio automático sobre este siguiente paso.',
+    },
+    en: {
+      subject: `Your next step with ${counterpartName} is overdue`,
+      h1: `Your next step was due yesterday`,
+      intro: `Hi <strong>${delegateName}</strong>, your next step with <strong>${counterpartName}</strong> from ${eventName} was due <strong style="color:#dc2626;">${dueStr}</strong> and is still open.`,
+      p2: `If you already completed it, marking it as closed takes 10 seconds. If it's still in progress, adjust the date so it reflects reality.`,
+      cta: 'Open my agenda',
+      foot: 'This is the last automatic reminder on this next step.',
+    },
+    pt: {
+      subject: `Venceu seu próximo passo com ${counterpartName}`,
+      h1: `Seu próximo passo venceu ontem`,
+      intro: `Olá <strong>${delegateName}</strong>, seu próximo passo com <strong>${counterpartName}</strong> de ${eventName} tinha data <strong style="color:#dc2626;">${dueStr}</strong> e ainda não está fechado.`,
+      p2: `Se já concluiu, marcar como fechado leva 10 segundos. Se ainda está em andamento, ajuste a data para refletir a realidade.`,
+      cta: 'Abrir minha agenda',
+      foot: 'Este é o último lembrete automático sobre este próximo passo.',
+    },
+  };
+  const T = isEmp ? T_EMP : T_RN;
   const t = T[L];
   const html = baseTemplate(`
     <h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:#0f0f0f;letter-spacing:-0.3px;line-height:1.25;">${t.h1}</h1>
@@ -2608,9 +2760,9 @@ async function sendRnDueOverdue24hEmail({ to, delegateName, counterpartName, nex
       <a href="${agendaUrl}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#FF1B8D,#FF8C00);color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">${t.cta}</a>
     </td></tr></table>
     <p style="margin:0;font-size:12px;color:#999;line-height:1.6;">${t.foot}</p>
-  `, { tagline: 'Rueda de Negocios', locale: L });
+  `, { tagline: isEmp ? 'Rueda de Empleo' : 'Rueda de Negocios', locale: L });
   await transporter.sendMail({ from: FROM, to, subject: t.subject, html });
-  console.log(`✅ RN due-overdue-24h enviado a ${to} [${L}]`);
+  console.log(`✅ RN due-overdue-24h enviado a ${to} [${L}] ${isEmp ? '[EMP]' : ''}`);
 }
 
 module.exports = { sendWelcomeEmail, sendDeviceActivatedEmail, sendActivationGuideEmail, sendLicenseRenewedEmail, sendLicenseExpiringEmail, sendAgentCredentialsEmail, sendBulkPushReport, sendPasswordResetEmail, sendEventRegistrationEmail, sendEventPendingEmail, sendInvitationConfirmedEmail, sendInvitationPendingEmail, sendSupplierQuoteEmail, sendSupplierAcceptedEmail, sendSupplierDepositEmail, sendSupplierPaidEmail, sendStaffCredentialsEmail, sendStaffBriefingEmail, sendEventsWelcomeEmail, sendCertificateEmail, sendRnWelcomeEmail, sendRnDelegateInvitedEmail, sendRnRequestReceivedEmail, sendRnRequestAcceptedEmail, sendRnRequestRejectedEmail, sendRnEventSummaryEmail, sendRnProducerSummaryEmail, sendRnEodDigestEmail, sendRnNudge48hEmail, sendRnNudge7dEmail, sendRnDuePre24hEmail, sendRnDueOverdue24hEmail, verifyConnection };

@@ -39,7 +39,7 @@ router.get('/:slug', eventPublicReadLimiter, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, slug, status, starts_at, ends_at, timezone,
-              venue_name, venue_address, cover_image_url, config, registration_mode
+              venue_name, venue_address, cover_image_url, config, registration_mode, rueda_type
        FROM events.events
        WHERE slug = $1 AND status IN ('published','live')`,
       [req.params.slug]
@@ -261,6 +261,211 @@ router.post('/:slug/register', eventRegistrationLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ POST /api/events/public/:slug/register:', err);
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// E-EMP-1 Task 3 — Flujo público RE: catálogo tags + registro candidato
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── CATÁLOGO DE TAGS DEL EVENTO (público, filtrado por dimension) ─────────────
+// GET /:slug/tags-catalog?dimension=hard|soft|all   (default: all)
+router.get('/:slug/tags-catalog', eventPublicReadLimiter, async (req, res) => {
+  const pool = global.pool;
+  const dim = (req.query.dimension || 'all').toLowerCase();
+  try {
+    const { rows: evRows } = await pool.query(
+      `SELECT user_id, rueda_type FROM events.events
+       WHERE slug = $1 AND status IN ('published','live')`,
+      [req.params.slug]
+    );
+    if (!evRows[0]) return res.status(404).json({ error: 'Evento no encontrado' });
+    const ev = evRows[0];
+    let where = `user_id = $1`;
+    const params = [ev.user_id];
+    if (dim === 'hard' || dim === 'soft') { where += ` AND dimension = $2`; params.push(dim); }
+    // E-EMP-1 — filtro canónico por scope (alineado con /api/rn/public/:slug/tags)
+    const scopeFilter = ev.rueda_type === 'empleo' ? ['empleo','both'] : ['negocios','both'];
+    where += ` AND scope = ANY($${params.length + 1}::text[])`;
+    params.push(scopeFilter);
+    const { rows } = await pool.query(
+      `SELECT id, slug, label, category, dimension, scope
+       FROM events.rn_tags WHERE ${where}
+       ORDER BY dimension DESC, label ASC`,
+      params
+    );
+    res.json({ rueda_type: ev.rueda_type, tags: rows });
+  } catch (err) {
+    console.error('❌ GET /api/events/public/:slug/tags-catalog:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── REGISTRO PÚBLICO CANDIDATO (ofertante) · Rueda de Empleo ──────────────────
+// POST /:slug/register-candidato (multipart/form-data)
+// Campos: name, email, phone, city, tag_ids[] (JSON), salary_min, salary_target,
+//         consent_datos (obligatorio), banco_opt_in (opcional), locale.
+// File: cv (PDF, máx 5MB, opcional)
+router.post('/:slug/register-candidato', eventRegistrationLimiter, async (req, res) => {
+  const pool = global.pool;
+  const {
+    name, email, phone, city, locale = 'es',
+    tag_ids,
+    salary_min, salary_target,
+    consent_datos, banco_opt_in,
+    website_url,  // honeypot
+  } = req.body || {};
+
+  if (website_url && website_url.trim() !== '') {
+    return res.status(400).json({ error: 'Error de validación' });
+  }
+  if (!name?.trim())  return res.status(400).json({ error: 'El nombre es requerido' });
+  if (!email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return res.status(400).json({ error: 'Email inválido' });
+  if (!phone?.trim()) return res.status(400).json({ error: 'El celular es requerido' });
+  if (!(consent_datos === 'true' || consent_datos === true))
+    return res.status(400).json({ error: 'Debes aceptar el tratamiento de datos (Ley 1581)' });
+
+  let parsedTagIds = [];
+  try { parsedTagIds = tag_ids ? JSON.parse(tag_ids) : []; } catch { parsedTagIds = []; }
+  if (!Array.isArray(parsedTagIds)) parsedTagIds = [];
+
+  const bancoOptIn = (banco_opt_in === 'true' || banco_opt_in === true);
+
+  try {
+    const { rows: evRows } = await pool.query(
+      `SELECT id, name, slug, user_id, timezone, starts_at, ends_at, venue_name, config, rueda_type
+       FROM events.events WHERE slug = $1 AND status IN ('published','live')`,
+      [req.params.slug]
+    );
+    if (!evRows[0]) return res.status(404).json({ error: 'Evento no encontrado o no disponible' });
+    const event = evRows[0];
+    if (event.rueda_type !== 'empleo') {
+      return res.status(400).json({ error: 'Este evento no acepta registro de candidatos' });
+    }
+
+    // CV upload opcional
+    let cvPdfUrl = null;
+    if (req.files && req.files.cv) {
+      const file = req.files.cv;
+      if (file.size > 5 * 1024 * 1024) return res.status(413).json({ error: 'CV supera 5 MB' });
+      if (!/pdf$/i.test(file.mimetype || '') && !/\.pdf$/i.test(file.name || ''))
+        return res.status(415).json({ error: 'El CV debe ser PDF' });
+      const cvDir = path.join(process.cwd(), 'uploads', 'events', 'cv');
+      if (!fs.existsSync(cvDir)) fs.mkdirSync(cvDir, { recursive: true });
+      const safeName = `${event.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.pdf`;
+      const dest = path.join(cvDir, safeName);
+      await file.mv(dest);
+      cvPdfUrl = `/uploads/events/cv/${safeName}`;
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const autoConfirm = event.config?.auto_confirm === true;
+    const encKey = process.env.CALENDAR_TOKENS_ENCRYPTION_KEY;
+    const salaryPayload = (salary_min || salary_target)
+      ? JSON.stringify({ min: salary_min || null, target: salary_target || null })
+      : null;
+
+    const { registration, isNew } = await withTransaction(pool, async (client) => {
+      const attRes = await client.query(
+        `INSERT INTO events.attendees
+           (user_id, email, name, phone, locale)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (user_id, email) DO UPDATE SET
+           name=EXCLUDED.name,
+           phone=COALESCE(EXCLUDED.phone, events.attendees.phone),
+           locale=EXCLUDED.locale,
+           updated_at=NOW()
+         RETURNING id`,
+        [event.user_id, cleanEmail, name.trim(), phone.trim(), locale]
+      );
+      const attendee_id = attRes.rows[0].id;
+
+      const regRes = await client.query(
+        `INSERT INTO events.registrations
+           (event_id, attendee_id, user_id, ticket_type, origin,
+            custom_fields, accepted_terms, status, party_type,
+            cv_pdf_url, salary_expectation_encrypted, banco_talento_opt_in,
+            consent_accepted, consent_accepted_at, consent_ip, consent_user_agent, consent_policy_version)
+         VALUES ($1,$2,$3,'candidato','web_form',
+                 $4, TRUE, $5, 'ofertante',
+                 $6, CASE WHEN $7::text IS NOT NULL AND $8::text IS NOT NULL THEN pgp_sym_encrypt($7, $8) ELSE NULL END, $9,
+                 TRUE, NOW(), $10, $11, 'v1.0')
+         ON CONFLICT (event_id, attendee_id) DO NOTHING
+         RETURNING id, qr_token, ticket_type, status`,
+        [event.id, attendee_id, event.user_id,
+         JSON.stringify({ city: city || null }),
+         autoConfirm ? 'confirmed' : 'pending',
+         cvPdfUrl, salaryPayload, encKey || null, bancoOptIn,
+         req.ip || null, (req.headers['user-agent'] || '').slice(0, 500)]
+      );
+
+      if (!regRes.rows[0]) {
+        const existing = await client.query(
+          `SELECT id, qr_token, ticket_type FROM events.registrations
+           WHERE event_id = $1 AND attendee_id = $2`,
+          [event.id, attendee_id]
+        );
+        return { registration: existing.rows[0], isNew: false };
+      }
+      const reg = regRes.rows[0];
+
+      // Delegate primario (el candidato es su propio delegate, agenda_token para mi-agenda)
+      await client.query(
+        `INSERT INTO events.rn_delegates
+           (registration_id, full_name, email, phone, is_primary, can_manage_team, locale)
+         VALUES ($1, $2, $3, $4, TRUE, FALSE, $5)
+         ON CONFLICT DO NOTHING`,
+        [reg.id, name.trim(), cleanEmail, phone.trim(), locale]
+      );
+
+      // Tags marcadas (kind='offer': el candidato ofrece sus habilidades)
+      if (parsedTagIds.length > 0) {
+        const uniqTagIds = [...new Set(parsedTagIds)].filter(s => typeof s === 'string');
+        if (uniqTagIds.length > 0) {
+          await client.query(
+            `INSERT INTO events.rn_registration_tags (registration_id, tag_id, kind)
+             SELECT $1, t.id, 'offer'
+             FROM events.rn_tags t
+             WHERE t.user_id = $2 AND t.id = ANY($3::uuid[])
+             ON CONFLICT DO NOTHING`,
+            [reg.id, event.user_id, uniqTagIds]
+          );
+        }
+      }
+      return { registration: reg, isNew: true };
+    });
+
+    if (!isNew) {
+      return res.status(409).json({ error: 'Ya existe un registro para este email en este evento' });
+    }
+
+    // Email confirmación (opcional — usa plantilla genérica por ahora)
+    try {
+      const emailConfig = { from_name: event.config?.email_from_name || null, reply_to: event.config?.email_reply_to || null };
+      if (autoConfirm) {
+        sendEventRegistrationEmail({ name: name.trim(), email: cleanEmail, locale }, event, registration, emailConfig)
+          .catch(e => console.error('⚠️ Email candidato RE fallido:', e.message));
+      } else {
+        sendEventPendingEmail({ name: name.trim(), email: cleanEmail, locale }, event, emailConfig)
+          .catch(e => console.error('⚠️ Email candidato pending RE fallido:', e.message));
+      }
+    } catch (e) { console.error('⚠️ Email candidato RE:', e.message); }
+
+    global.io?.to(`event_${event.id}`).emit('attendee.registered', {
+      user_id: event.user_id, event_id: event.id,
+      origin: 'web_form', party_type: 'ofertante',
+    });
+
+    res.status(201).json({
+      registration_id: registration.id,
+      qr_token: registration.qr_token,
+      cv_uploaded: !!cvPdfUrl,
+    });
+  } catch (err) {
+    console.error('❌ POST /api/events/public/:slug/register-candidato:', err);
     if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
     res.status(500).json({ error: 'Error interno' });
   }
