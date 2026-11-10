@@ -5325,8 +5325,8 @@
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn btn-outline btn-sm" onclick="evRnLoadReport()" data-i18n="rn.agenda.meetings_refresh">Refrescar</button>
-                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('xlsx')" title="Descargar XLSX multi-hoja">Descargar XLSX</button>
-                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('pdf')" title="Descargar reporte en PDF">Descargar PDF</button>
+                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('xlsx')" title="Descargar XLSX multi-hoja" data-i18n="rn.rep.dl_xlsx" data-i18n-attr="title:rn.rep.dl_xlsx_title">Descargar XLSX</button>
+                <button class="btn btn-outline btn-sm" onclick="evRnExportReport('pdf')" title="Descargar reporte en PDF" data-i18n="rn.rep.dl_pdf" data-i18n-attr="title:rn.rep.dl_pdf_title">Descargar PDF</button>
                 <button class="btn btn-grad btn-sm" id="ev-rn-report-send-btn" onclick="evRnSendReport(false)" data-i18n="rn.rep.send">Enviar reporte por email</button>
               </div>
             </div>
@@ -11480,6 +11480,7 @@ document.addEventListener('sonoro:localechange', function(){
     if (typeof evRnTagsLoad === 'function') evRnTagsLoad();
     if (typeof evRnLoadRounds === 'function') evRnLoadRounds();
     if (typeof evRnLoadTables === 'function') evRnLoadTables();
+    if (typeof evRnLoadComms === 'function') evRnLoadComms();
   } catch(e){ console.warn('[rn] localechange re-render:', e); }
 });
 function evRnSlugify(s) {

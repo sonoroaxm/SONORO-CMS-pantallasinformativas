@@ -325,7 +325,11 @@
             err_briefing:'Error al enviar briefing', err_staff_notfound:'Staff no encontrado', err_staff_noemail:'Este staff no tiene email', err_add_sup_dir_first:'Agrega proveedores al directorio primero', err_select_sup:'Selecciona un proveedor del directorio', err_no_quote:'Sin cotización', err_first_create_tpl:'Primero crea una plantilla', err_save_resend:'Guardado, pero error al reenviar: {msg}' },
       toast: { language_updated:'Idioma actualizado' },
       rn: {
-        hdr: { panel:'Panel del productor', link:'Link', link_title:'Copiar link público', back:'Mis Eventos', delete:'Eliminar rueda', link_parent:'Vincular a evento', unlink_parent:'Desvincular de evento', status_published:'Publicada', status_draft:'Borrador', status_live:'En curso', status_closed:'Cerrada', status_archived:'Archivada', sub_mode:'modo', sub_zone:'zona' },
+        hdr: { panel:'Panel del productor', link:'Link', link_title:'Copiar link público', back:'Mis Eventos', delete:'Eliminar rueda', link_parent:'Vincular a evento', unlink_parent:'Desvincular de evento', status_published:'Publicada', status_draft:'Borrador', status_live:'En curso', status_closed:'Cerrada', status_archived:'Archivada', sub_mode:'modo', sub_zone:'zona',
+               publish:'Publicar', unpublish:'Despublicar',
+               publish_confirm:'¿Publicar la rueda? El link público quedará activo y los asistentes podrán inscribirse.',
+               unpublish_confirm:'¿Despublicar la rueda? El link público dejará de aceptar inscripciones nuevas.',
+               publish_ok:'Rueda publicada', unpublish_ok:'Rueda despublicada', publish_err:'No se pudo cambiar el estado' },
         parent: { title:'Vincular a evento', hint:'Elige un evento estándar al que vincular esta rueda. La rueda aparecerá anidada bajo el evento en la lista.', none:'— Sin vincular (standalone) —', save:'Guardar' },
         donut: { complete_k:'Listas para emparejar', complete:'Completas', incomplete:'Incompletas', mix_k:'Mix de empresas', offer:'Ofrece', demand:'Busca', both:'Ambos', util_k:'Utilización de slots', booked:'Agendados', free:'Libres' },
         kpi: { regs:'Empresas inscritas', complete:'Con intereses completos', requests:'Solicitudes directas', util:'Utilización prevista', regs_sub_tpl:'{n} con intereses incompletos', complete_sub_tpl:'{pct}% listas para emparejar', requests_sub_tpl:'{acc} aceptadas · {pend} pendientes', util_sub_tpl:'{m} reuniones · {r} rondas' },
@@ -381,7 +385,8 @@
           top:'Top meetings por valor esperado',
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Ronda · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
           empty_table:'Sin datos — carga el reporte',
-          cov_suffix:'% cobertura', sending:'Enviando…'
+          cov_suffix:'% cobertura', sending:'Enviando…',
+          dl_xlsx:'Descargar XLSX', dl_xlsx_title:'Descargar XLSX multi-hoja', dl_pdf:'Descargar PDF', dl_pdf_title:'Descargar reporte en PDF'
         },
         comms: {
           kicker:'E-RN-10 · Expediente post-cita', title:'Comunicaciones post-cita',
@@ -707,7 +712,11 @@
             err_briefing:'Error sending briefing', err_staff_notfound:'Staff not found', err_staff_noemail:'This staff has no email', err_add_sup_dir_first:'First add suppliers to the directory', err_select_sup:'Select a supplier from the directory', err_no_quote:'No quote available', err_first_create_tpl:'First create a template', err_save_resend:'Saved, but error resending: {msg}' },
       toast: { language_updated:'Language updated' },
       rn: {
-        hdr: { panel:'Producer panel', link:'Link', link_title:'Copy public link', back:'My Events', delete:'Delete round', link_parent:'Link to event', unlink_parent:'Unlink from event', status_published:'Published', status_draft:'Draft', status_live:'Live', status_closed:'Closed', status_archived:'Archived', sub_mode:'mode', sub_zone:'zone' },
+        hdr: { panel:'Producer panel', link:'Link', link_title:'Copy public link', back:'My Events', delete:'Delete round', link_parent:'Link to event', unlink_parent:'Unlink from event', status_published:'Published', status_draft:'Draft', status_live:'Live', status_closed:'Closed', status_archived:'Archived', sub_mode:'mode', sub_zone:'zone',
+               publish:'Publish', unpublish:'Unpublish',
+               publish_confirm:'Publish the matchmaking round? The public link will go live and attendees will be able to register.',
+               unpublish_confirm:'Unpublish the matchmaking round? The public link will stop accepting new registrations.',
+               publish_ok:'Round published', unpublish_ok:'Round unpublished', publish_err:'Could not change status' },
         parent: { title:'Link to event', hint:'Choose a standard event to link this matchmaking round under. It will appear nested below the event in the list.', none:'— Unlinked (standalone) —', save:'Save' },
         donut: { complete_k:'Ready to match', complete:'Complete', incomplete:'Incomplete', mix_k:'Company mix', offer:'Offers', demand:'Seeks', both:'Both', util_k:'Slot utilization', booked:'Booked', free:'Free' },
         kpi: { regs:'Registered companies', complete:'With complete interests', requests:'Direct requests', util:'Projected utilization', regs_sub_tpl:'{n} with incomplete interests', complete_sub_tpl:'{pct}% ready to match', requests_sub_tpl:'{acc} accepted · {pend} pending', util_sub_tpl:'{m} meetings · {r} rounds' },
@@ -763,7 +772,8 @@
           top:'Top meetings by expected value',
           col_n:'#', col_a:'Company A', col_b:'Company B', col_round_table:'Round · Table', col_type:'Type', col_horizon:'Horizon', col_value:'Value',
           empty_table:'No data — load the report',
-          cov_suffix:'% coverage', sending:'Sending…'
+          cov_suffix:'% coverage', sending:'Sending…',
+          dl_xlsx:'Download XLSX', dl_xlsx_title:'Download multi-sheet XLSX', dl_pdf:'Download PDF', dl_pdf_title:'Download PDF report'
         },
         comms: {
           kicker:'E-RN-10 · Post-meeting dossier', title:'Post-meeting communications',
@@ -1089,7 +1099,11 @@
             err_briefing:'Erro ao enviar briefing', err_staff_notfound:'Staff não encontrado', err_staff_noemail:'Este staff não tem e-mail', err_add_sup_dir_first:'Primeiro adicione fornecedores ao diretório', err_select_sup:'Selecione um fornecedor do diretório', err_no_quote:'Sem cotação', err_first_create_tpl:'Primeiro crie um modelo', err_save_resend:'Salvo, mas erro ao reenviar: {msg}' },
       toast: { language_updated:'Idioma atualizado' },
       rn: {
-        hdr: { panel:'Painel do produtor', link:'Link', link_title:'Copiar link público', back:'Meus Eventos', delete:'Excluir rodada', link_parent:'Vincular a evento', unlink_parent:'Desvincular do evento', status_published:'Publicada', status_draft:'Rascunho', status_live:'Ao vivo', status_closed:'Encerrada', status_archived:'Arquivada', sub_mode:'modo', sub_zone:'zona' },
+        hdr: { panel:'Painel do produtor', link:'Link', link_title:'Copiar link público', back:'Meus Eventos', delete:'Excluir rodada', link_parent:'Vincular a evento', unlink_parent:'Desvincular do evento', status_published:'Publicada', status_draft:'Rascunho', status_live:'Ao vivo', status_closed:'Encerrada', status_archived:'Arquivada', sub_mode:'modo', sub_zone:'zona',
+               publish:'Publicar', unpublish:'Despublicar',
+               publish_confirm:'Publicar a rodada? O link público ficará ativo e os participantes poderão se inscrever.',
+               unpublish_confirm:'Despublicar a rodada? O link público deixará de aceitar novas inscrições.',
+               publish_ok:'Rodada publicada', unpublish_ok:'Rodada despublicada', publish_err:'Não foi possível alterar o status' },
         parent: { title:'Vincular a evento', hint:'Escolha um evento padrão ao qual vincular esta rodada. Ela aparecerá aninhada abaixo do evento na lista.', none:'— Sem vínculo (standalone) —', save:'Salvar' },
         donut: { complete_k:'Prontas para o match', complete:'Completas', incomplete:'Incompletas', mix_k:'Mix de empresas', offer:'Oferece', demand:'Busca', both:'Ambos', util_k:'Utilização de slots', booked:'Agendados', free:'Livres' },
         kpi: { regs:'Empresas inscritas', complete:'Com interesses completos', requests:'Solicitações diretas', util:'Utilização prevista', regs_sub_tpl:'{n} com interesses incompletos', complete_sub_tpl:'{pct}% prontas para parear', requests_sub_tpl:'{acc} aceitas · {pend} pendentes', util_sub_tpl:'{m} reuniões · {r} rodadas' },
@@ -1145,7 +1159,8 @@
           top:'Top reuniões por valor esperado',
           col_n:'#', col_a:'Empresa A', col_b:'Empresa B', col_round_table:'Rodada · Mesa', col_type:'Tipo', col_horizon:'Horizonte', col_value:'Valor',
           empty_table:'Sem dados — carregue o relatório',
-          cov_suffix:'% cobertura', sending:'Enviando…'
+          cov_suffix:'% cobertura', sending:'Enviando…',
+          dl_xlsx:'Baixar XLSX', dl_xlsx_title:'Baixar XLSX multi-abas', dl_pdf:'Baixar PDF', dl_pdf_title:'Baixar relatório em PDF'
         },
         comms: {
           kicker:'E-RN-10 · Dossiê pós-reunião', title:'Comunicações pós-reunião',
