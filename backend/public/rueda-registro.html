@@ -151,12 +151,7 @@
 
     <div class="card" id="tagsCard" style="display:none">
       <p class="section-title" data-i18n-es="Qué buscas en la rueda" data-i18n-en="What you want from this event" data-i18n-pt="O que você busca">Qué buscas en la rueda</p>
-      <label data-i18n-es="Lo que ofreces (compradores buscarán esto)" data-i18n-en="What you offer (buyers will find you here)" data-i18n-pt="O que você oferece">Lo que ofreces (compradores buscarán esto)</label>
-      <select id="selOffer" onchange="tagAdd('offer', this)"><option value=""></option></select>
-      <div class="chips" id="chipsOffer"></div>
-      <label data-i18n-es="Lo que buscas (ofertantes te encontrarán)" data-i18n-en="What you're looking for (sellers will find you)" data-i18n-pt="O que você procura">Lo que buscas (ofertantes te encontrarán)</label>
-      <select id="selDemand" onchange="tagAdd('demand', this)"><option value=""></option></select>
-      <div class="chips" id="chipsDemand"></div>
+      <div id="tagPickerRoot"></div>
     </div>
 
     <div class="card" id="visCard" style="display:none">
@@ -196,6 +191,7 @@
   <div class="footer">Impulsado por <a href="https://sonoro.com.co" target="_blank" style="color:inherit;text-decoration:none;">SONORO AV SAS</a></div>
 </div>
 
+<script src="/js/components/tag-picker-v2.js"></script>
 <script>
 const slug = location.pathname.split('/')[2];
 let LANG = 'es';
@@ -228,15 +224,7 @@ function applyLang(){
     b.classList.toggle('active', b.dataset.lang === LANG);
   });
   if (ev) renderEventMeta();
-  if (availableTags && availableTags.length){
-    const fill = (sel) => {
-      sel.innerHTML = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>' +
-        availableTags.map(t=>'<option value="'+t.id+'">'+esc(pickTagLabel(t))+(t.category?' · '+esc(t.category):'')+'</option>').join('');
-    };
-    const so=document.getElementById('selOffer'), sd=document.getElementById('selDemand');
-    if (so) fill(so); if (sd) fill(sd);
-    renderChips('offer'); renderChips('demand');
-  }
+  if (tagPicker) tagPicker.setLang(LANG);
 }
 
 document.getElementById('langSw').addEventListener('click', e=>{
@@ -274,6 +262,8 @@ async function load(){
   } catch(e){ document.getElementById('loading').style.display='none'; document.getElementById('notfound').style.display='block'; }
 }
 
+let tagPicker = null;
+
 async function loadTags(){
   try {
     const r = await fetch('/api/rn/public/' + encodeURIComponent(slug) + '/tags');
@@ -282,32 +272,19 @@ async function loadTags(){
     if (data.matching_mode === 'manual_only' || !data.tags || !data.tags.length) return;
     availableTags = data.tags;
     document.getElementById('tagsCard').style.display='block';
-    const fill = (sel) => {
-      sel.innerHTML = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>' +
-        availableTags.map(t=>'<option value="'+t.id+'">'+esc(pickTagLabel(t))+(t.category?' · '+esc(t.category):'')+'</option>').join('');
-    };
-    fill(document.getElementById('selOffer')); fill(document.getElementById('selDemand'));
+    tagPicker = TagPickerV2.mount('#tagPickerRoot', {
+      tags: availableTags,
+      lang: LANG,
+      ruedaType: data.rueda_type || 'negocios',
+      max: 8,
+      minPerBucket: 1,
+      initialSelection: tagsCat,
+      onChange: (sel) => { tagsCat = sel; }
+    });
   } catch(e){}
 }
 
 function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function pickTagLabel(t){ if (!t) return ''; if (LANG==='en') return t.label_en || t.label; if (LANG==='pt') return t.label_pt || t.label; return t.label; }
-
-function tagAdd(kind, sel){
-  const id = sel.value; if (!id) return;
-  if (tagsCat[kind].includes(id)) { sel.value=''; return; }
-  tagsCat[kind].push(id);
-  renderChips(kind);
-  sel.value='';
-}
-function tagRemove(kind, id){ tagsCat[kind] = tagsCat[kind].filter(x => x !== id); renderChips(kind); }
-function renderChips(kind){
-  const c = document.getElementById(kind==='offer'?'chipsOffer':'chipsDemand');
-  c.innerHTML = tagsCat[kind].map(id=>{
-    const t = availableTags.find(x=>x.id===id); if (!t) return '';
-    return '<span class="chip '+kind+'">'+esc(pickTagLabel(t))+' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button></span>';
-  }).join('');
-}
 
 function alertBox(msg, type){
   const el = document.getElementById('alertBox');

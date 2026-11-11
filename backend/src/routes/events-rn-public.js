@@ -67,7 +67,8 @@ async function resolveToken(pool, token) {
             e.status           AS event_status,
             e.config           AS event_config,
             e.timezone         AS event_timezone,
-            e.default_locale   AS event_default_locale
+            e.default_locale   AS event_default_locale,
+            e.rueda_type       AS rueda_type
        FROM events.rn_delegates d
        JOIN events.registrations r ON r.id = d.registration_id
        JOIN events.events e        ON e.id = r.event_id
@@ -472,10 +473,13 @@ router.get('/delegates/me/tags', rnReadLimiter, async (req, res) => {
     const ctx = await resolveToken(pool, req.query.token);
     const mm = (ctx.event_config || {}).matchmaking || {};
     const matchingMode = mm.matching_mode || (ctx.event_config || {}).matching_mode || 'tags';
+    const ruedaType = ctx.rueda_type || 'negocios';
+    const scopeFilter = ruedaType === 'empleo' ? ['empleo','both'] : ['negocios','both'];
     const { rows: available } = await pool.query(
-      `SELECT id, slug, label, label_en, label_pt, category FROM events.rn_tags
-        WHERE user_id = $1 ORDER BY category NULLS LAST, label`,
-      [ctx.user_id]
+      `SELECT id, slug, label, label_en, label_pt, category, dimension, scope FROM events.rn_tags
+        WHERE user_id = $1 AND scope = ANY($2::text[])
+        ORDER BY dimension, category NULLS LAST, label`,
+      [ctx.user_id, scopeFilter]
     );
     const { rows: mine } = await pool.query(
       `SELECT tag_id, kind FROM events.rn_registration_tags WHERE registration_id = $1`,
@@ -483,6 +487,7 @@ router.get('/delegates/me/tags', rnReadLimiter, async (req, res) => {
     );
     res.json({
       matching_mode: matchingMode,
+      rueda_type: ruedaType,
       available,
       mine: {
         offer:  mine.filter(r => r.kind === 'offer').map(r => r.tag_id),
