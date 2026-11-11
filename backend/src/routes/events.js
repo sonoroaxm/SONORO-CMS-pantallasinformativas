@@ -2741,7 +2741,7 @@ router.get('/:id/budget/export.pdf', auth, async (req, res) => {
     y += 36;
 
     // KPI boxes
-    const boxW5 = (W - 12) / 5;
+    const boxW5 = (W - 15) / 6;
     const boxes = [
       { label: L.kpi_budget,   value: fmtCOP(totalBudget),      color: DARK },
       { label: L.kpi_quoted,   value: fmtCOP(totalCotizado),    color: '#a78bfa' },
@@ -2754,7 +2754,7 @@ router.get('/:id/budget/export.pdf', auth, async (req, res) => {
       const bx = 48 + i * (boxW5 + 3);
       doc.roundedRect(bx, y, boxW5, 44, 4).fill(LIGHT);
       doc.fillColor(GRAY).font('Helvetica').fontSize(7.5).text(b.label, bx + 6, y + 8, { width: boxW5 - 12 });
-      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(10).text(b.value, bx + 6, y + 20, { width: boxW5 - 12 });
+      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(9).text(b.value, bx + 6, y + 20, { width: boxW5 - 12 });
     });
     y += 56;
 
