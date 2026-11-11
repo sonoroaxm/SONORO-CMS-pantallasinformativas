@@ -478,6 +478,8 @@ function toggleTheme(){
 try{ const t = localStorage.getItem('sonoro-theme'); if(t) document.documentElement.setAttribute('data-theme', t); }catch(e){}
 let ctx = null, availableTags = [], mine = { offer:[], demand:[] }, canEdit = false;
 
+function pickTagLabel(t){ if (!t) return ''; if (LANG==='en') return t.label_en || t.label; if (LANG==='pt') return t.label_pt || t.label; return t.label; }
+
 function applyLang(){
   document.documentElement.lang = LANG === 'pt' ? 'pt-BR' : LANG;
   document.querySelectorAll('[data-i18n-'+LANG+']').forEach(el=>{
@@ -494,6 +496,12 @@ function applyLang(){
     document.getElementById('delName').textContent = ctx.delegate.email + (ctx.delegate.is_primary ? ' · ' + (LANG==='en'?'primary':LANG==='pt'?'primário':'primario') : '');
   }
   if (typeof vivoCardRender === 'function' && Array.isArray(mtgCache) && mtgCache.length) vivoCardRender();
+  if (availableTags && availableTags.length){
+    if (typeof renderChips === 'function'){ renderChips('offer'); renderChips('demand'); }
+    const ao=document.getElementById('acOfferInput'), ad=document.getElementById('acDemandInput');
+    if (ao && document.getElementById('acOfferDrop').classList.contains('on')) acFilter('offer');
+    if (ad && document.getElementById('acDemandDrop').classList.contains('on')) acFilter('demand');
+  }
 }
 document.getElementById('langSw').addEventListener('click', e=>{
   const b = e.target.closest('button'); if (!b) return; LANG = b.dataset.lang; applyLang();
@@ -637,13 +645,13 @@ function acFilter(kind){
   const drop  = document.getElementById(kind==='offer'?'acOfferDrop':'acDemandDrop');
   const q = (input.value || '').trim().toLowerCase();
   const used = new Set(mine[kind]);
-  const matches = availableTags.filter(t => !used.has(t.id) && (!q || t.label.toLowerCase().includes(q) || (t.category||'').toLowerCase().includes(q))).slice(0, 30);
+  const matches = availableTags.filter(t => !used.has(t.id) && (!q || pickTagLabel(t).toLowerCase().includes(q) || (t.label||'').toLowerCase().includes(q) || (t.label_en||'').toLowerCase().includes(q) || (t.label_pt||'').toLowerCase().includes(q) || (t.category||'').toLowerCase().includes(q))).slice(0, 30);
   if (!matches.length) {
     const msg = q ? (LANG==='en'?'No matches':LANG==='pt'?'Sem resultados':'Sin resultados') : (LANG==='en'?'All added':LANG==='pt'?'Todos adicionados':'Todos agregados');
     drop.innerHTML = '<div class="ac-item empty">'+esc(msg)+'</div>';
   } else {
     drop.innerHTML = matches.map(t =>
-      '<div class="ac-item" onclick="tagPick(\''+kind+'\',\''+t.id+'\')"><span>'+esc(t.label)+'</span>'+(t.category?'<span class="cat">'+esc(t.category)+'</span>':'')+'</div>'
+      '<div class="ac-item" onclick="tagPick(\''+kind+'\',\''+t.id+'\')"><span>'+esc(pickTagLabel(t))+'</span>'+(t.category?'<span class="cat">'+esc(t.category)+'</span>':'')+'</div>'
     ).join('');
   }
   drop.classList.add('on');
@@ -663,7 +671,7 @@ function renderChips(kind){
   c.innerHTML = mine[kind].map(id=>{
     const t = availableTags.find(x=>x.id===id); if (!t) return '';
     const x = editingTags ? ' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button>' : '';
-    return '<span class="chip '+kind+'">'+esc(t.label)+x+'</span>';
+    return '<span class="chip '+kind+'">'+esc(pickTagLabel(t))+x+'</span>';
   }).join('');
   if (!mine[kind].length) {
     const msg = LANG==='en'?'No tags yet':LANG==='pt'?'Sem tags':'Sin tags';

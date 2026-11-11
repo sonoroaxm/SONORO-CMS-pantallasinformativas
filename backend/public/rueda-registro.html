@@ -228,6 +228,15 @@ function applyLang(){
     b.classList.toggle('active', b.dataset.lang === LANG);
   });
   if (ev) renderEventMeta();
+  if (availableTags && availableTags.length){
+    const fill = (sel) => {
+      sel.innerHTML = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>' +
+        availableTags.map(t=>'<option value="'+t.id+'">'+esc(pickTagLabel(t))+(t.category?' · '+esc(t.category):'')+'</option>').join('');
+    };
+    const so=document.getElementById('selOffer'), sd=document.getElementById('selDemand');
+    if (so) fill(so); if (sd) fill(sd);
+    renderChips('offer'); renderChips('demand');
+  }
 }
 
 document.getElementById('langSw').addEventListener('click', e=>{
@@ -275,13 +284,14 @@ async function loadTags(){
     document.getElementById('tagsCard').style.display='block';
     const fill = (sel) => {
       sel.innerHTML = '<option value="">— ' + (LANG==='en'?'select':LANG==='pt'?'selecionar':'elegir') + ' —</option>' +
-        availableTags.map(t=>'<option value="'+t.id+'">'+esc(t.label)+(t.category?' · '+esc(t.category):'')+'</option>').join('');
+        availableTags.map(t=>'<option value="'+t.id+'">'+esc(pickTagLabel(t))+(t.category?' · '+esc(t.category):'')+'</option>').join('');
     };
     fill(document.getElementById('selOffer')); fill(document.getElementById('selDemand'));
   } catch(e){}
 }
 
 function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function pickTagLabel(t){ if (!t) return ''; if (LANG==='en') return t.label_en || t.label; if (LANG==='pt') return t.label_pt || t.label; return t.label; }
 
 function tagAdd(kind, sel){
   const id = sel.value; if (!id) return;
@@ -295,7 +305,7 @@ function renderChips(kind){
   const c = document.getElementById(kind==='offer'?'chipsOffer':'chipsDemand');
   c.innerHTML = tagsCat[kind].map(id=>{
     const t = availableTags.find(x=>x.id===id); if (!t) return '';
-    return '<span class="chip '+kind+'">'+esc(t.label)+' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button></span>';
+    return '<span class="chip '+kind+'">'+esc(pickTagLabel(t))+' <button type="button" onclick="tagRemove(\''+kind+'\',\''+id+'\')">×</button></span>';
   }).join('');
 }
 

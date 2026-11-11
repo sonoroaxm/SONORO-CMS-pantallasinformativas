@@ -473,7 +473,7 @@ router.get('/delegates/me/tags', rnReadLimiter, async (req, res) => {
     const mm = (ctx.event_config || {}).matchmaking || {};
     const matchingMode = mm.matching_mode || (ctx.event_config || {}).matching_mode || 'tags';
     const { rows: available } = await pool.query(
-      `SELECT id, slug, label, category FROM events.rn_tags
+      `SELECT id, slug, label, label_en, label_pt, category FROM events.rn_tags
         WHERE user_id = $1 ORDER BY category NULLS LAST, label`,
       [ctx.user_id]
     );
@@ -672,7 +672,7 @@ router.get('/:eventSlug/tags', rnReadLimiter, async (req, res, next) => {
     // E-EMP-1: filtrar catálogo por scope según rueda_type
     const scopeFilter = ev.rueda_type === 'empleo' ? ['empleo','both'] : ['negocios','both'];
     const { rows } = await pool.query(
-      `SELECT id, slug, label, category, dimension, scope FROM events.rn_tags
+      `SELECT id, slug, label, label_en, label_pt, category, dimension, scope FROM events.rn_tags
         WHERE user_id = $1 AND scope = ANY($2::text[])
         ORDER BY dimension, category NULLS LAST, label`,
       [ev.user_id, scopeFilter]
