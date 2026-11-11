@@ -2901,7 +2901,9 @@
                   </div>
                   <div class="evp-legend">
                     <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#FF8C00"></span><span data-i18n="ev.panel.k_paid_lbl">Pagado</span></span><span class="evp-legend-val" id="evp-l-paid">0</span></div>
-                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#f59e0b"></span><span data-i18n="ev.panel.k_pending">Pendiente</span></span><span class="evp-legend-val" id="evp-l-pending">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#f59e0b"></span><span data-i18n="ev.panel.k_committed">Comprometido</span></span><span class="evp-legend-val" id="evp-l-committed">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#64748b"></span><span data-i18n="ev.panel.k_pending">Saldo comprometido</span></span><span class="evp-legend-val" id="evp-l-pending">0</span></div>
+                    <div class="evp-legend-row"><span class="evp-legend-lbl"><span class="evp-dot" style="background:#22c55e"></span><span data-i18n="ev.panel.k_available">Saldo disponible</span></span><span class="evp-legend-val" id="evp-l-available">0</span></div>
                   </div>
                 </div>
 
@@ -3864,9 +3866,15 @@
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
                 <h3 style="margin:0;font-size:15px;" data-i18n="ev.sup_budget_card">Presupuesto del evento</h3>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <span style="font-size:11px;color:var(--muted);align-self:center;margin-right:2px;" data-i18n="ev.budget_export_label">Presupuesto:</span>
+                  <button class="btn btn-outline btn-sm" onclick="evExportBudget('csv')" title="Descargar presupuesto en CSV" data-i18n-attr="title:ev.budget_csv_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> <span data-i18n="ev.budget_csv">CSV</span></button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportBudget('xlsx')" title="Descargar presupuesto en XLSX" data-i18n-attr="title:ev.budget_xlsx_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> <span data-i18n="ev.budget_xlsx">XLSX</span></button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportBudget('pdf')" title="Descargar presupuesto en PDF" data-i18n-attr="title:ev.budget_pdf_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> <span data-i18n="ev.budget_pdf">PDF</span></button>
+                  <span style="font-size:11px;color:var(--muted);align-self:center;margin:0 2px 0 6px;" data-i18n="ev.sup_export_label">Proveedores:</span>
                   <button class="btn btn-outline btn-sm" onclick="evExportCSV()" title="Descargar CSV" data-i18n-attr="title:ev.sup_csv_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> CSV</button>
+                  <button class="btn btn-outline btn-sm" onclick="evExportXLSX()" title="Descargar XLSX" data-i18n-attr="title:ev.sup_xlsx_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> XLSX</button>
                   <button class="btn btn-outline btn-sm" onclick="evExportPDF()" title="Descargar PDF" data-i18n-attr="title:ev.sup_pdf_title"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-download"/></svg> PDF</button>
-                  <button class="btn btn-outline btn-sm" onclick="evShowBudgetEdit()" data-i18n="ev.sup_budget_edit">Editar presupuesto</button>
+                  <button class="btn btn-primary btn-sm" style="margin-left:4px;" onclick="evShowBudgetEdit()" data-i18n="ev.sup_budget_edit"><svg width="13" height="13" style="vertical-align:middle;fill:currentColor"><use href="#ph-pencil"/></svg> Editar presupuesto</button>
                 </div>
               </div>
               <div id="ev-budget-edit" style="display:none;margin-bottom:16px;">
@@ -3894,9 +3902,13 @@
                   <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_paid">Total pagado</div>
                   <div id="ev-budget-pagado" style="font-size:18px;font-weight:700;color:#ef4444;">–</div>
                 </div>
-                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos total aprobado (puede ser negativo)" data-i18n-attr="title:ev.sup_card_title_bal">
-                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_bal">Saldo disponible</div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos lo aprobado (comprometido). Pagado real se resta aparte." data-i18n-attr="title:ev.sup_card_title_bal">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_bal">Saldo comprometido</div>
                   <div id="ev-budget-saldo" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
+                </div>
+                <div style="background:var(--bg);border-radius:8px;padding:12px;text-align:center;" title="Presupuesto menos lo pagado realmente. Solo baja cuando sale dinero." data-i18n-attr="title:ev.sup_card_title_avail">
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px;" data-i18n="ev.sup_card_avail">Saldo disponible</div>
+                  <div id="ev-budget-disponible" style="font-size:18px;font-weight:700;color:#22c55e;">–</div>
                 </div>
               </div>
             </div>
@@ -11170,14 +11182,19 @@ function evpRender(d) {
   document.getElementById('evp-l-proj').textContent = evpFmtMoneyFull(proj);
   document.getElementById('evp-l-avg').textContent = evpFmtMoneyFull(avg);
 
-  // KPI 4 — Pagado
+  // KPI 4 — Pagado / Comprometido / Saldo comprometido
   const paid = bud.paid || 0;
+  const committed = bud.committed || 0;
   const pending = bud.pending || 0;
   const pctPaid = proj ? (paid / proj * 100) : 0;
   evpSetDonut('evp-donut-paid', pctPaid);
   document.getElementById('evp-k-paid').textContent = paid > 0 ? evpFmtMoney(paid, cur) : '—';
   document.getElementById('evp-l-paid').textContent = evpFmtMoneyFull(paid);
+  const elC = document.getElementById('evp-l-committed');
+  if (elC) elC.textContent = evpFmtMoneyFull(committed);
   document.getElementById('evp-l-pending').textContent = evpFmtMoneyFull(pending);
+  const elA = document.getElementById('evp-l-available');
+  if (elA) elA.textContent = evpFmtMoneyFull(bud.real_available || 0);
 
   // Top 5
   const top5 = Array.isArray(d.top5) ? d.top5 : [];
@@ -16548,7 +16565,7 @@ function evI18n(key, params) {
 
 function evRenderBudget() {
   const t = window.SonoroI18n && window.SonoroI18n.t ? window.SonoroI18n.t : (k)=>k;
-  const { total_budget = 0, total_cotizado = 0, total_aprobado = 0, total_pagado = 0, saldo_disponible = 0 } = evBudgetData;
+  const { total_budget = 0, total_cotizado = 0, total_aprobado = 0, total_pagado = 0, saldo_disponible = 0, saldo_real = 0 } = evBudgetData;
   document.getElementById('ev-budget-total').textContent = total_budget ? evFmtCOP(total_budget) : t('ev.sup_budget_undefined');
   document.getElementById('ev-budget-cotizado').textContent = evFmtCOP(total_cotizado);
   document.getElementById('ev-budget-aprobado').textContent = evFmtCOP(total_aprobado);
@@ -16556,6 +16573,11 @@ function evRenderBudget() {
   const saldoEl = document.getElementById('ev-budget-saldo');
   saldoEl.textContent = total_budget ? evFmtCOP(saldo_disponible) : '–';
   saldoEl.style.color = saldo_disponible < 0 ? '#ef4444' : '#22c55e';
+  const dispEl = document.getElementById('ev-budget-disponible');
+  if (dispEl) {
+    dispEl.textContent = total_budget ? evFmtCOP(saldo_real) : '–';
+    dispEl.style.color = saldo_real < 0 ? '#ef4444' : '#22c55e';
+  }
   if (total_budget) document.getElementById('ev-budget-input').value = total_budget;
 }
 
@@ -17234,43 +17256,47 @@ async function evDeleteCue(id) {
 </script>
 <script>
 
-// ── EXPORTES PROVEEDORES ───────────────────────────────────────────────────────
-function evExportCSV() {
-  if (!evCurrentEventId) return;
-  const a = document.createElement('a');
-  a.href = `${API_URL}/api/events/${evCurrentEventId}/report/csv`;
-  a.download = '';
-  // Pass token via query param not possible with auth middleware — use fetch + blob
-  fetch(`${API_URL}/api/events/${evCurrentEventId}/report/csv`, {
-    headers: { 'Authorization': `Bearer ${authToken}` }
-  }).then(r => {
-    const disp = r.headers.get('Content-Disposition') || '';
-    const nameMatch = disp.match(/filename="([^"]+)"/);
-    const filename = nameMatch ? nameMatch[1] : 'proveedores.csv';
-    return r.blob().then(b => ({ b, filename }));
-  }).then(({ b, filename }) => {
-    const url = URL.createObjectURL(b);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }).catch(() => showStatus(evI18n('ev.err_generate_csv'), 'error'));
+// ── EXPORTES PROVEEDORES + PRESUPUESTO (i18n ES/EN/PT) ────────────────────────
+function _evExportLang() {
+  try {
+    if (window.SonoroI18n && typeof SonoroI18n.getLocale === 'function') {
+      const loc = SonoroI18n.getLocale() || 'es';
+      if (loc.startsWith('en')) return 'en';
+      if (loc.startsWith('pt')) return 'pt';
+    }
+  } catch(_) {}
+  return 'es';
 }
-
-function evExportPDF() {
+function _evDownload(path, fallbackName, errKey) {
   if (!evCurrentEventId) return;
-  fetch(`${API_URL}/api/events/${evCurrentEventId}/report/pdf`, {
-    headers: { 'Authorization': `Bearer ${authToken}` }
-  }).then(r => {
-    const disp = r.headers.get('Content-Disposition') || '';
-    const nameMatch = disp.match(/filename="([^"]+)"/);
-    const filename = nameMatch ? nameMatch[1] : 'proveedores.pdf';
-    return r.blob().then(b => ({ b, filename }));
-  }).then(({ b, filename }) => {
-    const url = URL.createObjectURL(b);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }).catch(() => showStatus('Error al generar PDF', 'error'));
+  const lang = _evExportLang();
+  const sep = path.indexOf('?') >= 0 ? '&' : '?';
+  const url = `${API_URL}/api/events/${evCurrentEventId}${path}${sep}lang=${lang}`;
+  fetch(url, { headers: { 'Authorization': `Bearer ${authToken}` } })
+    .then(r => {
+      if (!r.ok) throw new Error('http_'+r.status);
+      const disp = r.headers.get('Content-Disposition') || '';
+      const m = disp.match(/filename="([^"]+)"/);
+      const filename = m ? m[1] : fallbackName;
+      return r.blob().then(b => ({ b, filename }));
+    })
+    .then(({ b, filename }) => {
+      const u = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = u; a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(u), 10000);
+    })
+    .catch(() => showStatus(evI18n(errKey) || 'Error', 'error'));
+}
+function evExportCSV()   { _evDownload('/report/csv',  'proveedores.csv',  'ev.err_generate_csv'); }
+function evExportXLSX()  { _evDownload('/report/xlsx', 'proveedores.xlsx', 'ev.err_generate_xlsx'); }
+function evExportPDF()   { _evDownload('/report/pdf',  'proveedores.pdf',  'ev.err_generate_pdf'); }
+function evExportBudget(fmt) {
+  const map = { csv:['/budget/export.csv','presupuesto.csv','ev.err_budget_csv'],
+                xlsx:['/budget/export.xlsx','presupuesto.xlsx','ev.err_budget_xlsx'],
+                pdf:['/budget/export.pdf','presupuesto.pdf','ev.err_budget_pdf'] };
+  const t = map[fmt]; if (!t) return;
+  _evDownload(t[0], t[1], t[2]);
 }
 
 // ── SMART TV — helper de mensajes de error del bind (v1.2.1 D2') ─

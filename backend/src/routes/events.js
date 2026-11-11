@@ -2403,6 +2403,108 @@ router.delete('/:id/suppliers/:contractId', auth, async (req, res) => {
   }
 });
 
+// ── S217i C.2/C.3 · Budget + Suppliers export i18n ────────────────────────────
+const BUDGET_EXPORT_LABELS = {
+  es: {
+    locale_date:'es-CO', file_prefix:'presupuesto',
+    report_title:'Presupuesto del evento', footer:'SONORO CMS · Presupuesto',
+    page_of:(i,n)=>`Página ${i} de ${n}`,
+    col_event:'Evento', col_tz:'Zona horaria', col_venue:'Sede', col_start:'Inicio', col_end:'Fin', col_generated:'Generado',
+    section_summary:'Resumen financiero',
+    section_by_category:'Por categoría', section_quote_pipeline:'Pipeline de cotizaciones',
+    section_payment_pipeline:'Pipeline de pagos', section_top5:'Top 5 gastos',
+    kpi_budget:'Presupuesto', kpi_quoted:'Cotizado', kpi_approved:'Aprobado', kpi_paid:'Pagado', kpi_balance:'Saldo comprometido', kpi_available:'Saldo disponible',
+    balance_negative:'Saldo comprometido negativo — presupuesto excedido',
+    col_category:'Categoría', col_approved:'Aprobado', col_pct_budget:'% del presupuesto', col_suppliers_n:'# proveedores',
+    col_quote_state:'Estado cotización', col_payment_state:'Estado pago',
+    col_count:'Cantidad', col_total:'Monto total',
+    col_supplier:'Proveedor', col_amount:'Monto',
+    empty_contracts:'Sin proveedores contratados.', no_data:'Sin datos.',
+    status: { quote_requested:'Solicitada', quote_sent:'Enviada', quote_received:'Recibida', accepted:'Aceptada', rejected:'Rechazada', partial:'Abonada', paid:'Pagada', cancelled:'Cancelada', pending:'Pendiente', cotizado:'Sin pago', abono:'Abono', pagado:'Pagado', enviada:'Enviada', recibida:'Recibida', aceptada:'Aceptada', rechazada:'Rechazada' },
+  },
+  en: {
+    locale_date:'en-US', file_prefix:'budget',
+    report_title:'Event budget', footer:'SONORO CMS · Budget',
+    page_of:(i,n)=>`Page ${i} of ${n}`,
+    col_event:'Event', col_tz:'Timezone', col_venue:'Venue', col_start:'Start', col_end:'End', col_generated:'Generated',
+    section_summary:'Financial summary',
+    section_by_category:'By category', section_quote_pipeline:'Quotes pipeline',
+    section_payment_pipeline:'Payments pipeline', section_top5:'Top 5 spend',
+    kpi_budget:'Budget', kpi_quoted:'Quoted', kpi_approved:'Approved', kpi_paid:'Paid', kpi_balance:'Committed balance', kpi_available:'Available balance',
+    balance_negative:'Negative committed balance — budget exceeded',
+    col_category:'Category', col_approved:'Approved', col_pct_budget:'% of budget', col_suppliers_n:'# suppliers',
+    col_quote_state:'Quote status', col_payment_state:'Payment status',
+    col_count:'Count', col_total:'Total amount',
+    col_supplier:'Supplier', col_amount:'Amount',
+    empty_contracts:'No contracted suppliers.', no_data:'No data.',
+    status: { quote_requested:'Requested', quote_sent:'Sent', quote_received:'Received', accepted:'Accepted', rejected:'Rejected', partial:'Partial', paid:'Paid', cancelled:'Cancelled', pending:'Pending', cotizado:'Unpaid', abono:'Deposit', pagado:'Paid', enviada:'Sent', recibida:'Received', aceptada:'Accepted', rechazada:'Rejected' },
+  },
+  pt: {
+    locale_date:'pt-BR', file_prefix:'orcamento',
+    report_title:'Orçamento do evento', footer:'SONORO CMS · Orçamento',
+    page_of:(i,n)=>`Página ${i} de ${n}`,
+    col_event:'Evento', col_tz:'Fuso horário', col_venue:'Local', col_start:'Início', col_end:'Fim', col_generated:'Gerado',
+    section_summary:'Resumo financeiro',
+    section_by_category:'Por categoria', section_quote_pipeline:'Pipeline de cotações',
+    section_payment_pipeline:'Pipeline de pagamentos', section_top5:'Top 5 gastos',
+    kpi_budget:'Orçamento', kpi_quoted:'Cotado', kpi_approved:'Aprovado', kpi_paid:'Pago', kpi_balance:'Saldo comprometido', kpi_available:'Saldo disponível',
+    balance_negative:'Saldo comprometido negativo — orçamento excedido',
+    col_category:'Categoria', col_approved:'Aprovado', col_pct_budget:'% do orçamento', col_suppliers_n:'# fornecedores',
+    col_quote_state:'Status cotação', col_payment_state:'Status pagamento',
+    col_count:'Quantidade', col_total:'Valor total',
+    col_supplier:'Fornecedor', col_amount:'Valor',
+    empty_contracts:'Sem fornecedores contratados.', no_data:'Sem dados.',
+    status: { quote_requested:'Solicitada', quote_sent:'Enviada', quote_received:'Recebida', accepted:'Aceita', rejected:'Rejeitada', partial:'Parcial', paid:'Pago', cancelled:'Cancelada', pending:'Pendente', cotizado:'Sem pago', abono:'Sinal', pagado:'Pago', enviada:'Enviada', recibida:'Recebida', aceptada:'Aceita', rechazada:'Rejeitada' },
+  },
+};
+
+function _rollupBudget(contracts, totalBudget) {
+  const byCat = {};
+  for (const c of contracts) {
+    const cat = c.category || '—';
+    if (!byCat[cat]) byCat[cat] = { approved: 0, n: 0 };
+    byCat[cat].n += 1;
+    if (['accepted','partial','paid'].includes(c.payment_status)) {
+      byCat[cat].approved += parseFloat(c.contracted_amount || 0);
+    }
+  }
+  const byCategory = Object.entries(byCat)
+    .map(([category, v]) => ({ category, approved: v.approved, n: v.n, pct: totalBudget > 0 ? (v.approved / totalBudget * 100) : 0 }))
+    .sort((a, b) => b.approved - a.approved);
+
+  const qp = {};
+  for (const c of contracts) {
+    const s = c.quote_status || 'pending';
+    if (!qp[s]) qp[s] = { count: 0, total: 0 };
+    qp[s].count += 1;
+    qp[s].total += parseFloat(c.quoted_amount || 0);
+  }
+  const quotePipeline = Object.entries(qp).map(([state, v]) => ({ state, count: v.count, total: v.total }));
+
+  const pp = {};
+  for (const c of contracts) {
+    const s = c.payment_status || 'pending';
+    if (!pp[s]) pp[s] = { count: 0, total: 0 };
+    pp[s].count += 1;
+    if (s === 'paid')         pp[s].total += parseFloat(c.contracted_amount || 0);
+    else if (s === 'partial') pp[s].total += parseFloat(c.deposit_amount || 0);
+    else                      pp[s].total += parseFloat(c.contracted_amount || 0);
+  }
+  const paymentPipeline = Object.entries(pp).map(([state, v]) => ({ state, count: v.count, total: v.total }));
+
+  const top5 = [...contracts]
+    .map(c => ({ supplier: c.supplier_name || '—', category: c.category || '—', amount: parseFloat(c.contracted_amount || 0) }))
+    .filter(r => r.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5);
+
+  return { byCategory, quotePipeline, paymentPipeline, top5 };
+}
+function budgetExportLocale(req) {
+  const q = String(req.query.lang || req.query.locale || 'es').slice(0,2).toLowerCase();
+  return BUDGET_EXPORT_LABELS[q] ? q : 'es';
+}
+
 router.get('/:id/budget', auth, async (req, res) => {
   const pool = global.pool;
   const { id } = req.params;
@@ -2450,10 +2552,281 @@ router.get('/:id/budget', auth, async (req, res) => {
       if (row.payment_status === 'paid')    total_pagado += ct;
     }
     const saldo_disponible = total_budget - total_aprobado;
-    res.json({ total_budget, total_cotizado, total_aprobado, total_pagado, saldo_disponible });
+    const saldo_real = total_budget - total_pagado;
+    res.json({ total_budget, total_cotizado, total_aprobado, total_pagado, saldo_disponible, saldo_real });
   } catch (err) {
     console.error('❌ GET /:id/budget:', err);
     res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── BUDGET EXPORTS (CSV / XLSX / PDF) · i18n ES/EN/PT ─────────────────────────
+function _budgetStatusTr(L, s) { return (L.status && L.status[s]) || s || '—'; }
+
+router.get('/:id/budget/export.csv', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const loc = budgetExportLocale(req);
+    const L = BUDGET_EXPORT_LABELS[loc];
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts, totalBudget, totalAprobado, totalPagado, saldoDisponible, saldoReal, totalCotizado } = d;
+    const tz = ev.timezone || 'America/Bogota';
+    const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const r = _rollupBudget(contracts, totalBudget);
+
+    let csv = '﻿';
+    csv += [L.col_event, ev.name].map(esc).join(',') + '\r\n';
+    csv += [L.col_tz, tz].map(esc).join(',') + '\r\n';
+    csv += [L.col_venue, ev.venue_name || ''].map(esc).join(',') + '\r\n';
+    csv += [L.col_generated, new Date().toLocaleString(L.locale_date, { timeZone: tz })].map(esc).join(',') + '\r\n';
+    csv += '\r\n';
+    csv += [L.section_summary].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_budget,   Math.round(totalBudget)].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_quoted,   Math.round(totalCotizado)].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_approved, Math.round(totalAprobado)].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_paid,     Math.round(totalPagado)].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_balance,  Math.round(saldoDisponible)].map(esc).join(',') + '\r\n';
+    csv += [L.kpi_available, Math.round(saldoReal)].map(esc).join(',') + '\r\n';
+    if (saldoDisponible < 0) csv += [L.balance_negative].map(esc).join(',') + '\r\n';
+    csv += '\r\n';
+
+    csv += [L.section_by_category].map(esc).join(',') + '\r\n';
+    csv += [L.col_category, L.col_approved, L.col_pct_budget, L.col_suppliers_n].map(esc).join(',') + '\r\n';
+    if (!r.byCategory.length) csv += [L.no_data].map(esc).join(',') + '\r\n';
+    else for (const row of r.byCategory) csv += [row.category, Math.round(row.approved), row.pct.toFixed(1)+'%', row.n].map(esc).join(',') + '\r\n';
+    csv += '\r\n';
+
+    csv += [L.section_quote_pipeline].map(esc).join(',') + '\r\n';
+    csv += [L.col_quote_state, L.col_count, L.col_total].map(esc).join(',') + '\r\n';
+    if (!r.quotePipeline.length) csv += [L.no_data].map(esc).join(',') + '\r\n';
+    else for (const row of r.quotePipeline) csv += [_budgetStatusTr(L, row.state), row.count, Math.round(row.total)].map(esc).join(',') + '\r\n';
+    csv += '\r\n';
+
+    csv += [L.section_payment_pipeline].map(esc).join(',') + '\r\n';
+    csv += [L.col_payment_state, L.col_count, L.col_total].map(esc).join(',') + '\r\n';
+    if (!r.paymentPipeline.length) csv += [L.no_data].map(esc).join(',') + '\r\n';
+    else for (const row of r.paymentPipeline) csv += [_budgetStatusTr(L, row.state), row.count, Math.round(row.total)].map(esc).join(',') + '\r\n';
+    csv += '\r\n';
+
+    csv += [L.section_top5].map(esc).join(',') + '\r\n';
+    csv += [L.col_supplier, L.col_category, L.col_amount].map(esc).join(',') + '\r\n';
+    if (!r.top5.length) csv += [L.no_data].map(esc).join(',') + '\r\n';
+    else for (const row of r.top5) csv += [row.supplier, row.category, Math.round(row.amount)].map(esc).join(',') + '\r\n';
+
+    const safe = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safe}_${stamp}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('❌ GET /:id/budget/export.csv:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/:id/budget/export.xlsx', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const loc = budgetExportLocale(req);
+    const L = BUDGET_EXPORT_LABELS[loc];
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts, totalBudget, totalAprobado, totalPagado, saldoDisponible, saldoReal, totalCotizado } = d;
+    const tz = ev.timezone || 'America/Bogota';
+    const r = _rollupBudget(contracts, totalBudget);
+
+    const wb = XLSX.utils.book_new();
+
+    const resumen = [
+      [L.col_event, ev.name],
+      [L.col_tz, tz],
+      [L.col_venue, ev.venue_name || ''],
+      [L.col_generated, new Date().toLocaleString(L.locale_date, { timeZone: tz })],
+      [],
+      [L.kpi_budget,   Math.round(totalBudget)],
+      [L.kpi_quoted,   Math.round(totalCotizado)],
+      [L.kpi_approved, Math.round(totalAprobado)],
+      [L.kpi_paid,     Math.round(totalPagado)],
+      [L.kpi_balance,  Math.round(saldoDisponible)],
+      [L.kpi_available, Math.round(saldoReal)],
+      ...(saldoDisponible < 0 ? [[L.balance_negative]] : []),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumen), L.section_summary.slice(0, 31));
+
+    const byCatRows = r.byCategory.map(row => ({
+      [L.col_category]:     row.category,
+      [L.col_approved]:     Math.round(row.approved),
+      [L.col_pct_budget]:   Number(row.pct.toFixed(2)),
+      [L.col_suppliers_n]:  row.n,
+    }));
+    XLSX.utils.book_append_sheet(wb,
+      byCatRows.length ? XLSX.utils.json_to_sheet(byCatRows) : XLSX.utils.aoa_to_sheet([[L.no_data]]),
+      L.section_by_category.slice(0, 31));
+
+    const qpRows = r.quotePipeline.map(row => ({
+      [L.col_quote_state]: _budgetStatusTr(L, row.state),
+      [L.col_count]:       row.count,
+      [L.col_total]:       Math.round(row.total),
+    }));
+    XLSX.utils.book_append_sheet(wb,
+      qpRows.length ? XLSX.utils.json_to_sheet(qpRows) : XLSX.utils.aoa_to_sheet([[L.no_data]]),
+      L.section_quote_pipeline.slice(0, 31));
+
+    const ppRows = r.paymentPipeline.map(row => ({
+      [L.col_payment_state]: _budgetStatusTr(L, row.state),
+      [L.col_count]:         row.count,
+      [L.col_total]:         Math.round(row.total),
+    }));
+    XLSX.utils.book_append_sheet(wb,
+      ppRows.length ? XLSX.utils.json_to_sheet(ppRows) : XLSX.utils.aoa_to_sheet([[L.no_data]]),
+      L.section_payment_pipeline.slice(0, 31));
+
+    const topRows = r.top5.map(row => ({
+      [L.col_supplier]: row.supplier,
+      [L.col_category]: row.category,
+      [L.col_amount]:   Math.round(row.amount),
+    }));
+    XLSX.utils.book_append_sheet(wb,
+      topRows.length ? XLSX.utils.json_to_sheet(topRows) : XLSX.utils.aoa_to_sheet([[L.no_data]]),
+      L.section_top5.slice(0, 31));
+
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    const safe = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safe}_${stamp}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('❌ GET /:id/budget/export.xlsx:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+router.get('/:id/budget/export.pdf', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const loc = budgetExportLocale(req);
+    const L = BUDGET_EXPORT_LABELS[loc];
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts, totalBudget, totalAprobado, totalPagado, saldoDisponible, saldoReal, totalCotizado } = d;
+    const tz = ev.timezone || 'America/Bogota';
+    const fmtD = iso => iso ? new Date(iso).toLocaleDateString(L.locale_date, { day:'numeric', month:'short', year:'numeric', timeZone: tz }) : '—';
+    const r = _rollupBudget(contracts, totalBudget);
+
+    const safe = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safe}_${stamp}.pdf"`);
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true });
+    doc.pipe(res);
+    const W = 595 - 96;
+    const AMBER = '#f59e0b', DARK = '#111827', GRAY = '#6b7280', LIGHT = '#f3f4f6', WHITE = '#ffffff';
+
+    // Header
+    doc.rect(0, 0, 595, 80).fill('#18181b');
+    doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(18).text('SONORO', 48, 20);
+    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text(L.report_title, 48, 44);
+    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13).text(ev.name, 48, 58, { width: W - 100 });
+
+    let y = 96;
+    const dateRange = `${fmtD(ev.starts_at)}${ev.ends_at !== ev.starts_at ? ' — ' + fmtD(ev.ends_at) : ''}`;
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(`${dateRange}   ·   ${ev.venue_name || '—'}   ·   ${tz}`, 48, y);
+    doc.fillColor(GRAY).fontSize(8).text(`${L.col_generated}: ${new Date().toLocaleString(L.locale_date, { timeZone: tz, day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true })}`, 48, y + 13);
+    y += 36;
+
+    // KPI boxes
+    const boxW5 = (W - 12) / 5;
+    const boxes = [
+      { label: L.kpi_budget,   value: fmtCOP(totalBudget),      color: DARK },
+      { label: L.kpi_quoted,   value: fmtCOP(totalCotizado),    color: '#a78bfa' },
+      { label: L.kpi_approved, value: fmtCOP(totalAprobado),    color: '#f59e0b' },
+      { label: L.kpi_paid,     value: fmtCOP(totalPagado),      color: '#3b82f6' },
+      { label: L.kpi_balance,  value: totalBudget ? fmtCOP(saldoDisponible) : '—', color: saldoDisponible < 0 ? '#ef4444' : '#22c55e' },
+      { label: L.kpi_available, value: totalBudget ? fmtCOP(saldoReal) : '—', color: saldoReal < 0 ? '#ef4444' : '#22c55e' },
+    ];
+    boxes.forEach((b, i) => {
+      const bx = 48 + i * (boxW5 + 3);
+      doc.roundedRect(bx, y, boxW5, 44, 4).fill(LIGHT);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7.5).text(b.label, bx + 6, y + 8, { width: boxW5 - 12 });
+      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(10).text(b.value, bx + 6, y + 20, { width: boxW5 - 12 });
+    });
+    y += 56;
+
+    if (saldoDisponible < 0) {
+      doc.fillColor('#ef4444').font('Helvetica-Bold').fontSize(9).text(L.balance_negative, 48, y);
+      y += 16;
+    }
+
+    const drawTable = (title, cols, rows, emptyMsg) => {
+      if (y + 40 > 780) { doc.addPage(); y = 48; }
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(title, 48, y);
+      y += 16;
+      doc.rect(48, y, W, 18).fill('#18181b');
+      let hx = 48;
+      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
+      cols.forEach(c => { doc.text(c.label, hx + 4, y + 5, { width: c.w - 8, lineBreak: false }); hx += c.w; });
+      y += 18;
+      if (!rows.length) {
+        doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(emptyMsg, 48, y + 6);
+        y += 24;
+        return;
+      }
+      const rowH = 20;
+      rows.forEach((row, i) => {
+        if (y + rowH > 780) { doc.addPage(); y = 48; }
+        doc.rect(48, y, W, rowH).fill(i % 2 === 0 ? WHITE : LIGHT);
+        let cx = 48;
+        doc.fillColor(DARK).font('Helvetica').fontSize(8);
+        cols.forEach((col, ci) => {
+          doc.text(String(row[ci] ?? ''), cx + 4, y + 6, { width: col.w - 8, lineBreak: false, ellipsis: true });
+          cx += col.w;
+        });
+        y += rowH;
+      });
+      y += 10;
+    };
+
+    drawTable(L.section_by_category, [
+      { label: L.col_category,    w: 160 },
+      { label: L.col_approved,    w: 120 },
+      { label: L.col_pct_budget,  w: 110 },
+      { label: L.col_suppliers_n, w: W - 390 },
+    ], r.byCategory.map(row => [row.category, fmtCOP(row.approved), row.pct.toFixed(1)+'%', row.n]), L.no_data);
+
+    drawTable(L.section_quote_pipeline, [
+      { label: L.col_quote_state, w: 220 },
+      { label: L.col_count,       w: 100 },
+      { label: L.col_total,       w: W - 320 },
+    ], r.quotePipeline.map(row => [_budgetStatusTr(L, row.state), row.count, fmtCOP(row.total)]), L.no_data);
+
+    drawTable(L.section_payment_pipeline, [
+      { label: L.col_payment_state, w: 220 },
+      { label: L.col_count,         w: 100 },
+      { label: L.col_total,         w: W - 320 },
+    ], r.paymentPipeline.map(row => [_budgetStatusTr(L, row.state), row.count, fmtCOP(row.total)]), L.no_data);
+
+    drawTable(L.section_top5, [
+      { label: L.col_supplier, w: 230 },
+      { label: L.col_category, w: 140 },
+      { label: L.col_amount,   w: W - 370 },
+    ], r.top5.map(row => [row.supplier, row.category, fmtCOP(row.amount)]), L.no_data);
+
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fillColor(GRAY).font('Helvetica').fontSize(7)
+         .text(`${L.footer} · ${ev.name} · ${L.page_of(i + 1, pages.count)}`, 48, 820, { width: W, align: 'center' });
+    }
+    doc.end();
+  } catch (err) {
+    console.error('❌ GET /:id/budget/export.pdf:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno' });
   }
 });
 
@@ -2760,60 +3133,160 @@ async function getReportData(pool, eventId, userId, isAdmin) {
     if (c.payment_status === 'paid')    totalPagado += ct;
   }
   const saldoDisponible = totalBudget - totalAprobado;
+  const saldoReal = totalBudget - totalPagado;
   const totalCotizado = contracts
     .filter(c => c.quote_status === 'recibida' || c.quote_status === 'aceptada')
     .reduce((a, c) => a + parseFloat(c.quoted_amount || 0), 0);
   const totalCommitted = totalPagado; // alias legacy CSV
   const totalQuoted = totalCotizado;  // alias legacy CSV
 
-  return { ev, contracts, totalBudget, totalContracted, totalAprobado, totalPagado, saldoDisponible, totalCotizado, totalCommitted, totalQuoted };
+  return { ev, contracts, totalBudget, totalContracted, totalAprobado, totalPagado, saldoDisponible, saldoReal, totalCotizado, totalCommitted, totalQuoted };
 }
+
+// ── SUPPLIER REPORT EXPORTS (CSV / PDF / XLSX) · i18n ES/EN/PT ──────────────
+const SUPPLIER_EXPORT_LABELS = {
+  es: {
+    locale_date:'es-CO', file_prefix:'proveedores',
+    report_title:'Reporte de proveedores', footer:'SONORO CMS · Proveedores',
+    page_of:(i,n)=>`Página ${i} de ${n}`,
+    header_supplier:'Proveedor', header_category:'Categoría', header_contact:'Contacto',
+    header_email:'Email', header_phone:'Teléfono', header_service:'Servicio',
+    header_contracted:'Monto pactado COP', header_deposit:'Abono COP', header_status:'Estado pago',
+    header_quoted:'Total cotizado COP', header_quote_status:'Estado cotización', header_quote_date:'Fecha cotización',
+    header_notes:'Notas', header_quote_desc:'Descripción cotización',
+    col_total:'TOTAL', col_tz:'Zona horaria', col_venue:'Sede', col_status_event:'Estado',
+    section_directory:'Directorio de proveedores', section_quotes:'Detalle de cotizaciones recibidas',
+    empty_directory:'Sin proveedores contratados.',
+    kpi_budget:'Presupuesto', kpi_quoted:'Cotizado', kpi_approved:'Aprobado', kpi_paid:'Pagado', kpi_balance:'Saldo',
+    status: { quote_requested:'Cot. solicitada', quote_sent:'Cot. enviada', quote_received:'Cot. recibida', accepted:'Aceptada', rejected:'Rechazada', partial:'Abonada', paid:'Pagada', cancelled:'Cancelada', pending:'Pendiente', cotizado:'Sin pago', abono:'Abono', pagado:'Pagado', enviada:'Enviada', recibida:'Recibida', aceptada:'Aceptada', rechazada:'Rechazada', draft:'Borrador', published:'Publicado', live:'En vivo', closed:'Cerrado', archived:'Archivado' },
+  },
+  en: {
+    locale_date:'en-US', file_prefix:'suppliers',
+    report_title:'Suppliers report', footer:'SONORO CMS · Suppliers',
+    page_of:(i,n)=>`Page ${i} of ${n}`,
+    header_supplier:'Supplier', header_category:'Category', header_contact:'Contact',
+    header_email:'Email', header_phone:'Phone', header_service:'Service',
+    header_contracted:'Contracted amount COP', header_deposit:'Deposit COP', header_status:'Payment status',
+    header_quoted:'Quoted total COP', header_quote_status:'Quote status', header_quote_date:'Quote date',
+    header_notes:'Notes', header_quote_desc:'Quote description',
+    col_total:'TOTAL', col_tz:'Timezone', col_venue:'Venue', col_status_event:'Status',
+    section_directory:'Suppliers directory', section_quotes:'Received quotes detail',
+    empty_directory:'No contracted suppliers.',
+    kpi_budget:'Budget', kpi_quoted:'Quoted', kpi_approved:'Approved', kpi_paid:'Paid', kpi_balance:'Balance',
+    status: { quote_requested:'Quote req.', quote_sent:'Quote sent', quote_received:'Quote received', accepted:'Accepted', rejected:'Rejected', partial:'Partial', paid:'Paid', cancelled:'Cancelled', pending:'Pending', cotizado:'Unpaid', abono:'Deposit', pagado:'Paid', enviada:'Sent', recibida:'Received', aceptada:'Accepted', rechazada:'Rejected', draft:'Draft', published:'Published', live:'Live', closed:'Closed', archived:'Archived' },
+  },
+  pt: {
+    locale_date:'pt-BR', file_prefix:'fornecedores',
+    report_title:'Relatório de fornecedores', footer:'SONORO CMS · Fornecedores',
+    page_of:(i,n)=>`Página ${i} de ${n}`,
+    header_supplier:'Fornecedor', header_category:'Categoria', header_contact:'Contato',
+    header_email:'Email', header_phone:'Telefone', header_service:'Serviço',
+    header_contracted:'Valor contratado COP', header_deposit:'Sinal COP', header_status:'Status pagamento',
+    header_quoted:'Total cotado COP', header_quote_status:'Status cotação', header_quote_date:'Data cotação',
+    header_notes:'Notas', header_quote_desc:'Descrição cotação',
+    col_total:'TOTAL', col_tz:'Fuso horário', col_venue:'Local', col_status_event:'Status',
+    section_directory:'Diretório de fornecedores', section_quotes:'Detalhe de cotações recebidas',
+    empty_directory:'Sem fornecedores contratados.',
+    kpi_budget:'Orçamento', kpi_quoted:'Cotado', kpi_approved:'Aprovado', kpi_paid:'Pago', kpi_balance:'Saldo',
+    status: { quote_requested:'Cot. solic.', quote_sent:'Cot. enviada', quote_received:'Cot. recebida', accepted:'Aceita', rejected:'Rejeitada', partial:'Parcial', paid:'Pago', cancelled:'Cancelada', pending:'Pendente', cotizado:'Sem pago', abono:'Sinal', pagado:'Pago', enviada:'Enviada', recibida:'Recebida', aceptada:'Aceita', rechazada:'Rejeitada', draft:'Rascunho', published:'Publicado', live:'Ao vivo', closed:'Encerrado', archived:'Arquivado' },
+  },
+};
+function supplierExportLocale(req) {
+  const q = String(req.query.lang || req.query.locale || 'es').slice(0,2).toLowerCase();
+  return SUPPLIER_EXPORT_LABELS[q] ? q : 'es';
+}
+function _supStatusTr(L, s) { return (L.status && L.status[s]) || s || '—'; }
 
 // ── CSV REPORT ────────────────────────────────────────────────────────────────
 router.get('/:id/report/csv', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   try {
+    const loc = supplierExportLocale(req);
+    const L = SUPPLIER_EXPORT_LABELS[loc];
     const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
     if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
     const { ev, contracts } = d;
     const tz = ev.timezone || 'America/Bogota';
+    const fmtD = iso => iso ? new Date(iso).toLocaleDateString(L.locale_date, { day:'numeric', month:'short', year:'numeric', timeZone: tz }) : '';
 
-    const headers = ['Proveedor','Categoría','Contacto','Email','Teléfono','Servicio','Monto Pactado COP','Abono COP','Estado Pago','Total Cotizado COP','Estado Cotización','Fecha Cotización'];
+    const headers = [L.header_supplier, L.header_category, L.header_contact, L.header_email, L.header_phone, L.header_service, L.header_quote_desc, L.header_contracted, L.header_deposit, L.header_status, L.header_notes];
     const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
-    let csv = '﻿'; // BOM for Excel
-    csv += headers.map(escape).join(',') + '\r\n';
-    for (const c of contracts) {
-      csv += [
-        c.supplier_name,
-        c.category || '',
-        c.contact_name || '',
-        c.contact_email || '',
-        c.contact_phone || '',
-        c.service_description || '',
-        c.contracted_amount ? Math.round(c.contracted_amount) : 0,
-        c.deposit_amount ? Math.round(c.deposit_amount) : 0,
-        statusLabel(c.payment_status),
-        c.quoted_amount ? Math.round(c.quoted_amount) : 0,
-        statusLabel(c.quote_status),
-        c.quote_date ? fmtDate(c.quote_date, tz) : ''
-      ].map(escape).join(',') + '\r\n';
-    }
-    // Totals row
-    csv += [
-      'TOTAL','','','','','',
-      Math.round(d.totalAprobado),
-      Math.round(d.totalPagado),
-      '','',Math.round(d.totalCotizado),''
-    ].map(escape).join(',') + '\r\n';
+    const sorted = [...contracts].sort((a, b) => (a.category || 'zz').localeCompare(b.category || 'zz') || (a.supplier_name || '').localeCompare(b.supplier_name || ''));
 
-    const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.csv`;
+    let csv = '﻿';
+    csv += headers.map(escape).join(',') + '\r\n';
+    if (!sorted.length) {
+      csv += [L.empty_directory].map(escape).join(',') + '\r\n';
+    } else {
+      for (const c of sorted) {
+        csv += [
+          c.supplier_name || '',
+          c.category || '',
+          c.contact_name || '',
+          c.contact_email || '',
+          c.contact_phone || '',
+          c.service_description || '',
+          c.quote_desc || '',
+          c.contracted_amount ? Math.round(c.contracted_amount) : 0,
+          c.deposit_amount ? Math.round(c.deposit_amount) : 0,
+          _supStatusTr(L, c.payment_status),
+          c.notes || ''
+        ].map(escape).join(',') + '\r\n';
+      }
+    }
+
+    const safe = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safe}_${stamp}.csv"`);
     res.send(csv);
   } catch (err) {
     console.error('❌ GET report/csv:', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+// ── XLSX REPORT ───────────────────────────────────────────────────────────────
+router.get('/:id/report/xlsx', auth, async (req, res) => {
+  const pool = global.pool;
+  const isAdmin = req.user.role === 'admin';
+  try {
+    const loc = supplierExportLocale(req);
+    const L = SUPPLIER_EXPORT_LABELS[loc];
+    const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
+    if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
+    const { ev, contracts } = d;
+
+    const sorted = [...contracts].sort((a, b) => (a.category || 'zz').localeCompare(b.category || 'zz') || (a.supplier_name || '').localeCompare(b.supplier_name || ''));
+
+    const wb = XLSX.utils.book_new();
+    const rows = sorted.map(c => ({
+      [L.header_supplier]:   c.supplier_name || '',
+      [L.header_category]:   c.category || '',
+      [L.header_contact]:    c.contact_name || '',
+      [L.header_email]:      c.contact_email || '',
+      [L.header_phone]:      c.contact_phone || '',
+      [L.header_service]:    c.service_description || '',
+      [L.header_quote_desc]: c.quote_desc || '',
+      [L.header_contracted]: c.contracted_amount ? Math.round(c.contracted_amount) : 0,
+      [L.header_deposit]:    c.deposit_amount ? Math.round(c.deposit_amount) : 0,
+      [L.header_status]:     _supStatusTr(L, c.payment_status),
+      [L.header_notes]:      c.notes || '',
+    }));
+    XLSX.utils.book_append_sheet(wb,
+      rows.length ? XLSX.utils.json_to_sheet(rows) : XLSX.utils.aoa_to_sheet([[L.empty_directory]]),
+      L.section_directory.slice(0, 31));
+
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    const safe = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${L.file_prefix}_${safe}_${stamp}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('❌ GET report/xlsx:', err);
     res.status(500).json({ error: 'Error interno' });
   }
 });
@@ -2823,128 +3296,78 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
   const pool = global.pool;
   const isAdmin = req.user.role === 'admin';
   try {
+    const loc = supplierExportLocale(req);
+    const L = SUPPLIER_EXPORT_LABELS[loc];
     const d = await getReportData(pool, req.params.id, req.user.id, isAdmin);
     if (!d) return res.status(404).json({ error: 'Evento no encontrado' });
-    const { ev, contracts, totalBudget, totalAprobado, totalPagado, saldoDisponible, totalCotizado } = d;
+    const { ev, contracts } = d;
     const tz = ev.timezone || 'America/Bogota';
 
-    const filename = `proveedores_${ev.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
+    const safeN = String(ev.name || 'evento').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60);
+    const stampN = new Date().toISOString().slice(0, 10);
+    const filename = `${L.file_prefix}_${safeN}_${stampN}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
     const doc = new PDFDocument({ margin: 48, size: 'A4', bufferPages: true });
     doc.pipe(res);
 
-    const W = 595 - 96; // page width minus margins
+    const W = 595 - 96;
     const AMBER = '#f59e0b';
     const DARK  = '#111827';
     const GRAY  = '#6b7280';
     const LIGHT = '#f3f4f6';
     const WHITE = '#ffffff';
 
-    // ── HEADER ──────────────────────────────────────────────────────────────
+    // Header
     doc.rect(0, 0, 595, 80).fill('#18181b');
     doc.fillColor(AMBER).font('Helvetica-Bold').fontSize(18).text('SONORO', 48, 20);
-    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text('Reporte de Proveedores', 48, 44);
+    doc.fillColor('#d1d5db').font('Helvetica').fontSize(10).text(L.report_title, 48, 44);
     doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13).text(ev.name, 48, 58, { width: W - 100 });
 
-    // ── EVENT INFO ──────────────────────────────────────────────────────────
     let y = 96;
-    const dateRange = `${fmtDate(ev.starts_at, tz)}${ev.ends_at !== ev.starts_at ? ' — ' + fmtDate(ev.ends_at, tz) : ''}`;
-    doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(`${dateRange}   ·   ${ev.venue_name || 'Sin sede'}   ·   Estado: ${statusLabel(ev.status)}`, 48, y);
-    doc.fillColor(GRAY).fontSize(8).text(`Generado: ${new Date().toLocaleString('es-CO', { timeZone: tz, day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true })}`, 48, y + 13);
+    doc.fillColor(GRAY).font('Helvetica').fontSize(9).text(`${ev.venue_name || '—'}   ·   ${tz}`, 48, y);
+    doc.fillColor(GRAY).fontSize(8).text(`${new Date().toLocaleString(L.locale_date, { timeZone: tz, day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:true })}`, 48, y + 13);
     y += 36;
 
-    // ── BUDGET SUMMARY ──────────────────────────────────────────────────────
-    const boxW5 = (W - 12) / 5;
-    const budgetBoxes = [
-      { label: 'Presupuesto',  value: fmtCOP(totalBudget),   color: DARK },
-      { label: 'Cotizado',     value: fmtCOP(totalCotizado), color: '#a78bfa' },
-      { label: 'Aprobado',     value: fmtCOP(totalAprobado), color: '#f59e0b' },
-      { label: 'Pagado',       value: fmtCOP(totalPagado),   color: '#3b82f6' },
-      { label: 'Saldo',        value: totalBudget ? fmtCOP(saldoDisponible) : '—', color: saldoDisponible < 0 ? '#ef4444' : '#22c55e' }
-    ];
-    budgetBoxes.forEach((b, i) => {
-      const bx = 48 + i * (boxW5 + 3);
-      doc.roundedRect(bx, y, boxW5, 44, 4).fill(LIGHT);
-      doc.fillColor(GRAY).font('Helvetica').fontSize(7.5).text(b.label, bx + 6, y + 8, { width: boxW5 - 12 });
-      doc.fillColor(b.color).font('Helvetica-Bold').fontSize(10).text(b.value, bx + 6, y + 20, { width: boxW5 - 12 });
-    });
-    y += 56;
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(L.section_directory, 48, y);
+    y += 16;
 
-    // ── TABLE HEADER ────────────────────────────────────────────────────────
-    const cols = [
-      { label: 'Proveedor',   w: 110 },
-      { label: 'Categoría',   w: 55  },
-      { label: 'Servicio',    w: 130 },
-      { label: 'Aprobado',    w: 72  },
-      { label: 'Pagado',      w: 72  },
-      { label: 'Estado',      w: 60  },
-    ];
-    doc.rect(48, y, W, 18).fill('#18181b');
-    let cx = 48;
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
-    cols.forEach(c => {
-      doc.text(c.label, cx + 4, y + 5, { width: c.w - 8, lineBreak: false });
-      cx += c.w;
-    });
-    y += 18;
+    const sorted = [...contracts].sort((a, b) => (a.category || 'zz').localeCompare(b.category || 'zz') || (a.supplier_name || '').localeCompare(b.supplier_name || ''));
 
-    // ── TABLE ROWS ──────────────────────────────────────────────────────────
-    const rowH = 22;
-    contracts.forEach((c, i) => {
-      if (y + rowH > 780) { doc.addPage(); y = 48; }
-      doc.rect(48, y, W, rowH).fill(i % 2 === 0 ? WHITE : LIGHT);
-      cx = 48;
-      const vals = [
-        c.supplier_name || '—',
-        c.category || '—',
-        c.service_description || '—',
-        ['accepted','partial','paid'].includes(c.payment_status) ? fmtCOP(c.contracted_amount) : '—',
-        c.payment_status === 'paid' ? fmtCOP(c.contracted_amount) : (c.payment_status === 'partial' ? fmtCOP(c.deposit_amount) : '—'),
-        statusLabel(c.payment_status)
-      ];
-      doc.fillColor(DARK).font('Helvetica').fontSize(8);
-      cols.forEach((col, ci) => {
-        doc.text(vals[ci], cx + 4, y + 7, { width: col.w - 8, lineBreak: false, ellipsis: true });
-        cx += col.w;
-      });
+    if (!sorted.length) {
+      doc.fillColor(GRAY).font('Helvetica').fontSize(10).text(L.empty_directory, 48, y + 10);
+    } else {
+      // Directory cards: supplier name + category badge + contact lines + service + amounts
+      sorted.forEach(c => {
+        const qd = (c.quote_desc || '').trim();
+        const qdLines = qd ? Math.min(3, Math.ceil(qd.length / 90)) : 0;
+        const cardH = 76 + (qdLines ? 10 + qdLines * 10 : 0);
+        if (y + cardH > 780) { doc.addPage(); y = 48; }
+        doc.roundedRect(48, y, W, cardH, 4).fill(LIGHT);
+        doc.roundedRect(48, y, 3, cardH, 2).fill(AMBER);
 
-      y += rowH;
-    });
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(c.supplier_name || '—', 58, y + 8, { width: W - 160, lineBreak: false, ellipsis: true });
+        if (c.category) {
+          doc.fillColor(GRAY).font('Helvetica').fontSize(8).text(c.category, 58, y + 24, { lineBreak: false });
+        }
+        const amtX = 48 + W - 150;
+        doc.fillColor(GRAY).font('Helvetica').fontSize(7).text(L.header_contracted, amtX, y + 8, { width: 150 });
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(fmtCOP(c.contracted_amount), amtX, y + 20, { width: 150 });
+        doc.fillColor(GRAY).font('Helvetica').fontSize(7).text(`${L.header_status}: ${_supStatusTr(L, c.payment_status)}`, amtX, y + 38, { width: 150 });
 
-    // ── TOTALS ROW ───────────────────────────────────────────────────────────
-    if (contracts.length) {
-      if (y + rowH > 780) { doc.addPage(); y = 48; }
-      doc.rect(48, y, W, rowH).fill('#18181b');
-      doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8);
-      cx = 48;
-      const totals = ['TOTAL', '', '', fmtCOP(totalAprobado), fmtCOP(totalPagado), ''];
-      cols.forEach((col, ci) => {
-        doc.text(totals[ci], cx + 4, y + 7, { width: col.w - 8, lineBreak: false });
-        cx += col.w;
-      });
-      y += rowH;
-    }
-
-    // ── QUOTES DETAIL (if any received) ─────────────────────────────────────
-    const withQuotes = contracts.filter(c => c.quote_status === 'recibida' || c.quote_status === 'aceptada');
-    if (withQuotes.length) {
-      y += 20;
-      if (y + 30 > 780) { doc.addPage(); y = 48; }
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text('Detalle de cotizaciones recibidas', 48, y);
-      y += 16;
-      withQuotes.forEach(c => {
-        if (y + 50 > 780) { doc.addPage(); y = 48; }
-        doc.roundedRect(48, y, W, 2).fill(AMBER);
-        y += 6;
-        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(9).text(c.supplier_name, 48, y);
-        doc.fillColor(GRAY).font('Helvetica').fontSize(8)
-           .text(`Servicio: ${c.service_description || '—'}   ·   Cotizado: ${fmtCOP(c.quoted_amount)}   ·   ${fmtDate(c.quote_date, tz)}`, 48, y + 12);
-        if (c.quote_desc) {
-          doc.fillColor(GRAY).fontSize(7).text(c.quote_desc.substring(0, 200), 48, y + 24, { width: W });
-          y += 38;
-        } else { y += 30; }
+        const contactParts = [c.contact_name, c.contact_email, c.contact_phone].filter(Boolean);
+        if (contactParts.length) {
+          doc.fillColor(DARK).font('Helvetica').fontSize(8).text(contactParts.join('   ·   '), 58, y + 40, { width: W - 160, lineBreak: false, ellipsis: true });
+        }
+        if (c.service_description) {
+          doc.fillColor(GRAY).font('Helvetica').fontSize(8).text(c.service_description, 58, y + 55, { width: W - 160, lineBreak: false, ellipsis: true });
+        }
+        if (qd) {
+          doc.fillColor(GRAY).font('Helvetica-Oblique').fontSize(7).text(L.header_quote_desc + ':', 58, y + 72, { width: W - 20, lineBreak: false });
+          doc.fillColor(DARK).font('Helvetica').fontSize(8).text(qd.slice(0, 280), 58, y + 82, { width: W - 20, height: qdLines * 10, ellipsis: true });
+        }
+        y += cardH + 6;
       });
     }
 
@@ -2953,7 +3376,7 @@ router.get('/:id/report/pdf', auth, async (req, res) => {
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
       doc.fillColor(GRAY).font('Helvetica').fontSize(7)
-         .text(`SONORO CMS · ${ev.name} · Pág ${i + 1} de ${pages.count}`, 48, 820, { width: W, align: 'center' });
+         .text(`${L.footer} · ${ev.name} · ${L.page_of(i + 1, pages.count)}`, 48, 820, { width: W, align: 'center' });
     }
 
     doc.end();
@@ -4027,9 +4450,18 @@ async function loadAnalyticsOverview(pool, userId, from, to) {
         AND s.currency = $4 AND s.payment_status = 'paid'`,
     [userId, from, to, currency]
   );
+  const commAgg = await pool.query(
+    `SELECT COALESCE(SUM(s.contracted_amount), 0) AS committed
+       FROM events.event_suppliers s
+       JOIN events.events e ON e.id = s.event_id
+      WHERE e.user_id = $1 AND e.starts_at >= $2 AND e.starts_at <= $3
+        AND s.currency = $4 AND s.payment_status IN ('accepted','partial','paid')`,
+    [userId, from, to, currency]
+  );
   const projected = parseFloat(projAgg.rows[0]?.projected || 0);
   const paid = parseFloat(paidAgg.rows[0]?.paid || 0);
-  const pending = Math.max(projected - paid, 0);
+  const committed = parseFloat(commAgg.rows[0]?.committed || 0);
+  const available = Math.max(projected - committed, 0);
   const top5 = await pool.query(
     `SELECT e.id, e.name, e.slug, e.starts_at, e.ends_at, e.venue_name,
             COUNT(DISTINCT c.registration_id) AS attendees
@@ -4063,7 +4495,7 @@ async function loadAnalyticsOverview(pool, userId, from, to) {
       total: parseInt(eventsAgg.rows[0]?.total || 0, 10)
     },
     attendees: { registered, checkin, noshow },
-    budget: { projected, paid, pending, avg: doneN > 0 ? projected / doneN : 0 },
+    budget: { projected, committed, paid, available, real_available: Math.max(projected - paid, 0), pending: available, avg: doneN > 0 ? projected / doneN : 0 },
     top5: top5.rows.map(r => ({
       id: r.id, name: r.name, slug: r.slug,
       starts_at: r.starts_at, ends_at: r.ends_at, venue: r.venue_name,
@@ -4077,19 +4509,19 @@ const ANALYTICS_EXPORT_LABELS = {
   es: { title:'Panel resumen Events', range:'Rango', from:'Desde', to:'Hasta', currency:'Moneda',
         events:'Eventos', done:'Realizados', scheduled:'Programados', cancelled:'Cancelados', total:'Total',
         attendees:'Asistentes', registered:'Inscritos', checkin:'Check-in', noshow:'No-show',
-        budget:'Presupuesto', projected:'Proyectado', paid:'Pagado', pending:'Por pagar', avg:'Promedio/evento',
+        budget:'Presupuesto', projected:'Proyectado', committed:'Comprometido', paid:'Pagado', pending:'Saldo comprometido', available:'Saldo disponible', avg:'Promedio/evento',
         top5:'Top 5 por asistencia', col_rank:'#', col_name:'Evento', col_date:'Fecha', col_venue:'Lugar', col_att:'Asistentes',
         monthly:'Eventos por mes', col_month:'Mes', col_count:'Eventos', generated:'Generado' },
   en: { title:'Events overview', range:'Range', from:'From', to:'To', currency:'Currency',
         events:'Events', done:'Done', scheduled:'Scheduled', cancelled:'Cancelled', total:'Total',
         attendees:'Attendees', registered:'Registered', checkin:'Check-in', noshow:'No-show',
-        budget:'Budget', projected:'Projected', paid:'Paid', pending:'Pending', avg:'Avg/event',
+        budget:'Budget', projected:'Projected', committed:'Committed', paid:'Paid', pending:'Committed balance', available:'Available balance', avg:'Avg/event',
         top5:'Top 5 by attendance', col_rank:'#', col_name:'Event', col_date:'Date', col_venue:'Venue', col_att:'Attendees',
         monthly:'Events per month', col_month:'Month', col_count:'Events', generated:'Generated' },
   pt: { title:'Painel resumo Events', range:'Período', from:'De', to:'Até', currency:'Moeda',
         events:'Eventos', done:'Realizados', scheduled:'Programados', cancelled:'Cancelados', total:'Total',
         attendees:'Participantes', registered:'Inscritos', checkin:'Check-in', noshow:'No-show',
-        budget:'Orçamento', projected:'Projetado', paid:'Pago', pending:'A pagar', avg:'Média/evento',
+        budget:'Orçamento', projected:'Projetado', committed:'Comprometido', paid:'Pago', pending:'Saldo comprometido', available:'Saldo disponível', avg:'Média/evento',
         top5:'Top 5 por participação', col_rank:'#', col_name:'Evento', col_date:'Data', col_venue:'Local', col_att:'Participantes',
         monthly:'Eventos por mês', col_month:'Mês', col_count:'Eventos', generated:'Gerado' },
 };
@@ -4150,8 +4582,10 @@ router.get('/analytics/overview/export.xlsx', auth, requireAnalyticsAccess, asyn
       [],
       [L.budget],
       [L.projected, fmtMoney(d.budget.projected, d.currency)],
+      [L.committed, fmtMoney(d.budget.committed, d.currency)],
       [L.paid, fmtMoney(d.budget.paid, d.currency)],
       [L.pending, fmtMoney(d.budget.pending, d.currency)],
+      [L.available, fmtMoney(d.budget.real_available, d.currency)],
       [L.avg, fmtMoney(d.budget.avg, d.currency)],
       [],
       [L.generated, new Date().toISOString()],
@@ -4211,8 +4645,10 @@ router.get('/analytics/overview/export.pdf', auth, requireAnalyticsAccess, async
 
     section(L.budget);
     kv(L.projected, fmtMoney(d.budget.projected, d.currency));
+    kv(L.committed, fmtMoney(d.budget.committed, d.currency));
     kv(L.paid, fmtMoney(d.budget.paid, d.currency));
     kv(L.pending, fmtMoney(d.budget.pending, d.currency));
+    kv(L.available, fmtMoney(d.budget.real_available, d.currency));
     kv(L.avg, fmtMoney(d.budget.avg, d.currency));
 
     section(L.top5);
