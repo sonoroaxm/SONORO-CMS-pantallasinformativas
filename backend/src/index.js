@@ -9110,11 +9110,31 @@ app.get('/rueda/callboard/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-callboard.html'));
 });
 // S211t B.1 — landing pública de registro empresa
-app.get('/rueda/:slug/register', (req, res) => {
+// S217j-audit P1: guard rueda_type → si slug es RE redirige al landing RE
+app.get('/rueda/:slug/register', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT rueda_type FROM events.events WHERE slug = $1 LIMIT 1`,
+      [req.params.slug]
+    );
+    if (rows[0]?.rueda_type === 'empleo') {
+      return res.redirect(301, `/rueda-empleo/${encodeURIComponent(req.params.slug)}/register`);
+    }
+  } catch (_) { /* slug inválido o tabla fuera de servicio — sirve shell default */ }
   res.sendFile(path.join(__dirname, '..', 'public', 'rueda-registro.html'));
 });
 // E-EMP-1 — landing pública registro empresa Rueda de Empleo
-app.get('/rueda-empleo/:slug/register', (req, res) => {
+// S217j-audit P1: guard inverso — si slug es RN redirige al landing RN
+app.get('/rueda-empleo/:slug/register', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT rueda_type FROM events.events WHERE slug = $1 LIMIT 1`,
+      [req.params.slug]
+    );
+    if (rows[0] && rows[0].rueda_type !== 'empleo') {
+      return res.redirect(301, `/rueda/${encodeURIComponent(req.params.slug)}/register`);
+    }
+  } catch (_) { /* idem */ }
   res.sendFile(path.join(__dirname, '..', 'public', 'empleo-empresa.html'));
 });
 // S211t B.1 — mi agenda (delegado por token)
