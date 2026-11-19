@@ -476,9 +476,16 @@ router.get('/delegates/me/tags', rnReadLimiter, async (req, res) => {
     const ruedaType = ctx.rueda_type || 'negocios';
     const scopeFilter = ruedaType === 'empleo' ? ['empleo','both'] : ['negocios','both'];
     const { rows: available } = await pool.query(
-      `SELECT id, slug, label, label_en, label_pt, category, dimension, scope FROM events.rn_tags
-        WHERE user_id = $1 AND scope = ANY($2::text[])
-        ORDER BY dimension, category NULLS LAST, label`,
+      `SELECT t.id, t.slug, t.label, t.label_en, t.label_pt,
+              t.category, t.category_slug, t.dimension, t.scope,
+              c.label_es  AS category_label_es,
+              c.label_en  AS category_label_en,
+              c.label_pt  AS category_label_pt,
+              c.display_order AS category_order
+         FROM events.rn_tags t
+         LEFT JOIN events.rn_tag_categories c ON c.slug = t.category_slug
+        WHERE t.user_id = $1 AND t.scope = ANY($2::text[])
+        ORDER BY t.dimension, c.display_order NULLS LAST, t.category NULLS LAST, t.label`,
       [ctx.user_id, scopeFilter]
     );
     const { rows: mine } = await pool.query(
@@ -677,9 +684,16 @@ router.get('/:eventSlug/tags', rnReadLimiter, async (req, res, next) => {
     // E-EMP-1: filtrar catálogo por scope según rueda_type
     const scopeFilter = ev.rueda_type === 'empleo' ? ['empleo','both'] : ['negocios','both'];
     const { rows } = await pool.query(
-      `SELECT id, slug, label, label_en, label_pt, category, dimension, scope FROM events.rn_tags
-        WHERE user_id = $1 AND scope = ANY($2::text[])
-        ORDER BY dimension, category NULLS LAST, label`,
+      `SELECT t.id, t.slug, t.label, t.label_en, t.label_pt,
+              t.category, t.category_slug, t.dimension, t.scope,
+              c.label_es  AS category_label_es,
+              c.label_en  AS category_label_en,
+              c.label_pt  AS category_label_pt,
+              c.display_order AS category_order
+         FROM events.rn_tags t
+         LEFT JOIN events.rn_tag_categories c ON c.slug = t.category_slug
+        WHERE t.user_id = $1 AND t.scope = ANY($2::text[])
+        ORDER BY t.dimension, c.display_order NULLS LAST, t.category NULLS LAST, t.label`,
       [ev.user_id, scopeFilter]
     );
     res.json({ matching_mode: matchingMode, rueda_type: ev.rueda_type || 'negocios', tags: rows });
